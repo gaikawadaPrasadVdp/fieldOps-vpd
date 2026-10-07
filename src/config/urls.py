@@ -10,6 +10,12 @@ from apps.assets.api_views import (
     MeterViewSet,
 )
 from apps.audit.api_views import AuditLogViewSet
+from apps.contracts.api_views import (
+    AgreementViewSet,
+    CoverageCheckViewSet,
+    CoverageViewSet,
+    ProviderViewSet,
+)
 from apps.core import health
 from apps.incidents.api_views import ServiceRequestViewSet
 from apps.notifications.api_views import NotificationViewSet
@@ -42,6 +48,10 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("meters", MeterViewSet, basename="meter")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
+router.register("contract-providers", ProviderViewSet, basename="contract-provider")
+router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
+router.register("coverage", CoverageViewSet, basename="coverage")
+router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
@@ -66,6 +76,7 @@ urlpatterns = [
     path("app/", include("apps.sites.urls")),
     path("app/", include("apps.assets.urls")),
     path("app/", include("apps.incidents.urls")),
+    path("app/", include("apps.contracts.urls")),
     # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]
