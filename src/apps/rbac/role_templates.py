@@ -25,7 +25,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "admin", "Organization Admin", "Administers users, roles, sites and configuration.",
         ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view",
-         "*.view"),
+         "*.view", "incident.triage", "incident.approve", "work_order.create"),
         excludes=("portal.request.*",),
     ),
     RoleTemplate(
@@ -53,7 +53,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "supervisor", "Maintenance Supervisor", "Reviews and closes completed work.",
         ("asset.view", "asset.history.view", "site.view", "zone.view", "incident.view", "work_order.view",
-         "work_order.review", "work_order.assign", "work_order.dispatch",
+         "work_order.review",
          "maintenance.view", "work_order.close", "work_order.hold", "work_order.record", "work_order.attach", "checklist.*", "inspection.*", "inventory.view",
          "inventory.part.view", "inventory.request", "sla.view", "report.view"),
     ),
