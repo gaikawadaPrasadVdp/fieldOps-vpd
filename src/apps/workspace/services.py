@@ -191,6 +191,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
     can_resume = "resume" in action_ops
     can_complete = "complete" in action_ops
 
+    consumable_parts = selectors.consumable_parts_for(work_order)
+
     return {
         "work_order": work_order,
         "status": work_order.status,
@@ -207,6 +209,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
         "total_travel_hours": total_travel_hours,
         "labor_entries": labor_entries,
         "total_labor_hours": total_labor_hours,
+        "consumable_parts": consumable_parts,
+        "consumable_parts_count": len(consumable_parts),
     }
 
 
@@ -271,6 +275,120 @@ def complete_job(
         request=request,
     )
     return order
+
+
+@transaction.atomic
+def complete_job_with_signoff(
+    work_order: WorkOrder,
+    *,
+    resolution_notes: str,
+    signer_name: str,
+    signer_title: str = "",
+    signature_data_base64: str | None = None,
+    signature_file=None,
+    final_photo_file=None,
+    customer_notes: str = "",
+    technician_notes: str = "",
+    membership: Membership,
+    actor: User,
+    request: HttpRequest | None = None,
+) -> tuple[WorkOrder, WorkOrderSignoff]:
+    """Complete a work order and persist customer digital signature & final photo evidence."""
+    import base64
+    from django.core.files.base import ContentFile
+    from apps.files import services as files_services
+    from apps.workorders.models import WorkOrderSignoff
+
+    assert_can_execute_job(work_order, membership)
+
+    signer_name = (signer_name or "").strip()
+    if not signer_name:
+        raise ValidationFailed("Customer / representative name is required for digital sign-off.")
+
+    signature_attachment = None
+
+    if signature_file:
+        signature_attachment = files_services.attach(
+            signature_file,
+            target=work_order,
+            organization=work_order.organization,
+            user=actor,
+            description=f"Customer Digital Signature ({signer_name})",
+            read_permission="work_order.view_assigned",
+            request=request,
+        )
+    elif signature_data_base64:
+        raw_b64 = signature_data_base64.strip()
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        try:
+            image_data = base64.b64decode(raw_b64)
+            if not image_data or len(image_data) < 50:
+                raise ValueError("Signature payload is empty or invalid.")
+            sig_file = ContentFile(image_data, name=f"signature_{work_order.order_number}.png")
+            signature_attachment = files_services.attach(
+                sig_file,
+                target=work_order,
+                organization=work_order.organization,
+                user=actor,
+                description=f"Customer Digital Signature ({signer_name})",
+                read_permission="work_order.view_assigned",
+                request=request,
+            )
+        except Exception as exc:
+            raise ValidationFailed(f"Invalid digital signature image data: {exc}", code="invalid_signature") from exc
+    else:
+        raise ValidationFailed("A digital signature is required to complete this job.", code="signature_required")
+
+    # If final photo evidence was provided, attach it as completion evidence
+    if final_photo_file:
+        upload_job_evidence(
+            work_order,
+            file=final_photo_file,
+            description=f"Final completion photo for {work_order.order_number}",
+            membership=membership,
+            actor=actor,
+            request=request,
+        )
+
+    # Persist the sign-off record
+    signoff, _ = WorkOrderSignoff.objects.update_or_create(
+        work_order=work_order,
+        defaults={
+            "organization": work_order.organization,
+            "signer_name": signer_name,
+            "signer_title": (signer_title or "").strip(),
+            "signed_at": timezone.now(),
+            "signature_attachment": signature_attachment,
+            "customer_notes": (customer_notes or "").strip(),
+            "technician_notes": (technician_notes or "").strip(),
+        },
+    )
+
+    # Perform authoritative work order completion transition
+    order = complete_job(
+        work_order,
+        resolution_notes=resolution_notes,
+        membership=membership,
+        actor=actor,
+        request=request,
+    )
+
+    audit.record(
+        action="workspace.customer_signoff",
+        organization=order.organization,
+        actor=actor,
+        target=order,
+        metadata={
+            "signer_name": signoff.signer_name,
+            "signer_title": signoff.signer_title,
+            "signoff_id": str(signoff.pk),
+            "signed_at": signoff.signed_at.isoformat(),
+        },
+        request=request,
+    )
+
+    return order, signoff
 
 
 @transaction.atomic
@@ -383,4 +501,43 @@ def upload_job_evidence(
         request=request,
     )
     return att
+
+
+@transaction.atomic
+def consume_job_part(
+    work_order: WorkOrder,
+    *,
+    part_line_id: str,
+    quantity: str | Decimal,
+    membership: Membership,
+    actor: User,
+    request: HttpRequest | None = None,
+):
+    """Technician consumes reserved/issued inventory parts on their assigned job."""
+    from apps.inventory import services as inventory_services
+    from apps.inventory.models import WorkOrderPart
+
+    assert_can_execute_job(work_order, membership)
+
+    if not (
+        rbac.has_permission(membership, "inventory.consume", work_order.site)
+        or rbac.has_permission(membership, "work_order.record", work_order.site)
+    ):
+        raise PermissionDenied("You do not have permission to consume inventory parts for this work order.")
+
+    part_line = WorkOrderPart.objects.filter(
+        organization=work_order.organization,
+        work_order=work_order,
+        pk=part_line_id,
+    ).first()
+    if part_line is None:
+        raise ValidationFailed("Part requirement line not found on this work order.", code="part_line_not_found")
+
+    return inventory_services.consume(
+        part_line,
+        quantity,
+        actor=actor,
+        membership=membership,
+        request=request,
+    )
 

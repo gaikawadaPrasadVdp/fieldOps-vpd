@@ -1,4 +1,5 @@
-from django.conf.urls.static import static  # noqa: F401
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -32,6 +33,11 @@ from apps.inventory.api_views import (
     StockMovementViewSet,
     WarehouseViewSet,
     WorkOrderPartViewSet,
+)
+from apps.maintenance.api_views import (
+    MaintenanceCycleViewSet,
+    MaintenancePlanViewSet,
+    MaintenanceScheduleViewSet,
 )
 from apps.notifications.api_views import NotificationViewSet
 from apps.portal.api_views import PortalAccountViewSet
@@ -82,6 +88,9 @@ router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
 router.register("stock-movements", StockMovementViewSet, basename="stock-movement")
 router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
 router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
+router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenance-plan")
+router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
+router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
@@ -124,6 +133,7 @@ urlpatterns = [
     path("app/", include("apps.incidents.urls")),
     path("app/", include("apps.workorders.urls_ui")),
     path("app/", include("apps.inventory.urls")),
+    path("app/", include("apps.maintenance.urls")),
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),
@@ -131,6 +141,9 @@ urlpatterns = [
     path("app/", include("apps.dashboards.urls")),
     path("", include("apps.ui.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
 
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"

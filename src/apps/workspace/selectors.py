@@ -104,6 +104,25 @@ def my_jobs(
     return qs.order_by(order_by, "-created_at")
 
 
+def part_lines_for(work_order: WorkOrder):
+    """Return all inventory part requirement lines associated with a work order."""
+    from django.apps import apps
+    if not apps.is_installed("apps.inventory"):
+        return []
+    from apps.inventory.models import WorkOrderPart
+    return list(
+        WorkOrderPart.objects.filter(
+            organization=work_order.organization,
+            work_order=work_order,
+        ).select_related("part", "warehouse").order_by("created_at")
+    )
+
+
+def consumable_parts_for(work_order: WorkOrder):
+    """Return issued part lines that have outstanding quantity available to consume."""
+    return [ln for ln in part_lines_for(work_order) if ln.quantity_issued > 0 and ln.outstanding > 0]
+
+
 def get_job_detail(membership: Membership, pk: str) -> dict:
     """Retrieve full job detail including route, checklists, logs, notes, and actions."""
     from apps.core.exceptions import NotFound
@@ -124,6 +143,10 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
     travel_logs = list(travel_logs_for(wo))
     drawer_summary = get_drawer_summary(wo, membership=membership)
 
+    all_parts = part_lines_for(wo)
+    consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
+    consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
+
     return {
         "work_order": wo,
         "route": route,
@@ -132,7 +155,97 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
         "drawer": drawer_summary,
         "labor_entries": list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at")),
         "materials": list(wo.material_entries.order_by("item_name")),
+        "part_lines": all_parts,
+        "consumable_parts": consumable_parts,
+        "has_consumable_parts": bool(consumable_parts),
+        "consumed_parts": consumed_parts,
+        "has_consumed_parts": bool(consumed_parts),
         "evidence": list(wo.completion_evidence.order_by("-created_at")),
         "allowed_actions": wo_services.allowed_actions(wo, membership),
+    }
+
+
+def get_job_completion_context(membership: Membership, pk: str) -> dict:
+    """Retrieve structured summary context for job completion and customer digital sign-off."""
+    from decimal import Decimal
+    from apps.core.exceptions import NotFound
+    from .services import assert_can_execute_job
+
+    wo = (
+        WorkOrder.objects.for_organization(membership.organization)
+        .select_related("site", "asset", "asset__category", "asset__zone", "assigned_to__user")
+        .filter(pk=pk)
+        .first()
+    )
+
+    if wo is None:
+        raise NotFound("Work order not found.")
+
+    assert_can_execute_job(wo, membership)
+
+    labor_entries = list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at"))
+    total_labor_hours = sum((entry.hours for entry in labor_entries), Decimal("0.00"))
+
+    all_parts = part_lines_for(wo)
+    consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
+    consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
+
+    evidence_list = list(wo.completion_evidence.select_related("attachment").order_by("-created_at"))
+    evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
+    has_evidence = len(evidence_list) > 0
+    evidence_is_ready = (not evidence_required) or has_evidence
+
+    # Checklist readiness evaluation
+    checklist_blockers = []
+    try:
+        from apps.checklists import services as checklist_services
+
+        checklist_blockers = checklist_services.checklist_blockers(wo)
+    except Exception:
+        checklist_blockers = []
+
+    if not wo.checklist_required:
+        checklist_is_ready = True
+    else:
+        checklist_is_ready = (wo.checklist_status == "COMPLETED") and not checklist_blockers
+
+    # Overall completion blockers
+    blockers = []
+    if wo.status != WorkOrder.Status.IN_PROGRESS and wo.status != WorkOrder.Status.COMPLETED:
+        blockers.append(f"Work order must be In Progress to complete (currently {wo.get_status_display()}).")
+    if not checklist_is_ready:
+        if checklist_blockers:
+            blockers.extend(checklist_blockers)
+        else:
+            blockers.append("All mandatory checklists must be completed and validated.")
+    if evidence_required and not has_evidence:
+        blockers.append("At least one photo or file evidence attachment is required before completion.")
+
+    can_complete = (len(blockers) == 0) and (wo.status == WorkOrder.Status.IN_PROGRESS)
+    signoff = getattr(wo, "customer_signoff", None)
+
+    return {
+        "work_order": wo,
+        "asset": wo.asset,
+        "site": wo.site,
+        "labor_entries": labor_entries,
+        "total_labor_hours": total_labor_hours,
+        "materials": list(wo.material_entries.order_by("item_name")),
+        "part_lines": all_parts,
+        "consumable_parts": consumable_parts,
+        "consumed_parts": consumed_parts,
+        "has_unconsumed_parts": bool(consumable_parts),
+        "evidence": evidence_list,
+        "evidence_required": evidence_required,
+        "has_evidence": has_evidence,
+        "evidence_is_ready": evidence_is_ready,
+        "checklist_required": wo.checklist_required,
+        "checklist_status": wo.checklist_status,
+        "checklist_blockers": checklist_blockers,
+        "checklist_is_ready": checklist_is_ready,
+        "can_complete": can_complete,
+        "blockers": blockers,
+        "signoff": signoff,
+        "is_completed": wo.status in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.CLOSED),
     }
 
