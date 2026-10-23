@@ -36,7 +36,7 @@ def shell(request):
     membership = getattr(request, "membership", None)
 
     # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation
-    if getattr(user, "is_platform_admin", False) and membership is None:
+    if getattr(user, "is_platform_admin", False) and (membership is None or req_path.startswith("/platform/")):
         sections = {
             "Platform Governance": [
                 {"label": "Organizations & Tenants", "url": reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},

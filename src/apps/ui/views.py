@@ -36,6 +36,8 @@ PRD_MODULES = [
 def root(request):
     """Public landing page for visitors; authenticated users are routed to their workspace."""
     if request.user.is_authenticated:
+        if getattr(request.user, "is_platform_admin", False) and not getattr(request, "membership", None):
+            return redirect("platform_admin:organizations")
         membership = getattr(request, "membership", None)
         if membership and is_client_membership(membership):
             return redirect("portal:dashboard")
@@ -694,5 +696,11 @@ def not_found(request, exception=None):
 
 
 def server_error(request):
+    import sys
+    import logging
+    logger = logging.getLogger("django.request")
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    if exc_value:
+        logger.error("Internal Server Error on %s: %s", request.path, exc_value, exc_info=(exc_type, exc_value, exc_tb))
     return HttpResponse("Server error. Please quote the X-Request-ID header when reporting this.", status=500)
 
