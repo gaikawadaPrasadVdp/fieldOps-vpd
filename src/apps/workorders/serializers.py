@@ -24,7 +24,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     site_name = serializers.CharField(source="site.name", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default="")
     component_tag = serializers.CharField(source="component.asset_tag", read_only=True, default="")
-    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, default=None)
+    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, allow_null=True, default=None)
     closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
     checklist = serializers.SerializerMethodField()
 
