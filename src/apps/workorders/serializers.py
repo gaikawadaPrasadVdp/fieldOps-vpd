@@ -130,7 +130,7 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             status=Asset.Status.ACTIVE, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
         self.fields["source_request"].queryset = ServiceRequest.objects.for_organization(organization).filter(
-            status=APPROVED, site_id__in=allowed_sites, work_order__isnull=True)
+            status=APPROVED, site_id__in=allowed_sites)
 
     def validate(self, attrs):
         start, end, due = attrs.get("planned_start"), attrs.get("planned_end"), attrs.get("due_at")

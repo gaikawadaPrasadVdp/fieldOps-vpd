@@ -85,8 +85,8 @@ class WorkOrder(TenantOwnedModel):
                               related_name="work_orders")
     component = models.ForeignKey("assets.Asset", null=True, blank=True, on_delete=models.PROTECT,
                                   related_name="component_work_orders")
-    source_request = models.OneToOneField("incidents.ServiceRequest", null=True, blank=True,
-        on_delete=models.PROTECT, related_name="work_order")
+    source_request = models.ForeignKey("incidents.ServiceRequest", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="work_orders")
     # Stable upstream identifier for integrations (PM, requests, or other source systems).
     source_id = models.UUIDField(null=True, blank=True)
     source_type = models.CharField(max_length=24, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
@@ -149,6 +149,11 @@ class WorkOrder(TenantOwnedModel):
                 fields=["source_id"],
                 condition=models.Q(source_type__in=["PM", "PREVENTIVE_MAINTENANCE"]),
                 name="uniq_work_order_per_pm_source",
+            ),
+            models.UniqueConstraint(
+                fields=["source_request"],
+                condition=~models.Q(status__in=["CANCELLED", "CLOSED"]),
+                name="uniq_live_work_order_per_request",
             ),
         ]
         indexes = [models.Index(fields=["organization", "status"]),

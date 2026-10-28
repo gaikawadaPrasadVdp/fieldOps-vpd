@@ -93,7 +93,7 @@ class PlatformAPIMixin:
 
     def perform_authentication(self, request):
         super().perform_authentication(request)
-        if request.user.is_authenticated and request.user.is_platform_admin:
+        if request.user.is_authenticated and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser):
             tenant.set_current(tenant.PLATFORM)
 
 
@@ -101,4 +101,8 @@ class IsPlatformAdmin(permissions.BasePermission):
     message = "Platform administrator access required."
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.is_platform_admin)
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser)
+        )

@@ -5,8 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from . import selectors, services
-from .api import TenantAPIMixin
-from .models import Membership
+from .api import PlatformAPIMixin, TenantAPIMixin
+from .models import Membership, Organization
 
 ORG_FIELDS = ["name", "legal_name", "timezone", "country", "contact_email", "contact_phone", "address"]
 
@@ -40,6 +40,63 @@ class OrganizationViewSet(TenantAPIMixin, viewsets.ViewSet):
         org = services.update_organization(
             request.organization, actor=request.user, request=request, **ser.validated_data
         )
+        return Response(OrganizationSerializer(org).data)
+
+
+class PlatformOrganizationCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    slug = serializers.CharField(max_length=60, required=False, allow_blank=True)
+    owner_name = serializers.CharField(max_length=150)
+    owner_email = serializers.EmailField()
+    timezone = serializers.CharField(max_length=64, required=False, default="UTC")
+    country = serializers.CharField(max_length=2, required=False, allow_blank=True)
+
+
+class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
+    """Platform Super Admin management of all organizations (multi-tenant root)."""
+
+    @extend_schema(responses=OrganizationSerializer(many=True))
+    def list(self, request):
+        orgs = Organization.objects.all().order_by("name")
+        return Response(OrganizationSerializer(orgs, many=True).data)
+
+    @extend_schema(responses=OrganizationSerializer)
+    def retrieve(self, request, pk=None):
+        from django.shortcuts import get_object_or_404
+        org = get_object_or_404(Organization, pk=pk)
+        return Response(OrganizationSerializer(org).data)
+
+    @extend_schema(request=PlatformOrganizationCreateSerializer, responses=OrganizationSerializer)
+    def create(self, request):
+        ser = PlatformOrganizationCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        data = ser.validated_data
+        org, _ = services.create_organization(
+            name=data["name"],
+            slug=data.get("slug") or None,
+            owner_name=data["owner_name"],
+            owner_email=data["owner_email"],
+            timezone_name=data.get("timezone", "UTC"),
+            country=data.get("country", ""),
+            actor=request.user,
+            request=request,
+        )
+        return Response(OrganizationSerializer(org).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: serializers.DictField()})
+    def destroy(self, request, pk=None):
+        from django.shortcuts import get_object_or_404
+        org = get_object_or_404(Organization, pk=pk)
+        hard, msg = services.delete_organization(org, actor=request.user, request=request)
+        return Response({"success": True, "hard_deleted": hard, "message": msg}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def set_status(self, request, pk=None):
+        from django.shortcuts import get_object_or_404
+        org = get_object_or_404(Organization, pk=pk)
+        active = bool(request.data.get("active", True))
+        reason = request.data.get("reason", "") or ("Deactivated via platform API" if not active else "")
+        services.set_organization_status(org, active=active, actor=request.user, reason=reason, request=request)
         return Response(OrganizationSerializer(org).data)
 
 
