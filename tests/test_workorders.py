@@ -1459,6 +1459,8 @@ def test_api_persists_completed_before_separate_review_transition(org_a, site_a1
     wo = services.dispatch_work_order(wo, membership=planner, actor=owner_a)
     wo = services.start_work_order(wo, membership=tech, actor=tech.user)
     attach_test_evidence(wo, org_a, tech)
+    services.record_labor(wo, membership=tech, actor=tech.user, work_date=timezone.localdate(), hours="1.0",
+                          description="Inspection readings taken")
     api = as_user(tech.user, org_a)
     mark_m08_checklist_valid(wo)
     completed = api.post(f"/api/v1/work-orders/{wo.pk}/complete/", {

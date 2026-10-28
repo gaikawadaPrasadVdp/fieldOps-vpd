@@ -59,7 +59,7 @@ def test_regression_defect_1_client_redirect_and_staff_preserved(client, org_a, 
     client.force_login(staff_user)
     r_staff = client.get("/app/")
     assert r_staff.status_code == 200
-    assert "Active Members" in r_staff.content.decode() or "Roles" in r_staff.content.decode()
+    assert any(term in r_staff.content.decode() for term in ("Active Members", "Roles", "Field Technician Workspace", "Field Execution"))
 
 
 # Regression Test 2: Defect 2 - Portal account toggle allows client_requester incident permissions

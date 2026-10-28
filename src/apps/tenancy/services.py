@@ -108,6 +108,49 @@ def update_organization(org: Organization, *, actor, request=None, **changes) ->
     return org
 
 
+@transaction.atomic
+def delete_organization(org: Organization, *, actor, request=None) -> tuple[bool, str]:
+    """Platform Admin organization deletion / decommissioning.
+
+    Attempts hard-delete when safe (no protected foreign keys). If the organization
+    holds historical records, transactions, or audit logs, safely decommissions it:
+    locks the tenant, deactivates active memberships, and sets status to SUSPENDED,
+    preserving full data integrity and compliance trails (D-012/D-029).
+    """
+    if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
+        raise PermissionDenied("Only platform administrators can delete organizations.")
+
+    from django.db.models import ProtectedError
+
+    org_name = org.name
+    org_id = str(org.pk)
+
+    audit.record(
+        "organization.deleted",
+        actor=actor,
+        organization=org,
+        target=org,
+        target_repr=f"Organization {org_name} ({org_id})",
+        before={"name": org.name, "status": org.status, "slug": org.slug},
+        request=request,
+    )
+
+    try:
+        with transaction.atomic():
+            org.delete()
+        return True, f"Organization '{org_name}' permanently deleted."
+    except (ProtectedError, IntegrityError):
+        Membership.objects.filter(organization=org, status=Membership.Status.ACTIVE).update(
+            status=Membership.Status.SUSPENDED
+        )
+        actor_label = getattr(actor, "full_name", None) or getattr(actor, "email", "platform admin")
+        org.status = Organization.Status.SUSPENDED
+        now_str = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        org.suspended_reason = f"Deleted/Decommissioned by {actor_label} on {now_str}"[:300]
+        org.save(update_fields=["status", "suspended_reason", "updated_at"])
+        return False, f"Organization '{org_name}' contains protected historical records and was safely decommissioned (suspended and locked)."
+
+
 # --- members ---------------------------------------------------------------------------------
 
 

@@ -35,21 +35,21 @@ def shell(request):
     req_path = request.path
     membership = getattr(request, "membership", None)
 
-    # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation
-    if getattr(user, "is_platform_admin", False) and (membership is None or req_path.startswith("/platform/")):
+    # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
+    if getattr(user, "is_platform_admin", False):
         sections = {
             "Platform Governance": [
-                {"label": "Organizations & Tenants", "url": reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
+                {"label": "Organizations", "url": reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
                 {"label": "Platform Audit Trail", "url": reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
                 {"label": "Incident Dashboard", "url": reverse("platform_admin:incident_dashboard"), "icon": "activity", "match_prefix": "/platform/incidents"},
             ]
         }
         _resolve_active(sections, req_path)
         return {
-            "shell_org": getattr(request, "organization", None),
-            "shell_membership": membership,
+            "shell_org": None,
+            "shell_membership": None,
             "shell_nav_sections": sections,
-            "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
+            "shell_memberships": [],
             "shell_tenant_error": None,
             "is_client": False,
         }
@@ -118,12 +118,7 @@ def shell(request):
             {"label": "Operational Dashboards", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
             {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "clock", "match_prefix": "/app/audit"},
         ]
-        if getattr(user, "is_platform_admin", False):
-            sections["Platform Governance"] = [
-                {"label": "Organizations & Tenants", "url": reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
-                {"label": "Platform Audit Trail", "url": reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                {"label": "Incident Dashboard", "url": reverse("platform_admin:incident_dashboard"), "icon": "activity", "match_prefix": "/platform/incidents"},
-            ]
+
 
     elif "operations_manager" in role_keys:
         sections["Overview"] = [

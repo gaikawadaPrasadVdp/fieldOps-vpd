@@ -71,20 +71,28 @@ class ServiceRequest(TenantOwnedModel):
     def linked_work_order(self):
         if hasattr(self, "_linked_work_order"):
             return self._linked_work_order
-        try:
-            if hasattr(self, "work_order") and self.work_order:
-                return self.work_order
-        except Exception:
-            pass
         from django.apps import apps
         if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
+            live = WorkOrder.objects.filter(
+                models.Q(source_request=self) |
+                models.Q(source_id=self.pk) |
+                models.Q(organization=self.organization, source_reference=self.number,
+                         source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
+            ).exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)).first()
+            if live is not None:
+                return live
             return WorkOrder.objects.filter(
-                organization=self.organization,
-                source_reference=self.number,
-                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
-            ).first()
+                models.Q(source_request=self) |
+                models.Q(source_id=self.pk) |
+                models.Q(organization=self.organization, source_reference=self.number,
+                         source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
+            ).order_by("-created_at").first()
         return None
+
+    @property
+    def work_order(self):
+        return self.linked_work_order
 
     @linked_work_order.setter
     def linked_work_order(self, value):

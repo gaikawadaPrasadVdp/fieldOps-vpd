@@ -3,8 +3,13 @@ permission for the plan's site (403) -> service (validation, row locks, audit). 
 generate / enable / disable buttons post to endpoints that call the services (no client-side scheduling)."""
 from __future__ import annotations
 
+import logging
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import IntegrityError
+
+logger = logging.getLogger(__name__)
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -101,6 +106,13 @@ class PlanCreateView(PmBase):
                 return redirect("maintenance:plan", pk=plan.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+            except PermissionDenied:
+                form.add_error(None, "You do not have permission to create a maintenance plan for this asset's site.")
+            except IntegrityError as exc:
+                form.add_error(None, "A plan with this name already exists for this asset or a database conflict occurred.")
+            except Exception as exc:
+                logger.exception("Error creating maintenance plan: %s", exc)
+                form.add_error(None, f"Unable to create plan: {exc}")
         return form_page(request, title="New maintenance plan", form=form, submit="Create plan",
                          cancel_url="/app/maintenance/plans/", crumbs=self.crumbs, status=400)
 

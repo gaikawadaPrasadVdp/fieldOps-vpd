@@ -67,6 +67,7 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
     is_active = forms.BooleanField(required=False, initial=True, label="Activate this profile when saved")
     pause_states = forms.MultipleChoiceField(
         required=False, choices=_pause_choices(), widget=forms.CheckboxSelectMultiple,
+        initial=["WORK_ORDER:ON_HOLD"],
         label="Pause the timers while the item is in",
         help_text="Leave empty to never pause (timers keep running).")
 

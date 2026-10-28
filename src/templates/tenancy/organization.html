@@ -1,12 +1,357 @@
 {% extends "shell.html" %}
-{% block title %}Organization · FieldOps Nexus{% endblock %}
-{% block content %}
-<div class="fx-page-header"><div><h1>Organization profile</h1><div class="text-body-secondary">Identifier: <code>{{ shell_org.slug }}</code> · {% load ui_tags %}{% status_badge shell_org.status %}</div></div></div>
-<div class="fx-card" style="max-width:720px"><div class="fx-card-body">
-<form method="post" novalidate>{% csrf_token %}
-  {{ form.non_field_errors }}
-  {% for field in form %}{% if not can_edit %}{% endif %}{% include "components/_form_field.html" %}{% endfor %}
-  {% if can_edit %}<button class="btn btn-primary">Save changes</button>{% else %}<div class="text-body-secondary small">You have read-only access.</div>{% endif %}
-</form></div></div>
+{% load ui_tags %}
+
+{% block title %}Organization Profile · FieldOps Nexus{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'ui:home' %}" class="text-decoration-none">Overview</a></li>
+    <li class="breadcrumb-item text-body-secondary">Administration</li>
+    <li class="breadcrumb-item active" aria-current="page">Organization Profile</li>
+  </ol>
+</nav>
 {% endblock %}
-{% block scripts %}{% if not can_edit %}<script nonce="{{ csp_nonce }}">document.querySelectorAll("main form :is(input,textarea,select)").forEach(e=>{if(e.name!=="csrfmiddlewaretoken")e.disabled=true})</script>{% endif %}{% endblock %}
+
+{% block content %}
+<div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-2">
+      <h1 class="h3 mb-0 fw-bold">{{ shell_org.name }}</h1>
+      {% status_badge shell_org.status %}
+    </div>
+    <div class="text-body-secondary small mt-1 d-flex flex-wrap align-items-center gap-2">
+      <span>Identifier: <code class="user-select-all">{{ shell_org.slug }}</code></span>
+      <span>&bull;</span>
+      <span>Timezone: <strong class="text-body">{{ shell_org.timezone }}</strong></span>
+      {% if shell_org.country %}
+        <span>&bull;</span>
+        <span>Country: <strong class="text-body">{{ shell_org.country }}</strong></span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'tenancy:members' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+      {% icon 'users' 14 %} Manage Users
+    </a>
+    <a href="{% url 'rbac:roles' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+      {% icon 'shield' 14 %} Roles &amp; Permissions
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12 col-xl-9">
+    <div class="fx-card shadow-sm border">
+      <div class="fx-card-header bg-body-tertiary px-4 py-3 border-bottom d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'building' 18 %}
+          <span class="fw-semibold">Organization Profile &amp; Operating Settings</span>
+        </div>
+        {% if can_edit %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">Editable</span>
+        {% else %}
+          <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Read-Only</span>
+        {% endif %}
+      </div>
+
+      <div class="fx-card-body p-4">
+        {% if not can_edit %}
+          <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+            {% icon 'alert-circle' 18 %}
+            <div class="small">
+              <strong>Read-only access:</strong> You are viewing this organization profile in read-only mode. Modifying organization configuration requires the <code>organization.update</code> permission.
+            </div>
+          </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger d-flex align-items-start gap-2 mb-4" role="alert">
+            {% icon 'alert-circle' 18 %}
+            <div class="small">
+              <strong class="d-block mb-1">Please resolve the following errors:</strong>
+              <ul class="mb-0 ps-3">
+                {% for err in form.non_field_errors %}
+                  <li>{{ err }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+
+        <form method="post" id="organization-form" class="needs-validation" novalidate>
+          {% csrf_token %}
+
+          <!-- Section 1: Entity Identity -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+              {% icon 'box' 16 %}
+              <h6 class="mb-0 fw-bold text-uppercase text-body-secondary small letter-spacing-1">1. Entity Identification</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">
+                  {{ form.name.label }} <span class="text-danger" title="Required">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  {% for e in form.name.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.name.help_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.legal_name.id_for_label }}">
+                  {{ form.legal_name.label }}
+                </label>
+                {{ form.legal_name }}
+                {% if form.legal_name.errors %}
+                  {% for e in form.legal_name.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.legal_name.help_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Regional Operations -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+              {% icon 'clock' 16 %}
+              <h6 class="mb-0 fw-bold text-uppercase text-body-secondary small letter-spacing-1">2. Localization &amp; Regional Operations</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.timezone.id_for_label }}">
+                  {{ form.timezone.label }} <span class="text-danger" title="Required">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-body-tertiary">{% icon 'clock' 14 %}</span>
+                  {{ form.timezone }}
+                </div>
+                <div id="tz-live-preview" class="small text-primary fw-medium mt-1"></div>
+                {% if form.timezone.errors %}
+                  {% for e in form.timezone.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.timezone.help_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.country.id_for_label }}">
+                  {{ form.country.label }}
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-body-tertiary">{% icon 'pin' 14 %}</span>
+                  {{ form.country }}
+                </div>
+                {% if form.country.errors %}
+                  {% for e in form.country.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.country.help_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Operational Contacts -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+              {% icon 'bell' 16 %}
+              <h6 class="mb-0 fw-bold text-uppercase text-body-secondary small letter-spacing-1">3. Operational Communications</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.contact_email.id_for_label }}">
+                  {{ form.contact_email.label }}
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-body-tertiary">{% icon 'mail' 14 %}</span>
+                  {{ form.contact_email }}
+                </div>
+                {% if form.contact_email.errors %}
+                  {% for e in form.contact_email.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.contact_email.help_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.contact_phone.id_for_label }}">
+                  {{ form.contact_phone.label }}
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-body-tertiary">{% icon 'phone' 14 %}</span>
+                  {{ form.contact_phone }}
+                </div>
+                {% if form.contact_phone.errors %}
+                  {% for e in form.contact_phone.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.contact_phone.help_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Physical Address -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+              {% icon 'pin' 16 %}
+              <h6 class="mb-0 fw-bold text-uppercase text-body-secondary small letter-spacing-1">4. Registered Physical Address</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.address.id_for_label }}">
+                  {{ form.address.label }}
+                </label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                  {% for e in form.address.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
+                {% else %}
+                  <div class="form-text">{{ form.address.help_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions Footer -->
+          <div class="pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="text-body-secondary small">
+              <span class="text-danger">*</span> Required fields are logged in audit traceability.
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary">Discard</a>
+              {% if can_edit %}
+                <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" id="save-btn">
+                  {% icon 'check' 16 %} Save changes
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar: Organizational Summary & Quick Info -->
+  <div class="col-12 col-xl-3">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header bg-body-tertiary px-3 py-2 fw-semibold small">Tenant Snapshot</div>
+      <div class="fx-card-body p-3">
+        <dl class="mb-0 small">
+          <dt class="text-body-secondary fw-normal">Tenant Slug</dt>
+          <dd class="fw-semibold font-monospace mb-2">{{ shell_org.slug }}</dd>
+          <dt class="text-body-secondary fw-normal">Status</dt>
+          <dd class="mb-2">{% status_badge shell_org.status %}</dd>
+          <dt class="text-body-secondary fw-normal">Created On</dt>
+          <dd class="fw-semibold mb-2">{{ shell_org.created_at|date:"M j, Y" }}</dd>
+          <dt class="text-body-secondary fw-normal">Enforcement Mode</dt>
+          <dd class="fw-semibold mb-0">Multi-Tenant Partitioned</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="fx-card">
+      <div class="fx-card-header bg-body-tertiary px-3 py-2 fw-semibold small">Governance &amp; Audit</div>
+      <div class="fx-card-body p-3 small text-body-secondary">
+        All changes to organization attributes are immutably logged with actor attribution, timestamp, and field-level state diffs in the security audit trail.
+        <div class="mt-2">
+          <a href="{% url 'audit:list' %}" class="text-decoration-none fw-semibold">View Audit Trail &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Searchable Datalists -->
+<datalist id="tz-datalist">
+  <option value="UTC">UTC (Coordinated Universal Time)</option>
+  <option value="America/New_York">America/New_York (Eastern Time)</option>
+  <option value="America/Chicago">America/Chicago (Central Time)</option>
+  <option value="America/Denver">America/Denver (Mountain Time)</option>
+  <option value="America/Los_Angeles">America/Los_Angeles (Pacific Time)</option>
+  <option value="America/Toronto">America/Toronto (Canada Eastern)</option>
+  <option value="America/Sao_Paulo">America/Sao_Paulo (Brazil)</option>
+  <option value="Europe/London">Europe/London (UK GMT/BST)</option>
+  <option value="Europe/Paris">Europe/Paris (Central European)</option>
+  <option value="Europe/Berlin">Europe/Berlin (Germany)</option>
+  <option value="Europe/Amsterdam">Europe/Amsterdam (Netherlands)</option>
+  <option value="Europe/Madrid">Europe/Madrid (Spain)</option>
+  <option value="Europe/Rome">Europe/Rome (Italy)</option>
+  <option value="Asia/Dubai">Asia/Dubai (Gulf Standard)</option>
+  <option value="Asia/Kolkata">Asia/Kolkata (India Standard Time)</option>
+  <option value="Asia/Colombo">Asia/Colombo (Sri Lanka Time)</option>
+  <option value="Asia/Dhaka">Asia/Dhaka (Bangladesh Time)</option>
+  <option value="Asia/Bangkok">Asia/Bangkok (Indochina Time)</option>
+  <option value="Asia/Singapore">Asia/Singapore (Singapore Standard)</option>
+  <option value="Asia/Hong_Kong">Asia/Hong_Kong (Hong Kong Time)</option>
+  <option value="Asia/Tokyo">Asia/Tokyo (Japan Standard Time)</option>
+  <option value="Asia/Seoul">Asia/Seoul (Korea Standard Time)</option>
+  <option value="Australia/Sydney">Australia/Sydney (Eastern Australia)</option>
+  <option value="Australia/Melbourne">Australia/Melbourne (Victoria)</option>
+  <option value="Pacific/Auckland">Pacific/Auckland (New Zealand)</option>
+</datalist>
+
+<datalist id="country-datalist">
+  <option value="IN">IN - India</option>
+  <option value="US">US - United States</option>
+  <option value="GB">GB - United Kingdom</option>
+  <option value="DE">DE - Germany</option>
+  <option value="FR">FR - France</option>
+  <option value="CA">CA - Canada</option>
+  <option value="AU">AU - Australia</option>
+  <option value="SG">SG - Singapore</option>
+  <option value="AE">AE - United Arab Emirates</option>
+  <option value="JP">JP - Japan</option>
+  <option value="LK">LK - Sri Lanka</option>
+  <option value="NL">NL - Netherlands</option>
+  <option value="BR">BR - Brazil</option>
+  <option value="ZA">ZA - South Africa</option>
+  <option value="NZ">NZ - New Zealand</option>
+</datalist>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+  const tzInput = document.getElementById("id_timezone");
+  const tzPreview = document.getElementById("tz-live-preview");
+
+  function updateTimePreview() {
+    if (!tzInput || !tzPreview) return;
+    const tz = tzInput.value.trim();
+    if (!tz) {
+      tzPreview.textContent = "";
+      return;
+    }
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat([], {
+        timeZone: tz,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZoneName: "short"
+      });
+      tzPreview.textContent = `Current time in ${tz}: ${formatter.format(now)}`;
+      tzPreview.className = "small text-primary fw-medium mt-1";
+    } catch (e) {
+      tzPreview.textContent = "Unrecognized timezone identifier";
+      tzPreview.className = "small text-danger fw-medium mt-1";
+    }
+  }
+
+  if (tzInput) {
+    tzInput.addEventListener("input", updateTimePreview);
+    tzInput.addEventListener("change", updateTimePreview);
+    updateTimePreview();
+  }
+
+  {% if not can_edit %}
+  document.querySelectorAll("#organization-form input, #organization-form textarea, #organization-form select").forEach(el => {
+    if (el.name !== "csrfmiddlewaretoken") {
+      el.disabled = true;
+    }
+  });
+  {% endif %}
+})();
+</script>
+{% endblock %}

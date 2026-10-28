@@ -46,6 +46,9 @@ def start_preventive_order(org_a, site_a1, make_member):
                                        assignee_id=technician.pk)
     order = services.dispatch_work_order(order, membership=planner, actor=planner.user)
     order = services.start_work_order(order, membership=technician, actor=technician.user)
+    services.record_labor(order, membership=technician, actor=technician.user,
+                          work_date=timezone.localdate(), hours="1.0",
+                          description="Inspection labor recorded")
     return order, planner, technician
 
 

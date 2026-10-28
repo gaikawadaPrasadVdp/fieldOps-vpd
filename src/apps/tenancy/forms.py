@@ -4,14 +4,111 @@ from apps.rbac.models import Role
 from apps.ui.forms import BootstrapFormMixin
 
 
-class OrganizationForm(forms.Form):
-    name = forms.CharField(max_length=150)
-    legal_name = forms.CharField(max_length=200, required=False)
-    timezone = forms.CharField(max_length=64)
-    country = forms.CharField(max_length=2, required=False, help_text="ISO country code, e.g. IN")
-    contact_email = forms.EmailField(required=False)
-    contact_phone = forms.CharField(max_length=32, required=False)
-    address = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+import re
+import zoneinfo
+
+class OrganizationForm(BootstrapFormMixin, forms.Form):
+    name = forms.CharField(
+        max_length=150,
+        label="Organization Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Apex Industrial Solutions",
+            "required": "required",
+            "autocomplete": "organization",
+        }),
+        help_text="Primary public and operational display name."
+    )
+    legal_name = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Legal Entity Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Apex Industrial Pvt Ltd",
+        }),
+        help_text="Official registered name for invoices, tax, and compliance exports."
+    )
+    timezone = forms.CharField(
+        max_length=64,
+        label="Operating Timezone",
+        widget=forms.TextInput(attrs={
+            "list": "tz-datalist",
+            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
+            "required": "required",
+            "id": "id_timezone",
+        }),
+        help_text="Standard IANA timezone for operational scheduling, audits, and SLA tracking."
+    )
+    country = forms.CharField(
+        max_length=2,
+        required=False,
+        label="Country Code",
+        widget=forms.TextInput(attrs={
+            "list": "country-datalist",
+            "placeholder": "e.g. IN, US, GB, DE",
+            "maxlength": "2",
+            "style": "text-transform: uppercase;",
+            "id": "id_country",
+        }),
+        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+    )
+    contact_email = forms.EmailField(
+        required=False,
+        label="Contact Email",
+        widget=forms.EmailInput(attrs={
+            "placeholder": "e.g. operations@apexindustrial.example.com",
+            "autocomplete": "email",
+        }),
+        help_text="Main address for operational alerts and incident escalations."
+    )
+    contact_phone = forms.CharField(
+        max_length=32,
+        required=False,
+        label="Contact Phone",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. +91 93470 51771 or +1 (555) 019-2834",
+            "autocomplete": "tel",
+        }),
+        help_text="Primary operational contact number with country code."
+    )
+    address = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "rows": 3,
+            "placeholder": "Building, street address, city, state, postal code...",
+        }),
+        required=False,
+        label="Physical / Registered Address",
+        help_text="Headquarters or primary operations facility location."
+    )
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        if len(name) < 2:
+            raise forms.ValidationError("Organization name must be at least 2 characters long.")
+        return name
+
+    def clean_timezone(self):
+        tz = self.cleaned_data.get("timezone", "").strip()
+        if not tz:
+            raise forms.ValidationError("Timezone is required.")
+        try:
+            zoneinfo.ZoneInfo(tz)
+        except Exception:
+            raise forms.ValidationError(f"Unknown timezone '{tz}'. Please select a valid IANA timezone (e.g. UTC, Asia/Kolkata, America/New_York).")
+        return tz
+
+    def clean_country(self):
+        c = self.cleaned_data.get("country", "").strip().upper()
+        if c and (len(c) != 2 or not c.isalpha()):
+            raise forms.ValidationError("Country must be a valid 2-letter ISO code (e.g. IN, US, GB).")
+        return c
+
+    def clean_contact_phone(self):
+        phone = self.cleaned_data.get("contact_phone", "").strip()
+        if phone:
+            digits = re.sub(r"\D", "", phone)
+            if len(digits) < 5:
+                raise forms.ValidationError("Please enter a valid phone number with at least 5 digits.")
+        return phone
 
 
 def _role_field(org, membership=None):
@@ -171,3 +268,94 @@ class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
 class RoleForm(forms.Form):
     name = forms.CharField(max_length=80)
     description = forms.CharField(max_length=300, required=False)
+
+class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
+    name = forms.CharField(
+        max_length=150,
+        label="Organization Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Apex Industrial Solutions",
+            "required": "required",
+            "autocomplete": "organization",
+        }),
+        help_text="Primary public and operational display name."
+    )
+    slug = forms.CharField(
+        max_length=60,
+        required=False,
+        label="URL Slug (Optional)",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. apex-industrial",
+        }),
+        help_text="Unique URL identifier. Leave blank to generate automatically from name."
+    )
+    owner_name = forms.CharField(
+        max_length=150,
+        label="Initial Owner Full Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Alex Morgan",
+            "required": "required",
+            "autocomplete": "name",
+        }),
+        help_text="Name of the initial Organization Owner / Super Admin."
+    )
+    owner_email = forms.EmailField(
+        label="Initial Owner Email",
+        widget=forms.EmailInput(attrs={
+            "placeholder": "e.g. owner@apexindustrial.example.com",
+            "required": "required",
+            "autocomplete": "email",
+        }),
+        help_text="The owner will receive an activation invitation to set their password."
+    )
+    timezone = forms.CharField(
+        max_length=64,
+        initial="UTC",
+        label="Operating Timezone",
+        widget=forms.TextInput(attrs={
+            "list": "tz-datalist",
+            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
+            "required": "required",
+            "id": "id_timezone",
+        }),
+        help_text="Standard IANA timezone for tenant operations and SLA calculations."
+    )
+    country = forms.CharField(
+        max_length=2,
+        required=False,
+        label="Country Code",
+        widget=forms.TextInput(attrs={
+            "list": "country-datalist",
+            "placeholder": "e.g. US, IN, GB, DE",
+            "maxlength": "2",
+            "style": "text-transform: uppercase;",
+            "id": "id_country",
+        }),
+        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+    )
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        if len(name) < 2:
+            raise forms.ValidationError("Organization name must be at least 2 characters long.")
+        return name
+
+    def clean_slug(self):
+        slug = self.cleaned_data.get("slug", "").strip().lower()
+        if not slug:
+            return ""
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,58}[a-z0-9]", slug):
+            raise forms.ValidationError("Slug must be 3-60 characters: lowercase letters, numbers, and hyphens.")
+        return slug
+
+    def clean_timezone(self):
+        tz = self.cleaned_data.get("timezone", "").strip() or "UTC"
+        try:
+            zoneinfo.ZoneInfo(tz)
+        except Exception:
+            raise forms.ValidationError(f"Unknown timezone '{tz}'. Please enter a valid IANA timezone.")
+        return tz
+
+    def clean_country(self):
+        return (self.cleaned_data.get("country", "") or "").strip().upper()[:2]
+
