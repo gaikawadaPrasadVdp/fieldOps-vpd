@@ -6,7 +6,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
-  // 1. Top Edge Gold Scroll Signal & NexusScrollFlow Telemetry
+  // 1. Top Edge Gold Scroll Signal & NexusScrollFlow Telemetry 
   // =========================================================================
   const navScrollSignal = document.getElementById('nexus-nav-scroll-signal');
   const railLine = document.getElementById('nexus-rail-line');
@@ -324,4 +324,475 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // =========================================================================
+  // 9. About Page: Five Core Principles Interactive Feature Cards
+  // =========================================================================
+  const principleCards = document.querySelectorAll('.fx-principle-card');
+  if (principleCards.length > 0) {
+    principleCards.forEach((card) => {
+      // Remove is-pulsing after animation ends so it doesn't clash with hover/selected styles
+      card.addEventListener('animationend', (e) => {
+        if (e.animationName === 'fx-card-gold-pulse') {
+          card.classList.remove('is-pulsing');
+        }
+      });
+
+      const activateCard = (e) => {
+        if (e && e.type === 'keydown') {
+          e.preventDefault();
+        }
+
+        // Unset other cards
+        principleCards.forEach((other) => {
+          if (other !== card) {
+            other.classList.remove('is-selected', 'is-pulsing');
+            other.setAttribute('aria-pressed', 'false');
+          }
+        });
+
+        // Set selected state
+        card.classList.add('is-selected');
+        card.setAttribute('aria-pressed', 'true');
+
+        // Replay click pulse animation cleanly
+        card.classList.remove('is-pulsing');
+        void card.offsetWidth; // Force reflow
+        card.classList.add('is-pulsing');
+      };
+
+      card.addEventListener('click', activateCard);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          activateCard(e);
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 10. About Page: Hero Image Interaction (Click Zoom Animation)
+  // =========================================================================
+  const aboutHeroCard = document.querySelector('.fx-about-hero-card');
+  const aboutHeroImg = document.querySelector('.fx-about-hero-img');
+
+  if (aboutHeroCard && aboutHeroImg) {
+    const triggerHeroZoomPulse = () => {
+      // Re-trigger animation cleanly
+      aboutHeroImg.classList.remove('is-clicked');
+      void aboutHeroImg.offsetWidth; // Force DOM reflow to restart CSS animation
+      aboutHeroImg.classList.add('is-clicked');
+    };
+
+    aboutHeroCard.addEventListener('click', triggerHeroZoomPulse);
+
+    aboutHeroCard.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        triggerHeroZoomPulse();
+      }
+    });
+
+    aboutHeroImg.addEventListener('animationend', (e) => {
+      if (e.animationName && e.animationName.indexOf('fx-hero-img-click') !== -1) {
+        aboutHeroImg.classList.remove('is-clicked');
+      }
+    });
+  }
+
+  // =========================================================================
+  // 11. About Page: Dual-Row Ecosystem Architecture Carousel
+  // =========================================================================
+  const ecosystemRows = document.querySelectorAll('.fx-ecosystem-row-wrapper');
+  if (ecosystemRows.length > 0) {
+    const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const activeRows = [];
+
+    ecosystemRows.forEach((rowEl) => {
+      const rowId = parseInt(rowEl.getAttribute('data-fx-row'), 10) || 1;
+      const direction = rowEl.getAttribute('data-direction') === 'right' ? 1 : -1;
+      const track = rowEl.querySelector('.fx-carousel-track');
+      const container = rowEl.querySelector('.fx-carousel-track-container');
+      const prevBtn = rowEl.querySelector('.fx-nav-prev');
+      const nextBtn = rowEl.querySelector('.fx-nav-next');
+      const dots = Array.from(rowEl.querySelectorAll('.fx-dot'));
+
+      if (!track || !container) return;
+
+      const origCards = Array.from(track.children);
+      const cardCount = origCards.length;
+
+      // Duplicate cards for seamless continuous wrap
+      origCards.forEach((c) => {
+        const clone = c.cloneNode(true);
+        clone.setAttribute('aria-hidden', 'true');
+        clone.setAttribute('tabindex', '-1');
+        clone.classList.add('is-clone');
+        track.appendChild(clone);
+      });
+
+      // Find initial active index
+      const initialActive = rowEl.querySelector('.fx-ecosystem-card.is-selected');
+      const initialIndex = initialActive ? parseInt(initialActive.getAttribute('data-card-index'), 10) : 0;
+
+      const rowState = {
+        rowId,
+        rowEl,
+        track,
+        container,
+        direction, // -1: left (scrollPos increases), 1: right (scrollPos decreases)
+        speed: 30, // px per second
+        scrollPos: 0,
+        singleSetWidth: 0,
+        cardStep: 315,
+        isPausedByUser: false,
+        isHovered: false,
+        selectedIndex: isNaN(initialIndex) ? 0 : initialIndex,
+        isAnimatingStep: false,
+        dots,
+        allCards: Array.from(track.children)
+      };
+
+      // Measure dimensions
+      const calculateDimensions = () => {
+        if (track.children.length > cardCount) {
+          const firstCard = track.children[0];
+          const firstClone = track.children[cardCount];
+          const dist = firstClone.getBoundingClientRect().left - firstCard.getBoundingClientRect().left;
+          if (dist > 0) {
+            rowState.singleSetWidth = dist;
+            rowState.cardStep = dist / cardCount;
+          }
+        }
+      };
+
+      calculateDimensions();
+      window.addEventListener('resize', calculateDimensions, { passive: true });
+
+      // Start position for row 2 (moving right): start at singleSetWidth so it scrolls backwards cleanly
+      if (direction === 1 && rowState.singleSetWidth > 0) {
+        rowState.scrollPos = rowState.singleSetWidth;
+      }
+
+      // Synchronize selection state across original cards and clones
+      const syncActiveCard = (index) => {
+        rowState.selectedIndex = index;
+        rowState.allCards.forEach((card) => {
+          const cIdx = parseInt(card.getAttribute('data-card-index'), 10);
+          if (cIdx === index) {
+            card.classList.add('is-selected');
+          } else {
+            card.classList.remove('is-selected');
+          }
+        });
+        rowState.dots.forEach((dot, dIdx) => {
+          if (dIdx === index) {
+            dot.classList.add('is-active');
+            dot.setAttribute('aria-current', 'true');
+          } else {
+            dot.classList.remove('is-active');
+            dot.removeAttribute('aria-current');
+          }
+        });
+      };
+
+      syncActiveCard(rowState.selectedIndex);
+
+      // Card click interaction (Toggle pause/resume & card selection)
+      rowState.allCards.forEach((card) => {
+        card.addEventListener('click', (e) => {
+          e.preventDefault();
+          const clickedIndex = parseInt(card.getAttribute('data-card-index'), 10);
+          if (isNaN(clickedIndex)) return;
+
+          if (rowState.selectedIndex === clickedIndex && rowState.isPausedByUser) {
+            // Clicking the same card again resumes scrolling
+            rowState.isPausedByUser = false;
+            rowEl.classList.remove('is-paused');
+          } else {
+            // Pauses the row and selects this card
+            rowState.isPausedByUser = true;
+            rowEl.classList.add('is-paused');
+            syncActiveCard(clickedIndex);
+          }
+        });
+
+        // Keyboard accessibility
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            card.click();
+          }
+        });
+      });
+
+      // Hover pause & resume
+      rowEl.addEventListener('mouseenter', () => {
+        rowState.isHovered = true;
+      });
+
+      rowEl.addEventListener('mouseleave', () => {
+        rowState.isHovered = false;
+      });
+
+      // Smooth step navigation for arrows and dots
+      const smoothScrollBy = (offset) => {
+        if (rowState.singleSetWidth <= 0) return;
+        const startPos = rowState.scrollPos;
+        const duration = 380;
+        const startTime = performance.now();
+        rowState.isAnimatingStep = true;
+
+        const animateStep = (now) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          // Ease-out cubic
+          const ease = 1 - Math.pow(1 - progress, 3);
+          let currentPos = startPos + offset * ease;
+
+          while (currentPos < 0) currentPos += rowState.singleSetWidth;
+          while (currentPos >= rowState.singleSetWidth) currentPos -= rowState.singleSetWidth;
+
+          rowState.scrollPos = currentPos;
+          track.style.transform = `translate3d(${-rowState.scrollPos}px, 0, 0)`;
+
+          if (progress < 1) {
+            requestAnimationFrame(animateStep);
+          } else {
+            rowState.isAnimatingStep = false;
+          }
+        };
+
+        requestAnimationFrame(animateStep);
+      };
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const stepDist = rowState.cardStep || 315;
+          smoothScrollBy(-stepDist);
+        });
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const stepDist = rowState.cardStep || 315;
+          smoothScrollBy(stepDist);
+        });
+      }
+
+      // Dot click navigation
+      dots.forEach((dot, dotIdx) => {
+        dot.addEventListener('click', (e) => {
+          e.preventDefault();
+          syncActiveCard(dotIdx);
+          const currentModuloIndex = Math.round(rowState.scrollPos / (rowState.cardStep || 315)) % cardCount;
+          let diff = dotIdx - currentModuloIndex;
+          if (diff > cardCount / 2) diff -= cardCount;
+          if (diff < -cardCount / 2) diff += cardCount;
+          smoothScrollBy(diff * (rowState.cardStep || 315));
+        });
+      });
+
+      // Touch / Swipe support for mobile devices
+      let touchStartX = 0;
+      let touchStartScroll = 0;
+      let isTouching = false;
+
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isTouching = true;
+          rowState.isHovered = true;
+          touchStartX = e.touches[0].clientX;
+          touchStartScroll = rowState.scrollPos;
+        }
+      }, { passive: true });
+
+      container.addEventListener('touchmove', (e) => {
+        if (!isTouching || e.touches.length !== 1) return;
+        const deltaX = e.touches[0].clientX - touchStartX;
+        let newPos = touchStartScroll - deltaX;
+        while (newPos < 0 && rowState.singleSetWidth > 0) newPos += rowState.singleSetWidth;
+        while (newPos >= rowState.singleSetWidth && rowState.singleSetWidth > 0) newPos -= rowState.singleSetWidth;
+        rowState.scrollPos = newPos;
+        track.style.transform = `translate3d(${-rowState.scrollPos}px, 0, 0)`;
+      }, { passive: true });
+
+      const finishTouch = () => {
+        if (isTouching) {
+          isTouching = false;
+          rowState.isHovered = false;
+        }
+      };
+
+      container.addEventListener('touchend', finishTouch, { passive: true });
+      container.addEventListener('touchcancel', finishTouch, { passive: true });
+
+      activeRows.push(rowState);
+    });
+
+    // Global RAF loop for continuous smooth auto-scrolling
+    let lastTime = performance.now();
+
+    const loop = (currentTime) => {
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
+
+      if (!isReducedMotion) {
+        activeRows.forEach((row) => {
+          if (!row.isPausedByUser && !row.isHovered && !row.isAnimatingStep && row.singleSetWidth > 0) {
+            if (row.direction === -1) {
+              // Scrolls to the left
+              row.scrollPos += row.speed * delta;
+              if (row.scrollPos >= row.singleSetWidth) {
+                row.scrollPos -= row.singleSetWidth;
+              }
+            } else {
+              // Scrolls to the right
+              row.scrollPos -= row.speed * delta;
+              if (row.scrollPos <= 0) {
+                row.scrollPos += row.singleSetWidth;
+              }
+            }
+            row.track.style.transform = `translate3d(${-row.scrollPos}px, 0, 0)`;
+          }
+        });
+      }
+
+      requestAnimationFrame(loop);
+    };
+
+    requestAnimationFrame(loop);
+  }
+
+  // =========================================================================
+  // 12. Resources Page: Category Filter Logic
+  // =========================================================================
+  const resourceFilterButtons = document.querySelectorAll('.fx-resources-filter-bar .fx-filter-btn');
+  const resourceCards = document.querySelectorAll('.fx-resource-card-col');
+  const quickFilterTriggers = document.querySelectorAll('[data-filter-trigger]');
+
+  if (resourceFilterButtons.length > 0 && resourceCards.length > 0) {
+    const applyFilter = (filterKey) => {
+      // Update filter button states
+      resourceFilterButtons.forEach((btn) => {
+        const isMatch = btn.getAttribute('data-filter') === filterKey;
+        btn.classList.toggle('active', isMatch);
+        btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      });
+
+      // Filter card columns
+      resourceCards.forEach((cardCol) => {
+        const cardCategory = cardCol.getAttribute('data-category');
+        if (filterKey === 'all' || cardCategory === filterKey) {
+          cardCol.style.display = '';
+          cardCol.style.opacity = '0';
+          cardCol.style.transform = 'translateY(12px)';
+          requestAnimationFrame(() => {
+            cardCol.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            cardCol.style.opacity = '1';
+            cardCol.style.transform = 'translateY(0)';
+          });
+        } else {
+          cardCol.style.display = 'none';
+        }
+      });
+    };
+
+    resourceFilterButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter');
+        applyFilter(filter);
+      });
+    });
+
+    // Quick links in hero overlay
+    quickFilterTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        const category = trigger.getAttribute('data-filter-trigger');
+        applyFilter(category);
+
+        // Smooth scroll to catalog section
+        const catalogSec = document.getElementById('resources-grid');
+        if (catalogSec) {
+          catalogSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 13. Resources Page: Expandable Article Cards (Inline Expansion)
+  // =========================================================================
+  const resourceCardsList = document.querySelectorAll('.fx-resource-card');
+
+  if (resourceCardsList.length > 0) {
+    resourceCardsList.forEach((card) => {
+      const expandBtn = card.querySelector('.fx-card-expand-btn');
+      const collapseBtn = card.querySelector('.fx-collapse-trigger');
+      const readMoreLink = card.querySelector('.fx-read-more-link');
+
+      const toggleCard = (forceState) => {
+        const isExpanded = card.classList.contains('is-expanded');
+        const nextState = typeof forceState === 'boolean' ? forceState : !isExpanded;
+        card.classList.toggle('is-expanded', nextState);
+        if (expandBtn) {
+          expandBtn.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+          expandBtn.setAttribute('title', nextState ? 'Collapse article' : 'Expand article');
+        }
+      };
+
+      // Expand button or expand link ("Read Article")
+      if (expandBtn) {
+        expandBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleCard();
+        });
+      }
+
+      // Collapse button in footer
+      if (collapseBtn) {
+        collapseBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleCard(false);
+        });
+      }
+
+      // Read Article control (button or link)
+      if (readMoreLink) {
+        readMoreLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (readMoreLink.classList.contains('fx-card-expand-link') || readMoreLink.tagName.toLowerCase() === 'button') {
+            e.preventDefault();
+            toggleCard();
+          }
+        });
+      }
+
+      // Clicking anywhere on the card surface toggles expansion (except links/buttons)
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('a') || e.target.closest('button')) {
+          return;
+        }
+        toggleCard();
+      });
+
+      // Keyboard accessibility (Enter or Space)
+      card.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('a')) {
+          if (e.target === card || e.target === expandBtn || e.target === collapseBtn) {
+            e.preventDefault();
+            toggleCard();
+          }
+        }
+      });
+    });
+  }
 });
+
+
+
