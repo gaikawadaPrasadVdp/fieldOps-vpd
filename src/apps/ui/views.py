@@ -36,7 +36,7 @@ PRD_MODULES = [
 def root(request):
     """Public landing page for visitors; authenticated users are routed to their workspace."""
     if request.user.is_authenticated:
-        if getattr(request.user, "is_platform_admin", False) and not getattr(request, "membership", None):
+        if getattr(request.user, "is_platform_admin", False):
             return redirect("platform_admin:organizations")
         membership = getattr(request, "membership", None)
         if membership and is_client_membership(membership):
@@ -240,6 +240,9 @@ def home(request):
     from apps.sites.models import Site
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
+
+    if getattr(request.user, "is_platform_admin", False):
+        return redirect("platform_admin:organizations")
 
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)

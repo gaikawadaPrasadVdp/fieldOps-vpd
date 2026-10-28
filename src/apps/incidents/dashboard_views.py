@@ -112,7 +112,7 @@ def _dashboard_context(request, *, platform=False):
 
     active_requests = requests.exclude(status__in=(CLOSED, REJECTED, "CANCELLED"))
     active_downtime = Downtime.objects.filter(request__in=active_requests, ended_at__isnull=True)
-    waiting_planning = active_requests.filter(status="APPROVED", work_order__isnull=True)
+    waiting_planning = active_requests.filter(status="APPROVED").exclude(work_orders__status__in=[s for s in WorkOrder.Status.values if s not in (WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)])
     open_work_orders = work_orders.exclude(status__in=(WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
     sla_risk = SLATracking.objects.filter(request__in=active_requests, status=SLATracking.Status.ACTIVE).filter(
         Q(response_state="PENDING", response_due_at__lte=now + timedelta(hours=1)) |
@@ -181,7 +181,7 @@ def _dashboard_context(request, *, platform=False):
         "counts": {
             "open": active_requests.count(), "critical": active_requests.filter(severity="CRITICAL").count(),
             "high": active_requests.filter(severity__in=("HIGH", "CRITICAL")).count(),
-            "unassigned": active_requests.filter(assigned_team="", work_order__assigned_to__isnull=True).count(),
+            "unassigned": active_requests.filter(assigned_team="").exclude(work_orders__assigned_to__isnull=False).count(),
             "downtime": active_downtime.count(), "planning": waiting_planning.count(),
             "work_orders": open_work_orders.count(), "sla_risk": sla_risk.count(),
             "sla_breaches": breaches.filter(status=SLABreach.Status.OPEN).count(),

@@ -268,3 +268,94 @@ class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
 class RoleForm(forms.Form):
     name = forms.CharField(max_length=80)
     description = forms.CharField(max_length=300, required=False)
+
+class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
+    name = forms.CharField(
+        max_length=150,
+        label="Organization Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Apex Industrial Solutions",
+            "required": "required",
+            "autocomplete": "organization",
+        }),
+        help_text="Primary public and operational display name."
+    )
+    slug = forms.CharField(
+        max_length=60,
+        required=False,
+        label="URL Slug (Optional)",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. apex-industrial",
+        }),
+        help_text="Unique URL identifier. Leave blank to generate automatically from name."
+    )
+    owner_name = forms.CharField(
+        max_length=150,
+        label="Initial Owner Full Name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Alex Morgan",
+            "required": "required",
+            "autocomplete": "name",
+        }),
+        help_text="Name of the initial Organization Owner / Super Admin."
+    )
+    owner_email = forms.EmailField(
+        label="Initial Owner Email",
+        widget=forms.EmailInput(attrs={
+            "placeholder": "e.g. owner@apexindustrial.example.com",
+            "required": "required",
+            "autocomplete": "email",
+        }),
+        help_text="The owner will receive an activation invitation to set their password."
+    )
+    timezone = forms.CharField(
+        max_length=64,
+        initial="UTC",
+        label="Operating Timezone",
+        widget=forms.TextInput(attrs={
+            "list": "tz-datalist",
+            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
+            "required": "required",
+            "id": "id_timezone",
+        }),
+        help_text="Standard IANA timezone for tenant operations and SLA calculations."
+    )
+    country = forms.CharField(
+        max_length=2,
+        required=False,
+        label="Country Code",
+        widget=forms.TextInput(attrs={
+            "list": "country-datalist",
+            "placeholder": "e.g. US, IN, GB, DE",
+            "maxlength": "2",
+            "style": "text-transform: uppercase;",
+            "id": "id_country",
+        }),
+        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+    )
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        if len(name) < 2:
+            raise forms.ValidationError("Organization name must be at least 2 characters long.")
+        return name
+
+    def clean_slug(self):
+        slug = self.cleaned_data.get("slug", "").strip().lower()
+        if not slug:
+            return ""
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,58}[a-z0-9]", slug):
+            raise forms.ValidationError("Slug must be 3-60 characters: lowercase letters, numbers, and hyphens.")
+        return slug
+
+    def clean_timezone(self):
+        tz = self.cleaned_data.get("timezone", "").strip() or "UTC"
+        try:
+            zoneinfo.ZoneInfo(tz)
+        except Exception:
+            raise forms.ValidationError(f"Unknown timezone '{tz}'. Please enter a valid IANA timezone.")
+        return tz
+
+    def clean_country(self):
+        return (self.cleaned_data.get("country", "") or "").strip().upper()[:2]
+

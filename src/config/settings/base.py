@@ -204,6 +204,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.maintenance.tasks.fan_out_maintenance",
         "schedule": 60 * 15,
     },
+    "monitor-sla": {
+        "task": "apps.sla.tasks.fan_out_sla_monitor",
+        "schedule": 60,
+    },
+    "contract-renewal-alerts": {
+        "task": "apps.contracts.tasks.fan_out_renewal_alerts",
+        "schedule": 60 * 60 * 12,
+    },
+    "inventory-reorder-alerts": {
+        "task": "apps.inventory.tasks.fan_out_reorder_alerts",
+        "schedule": 60 * 60 * 6,
+    },
 }
 
 # --- Email ------------------------------------------------------------------------------------

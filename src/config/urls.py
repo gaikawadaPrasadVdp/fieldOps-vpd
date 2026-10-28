@@ -55,7 +55,7 @@ from apps.sla.api_views import (
     SLAProfileViewSet,
     SLATrackingViewSet,
 )
-from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet
+from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet
 from apps.workorders.views import WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
@@ -104,6 +104,12 @@ api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
+    path("platform/organizations/", PlatformOrganizationViewSet.as_view({"get": "list", "post": "create"}),
+         name="platform-organizations-list"),
+    path("platform/organizations/<uuid:pk>/", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
+         name="platform-organizations-detail"),
+    path("platform/organizations/<uuid:pk>/status/", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
+         name="platform-organizations-status"),
     path("portal/", include("apps.portal.api_urls")),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
