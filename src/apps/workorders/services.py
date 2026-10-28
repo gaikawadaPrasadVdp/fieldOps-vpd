@@ -726,6 +726,9 @@ def start_work_order(wo, *, membership, actor, expected_version=None, request=No
         permission="work_order.start", action="started", changes={"started_at": timezone.now()},
         expected_version=expected_version, request=request)
     _sync_incident_request(wo, "started", actor, request)
+    if wo.asset_id:
+        from apps.assets import services as asset_services
+        asset_services.on_work_order_started(wo, actor=actor, request=request)
     return wo
 
 
@@ -861,6 +864,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     elif approved:
         from apps.inventory import services as inventory_services
         inventory_services.on_work_order_closed(wo, actor=actor, request=request)
+        if wo.asset_id:
+            from apps.assets import services as asset_services
+            asset_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -954,7 +960,7 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
-                                          description=desc)
+                                          description=desc, notes=desc[:300])
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
             request=request)
     return entry

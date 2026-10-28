@@ -1197,6 +1197,9 @@ class WorkOrderActionView(TenantPermissionMixin, View):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
             action_data["scheduled_end"] = timezone.localtime(wo.planned_end).strftime("%Y-%m-%dT%H:%M")
+        elif self.operation == "plan" and "priority" not in request.POST and wo.priority:
+            action_data = request.POST.copy()
+            action_data["priority"] = wo.priority
         form = (form_type(action_data, request.FILES if self.operation == "evidence" else None,
                           **form_kwargs) if form_type else None)
         if form is None:

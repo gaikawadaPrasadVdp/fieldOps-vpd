@@ -135,10 +135,13 @@ def find_duplicate_incidents(org, *, asset_id, kind: str = "INCIDENT", failure_c
     }
     matches = []
     for sr in requests:
-        if description.strip() and sr.description.strip():
-            text_match = _report_text_matches(description, sr.description)
-        else:
-            text_match = _report_text_matches(title, sr.title)
+        text_match = False
+        if title.strip() and sr.title.strip() and _report_text_matches(title, sr.title):
+            text_match = True
+        elif description.strip() and sr.description.strip() and _report_text_matches(description, sr.description):
+            text_match = True
+        elif (not description.strip() or not sr.description.strip()) and _report_text_matches(title, sr.title):
+            text_match = True
         if not text_match:
             continue
 
