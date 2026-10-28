@@ -176,17 +176,8 @@ def _validate_schedule_window(start, end, due_at, estimated_hours):
 
 
 def _validate_linked_priority(work_order, priority):
-    if not work_order.source_request_id:
-        return
-    expected = {
-        "LOW": WorkOrder.Priority.LOW,
-        "MEDIUM": WorkOrder.Priority.MEDIUM,
-        "HIGH": WorkOrder.Priority.HIGH,
-        "CRITICAL": WorkOrder.Priority.CRITICAL,
-    }.get(work_order.source_request.severity)
-    if priority != expected:
-        raise ValidationFailed("Priority must match the linked approved incident or service request.",
-                               code="source_priority_mismatch")
+    # Priority is automatically defaulted from the linked source record, but manual adjustments by planners are permitted.
+    return
 
 
 def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=None):
@@ -560,6 +551,12 @@ def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, plan
         membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
     if actor is not None or membership is not None:
         _need(membership, "work_order.plan", wo.site)
+    if wo.site and wo.site.status != Site.Status.ACTIVE:
+        raise ValidationFailed("Cannot plan work order for an inactive site.", code="site_inactive")
+    if wo.asset:
+        from apps.assets.models import Asset
+        if wo.asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
+            raise ValidationFailed(f"Cannot plan work order for an asset in status {wo.asset.status}.", code="asset_decommissioned")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.PLANNED)
     if not planned_start or not planned_end or planned_end <= planned_start:
@@ -729,6 +726,9 @@ def start_work_order(wo, *, membership, actor, expected_version=None, request=No
         permission="work_order.start", action="started", changes={"started_at": timezone.now()},
         expected_version=expected_version, request=request)
     _sync_incident_request(wo, "started", actor, request)
+    if wo.asset_id:
+        from apps.assets import services as asset_services
+        asset_services.on_work_order_started(wo, actor=actor, request=request)
     return wo
 
 
@@ -864,6 +864,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     elif approved:
         from apps.inventory import services as inventory_services
         inventory_services.on_work_order_closed(wo, actor=actor, request=request)
+        if wo.asset_id:
+            from apps.assets import services as asset_services
+            asset_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -957,7 +960,7 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
-                                          description=desc)
+                                          description=desc, notes=desc[:300])
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
             request=request)
     return entry

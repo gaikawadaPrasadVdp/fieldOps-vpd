@@ -304,15 +304,19 @@ class WorkOrderLabor(TenantOwnedModel):
     work_date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.CharField(max_length=500)
+    notes = models.CharField(max_length=500, blank=True, default="")
 
     class Meta:
         ordering = ["-work_date", "-created_at"]
         constraints = [models.CheckConstraint(condition=Q(hours__gt=0) & Q(hours__lte=24),
                                               name="wo_labor_hours_1_24")]
 
-    @property
-    def notes(self):
-        return self.description
+    def save(self, *args, **kwargs):
+        if not self.notes and self.description:
+            self.notes = self.description[:300]
+        elif not self.description and self.notes:
+            self.description = self.notes
+        super().save(*args, **kwargs)
 
 
 class WorkOrderMaterial(TenantOwnedModel):
