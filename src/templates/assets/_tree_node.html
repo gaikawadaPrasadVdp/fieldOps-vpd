@@ -2,7 +2,11 @@
 <li class="fx-tree-node-item" data-node-id="{{ node.asset.pk }}">
   <div class="fx-tree-node-card role-{{ node.link.relationship_type|default:'ROOT'|lower }} {% if node.asset.pk == current.pk %}is-active{% endif %}">
     <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
-      {% if node.children %}
+      {% if node.is_lazy %}
+        <span class="fx-tree-expander is-collapsed" aria-expanded="false" title="Click to expand {{ node.children|length }} sub-item{{ node.children|length|pluralize }}" hx-get="{% url 'assets:tree' node.asset.pk %}?branch=1&current={{ current.pk }}" hx-target="#branch-{{ node.asset.pk }}" hx-swap="innerHTML" hx-trigger="click once">
+          ▼
+        </span>
+      {% elif node.children %}
         <span class="fx-tree-expander" aria-expanded="true" title="Toggle children">
           ▼
         </span>
@@ -40,26 +44,22 @@
     </div>
 
     <!-- Metadata & Badges -->
-    <div class="d-flex align-items-center gap-2 flex-wrap flex-shrink-0">
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
       {% if node.link %}
         {% if node.link.relationship_type == 'ASSEMBLY' %}
-          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
+          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% elif node.link.relationship_type == 'REPLACEABLE_PART' %}
-          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
+          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% else %}
-          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
-        {% endif %}
-
-        {% if node.link.quantity > 1 %}
-          <span class="badge text-bg-light border small">&times; {{ node.link.quantity }}</span>
+          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% endif %}
 
         {% if node.link.part_number %}
-          <div class="d-inline-flex align-items-center gap-1">
-            <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ node.link.part_number }}" title="Click to copy part number">
+          <div class="fx-part-badge">
+            <button type="button" class="fx-part-copy-btn" data-copy="{{ node.link.part_number }}" title="Click to copy part number {{ node.link.part_number }}">
               {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
             </button>
-            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn" title="Search '{{ node.link.part_number }}' in Parts Catalog">
+            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="fx-part-link-btn" title="View '{{ node.link.part_number }}' in Parts Catalog">
               {% icon 'external-link' 11 %}
             </a>
           </div>
@@ -132,9 +132,15 @@
     </div>
   </div>
 
-  <!-- Recursive Child Branch -->
-  {% if node.children %}
-    <ul class="fx-tree-branch">
+  <!-- Child Branch -->
+  {% if node.is_lazy %}
+    <ul class="fx-tree-branch" id="branch-{{ node.asset.pk }}" style="display: none;">
+      <li class="p-2 text-body-secondary small text-center list-unstyled">
+        <span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span> Loading {{ node.children|length }} sub-item{{ node.children|length|pluralize }}…
+      </li>
+    </ul>
+  {% elif node.children %}
+    <ul class="fx-tree-branch" id="branch-{{ node.asset.pk }}">
       {% for child in node.children %}
         {% include "assets/_tree_node.html" with node=child current=current can_manage=can_manage %}
       {% endfor %}

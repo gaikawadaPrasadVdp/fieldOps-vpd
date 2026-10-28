@@ -56,7 +56,7 @@ from apps.sla.api_views import (
     SLATrackingViewSet,
 )
 from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet
-from apps.workorders.api_views import WorkOrderViewSet
+from apps.workorders.views import WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
 router = SimpleRouter()
@@ -148,3 +148,4 @@ if settings.DEBUG:
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"
 handler500 = "apps.ui.views.server_error"
+

@@ -33,7 +33,7 @@ from .forms import (
     ReadingForm,
 )
 from .models import Asset, AssetComponent
-from .workflow import ASSET_STATUS, BUTTON_STYLES, TERMINAL_STATES
+from .workflow import ACTIVE, ASSET_STATUS, BUTTON_STYLES, OUT_OF_SERVICE, TERMINAL_STATES, UNDER_MAINTENANCE
 
 TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters"), ("history", "History"),
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
@@ -104,6 +104,13 @@ class AssetHierarchyHubView(AssetBase):
             selected_root = roots_with_children.first()
 
         tree = hierarchy.build_tree(selected_root) if selected_root else None
+        total_nodes = len(hierarchy.flatten(tree)) if tree else 0
+        if tree and total_nodes > 50 and request.GET.get("full") != "1":
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {selected_root.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
 
         return render(request, "assets/hierarchy_hub.html", {
@@ -117,6 +124,7 @@ class AssetHierarchyHubView(AssetBase):
             "tree": tree,
             "can_manage": can_manage,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
+            "total_nodes": total_nodes,
         })
 
 
@@ -125,14 +133,26 @@ class AssetListView(AssetBase):
 
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_assets(selectors.assets_for(m, org).select_related("parent_link__parent"), request.GET)
+        base_assets = selectors.assets_for(m, org)
+        qs = selectors.filter_assets(base_assets.select_related("parent_link__parent"), request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+
+        total_count = base_assets.count()
+        active_count = base_assets.filter(status=ACTIVE).count()
+        maintenance_count = base_assets.filter(status=UNDER_MAINTENANCE).count()
+        out_of_service_count = base_assets.filter(status=OUT_OF_SERVICE).count()
+
         return render(request, "assets/list.html", {
             "page": page, "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
             "categories": selectors.categories_for(org), "statuses": Asset.Status.choices,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
-            "can_categories": rbac.has_permission(m, "asset.category.manage")})
+            "can_categories": rbac.has_permission(m, "asset.category.manage"),
+            "total_count": total_count,
+            "active_count": active_count,
+            "maintenance_count": maintenance_count,
+            "out_of_service_count": out_of_service_count,
+        })
 
 
 class ComponentListView(AssetBase):
@@ -257,7 +277,16 @@ class AssetCreateView(AssetBase):
                         hierarchy.add_component(parent, asset, actor=request.user, request=request,
                                                 **rel_form.cleaned_data)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Asset {asset.asset_tag} registered.")
                 return redirect("assets:detail", pk=asset.pk)
@@ -281,7 +310,7 @@ class AssetEditView(AssetBase):
         if reload:
             initial.update(_prefill(request))
         return AssetForm(data, initial=initial, sites=sites, org=request.organization, creating=False,
-                          category=category)
+                          category=category, asset_pk=asset.pk)
 
     def _page(self, request, asset, form, status=200):
         return render(request, "assets/form.html", {
@@ -302,7 +331,16 @@ class AssetEditView(AssetBase):
             try:
                 services.update_asset(asset, actor=request.user, request=request, **refs, **d)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, "Asset saved.")
                 return redirect("assets:detail", pk=asset.pk)
@@ -402,15 +440,60 @@ class AssetDetailView(AssetBase):
         return ctx
 
 
+def _mark_lazy_nodes(node: dict, active_ids: set, threshold_depth: int = 2):
+    """Recursively marks sub-branches as lazy when their depth meets or exceeds threshold_depth,
+    unless the node is along the active traversal path of the focused asset."""
+    for child in node.get("children", []):
+        d = child.get("depth", 1)
+        if child.get("children"):
+            if d >= threshold_depth and child["asset"].pk not in active_ids:
+                child["is_lazy"] = True
+            else:
+                child["is_lazy"] = False
+                _mark_lazy_nodes(child, active_ids, threshold_depth=threshold_depth)
+
+
 class AssetTreeView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
         asset = _asset(request, pk)
+        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
+
+        # 1. On-demand HTMX branch expansion
+        if request.GET.get("branch") == "1":
+            current_pk = request.GET.get("current")
+            current = _asset(request, current_pk) if current_pk else asset
+            tree = hierarchy.build_tree(asset)
+            children = tree.get("children", [])
+            active_ids = {a.pk for a in hierarchy.ancestors(current)} | {current.pk}
+            for c in children:
+                if c.get("children") and c["asset"].pk not in active_ids:
+                    c["is_lazy"] = True
+            return render(request, "assets/_tree_branch.html", {
+                "children": children,
+                "current": current,
+                "can_manage": can,
+            })
+
+        # 2. Complete or progressive tree root view
         root = hierarchy.root_of(asset)
         tree = hierarchy.build_tree(root)
-        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
-        return render(request, "assets/_tree.html", {"node": tree, "current": asset, "can_manage": can})
+        total_nodes = len(hierarchy.flatten(tree))
+
+        force_full = request.GET.get("full") == "1"
+        if not force_full and total_nodes > 50:
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {a.pk for a in hierarchy.ancestors(asset)} | {asset.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
+        return render(request, "assets/_tree.html", {
+            "node": tree,
+            "current": asset,
+            "can_manage": can,
+            "total_nodes": total_nodes,
+        })
 
 
 # --- state-changing actions (POST only) -------------------------------------------------------------------------

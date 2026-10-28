@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.assets.models import Asset
@@ -135,10 +135,13 @@ def find_duplicate_incidents(org, *, asset_id, kind: str = "INCIDENT", failure_c
     }
     matches = []
     for sr in requests:
-        if description.strip() and sr.description.strip():
-            text_match = _report_text_matches(description, sr.description)
-        else:
-            text_match = _report_text_matches(title, sr.title)
+        text_match = False
+        if title.strip() and sr.title.strip() and _report_text_matches(title, sr.title):
+            text_match = True
+        elif description.strip() and sr.description.strip() and _report_text_matches(description, sr.description):
+            text_match = True
+        elif (not description.strip() or not sr.description.strip()) and _report_text_matches(title, sr.title):
+            text_match = True
         if not text_match:
             continue
 
@@ -420,7 +423,7 @@ def _apply(sr: ServiceRequest, action: str, *, reason: str, actor, source: str, 
     audit.record("incident.status_changed", actor=actor, organization=sr.organization, target=sr,
                  before={"status": previous}, after={"status": new},
                  metadata={"action": action, "reason": reason or "", "source": source}, request=request)
-    _sla().on_request_status_changed(sr, previous, new)  # M11 hook (never edits the request)
+    _sla().on_request_status_changed(sr, previous, new, actor=actor)  # M11 hook (never edits the request)
     return sr
 
 
@@ -478,9 +481,11 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
         raise Conflict("Cannot create a work order for a linked duplicate incident.", code="duplicate_incident_work_order")
     if sr.status != APPROVED:
         REQUEST_STATUS.get(sr.status, "link_work_order")  # raises invalid_transition with the usual envelope
-    existing_wo = WorkOrder.objects.for_organization(sr.organization).filter(
-        source_reference=sr.number,
-        source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+    existing_wo = WorkOrder.objects.filter(
+        models.Q(source_request=sr) |
+        models.Q(source_id=sr.pk) |
+        models.Q(organization=sr.organization, source_reference=sr.number,
+                 source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT)),
     ).first()
     if existing_wo:
         raise Conflict(f"A work order ({existing_wo.order_number}) already exists for this request.", code="duplicate_work_order")
@@ -490,9 +495,9 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     wo = work_orders.create_work_order(
         sr.organization, asset=sr.asset, actor=actor, membership=membership, request=request, source_request=sr,
         component=component,
-        work_type=plan.pop("work_type", "CORRECTIVE"), title=plan.pop("title", None) or sr.title,
+        work_type=plan.pop("work_type", None), title=plan.pop("title", None) or sr.title,
         description=plan.pop("description", None) or sr.description,
-        priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY[sr.severity], **plan)
+        priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY.get(sr.severity, "MEDIUM"), **plan)
     linked_ids = []
     for attachment in source_attachments:
         WorkOrderEvidence.objects.get_or_create(

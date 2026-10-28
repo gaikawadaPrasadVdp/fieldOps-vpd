@@ -1,0 +1,366 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}About &middot; FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+          {% icon 'globe' 14 %}
+          <span>About FieldOps Nexus</span>
+        </div>
+
+        <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15;">
+          Connected operations.<br><span style="color: #F5C451;">Clearer execution.</span>
+        </h1>
+
+        <p class="lead text-white-50 mb-4" style="line-height: 1.7; font-size: 1.15rem;">
+          We believe industrial and facilities management organizations deserve enterprise software that brings people, assets, inventory, and workflows into natural harmony.
+        </p>
+
+        <p class="small text-white-50 mb-0" style="line-height: 1.7;">
+          FieldOps Nexus was designed from the ground up to replace fragmented point tools with a single unified operational ecosystem. Developed in rigorous alignment with technical enterprise standards, the platform guarantees multi-tenant security, atomic double-entry transactional safety, and full lifecycle traceability.
+        </p>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="fx-about-hero-card rounded-4 overflow-hidden border border-secondary border-opacity-25 shadow-lg position-relative" style="background: #0B1F3A;" tabindex="0" role="region" aria-label="FieldOps Nexus Operations Architecture">
+          <img src="{% static 'images/about_hero.jpg' %}" alt="FieldOps Nexus Headquarters & Facility Operations" class="fx-about-hero-img w-100 h-100 object-fit-cover" style="min-height: 440px; opacity: 0.97;">
+          <div class="position-absolute bottom-0 start-0 end-0 p-4 pe-none" style="background: linear-gradient(to top, rgba(7,20,38,0.92), transparent); pointer-events: none;">
+            <span class="badge mb-2 font-monospace" style="background:#F5C451; color:#0B1F3B;">ENTERPRISE ARCHITECTURE</span>
+            <div class="text-white fw-bold">Built for Mission-Critical Reliability</div>
+            <div class="text-white-50 small">Calibrated for zero-loss transactions and audit compliance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 Core Operating Principles -->
+<section class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Foundational Beliefs</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">Five Core Principles</h2>
+      <p class="fx-section-desc">The engineering and operational convictions that govern every architectural decision.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 fx-principle-card p-4" tabindex="0" role="button" aria-pressed="false">
+          <span class="fx-principle-icon-box mb-3">
+            {% icon 'layers' 20 %}
+          </span>
+          <h3 class="h6 fw-bold fx-principle-title mb-2">Connected Operations</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            We eliminate isolated tool silos by binding assets, work orders, technician dispatch, and spare parts into one unified operational loop.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 fx-principle-card p-4" tabindex="0" role="button" aria-pressed="false">
+          <span class="fx-principle-icon-box mb-3">
+            {% icon 'activity' 20 %}
+          </span>
+          <h3 class="h6 fw-bold fx-principle-title mb-2">Operational Visibility</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Every stakeholder, from the shop floor technician to executive leadership, sees accurate, real-time status without waiting on manual reports.
+          </p>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 fx-principle-card p-4" tabindex="0" role="button" aria-pressed="false">
+          <span class="fx-principle-icon-box mb-3">
+            {% icon 'shield' 20 %}
+          </span>
+          <h3 class="h6 fw-bold fx-principle-title mb-2">Traceability &amp; Governance</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Structured audit trails, system timestamps, and supervisor photo verification support operational integrity at scale.
+          </p>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="col-md-6 col-lg-6">
+        <div class="card h-100 fx-principle-card p-4" tabindex="0" role="button" aria-pressed="false">
+          <span class="fx-principle-icon-box mb-3">
+            {% icon 'settings' 20 %}
+          </span>
+          <h3 class="h6 fw-bold fx-principle-title mb-2">Workflow Precision</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Standardized digital SOPs ensure every service ticket and maintenance plan is executed with consistent high quality across all facilities.
+          </p>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="col-md-6 col-lg-6">
+        <div class="card h-100 fx-principle-card p-4" tabindex="0" role="button" aria-pressed="false">
+          <span class="fx-principle-icon-box mb-3">
+            {% icon 'bar-chart' 20 %}
+          </span>
+          <h3 class="h6 fw-bold fx-principle-title mb-2">Data-Driven Decisions</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Turn live sensor readings, MTTR metrics, and inventory turnover data into proactive maintenance schedules and confident budgeting.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Ecosystem Architecture -->
+<section class="fx-ecosystem-section" id="ecosystem-architecture">
+  <div class="fx-ecosystem-container">
+    <div class="text-center max-w-2xl mx-auto mb-4">
+      <div class="fx-ecosystem-eyebrow">
+        ECOSYSTEM ARCHITECTURE
+      </div>
+      <h2 class="fx-ecosystem-heading">
+        One interconnected platform for every<br class="d-none d-md-block"> operational role
+      </h2>
+      <p class="fx-ecosystem-desc">
+        FieldOps Nexus links roles and data across the entire physical operational lifecycle.
+      </p>
+    </div>
+
+    <!-- Dual-Row Ecosystem Carousel -->
+    <div class="fx-ecosystem-carousel-wrap">
+      
+      <!-- ROW 1: Auto-scrolls Left -->
+      <div class="fx-ecosystem-row-wrapper" data-fx-row="1" data-direction="left">
+        <!-- Carousel Viewport & Nav Arrows -->
+        <div class="fx-carousel-viewport-wrapper">
+          <button type="button" class="fx-carousel-nav-btn fx-nav-prev" aria-label="Scroll row left" data-row="1" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+
+          <div class="fx-carousel-track-container" data-carousel-container="1">
+            <div class="fx-carousel-track" data-carousel-track="1">
+              <!-- 1. Organizations -->
+              <div class="fx-ecosystem-card" data-card-index="0" tabindex="0" role="button" aria-label="Organizations: Multi-site enterprise hierarchy">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path>
+                    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path>
+                    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path>
+                    <path d="M10 6h4"></path>
+                    <path d="M10 10h4"></path>
+                    <path d="M10 14h4"></path>
+                    <path d="M10 18h4"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Organizations</h3>
+                  <p class="fx-ecosystem-card-desc">Multi-site enterprise hierarchy</p>
+                </div>
+              </div>
+
+              <!-- 2. Assets (Active by default) -->
+              <div class="fx-ecosystem-card is-selected" data-card-index="1" tabindex="0" role="button" aria-label="Assets: Critical machinery & components">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l6 3.43a2 2 0 0 0 2.06 0l6-3.43a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L12 9.5l-5.03 2.87z"></path>
+                    <path d="m12 19.5 5-2.86V10.2l-5-2.86-5 2.86v6.44l5 2.86z"></path>
+                    <path d="m12 13.5 5-2.86"></path>
+                    <path d="m12 13.5-5-2.86"></path>
+                    <path d="M12 13.5v6"></path>
+                    <path d="m7 7.5 5-2.86 5 2.86"></path>
+                    <path d="M12 4.64V2"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Assets</h3>
+                  <p class="fx-ecosystem-card-desc">Critical machinery &amp; components</p>
+                </div>
+              </div>
+
+              <!-- 3. Technicians -->
+              <div class="fx-ecosystem-card" data-card-index="2" tabindex="0" role="button" aria-label="Technicians: Mobile field workforce & crews">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Technicians</h3>
+                  <p class="fx-ecosystem-card-desc">Mobile field workforce &amp; crews</p>
+                </div>
+              </div>
+
+              <!-- 4. Service Requests -->
+              <div class="fx-ecosystem-card" data-card-index="3" tabindex="0" role="button" aria-label="Service Requests: Client & sensor intake channel">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                    <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                    <path d="M10 9H8"></path>
+                    <path d="M16 13H8"></path>
+                    <path d="M16 17H8"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Service Requests</h3>
+                  <p class="fx-ecosystem-card-desc">Client &amp; sensor intake channel</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="fx-carousel-nav-btn fx-nav-next" aria-label="Scroll row right" data-row="1" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Pagination Indicator Dots for Row 1 -->
+        <div class="fx-carousel-dots" data-dots-row="1">
+          <button type="button" class="fx-dot" data-index="0" aria-label="Organizations"></button>
+          <button type="button" class="fx-dot is-active" data-index="1" aria-label="Assets"></button>
+          <button type="button" class="fx-dot" data-index="2" aria-label="Technicians"></button>
+          <button type="button" class="fx-dot" data-index="3" aria-label="Service Requests"></button>
+        </div>
+      </div>
+
+      <!-- ROW 2: Auto-scrolls Right -->
+      <div class="fx-ecosystem-row-wrapper" data-fx-row="2" data-direction="right">
+        <!-- Carousel Viewport & Nav Arrows -->
+        <div class="fx-carousel-viewport-wrapper">
+          <button type="button" class="fx-carousel-nav-btn fx-nav-prev" aria-label="Scroll row left" data-row="2" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+
+          <div class="fx-carousel-track-container" data-carousel-container="2">
+            <div class="fx-carousel-track" data-carousel-track="2">
+              <!-- 5. Inventory -->
+              <div class="fx-ecosystem-card" data-card-index="0" tabindex="0" role="button" aria-label="Inventory: Warehouses & van stock ledger">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+                    <path d="m3.3 7 8.7 5 8.7-5"></path>
+                    <path d="M12 12v10"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Inventory</h3>
+                  <p class="fx-ecosystem-card-desc">Warehouses &amp; van stock ledger</p>
+                </div>
+              </div>
+
+              <!-- 6. Analytics -->
+              <div class="fx-ecosystem-card" data-card-index="1" tabindex="0" role="button" aria-label="Analytics: Operational MTTR & SLA reports">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"></path>
+                    <path d="M18 17V9"></path>
+                    <path d="M13 17V5"></path>
+                    <path d="M8 17v-3"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Analytics</h3>
+                  <p class="fx-ecosystem-card-desc">Operational MTTR &amp; SLA reports</p>
+                </div>
+              </div>
+
+              <!-- 7. Audit Trail (Active by default) -->
+              <div class="fx-ecosystem-card is-selected" data-card-index="2" tabindex="0" role="button" aria-label="Audit Trail: Structured operational history">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                    <path d="m9 12 2 2 4-4"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Audit Trail</h3>
+                  <p class="fx-ecosystem-card-desc">Structured operational history</p>
+                </div>
+              </div>
+
+              <!-- 8. Work Orders -->
+              <div class="fx-ecosystem-card" data-card-index="3" tabindex="0" role="button" aria-label="Work Orders: Structured dispatch & execution">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                    <path d="M12 11h4"></path>
+                    <path d="M12 16h4"></path>
+                    <path d="M8 11h.01"></path>
+                    <path d="M8 16h.01"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Work Orders</h3>
+                  <p class="fx-ecosystem-card-desc">Structured dispatch &amp; execution</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="fx-carousel-nav-btn fx-nav-next" aria-label="Scroll row right" data-row="2" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Pagination Indicator Dots for Row 2 -->
+        <div class="fx-carousel-dots" data-dots-row="2">
+          <button type="button" class="fx-dot" data-index="0" aria-label="Inventory"></button>
+          <button type="button" class="fx-dot" data-index="1" aria-label="Analytics"></button>
+          <button type="button" class="fx-dot is-active" data-index="2" aria-label="Audit Trail"></button>
+          <button type="button" class="fx-dot" data-index="3" aria-label="Work Orders"></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Clean Bottom CTA -->
+<section class="fx-standard-cta">
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Discover FieldOps Nexus
+    </h2>
+    <p class="text-white-50 max-w-2xl mx-auto mb-5" style="font-size: 1.05rem; line-height: 1.6;">
+      Experience how connected operational execution transforms equipment uptime,
+      workforce productivity, and audit compliance.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="{% url 'accounts:login' %}" class="fx-cta-btn-gold text-decoration-none d-inline-flex align-items-center gap-2">
+        <span>Explore Platform</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+      <a href="{% url 'ui:public_features' %}" class="fx-cta-btn-outline text-decoration-none d-inline-flex align-items-center gap-2">
+        <span>View All Features</span>
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

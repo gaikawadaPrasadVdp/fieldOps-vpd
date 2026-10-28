@@ -9,7 +9,12 @@ An action with no mapping is DENIED (fail closed).
 """
 from django.conf import settings
 from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+from rest_framework.exceptions import (
+    MethodNotAllowed as DRFMethodNotAllowed,
+)
+from rest_framework.exceptions import (
+    PermissionDenied as DRFPermissionDenied,
+)
 
 from apps.core import tenant
 from apps.core.exceptions import PermissionDenied as DomainPermissionDenied
@@ -25,6 +30,12 @@ class TenantAPIMixin:
 
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
+
+    def initial(self, request, *args, **kwargs):
+        if getattr(self, "action_map", None) and request.method.lower() not in self.action_map:
+            if request.method.lower() != "options":
+                raise DRFMethodNotAllowed(request.method)
+        super().initial(request, *args, **kwargs)
 
     def get_permissions(self):
         return [permissions.IsAuthenticated(), HasOrgPermission()]

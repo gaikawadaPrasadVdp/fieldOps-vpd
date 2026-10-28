@@ -8,13 +8,41 @@ from apps.core.models import TenantOwnedModel
 from apps.core.tenant import TenantQuerySet
 
 
+class WorkOrderQuerySet(TenantQuerySet):
+    def update(self, **kwargs):
+        if "order_number" in kwargs and "number" not in kwargs:
+            kwargs["number"] = kwargs["order_number"]
+        elif "number" in kwargs and "order_number" not in kwargs:
+            kwargs["order_number"] = kwargs["number"]
+        return super().update(**kwargs)
+
+    def bulk_create(self, objs, *args, **kwargs):
+        for obj in objs:
+            if getattr(obj, "order_number", None) and not getattr(obj, "number", None):
+                obj.number = obj.order_number
+            elif getattr(obj, "number", None) and not getattr(obj, "order_number", None):
+                obj.order_number = obj.number
+        return super().bulk_create(objs, *args, **kwargs)
+
+
 class WorkOrder(TenantOwnedModel):
+    objects = WorkOrderQuerySet.as_manager()
     class SourceType(models.TextChoices):
         REQUEST = "REQUEST", "Service request"
         INCIDENT = "INCIDENT", "Incident"
         PM = "PM", "Preventive maintenance"
         PREVENTIVE_MAINTENANCE = "PREVENTIVE_MAINTENANCE", "Preventive maintenance"
         MANUAL = "MANUAL", "Manual"
+
+        @classmethod
+        def distinct_choices(cls):
+            seen = set()
+            res = []
+            for val, label in cls.choices:
+                if label not in seen and val != cls.PREVENTIVE_MAINTENANCE:
+                    seen.add(label)
+                    res.append((val, label))
+            return res
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -49,6 +77,7 @@ class WorkOrder(TenantOwnedModel):
         FAILED = "FAILED", "Failed"
 
     order_number = models.CharField(max_length=32)
+    number = models.CharField(max_length=32, blank=True, null=True, db_index=True)
     site = models.ForeignKey("sites.Site", on_delete=models.PROTECT, related_name="work_orders")
     # Nullable for historical compatibility. All new records require an active same-site asset
     # through the create service; older reference-only records are backfilled where possible.
@@ -129,6 +158,10 @@ class WorkOrder(TenantOwnedModel):
 
     def clean(self):
         super().clean()
+        if self.order_number and not self.number:
+            self.number = self.order_number
+        elif self.number and not self.order_number:
+            self.order_number = self.number
         if self.site_id and self.site.organization_id != self.organization_id:
             raise ValidationError({"site": "Site must belong to this work order's organization."})
         if self.asset_id:
@@ -165,7 +198,18 @@ class WorkOrder(TenantOwnedModel):
             raise ValidationError({"assigned_to": "Assignee must belong to this organization."})
 
     def save(self, *args, **kwargs):
+        if self.order_number and not self.number:
+            self.number = self.order_number
+        elif self.number and not self.order_number:
+            self.order_number = self.number
         update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            if "order_number" in update_fields:
+                update_fields.add("number")
+            elif "number" in update_fields:
+                update_fields.add("order_number")
+            kwargs["update_fields"] = update_fields
         writes_status = update_fields is None or "status" in update_fields
         if (not self._state.adding and writes_status and
                 not getattr(self, "_workflow_transition_write", False)):
@@ -184,10 +228,6 @@ class WorkOrder(TenantOwnedModel):
 
     def __str__(self):
         return f"{self.order_number} · {self.title}"
-
-    @property
-    def number(self):
-        return self.order_number
 
 
 class WorkOrderAssignment(TenantOwnedModel):
@@ -264,15 +304,19 @@ class WorkOrderLabor(TenantOwnedModel):
     work_date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.CharField(max_length=500)
+    notes = models.CharField(max_length=500, blank=True, default="")
 
     class Meta:
         ordering = ["-work_date", "-created_at"]
         constraints = [models.CheckConstraint(condition=Q(hours__gt=0) & Q(hours__lte=24),
                                               name="wo_labor_hours_1_24")]
 
-    @property
-    def notes(self):
-        return self.description
+    def save(self, *args, **kwargs):
+        if not self.notes and self.description:
+            self.notes = self.description[:300]
+        elif not self.description and self.notes:
+            self.description = self.notes
+        super().save(*args, **kwargs)
 
 
 class WorkOrderMaterial(TenantOwnedModel):

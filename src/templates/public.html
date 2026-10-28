@@ -1,11 +1,108 @@
 {% extends "base.html" %}
-{% block body_class %}fx-public{% endblock %}
+{% load static ui_tags %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/public.css' %}">
+{% endblock %}
+
+{% block body_class %}fx-auth-split-body{% endblock %}
+
 {% block body %}
-<main class="fx-auth-wrap">
-  <div class="fx-auth-card">
-    <div class="fx-brand mb-4"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
-    {% include "components/_messages.html" %}
-    {% block content %}{% endblock %}
-  </div>
-</main>
+<div class="d-flex min-vh-100 flex-column flex-lg-row overflow-hidden">
+  <!-- Left Enterprise Branding Panel (Desktop) -->
+  <aside class="col-lg-5 col-xl-5 d-none d-lg-flex flex-column justify-content-between p-5 text-white position-relative overflow-hidden"
+         style="background: #0B1F3A; border-right: 1px solid rgba(255,255,255,0.08);">
+    
+    <!-- Background Dot Grid Pattern & Dark Bottom Gradient -->
+    <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none"
+         style="opacity: 0.05; background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 28px 28px;"></div>
+    <div class="position-absolute bottom-0 start-0 end-0 pointer-events-none"
+         style="height: 50%; background: linear-gradient(to top, #071426, transparent);"></div>
+
+    <!-- Top Brand Badge -->
+    <div class="position-relative z-1">
+      <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white">
+        <div class="fx-pub-brand-badge" style="width:36px; height:36px;">
+          {% icon 'activity' 19 %}
+        </div>
+        <div>
+          <div class="fw-bold fs-5 text-white lh-1">FieldOps <span style="color:#F5C451;">Nexus</span></div>
+          <div class="small text-uppercase fw-semibold" style="color:#F5C451; letter-spacing:0.12em; font-size:0.68rem;">Enterprise Platform</div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Center Hero Copy & Capabilities -->
+    <div class="position-relative z-1 my-auto py-4">
+      <div class="text-uppercase fw-bold mb-3 small" style="color:#F5C451; letter-spacing:0.16em; font-size:0.75rem;">
+        Enterprise Platform
+      </div>
+      <h1 class="display-6 fw-bold mb-3 text-white lh-sm">
+        Field Operations.<br>
+        Asset Management.<br>
+        <span style="color:#F5C451;">One Platform.</span>
+      </h1>
+      <p class="text-white-50 mb-4 small lh-base" style="max-width: 440px;">
+        Manage assets, maintenance, field service, inventory and operational workflows across your entire organization.
+      </p>
+
+      <div class="d-flex flex-column gap-2 small text-light">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <span style="color:#CBD5E1;">Asset lifecycle management &amp; telemetry tracking</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <span style="color:#CBD5E1;">Preventive maintenance automated schedules</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <span style="color:#CBD5E1;">Real-time field technician dispatch &amp; checklists</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <span style="color:#CBD5E1;">SLA monitoring and automated breach escalations</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <span style="color:#CBD5E1;">Complete audit, compliance, and double-entry stock</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Footer Meta -->
+    <div class="position-relative z-1 pt-3 border-top border-white border-opacity-10 small text-white-50" style="font-size:0.8rem;">
+      {% comment %} <div>&copy; 2026 FieldOps Nexus. Enterprise Field Service Platform.</div>
+      <div class="mt-1" style="font-size: 0.72rem; color: rgba(255,255,255,0.4);">ISO 27001 &amp; SOC-2 Type II Certified Operational Infrastructure</div> {% endcomment %}
+    </div>
+  </aside>
+
+  <!-- Right Form Container -->
+  <main class="flex-grow-1 d-flex flex-column justify-content-center align-items-center p-4 p-md-5 fx-auth-wrap" style="background:#F8FAFC;">
+    <div class="w-100" style="max-width: 440px;">
+      <!-- Mobile Brand Header -->
+      <div class="d-lg-none d-flex align-items-center gap-2 mb-4 pb-2 border-bottom">
+        <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+          <div class="fx-pub-brand-badge" style="width:34px; height:34px;">
+            {% icon 'activity' 18 %}
+          </div>
+          <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
+        </a>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="card border-0 shadow-sm p-4 p-md-5 bg-white fx-auth-card" style="border-radius:14px; border:1px solid #E2E8F0 !important;">
+        {% include "components/_messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
+
+      <!-- Back to Public Site Link -->
+      <div class="text-center mt-4">
+        <a href="{% url 'ui:root' %}" class="small text-decoration-none text-secondary">
+          &larr; Return to FieldOps Nexus Overview
+        </a>
+      </div>
+    </div>
+  </main>
+</div>
 {% endblock %}

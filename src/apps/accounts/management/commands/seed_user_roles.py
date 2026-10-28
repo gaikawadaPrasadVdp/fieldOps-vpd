@@ -37,7 +37,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.slug})"))
 
         # 2. Seed System Roles for the Organization
-        roles_dict = seed_system_roles(org)
+        roles_dict = seed_system_roles(org, prune_extra=True)
         self.stdout.write(self.style.SUCCESS(f"[OK] Seeded {len(roles_dict)} system roles"))
 
         # 3. Define Standard User Personas
@@ -131,6 +131,15 @@ class Command(BaseCommand):
                 "is_staff": False,
                 "is_portal_client": True,
             },
+            {
+                "email": "client.new@apexindustrial.com",
+                "full_name": "Sarah Connor",
+                "job_title": "Client Facility Manager",
+                "role_key": "client_requester",
+                "is_platform_admin": False,
+                "is_staff": False,
+                "is_portal_client": True,
+            },
         ]
 
         # 4. Create Persona Users, Memberships & Assign Roles
@@ -194,5 +203,25 @@ class Command(BaseCommand):
                 "email": email,
                 "name": p["full_name"],
             })
+
+        # 5. Provision Platform Super Administrator (DEF-05)
+        platform_admin_email = "platform.admin@fieldops.io"
+        p_admin = User.objects.filter(email__iexact=platform_admin_email).first()
+        if not p_admin:
+            p_admin = User.objects.create_user(
+                email=platform_admin_email,
+                password=password,
+                full_name="Platform Super Administrator",
+                is_active=True,
+            )
+        else:
+            p_admin.set_password(password)
+            p_admin.full_name = "Platform Super Administrator"
+            p_admin.is_active = True
+        p_admin.is_staff = True
+        p_admin.is_superuser = True
+        p_admin.is_platform_admin = True
+        p_admin.save()
+        self.stdout.write(self.style.SUCCESS(f"[OK] Provisioned Platform Super Admin: {platform_admin_email}"))
 
         self.stdout.write(self.style.SUCCESS("\n[SUCCESS] Successfully seeded all user credentials and roles!"))

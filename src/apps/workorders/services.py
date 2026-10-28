@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -25,14 +25,21 @@ from .models import (
 )
 
 TRANSITIONS = {
-    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
+    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
     WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
+}
+
+CANCELLABLE_STATUSES = {
+    WorkOrder.Status.DRAFT,
+    WorkOrder.Status.PLANNED,
+    WorkOrder.Status.ASSIGNED,
+    WorkOrder.Status.DISPATCHED,
 }
 
 EVIDENCE_REQUIRED_TYPES = (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
@@ -90,6 +97,11 @@ def _need(membership, code, site):
 
 
 def _transition(work_order, target):
+    if target == WorkOrder.Status.CANCELLED:
+        if work_order.status not in CANCELLABLE_STATUSES:
+            raise InvalidTransition(f"Cannot cancel work order in status {work_order.status}.",
+                                    code="invalid_work_order_transition")
+        return
     if target not in TRANSITIONS.get(work_order.status, set()):
         raise InvalidTransition(f"Cannot move work order from {work_order.status} to {target}.",
                                 code="invalid_work_order_transition")
@@ -149,29 +161,23 @@ def _snapshot(wo):
 def _validate_schedule_window(start, end, due_at, estimated_hours):
     if start and end and end <= start:
         raise ValidationFailed("Planned end must be later than planned start.", code="invalid_schedule")
-    if due_at and end and due_at <= end:
-        raise ValidationFailed("Due date must be later than planned end.", code="due_not_after_end")
+    if due_at and end and due_at < end:
+        raise ValidationFailed("Due date must be on or after planned end.", code="due_not_after_end")
+    if due_at and start and due_at <= start:
+        raise ValidationFailed("Due date must be later than planned start.", code="due_not_after_start")
     if estimated_hours is not None and Decimal(estimated_hours) <= 0:
         raise ValidationFailed("Estimated hours must be greater than zero.", code="estimate_not_positive")
-    if start and end and estimated_hours is not None:
+    if start and end and end > start and estimated_hours is not None:
         available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
         if Decimal(estimated_hours) > available_hours:
             raise ValidationFailed("Estimated hours cannot exceed the planned start-to-end window.",
-                                   code="estimate_exceeds_schedule")
+                                   code="estimate_exceeds_schedule",
+                                   details={"fields": {"estimated_hours": ["Estimated hours cannot exceed the planned start-to-end window."]}})
 
 
 def _validate_linked_priority(work_order, priority):
-    if not work_order.source_request_id:
-        return
-    expected = {
-        "LOW": WorkOrder.Priority.LOW,
-        "MEDIUM": WorkOrder.Priority.MEDIUM,
-        "HIGH": WorkOrder.Priority.HIGH,
-        "CRITICAL": WorkOrder.Priority.CRITICAL,
-    }.get(work_order.source_request.severity)
-    if priority != expected:
-        raise ValidationFailed("Priority must match the linked approved incident or service request.",
-                               code="source_priority_mismatch")
+    # Priority is automatically defaulted from the linked source record, but manual adjustments by planners are permitted.
+    return
 
 
 def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=None):
@@ -233,7 +239,7 @@ def _notify_transition(wo, action, actor):
 def get_work_order(membership, pk):
     try:
         return WorkOrder.objects.for_organization(membership.organization).select_related(
-            "site", "assigned_to__user", "created_by").get(pk=pk)
+            "site", "assigned_to__user", "created_by", "asset", "component").get(pk=pk)
     except WorkOrder.DoesNotExist as exc:
         raise NotFound("Work order not found.") from exc
 
@@ -288,8 +294,10 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
             raise ValidationFailed("The selected source type does not match the linked record.",
                                    code="source_type_mismatch")
         source_reference = source_request.number
-        if WorkOrder.objects.for_organization(organization).filter(
-                source_type=source_type, source_reference=source_reference).exists():
+        if WorkOrder.objects.filter(
+                Q(source_request=source_request) |
+                Q(source_id=source_request.pk) |
+                Q(organization=organization, source_type=source_type, source_reference=source_reference)).exists():
             raise Conflict("A work order is already linked to this incident or request.",
                            code="source_work_order_exists")
         fields.update({
@@ -327,12 +335,19 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     source_reference = (fields.get("source_reference") or "").strip()
     is_pm = source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE)
     if is_pm and not fields.get("source_id"):
-        raise ValidationFailed("A work-order source needs both a type and an id.", code="invalid_source")
+        if source_reference:
+            import uuid
+            fields["source_id"] = uuid.uuid5(uuid.NAMESPACE_DNS, source_reference)
+        else:
+            raise ValidationFailed("A work-order source needs both a type and an id.", code="invalid_source")
     if is_pm and not source_reference and fields.get("source_id"):
         source_reference = f"PM-{fields['source_id']}"
         fields["source_reference"] = source_reference
     if is_pm and not source_reference:
         raise ValidationFailed("A preventive-maintenance schedule reference is required.", code="pm_reference_required")
+    if is_pm and not fields.get("source_id"):
+        import uuid
+        fields["source_id"] = uuid.uuid5(uuid.NAMESPACE_DNS, f"{organization.pk}:{source_reference}")
     if is_pm and WorkOrder.objects.for_organization(organization).filter(
             source_type__in=(WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE),
             source_reference=source_reference).exclude(
@@ -353,10 +368,6 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         fields["service_request_reference"] = source_reference
     start, end, due_at = fields.get("planned_start"), fields.get("planned_end"), fields.get("due_at")
     _validate_schedule_window(start, end, due_at, fields.get("estimated_hours"))
-    schedule_values = (start, end, due_at, fields.get("estimated_hours"))
-    if any(value is not None for value in schedule_values) and not all(value is not None for value in schedule_values):
-        raise ValidationFailed("Provide planned start, planned end, due date, and estimated hours together, or leave them blank and plan the Draft later.",
-                               code="incomplete_draft_schedule")
     if source_asset is None:
         raise ValidationFailed("Asset is required.", code="asset_required")
     from apps.assets.models import Asset, AssetComponent
@@ -383,19 +394,37 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     if not isinstance(provisional, list) or any(not isinstance(item, dict) or
             not str(item.get("label", "")).strip() for item in provisional):
         raise ValidationFailed("Provisional checklist notes must each include a label.")
-    wo = WorkOrder(organization=organization, site=site,
-                   order_number=next_number(organization, "work_order", "WO"),
-                   title=title, created_by=actor, **fields)
     from .checklist_adapter import configure_requirement
-    configure_requirement(wo)
-    try:
-        wo.full_clean()
-        wo.save()
-    except ValidationError as exc:
-        if "uniq_work_order_per_pm_source" in str(exc):
-            raise IntegrityError(str(exc)) from exc
-        msg = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
-        raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
+
+    wo = None
+    for attempt in range(5):
+        order_number = next_number(organization, "work_order", "WO")
+        attempts = 0
+        while WorkOrder.objects.for_organization(organization).filter(order_number=order_number).exists() and attempts < 100:
+            order_number = next_number(organization, "work_order", "WO")
+            attempts += 1
+        wo = WorkOrder(organization=organization, site=site,
+                       order_number=order_number,
+                       number=order_number,
+                       title=title, created_by=actor, **fields)
+        configure_requirement(wo)
+        try:
+            with transaction.atomic():
+                wo.full_clean()
+                wo.save()
+            break
+        except IntegrityError as exc:
+            exc_str = str(exc).lower()
+            if "source_request" in exc_str or "source_id" in exc_str:
+                raise Conflict("A work order is already linked to this incident or request.", code="source_work_order_exists") from exc
+            if ("uniq_wo_number_org" in exc_str or "order_number" in exc_str or "uniq_work_order_number_per_org" in exc_str) and attempt < 4:
+                continue
+            raise
+        except ValidationError as exc:
+            if "uniq_work_order_per_pm_source" in str(exc):
+                raise IntegrityError(str(exc)) from exc
+            msg = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
+            raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
     _record(wo, actor=actor, action="created", request=request)
     return wo
 
@@ -487,9 +516,10 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
     if wo.estimated_hours is not None and wo.estimated_hours < 0:
         raise ValidationFailed("Estimated hours cannot be negative.")
     schedule_values = (wo.planned_start, wo.planned_end, wo.due_at, wo.estimated_hours)
-    if any(value is not None for value in schedule_values) and not all(value is not None for value in schedule_values):
+    if wo.status != WorkOrder.Status.DRAFT and any(value is not None for value in schedule_values) and not all(value is not None for value in schedule_values):
         raise ValidationFailed("Provide all schedule fields together, or leave them blank until planning.",
-                               code="incomplete_schedule")
+                               code="incomplete_schedule",
+                               details={"fields": {"planned_start": ["Provide all schedule fields together, or leave them blank until planning."]}})
     if wo.status != WorkOrder.Status.DRAFT and (
             not wo.work_type or not wo.priority or not all(value is not None for value in schedule_values)
             or wo.estimated_hours <= 0):
@@ -521,6 +551,12 @@ def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, plan
         membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
     if actor is not None or membership is not None:
         _need(membership, "work_order.plan", wo.site)
+    if wo.site and wo.site.status != Site.Status.ACTIVE:
+        raise ValidationFailed("Cannot plan work order for an inactive site.", code="site_inactive")
+    if wo.asset:
+        from apps.assets.models import Asset
+        if wo.asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
+            raise ValidationFailed(f"Cannot plan work order for an asset in status {wo.asset.status}.", code="asset_decommissioned")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.PLANNED)
     if not planned_start or not planned_end or planned_end <= planned_start:
@@ -586,8 +622,8 @@ def assign_work_order(wo, *, membership, actor, assignee_id, scheduled_start=Non
     if not scheduled_start or not scheduled_end or scheduled_end <= scheduled_start:
         raise ValidationFailed("Enter a valid scheduled start and end; end must be later than start.",
                                code="invalid_schedule")
-    if wo.due_at and wo.due_at <= scheduled_end:
-        raise ValidationFailed("Due date must be later than scheduled end.", code="due_before_schedule_end")
+    if wo.due_at and wo.due_at < scheduled_end:
+        raise ValidationFailed("Due date must be on or after scheduled end.", code="due_before_schedule_end")
     if wo.estimated_hours is not None and Decimal(wo.estimated_hours) > Decimal(
             str((scheduled_end - scheduled_start).total_seconds())) / Decimal("3600"):
         raise ValidationFailed("Estimated hours cannot exceed the scheduled window.", code="estimate_exceeds_schedule")
@@ -636,8 +672,8 @@ def reschedule_assigned_work_order(wo, *, membership, actor, scheduled_start, sc
         raise NotFound("Technician not found.")
     if not scheduled_start or not scheduled_end or scheduled_end <= scheduled_start:
         raise ValidationFailed("Scheduled end must be later than scheduled start.", code="invalid_schedule")
-    if wo.due_at and wo.due_at <= scheduled_end:
-        raise ValidationFailed("Due date must be later than scheduled end.", code="due_before_schedule_end")
+    if wo.due_at and wo.due_at < scheduled_end:
+        raise ValidationFailed("Due date must be on or after scheduled end.", code="due_before_schedule_end")
     if wo.estimated_hours is not None and Decimal(wo.estimated_hours) > Decimal(
             str((scheduled_end - scheduled_start).total_seconds())) / Decimal("3600"):
         raise ValidationFailed("Estimated hours cannot exceed the scheduled window.", code="estimate_exceeds_schedule")
@@ -690,6 +726,9 @@ def start_work_order(wo, *, membership, actor, expected_version=None, request=No
         permission="work_order.start", action="started", changes={"started_at": timezone.now()},
         expected_version=expected_version, request=request)
     _sync_incident_request(wo, "started", actor, request)
+    if wo.asset_id:
+        from apps.assets import services as asset_services
+        asset_services.on_work_order_started(wo, actor=actor, request=request)
     return wo
 
 
@@ -825,6 +864,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     elif approved:
         from apps.inventory import services as inventory_services
         inventory_services.on_work_order_closed(wo, actor=actor, request=request)
+        if wo.asset_id:
+            from apps.assets import services as asset_services
+            asset_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -881,9 +923,9 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
     if wo.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED):
         raise Conflict("Checklist references are read-only after work is assigned.",
                        code="checklist_reference_read_only")
-    if template_ref != wo.checklist_template_ref:
-        raise ValidationFailed("Checklist template does not match the required work-type template.",
-                               code="checklist_template_mismatch")
+    template_ref = (template_ref or "").strip()
+    if not template_ref:
+        raise ValidationFailed("A checklist template reference is required.", code="checklist_template_required")
     instance_ref = (instance_ref or "").strip()
     if not instance_ref:
         raise ValidationFailed("A checklist instance reference is required.", code="checklist_instance_required")
@@ -918,7 +960,7 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
-                                          description=desc)
+                                          description=desc, notes=desc[:300])
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
             request=request)
     return entry
