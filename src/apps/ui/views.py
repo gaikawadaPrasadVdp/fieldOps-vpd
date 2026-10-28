@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -12,6 +12,7 @@ from apps.tenancy import selectors
 from apps.tenancy.models import Membership
 from .forms import ClientOnboardingForm
 from .utils import is_client_membership
+from .public_catalog import get_catalog_item, DETAIL_PAGES
 
 
 PRD_MODULES = [
@@ -43,6 +44,29 @@ def root(request):
     return render(request, "public/landing.html", {"active_page": "home"})
 
 
+def public_product_overview(request):
+    return render(request, "public/features.html", {"active_page": "product"})
+
+
+def public_product(request, slug):
+    slug_lower = slug.lower().strip()
+    item = get_catalog_item("product", slug_lower)
+    if not item:
+        raise Http404(f"Product '{slug}' not found.")
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "product",
+            "category": "product",
+            "section_name": "Product",
+            "section_url": "/product/",
+            "item": item,
+            "selected_slug": slug_lower,
+        },
+    )
+
+
 def public_features(request):
     return render(request, "public/features.html", {"active_page": "features"})
 
@@ -52,7 +76,23 @@ def public_solutions(request):
 
 
 def public_solution(request, slug):
-    return render(request, "public/solutions.html", {"active_page": "solutions", "selected_slug": slug})
+    slug_lower = slug.lower().strip()
+    item = get_catalog_item("solutions", slug_lower)
+    if not item:
+        raise Http404(f"Solution '{slug}' not found.")
+    canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "solutions",
+            "category": "solutions",
+            "section_name": "Solutions",
+            "section_url": "/solutions/",
+            "item": item,
+            "selected_slug": canonical_slug,
+        },
+    )
 
 
 def public_modules(request):
@@ -61,8 +101,22 @@ def public_modules(request):
 
 def public_module(request, module_id):
     slug_lower = module_id.lower().strip()
-    mod = next((m for m in PRD_MODULES if m.get("slug") == slug_lower or m["id"].lower() == slug_lower), None)
-    return render(request, "public/modules.html", {"active_page": "modules", "module_list": PRD_MODULES, "selected_module": mod, "selected_slug": slug_lower})
+    item = get_catalog_item("modules", slug_lower)
+    if not item:
+        raise Http404(f"Module '{module_id}' not found.")
+    canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "modules",
+            "category": "modules",
+            "section_name": "Modules",
+            "section_url": "/modules/",
+            "item": item,
+            "selected_slug": canonical_slug,
+        },
+    )
 
 
 def public_resources(request):

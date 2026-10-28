@@ -1,0 +1,273 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}{{ item.title }} &middot; FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<!-- =========================================================================
+     1. Hero Section (Vercel Reference Design)
+     ========================================================================= -->
+<section class="fx-detail-hero" aria-label="{{ item.title }} Hero">
+  <!-- Subtle Grid Background & Ambient Glow -->
+  <div class="fx-detail-grid-bg" aria-hidden="true"></div>
+  <div class="fx-detail-glow" aria-hidden="true"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="Breadcrumb" class="fx-detail-breadcrumb fx-reveal">
+      <a href="{% url 'ui:root' %}">Home</a>
+      <span class="separator" aria-hidden="true">&rsaquo;</span>
+      <a href="{{ section_url }}">{{ section_name }}</a>
+      <span class="separator" aria-hidden="true">&rsaquo;</span>
+      <span class="current-page text-white fw-semibold">{{ item.title }}</span>
+    </nav>
+
+    <div class="row align-items-center gy-5">
+      <!-- Left Hero Column -->
+      <div class="col-lg-6">
+        <!-- Subtitle Eyebrow Badge -->
+        <div class="fx-detail-badge fx-reveal">
+          {% icon 'sparkles' 13 %}
+          <span>{{ item.subtitle }}</span>
+        </div>
+
+        <!-- Page Title -->
+        <h1 class="fx-detail-title fx-reveal">
+          {{ item.title }}
+        </h1>
+
+        <!-- Gold Subtitle / Tagline -->
+        <p class="fx-detail-tagline fx-reveal">
+          {{ item.tagline }}
+        </p>
+
+        <!-- Description Paragraph -->
+        <p class="fx-detail-desc fx-reveal">
+          {{ item.description }}
+        </p>
+
+        <!-- Hero Action Buttons -->
+        <div class="fx-detail-hero-actions fx-reveal">
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'ui:home' %}" class="btn-fx-gold fx-hero-cta">
+              <span>Launch ERP Workspace</span>
+              {% icon 'arrow-right' 16 %}
+            </a>
+          {% else %}
+            <a href="{% url 'ui:client_register' %}" class="btn-fx-gold fx-hero-cta">
+              <span>Get Started Free</span>
+              {% icon 'arrow-right' 16 %}
+            </a>
+            <a href="#capabilities" class="btn btn-outline-light fx-hero-secondary-btn">
+              <span>Explore Capabilities</span>
+              {% icon 'arrow-down' 14 %}
+            </a>
+          {% endif %}
+        </div>
+
+        <!-- Trust Indicators & Assurance Badges -->
+        <div class="fx-detail-hero-trust fx-reveal">
+          <div class="fx-trust-pill">
+            <span class="fx-trust-dot" aria-hidden="true"></span>
+            <span>Enterprise Ready</span>
+          </div>
+          <div class="fx-trust-pill">
+            {% icon 'shield' 13 class="text-warning" %}
+            <span>SOC2 &amp; ISO 27001</span>
+          </div>
+          <div class="fx-trust-pill">
+            {% icon 'activity' 13 class="text-warning" %}
+            <span>99.9% Uptime SLA</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Hero Column: Large Photograph Matching Vercel Reference -->
+      <div class="col-lg-6">
+        <div class="fx-detail-image-card fx-reveal" data-hero-interactive-image>
+          <img src="{% static item.image_path %}" alt="{{ item.title }}" loading="eager">
+          <div class="fx-detail-image-overlay" aria-hidden="true"></div>
+          <div class="fx-detail-image-badge">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fx-pulse-dot" aria-hidden="true"></span>
+              <span class="fx-badge-text">{{ item.overlay_label|default:"Live Operational Telemetry Active" }}</span>
+            </div>
+            <span class="fx-badge-status">Active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     2. Capabilities Section (Positioned Directly Below Hero)
+     ========================================================================= -->
+<section class="fx-capabilities-section" id="capabilities" aria-label="Capabilities and Features">
+  <div class="container-xl px-4">
+    <div class="text-center mx-auto mb-5 fx-reveal" style="max-width: 720px;">
+      <p class="text-uppercase fw-bold mb-2" style="color: #D97706; font-size: 11.5px; letter-spacing: 0.15em;">
+        CAPABILITIES
+      </p>
+      <h2 class="display-6 fw-extrabold text-navy mb-0" style="color: #0B1F3B;">
+        Engineered for Enterprise Scale
+      </h2>
+    </div>
+
+    <!-- 4 Capability Cards Grid -->
+    <div class="row g-4">
+      {% for feat in item.features %}
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="fx-capability-card fx-reveal {% if forloop.counter == 3 %}fx-capability-active{% endif %}" data-fx-interactive-card>
+          <div class="fx-capability-icon">
+            {% icon feat.icon 22 %}
+          </div>
+          <h3 class="fx-capability-title">{{ feat.title }}</h3>
+          <p class="fx-capability-desc">{{ feat.desc }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     3. Metrics Bar Section
+     ========================================================================= -->
+{% if item.metrics %}
+<section class="fx-detail-metrics-section" aria-label="Performance Metrics">
+  <div class="container-xl px-4">
+    <div class="row g-4">
+      {% for m in item.metrics %}
+      <div class="col-md-4">
+        <div class="fx-detail-metric-card fx-reveal">
+          <div class="fx-detail-metric-val">{{ m.0 }}</div>
+          <div class="fx-detail-metric-lbl">{{ m.1 }}</div>
+          <div class="fx-detail-metric-sub">{{ m.2 }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- =========================================================================
+     4. Operational Deep Dive & Architecture Section
+     ========================================================================= -->
+{% if item.deep_dive %}
+<section class="fx-deepdive-section" aria-label="Operational Architecture">
+  <div class="container-xl px-4">
+    <div class="row align-items-center gy-4">
+      <div class="col-lg-6">
+        <div class="pe-lg-4 fx-reveal">
+          <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(11, 31, 59, 0.06); border: 1px solid rgba(11, 31, 59, 0.12); color: #0B1F3B; font-size: 10.5px; letter-spacing: 0.12em;">
+            {% icon 'layers' 13 %}
+            <span>Operational Architecture</span>
+          </div>
+          <h2 class="h3 fw-extrabold text-navy mb-3" style="color: #0B1F3B;">
+            {{ item.deep_dive.title }}
+          </h2>
+          <p class="text-secondary mb-3" style="line-height: 1.7; font-size: 14.5px;">
+            {{ item.deep_dive.p1 }}
+          </p>
+          <p class="text-secondary mb-4" style="line-height: 1.7; font-size: 14.5px;">
+            {{ item.deep_dive.p2 }}
+          </p>
+          
+          <div class="d-flex flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2 small text-dark fw-semibold">
+              {% icon 'shield' 16 class="text-warning" %}
+              <span>Audit-Ready Traceability</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 small text-dark fw-semibold">
+              {% icon 'refresh-cw' 16 class="text-warning" %}
+              <span>Real-Time Bi-Directional Sync</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="fx-deepdive-panel fx-reveal">
+          <div class="d-flex align-items-center justify-content-between pb-3 border-bottom border-light-subtle mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <span class="rounded-circle bg-warning d-inline-block" style="width: 8px; height: 8px;"></span>
+              <strong class="small text-dark font-monospace">{{ item.title }} Runtime Configuration</strong>
+            </div>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">PROD v2.4</span>
+          </div>
+
+          <div class="space-y-3">
+            <div class="p-3 rounded-2 border border-light-subtle bg-light d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <strong class="d-block small text-dark">Data Security &amp; Tenant Partitioning</strong>
+                <span class="text-secondary" style="font-size: 11.5px;">Row-level security with isolated cryptographic tenant keys</span>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Enforced</span>
+            </div>
+
+            <div class="p-3 rounded-2 border border-light-subtle bg-light d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <strong class="d-block small text-dark">Mobile Field Availability</strong>
+                <span class="text-secondary" style="font-size: 11.5px;">Offline-first local cache with delta sync upon reconnection</span>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+            </div>
+
+            <div class="p-3 rounded-2 border border-light-subtle bg-light d-flex justify-content-between align-items-center">
+              <div>
+                <strong class="d-block small text-dark">Regulatory Audit Ledger</strong>
+                <span class="text-secondary" style="font-size: 11.5px;">Append-only changelog tracking every actor, timestamp &amp; IP</span>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Verified</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- =========================================================================
+     5. Bottom CTA Section (Dark Navy Background with Grid & Ambient Glow)
+     ========================================================================= -->
+<section class="fx-detail-cta" aria-label="Connect Your Operations">
+  <div class="fx-detail-grid-bg" aria-hidden="true"></div>
+  <div class="fx-detail-glow" style="left:50%; top:50%; transform:translate(-50%, -50%);" aria-hidden="true"></div>
+
+  <div class="container-xl px-4 position-relative z-10 fx-reveal">
+    <h2 class="display-6 fw-extrabold text-white mb-2">
+      Ready to Connect Your Operations?
+    </h2>
+
+    <div class="fx-detail-cta-divider" aria-hidden="true">
+      <span class="line"></span>
+      <span class="dot"></span>
+      <span class="line reverse"></span>
+    </div>
+
+    <p class="lead text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.7;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'ui:home' %}" class="btn-fx-gold px-4 py-3 fw-bold text-decoration-none">
+          <span>Launch ERP Workspace</span>
+          {% icon 'arrow-right' 16 %}
+        </a>
+      {% else %}
+        <a href="{% url 'ui:client_register' %}" class="btn-fx-gold px-4 py-3 fw-bold text-decoration-none">
+          <span>Get Started Free</span>
+          {% icon 'arrow-right' 16 %}
+        </a>
+        <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+          <span>Sign In to ERP</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

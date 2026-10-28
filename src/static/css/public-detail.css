@@ -1,0 +1,714 @@
+/**
+ * FieldOps Nexus — Product, Solutions & Modules Detail Pages Design System
+ * Matches Vercel Reference: https://fieldopus-nexus-frontend-ui.vercel.app/modules/asset-management
+ *
+ * Brand Palette:
+ * - Deep navy:      #0B1F3B (Hero background & high-contrast surfaces)
+ * - Secondary navy: #162A4B (Panels & deep accents)
+ * - Canvas dark:    #071426 (Card backgrounds & photo wrappers)
+ * - Gold primary:   #F5C451 (Eyebrow badges, taglines, active highlights)
+ * - Gold accent:    #D97706 / #C9A227 (Card hover & icons)
+ * - Light surface:  #F8FAFC (Metrics & deep dive backgrounds)
+ * - Card surface:   #FFFFFF (Capabilities cards)
+ * - Text primary:   #0B1F3B (Headings on light background)
+ * - Text muted:     #64748B (Body text & subtext)
+ */
+
+:root {
+  --fx-det-navy: #0B1F3B;
+  --fx-det-navy-secondary: #162A4B;
+  --fx-det-navy-dark: #071426;
+  --fx-det-gold: #F5C451;
+  --fx-det-gold-dark: #D97706;
+  --fx-det-gold-glow: rgba(245, 196, 81, 0.25);
+  --fx-det-surface-light: #F8FAFC;
+  --fx-det-surface-white: #FFFFFF;
+  --fx-det-border-light: #E2E8F0;
+  --fx-det-border-dark: rgba(255, 255, 255, 0.12);
+  --fx-det-text-white: #FFFFFF;
+  --fx-det-text-slate: rgba(255, 255, 255, 0.78);
+  --fx-det-text-dark: #0B1F3B;
+  --fx-det-text-muted: #64748B;
+  --fx-det-radius-sm: 8px;
+  --fx-det-radius-md: 12px;
+  --fx-det-radius-lg: 16px;
+  --fx-det-radius-xl: 20px;
+  --fx-det-radius-pill: 9999px;
+  --fx-det-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================================================
+   1. Shared UI Component Primitives
+   ========================================================================== */
+
+/* Gold Primary Action Button */
+.btn-fx-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, #F5C451 0%, #D99B16 100%);
+  color: #0B1F3B !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.65rem;
+  border-radius: var(--fx-det-radius-sm);
+  border: 1px solid rgba(245, 196, 81, 0.6);
+  box-shadow: 0 4px 14px rgba(245, 196, 81, 0.35);
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: all 0.25s var(--fx-det-ease);
+  white-space: nowrap;
+}
+
+.btn-fx-gold:hover {
+  background: linear-gradient(135deg, #FAD068 0%, #E5A922 100%);
+  color: #040D1A !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245, 196, 81, 0.5);
+}
+
+.btn-fx-gold:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(245, 196, 81, 0.3);
+}
+
+/* Outline Light Button */
+.btn-outline-light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.65rem;
+  border-radius: var(--fx-det-radius-sm);
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: all 0.25s var(--fx-det-ease);
+  white-space: nowrap;
+}
+
+.btn-outline-light:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-2px);
+}
+
+.btn-outline-light:active {
+  transform: translateY(0);
+}
+
+/* Scroll-Reveal Entrance Animation System */
+.fx-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.65s var(--fx-det-ease), transform 0.65s var(--fx-det-ease);
+  will-change: opacity, transform;
+}
+
+.fx-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered Card Appearances */
+.row .col-12:nth-child(1) .fx-reveal { transition-delay: 0.05s; }
+.row .col-12:nth-child(2) .fx-reveal { transition-delay: 0.12s; }
+.row .col-12:nth-child(3) .fx-reveal { transition-delay: 0.19s; }
+.row .col-12:nth-child(4) .fx-reveal { transition-delay: 0.26s; }
+
+/* ==========================================================================
+   2. Dark Navy Hero Section (Vercel Reference Standard)
+   ========================================================================== */
+.fx-detail-hero {
+  position: relative;
+  background-color: var(--fx-det-navy) !important;
+  color: #FFFFFF !important;
+  padding-top: 5rem;
+  padding-bottom: 6rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 992px) {
+  .fx-detail-hero {
+    padding-top: 6.5rem;
+    padding-bottom: 7rem;
+  }
+}
+
+/* Ambient Navy Grid Overlay */
+.fx-detail-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  z-index: 1;
+}
+
+/* Ambient Radial Glow */
+.fx-detail-glow {
+  position: absolute;
+  top: -15%;
+  right: 12%;
+  width: 540px;
+  height: 540px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.08) 0%, rgba(11, 31, 59, 0) 70%);
+  pointer-events: none;
+  filter: blur(55px);
+  z-index: 1;
+}
+
+/* Breadcrumb Navigation */
+.fx-detail-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.fx-detail-breadcrumb a {
+  color: rgba(255, 255, 255, 0.65) !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+}
+
+.fx-detail-breadcrumb a:hover {
+  color: #F5C451 !important;
+}
+
+.fx-detail-breadcrumb .separator {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 14px;
+  user-select: none;
+}
+
+.fx-detail-breadcrumb .current-page {
+  color: #FFFFFF !important;
+  font-weight: 600;
+}
+
+/* Category Eyebrow Badge */
+.fx-detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: var(--fx-det-radius-pill);
+  border: 1px solid rgba(245, 196, 81, 0.35);
+  background: rgba(245, 196, 81, 0.12);
+  padding: 0.4rem 1.05rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #F5C451 !important;
+  margin-bottom: 1.35rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Page Title (Large Bold Heading) */
+.fx-detail-title {
+  font-size: 2.75rem;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: #FFFFFF !important;
+  margin-bottom: 1.15rem;
+}
+
+@media (min-width: 768px) {
+  .fx-detail-title {
+    font-size: 3.4rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .fx-detail-title {
+    font-size: 3.85rem;
+  }
+}
+
+/* Gold Subtitle / Tagline */
+.fx-detail-tagline {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #F5C451 !important;
+  line-height: 1.45;
+  margin-bottom: 1.15rem;
+}
+
+@media (min-width: 992px) {
+  .fx-detail-tagline {
+    font-size: 1.35rem;
+  }
+}
+
+/* Description Text */
+.fx-detail-desc {
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.8) !important;
+  max-width: 600px;
+  margin-bottom: 2rem;
+}
+
+/* Hero Action CTA Buttons Row */
+.fx-detail-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.25rem;
+}
+
+.fx-hero-cta {
+  padding: 0.85rem 1.85rem !important;
+  font-size: 1rem !important;
+}
+
+.fx-hero-secondary-btn {
+  padding: 0.85rem 1.65rem !important;
+  font-size: 1rem !important;
+}
+
+/* Hero Trust Badges Row */
+.fx-detail-hero-trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.35rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 580px;
+}
+
+.fx-trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.fx-trust-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+}
+
+/* Right-Side Photograph Container */
+.fx-detail-image-card {
+  position: relative;
+  border-radius: var(--fx-det-radius-lg);
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.14);
+  background: var(--fx-det-navy-dark);
+  transition: transform 0.4s var(--fx-det-ease), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.fx-detail-image-card:hover {
+  box-shadow: 0 35px 65px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(245, 196, 81, 0.35);
+}
+
+.fx-detail-image-card img {
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: var(--fx-det-radius-lg);
+  transition: transform 0.8s var(--fx-det-ease);
+}
+
+.fx-detail-image-card:hover img {
+  transform: scale(1.035);
+}
+
+/* Photo Gradient Fade Overlay */
+.fx-detail-image-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(7, 20, 38, 0.92) 0%, rgba(7, 20, 38, 0.35) 45%, transparent 100%);
+  border-radius: var(--fx-det-radius-lg);
+}
+
+/* Bottom Telemetry Overlay Badge */
+.fx-detail-image-badge {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.15rem;
+  border-radius: var(--fx-det-radius-md);
+  background: rgba(7, 20, 38, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Pulsing Green Status Dot */
+.fx-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: fx-pulse-dot-anim 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes fx-pulse-dot-anim {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.fx-badge-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.01em;
+}
+
+.fx-badge-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--fx-det-radius-pill);
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
+   3. Capabilities Section (Engineered for Enterprise Scale)
+   ========================================================================== */
+.fx-capabilities-section {
+  background-color: #FFFFFF !important;
+  padding: 5.5rem 0 6.5rem;
+  position: relative;
+  border-bottom: 1px solid var(--fx-det-border-light);
+}
+
+.fx-capability-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background-color: #FFFFFF;
+  border: 1px solid var(--fx-det-border-light);
+  border-radius: var(--fx-det-radius-lg);
+  padding: 2.1rem 1.85rem;
+  transition: all 0.35s var(--fx-det-ease);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(11, 31, 59, 0.04);
+}
+
+.fx-capability-card:hover,
+.fx-capability-card.fx-capability-active {
+  transform: translateY(-6px);
+  border-color: #F5C451 !important;
+  background-color: #FFFFFF;
+  box-shadow: 0 12px 32px -4px rgba(245, 196, 81, 0.22), 0 4px 10px rgba(11, 31, 59, 0.04);
+}
+
+.fx-capability-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--fx-det-radius-md);
+  background-color: var(--fx-det-navy);
+  color: #F5C451;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  transition: all 0.35s ease;
+  box-shadow: 0 4px 12px rgba(11, 31, 59, 0.15);
+}
+
+.fx-capability-card:hover .fx-capability-icon,
+.fx-capability-card.fx-capability-active .fx-capability-icon {
+  background: linear-gradient(135deg, #F5C451 0%, #D99B16 100%);
+  color: #0B1F3B;
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(245, 196, 81, 0.4);
+}
+
+.fx-capability-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--fx-det-text-dark);
+  margin-bottom: 0.65rem;
+  letter-spacing: -0.015em;
+  transition: color 0.2s ease;
+}
+
+.fx-capability-card:hover .fx-capability-title,
+.fx-capability-card.fx-capability-active .fx-capability-title {
+  color: #D97706;
+}
+
+.fx-capability-desc {
+  font-size: 0.885rem;
+  line-height: 1.7;
+  color: var(--fx-det-text-muted);
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   4. Performance Metrics Section
+   ========================================================================== */
+.fx-detail-metrics-section {
+  background-color: var(--fx-det-surface-light) !important;
+  border-bottom: 1px solid var(--fx-det-border-light);
+  padding: 3.75rem 0;
+}
+
+.fx-detail-metric-card {
+  border-left: 3.5px solid #F5C451;
+  padding-left: 1.6rem;
+  height: 100%;
+}
+
+.fx-detail-metric-val {
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: var(--fx-det-text-dark);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.fx-detail-metric-lbl {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-top: 0.45rem;
+}
+
+.fx-detail-metric-sub {
+  font-size: 0.835rem;
+  color: var(--fx-det-text-muted);
+  margin-top: 0.25rem;
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   5. Operational Architecture & Deep Dive Section
+   ========================================================================== */
+.fx-deepdive-section {
+  background-color: #FFFFFF !important;
+  padding: 5.5rem 0 6.5rem;
+  border-bottom: 1px solid var(--fx-det-border-light);
+}
+
+.fx-deepdive-panel {
+  background: var(--fx-det-surface-light);
+  border: 1px solid var(--fx-det-border-light);
+  border-radius: var(--fx-det-radius-lg);
+  padding: 2.25rem;
+  box-shadow: 0 4px 20px rgba(11, 31, 59, 0.04);
+}
+
+/* ==========================================================================
+   6. Bottom CTA Section
+   ========================================================================== */
+.fx-detail-cta {
+  position: relative;
+  background-color: var(--fx-det-navy) !important;
+  color: #FFFFFF !important;
+  padding: 5.5rem 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.fx-detail-cta-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.5rem auto 1.25rem;
+}
+
+.fx-detail-cta-divider .line {
+  height: 2px;
+  width: 54px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, #F5C451);
+}
+
+.fx-detail-cta-divider .line.reverse {
+  background: linear-gradient(to left, transparent, #F5C451);
+}
+
+.fx-detail-cta-divider .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #F5C451;
+  box-shadow: 0 0 8px rgba(245, 196, 81, 0.85);
+}
+
+/* ==========================================================================
+   7. Responsive Design System
+   Breakpoints: 1440px, 1366px, 991px, 768px, 393px, 320px
+   ========================================================================== */
+
+@media (max-width: 1440px) {
+  .fx-detail-title {
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 1366px) {
+  .fx-detail-title {
+    font-size: 3.2rem;
+  }
+  .fx-detail-image-card img {
+    height: 390px;
+  }
+}
+
+@media (max-width: 991px) {
+  .fx-detail-hero {
+    padding-top: 4.25rem;
+    padding-bottom: 4.75rem;
+  }
+  .fx-detail-desc {
+    max-width: 100%;
+  }
+  .fx-detail-hero-trust {
+    max-width: 100%;
+  }
+  .fx-detail-image-card img {
+    height: 360px;
+  }
+  .fx-capabilities-section {
+    padding: 4.25rem 0 4.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .fx-detail-hero {
+    padding-top: 3.5rem;
+    padding-bottom: 4rem;
+  }
+  .fx-detail-title {
+    font-size: 2.4rem;
+  }
+  .fx-detail-tagline {
+    font-size: 1.15rem;
+  }
+  .fx-detail-desc {
+    font-size: 0.98rem;
+  }
+  .fx-detail-image-card img {
+    height: 300px;
+  }
+  .fx-detail-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fx-detail-hero-actions .btn-fx-gold,
+  .fx-detail-hero-actions .btn-outline-light {
+    width: 100%;
+    justify-content: center;
+  }
+  .fx-detail-metric-card {
+    border-left: none;
+    border-top: 3px solid #F5C451;
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+  .fx-detail-metric-val {
+    font-size: 2.2rem;
+  }
+  .fx-deepdive-panel {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 393px) {
+  .fx-detail-title {
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+  .fx-detail-badge {
+    font-size: 10px;
+    padding: 0.35rem 0.8rem;
+  }
+  .fx-detail-image-card img {
+    height: 250px;
+  }
+  .fx-badge-text {
+    font-size: 11px;
+  }
+  .fx-capability-card {
+    padding: 1.6rem 1.35rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .fx-detail-hero {
+    padding-top: 2.75rem;
+    padding-bottom: 3.25rem;
+  }
+  .fx-detail-title {
+    font-size: 1.75rem;
+  }
+  .fx-detail-tagline {
+    font-size: 1.05rem;
+  }
+  .fx-detail-breadcrumb {
+    font-size: 11.5px;
+  }
+}
+
+/* Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+  .fx-reveal,
+  .fx-capability-card,
+  .fx-capability-icon,
+  .fx-detail-image-card,
+  .fx-detail-image-card img,
+  .btn-fx-gold,
+  .btn-outline-light {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .fx-reveal {
+    opacity: 1 !important;
+  }
+}
+
