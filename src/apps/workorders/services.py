@@ -923,9 +923,9 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
     if wo.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED):
         raise Conflict("Checklist references are read-only after work is assigned.",
                        code="checklist_reference_read_only")
-    if template_ref != wo.checklist_template_ref:
-        raise ValidationFailed("Checklist template does not match the required work-type template.",
-                               code="checklist_template_mismatch")
+    template_ref = (template_ref or "").strip()
+    if not template_ref:
+        raise ValidationFailed("A checklist template reference is required.", code="checklist_template_required")
     instance_ref = (instance_ref or "").strip()
     if not instance_ref:
         raise ValidationFailed("A checklist instance reference is required.", code="checklist_instance_required")
