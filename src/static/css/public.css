@@ -230,54 +230,54 @@ body.fx-public-site {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 6px 14px;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
   font-size: 15px;
   font-weight: 500;
   color: #162A4B;
   text-decoration: none;
-  border-radius: 9999px;
-  border: 1.5px solid transparent;
+  border-radius: 8px;
+  border: none;
   background: transparent;
   cursor: pointer;
-  transition: all 0.18s ease-out;
+  transition: color 0.18s ease-out;
 }
 .fx-pub-nav-link:hover {
   color: #B88A00;
 }
-.fx-pub-nav-link.active {
+.fx-pub-nav-link.active,
+.fx-pub-nav-link.is-open,
+.fx-pub-nav-link[aria-expanded="true"] {
   font-weight: 600;
   color: #0B1F3B;
 }
-.fx-pub-nav-link.active:not(.is-open)::after {
+.fx-pub-nav-link.active::after,
+.fx-pub-nav-link.is-open::after,
+.fx-pub-nav-link[aria-expanded="true"]::after {
   content: '';
   position: absolute;
-  bottom: 0px;
-  left: 12px;
-  right: 12px;
+  bottom: 2px;
+  left: 10px;
+  right: 10px;
   height: 2px;
   border-radius: 2px;
   background-color: #F5C451;
-}
-.fx-pub-nav-link.is-open,
-.fx-pub-nav-link[aria-expanded="true"] {
-  border-color: #C9A227;
-  border-radius: 9999px;
-  color: #0B1F3B;
-  font-weight: 600;
-  background-color: transparent;
-}
-.fx-pub-nav-link.is-open::after,
-.fx-pub-nav-link[aria-expanded="true"]::after {
-  display: none !important;
 }
 
 .fx-pub-nav-chevron {
   width: 14px;
   height: 14px;
-  transition: transform 0.2s ease-out;
+  color: #162A4B;
+  transition: transform 0.18s ease-out, color 0.18s ease-out;
 }
-.fx-pub-nav-link.is-open .fx-pub-nav-chevron {
+.fx-pub-nav-link:hover .fx-pub-nav-chevron {
+  color: #B88A00;
+}
+.fx-pub-nav-link.active .fx-pub-nav-chevron {
+  color: #0B1F3B;
+}
+.fx-pub-nav-link.is-open .fx-pub-nav-chevron,
+.fx-pub-nav-link[aria-expanded="true"] .fx-pub-nav-chevron {
   transform: rotate(180deg);
   color: #B88A00;
 }
@@ -302,7 +302,7 @@ body.fx-public-site {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.25rem;
+  padding: 0.625rem 1.25rem;
   font-size: 14px;
   font-weight: 600;
   color: #F8FAFC;
@@ -316,7 +316,6 @@ body.fx-public-site {
   background-color: #162A4B;
   color: #F8FAFC;
   border-color: rgba(245, 196, 81, 0.45);
-  transform: translateY(-1px);
 }
 .fx-pub-getstarted-btn .arrow-icon {
   color: #F8FAFC;
@@ -366,18 +365,32 @@ body.fx-public-site {
   margin: 0 auto;
   padding: 1.75rem 1.5rem;
 }
+@media (min-width: 1024px) {
+  .fx-mega-menu-inner {
+    padding: 1.75rem 2rem;
+  }
+}
 .fx-mega-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 310px;
+  grid-template-columns: 1fr;
   gap: 2rem;
   align-items: stretch;
 }
+@media (min-width: 1024px) {
+  .fx-mega-grid {
+    grid-template-columns: 1fr 1fr 300px;
+  }
+}
 .fx-mega-col {
-  padding-right: 1.75rem;
-  border-right: 1px solid rgba(248, 250, 252, 0.10);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+@media (min-width: 1024px) {
+  .fx-mega-col {
+    padding-right: 2rem;
+    border-right: 1px solid rgba(248, 250, 252, 0.10);
+  }
 }
 .fx-mega-heading {
   font-size: 10.5px;
@@ -385,7 +398,8 @@ body.fx-public-site {
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: #F5C451;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.875rem;
+  line-height: 1;
 }
 .fx-mega-list {
   list-style: none;
@@ -400,7 +414,7 @@ body.fx-public-site {
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
-  border-radius: 10px;
+  border-radius: 12px;
   text-decoration: none;
   transition: all 0.15s ease;
 }
@@ -409,8 +423,8 @@ body.fx-public-site {
 }
 .fx-mega-icon {
   margin-top: 2px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -419,7 +433,7 @@ body.fx-public-site {
   border: 1px solid rgba(248, 250, 252, 0.10);
   background-color: #162A4B;
   color: #CBD5E1;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 .fx-mega-item:hover .fx-mega-icon {
   border-color: rgba(245, 196, 81, 0.4);
@@ -429,13 +443,13 @@ body.fx-public-site {
   display: block;
   font-size: 13.5px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
   color: #F8FAFC;
 }
 .fx-mega-desc {
   display: block;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.45;
   color: #94A3B8;
   margin-top: 2px;
 }
@@ -445,11 +459,11 @@ body.fx-public-site {
   color: #F5C451;
   opacity: 0;
   transform: translateX(-4px);
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 .fx-mega-item:hover .fx-mega-arrow {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateX(2px);
 }
 
 /* Featured Preview Card in Mega Menu */
@@ -457,7 +471,7 @@ body.fx-public-site {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid rgba(248, 250, 252, 0.12);
   background-color: #162A4B;
   padding: 1.25rem;
@@ -472,7 +486,7 @@ body.fx-public-site {
 .fx-mega-featured-pill span.bar {
   width: 16px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: 9999px;
   background-color: #F5C451;
 }
 .fx-mega-featured-pill span.txt {
@@ -485,18 +499,19 @@ body.fx-public-site {
 .fx-mega-featured h3 {
   font-size: 16px;
   font-weight: 700;
+  line-height: 1.35;
   color: #F8FAFC;
   margin: 0;
 }
 .fx-mega-featured p {
   font-size: 12px;
   color: #94A3B8;
-  line-height: 1.4;
-  margin-top: 0.35rem;
+  line-height: 1.45;
+  margin-top: 0.375rem;
   margin-bottom: 0.75rem;
 }
 .fx-mega-preview-window {
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid rgba(248, 250, 252, 0.10);
   background-color: #0B1F3B;
   padding: 0.75rem;
@@ -505,7 +520,7 @@ body.fx-public-site {
 .fx-preview-topbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 0.5rem;
 }
 .fx-preview-dot {
@@ -523,17 +538,18 @@ body.fx-public-site {
 .fx-preview-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 .fx-preview-tile {
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid rgba(248, 250, 252, 0.06);
   background-color: #162A4B;
-  padding: 0.35rem;
+  padding: 0.375rem;
   text-align: center;
 }
 .fx-preview-tile .lbl {
   font-size: 8.5px;
+  font-weight: 500;
   color: #94A3B8;
   margin: 0;
 }
@@ -544,11 +560,11 @@ body.fx-public-site {
   margin: 2px 0 0 0;
 }
 .fx-preview-bars {
-  margin-top: 0.6rem;
+  margin-top: 0.625rem;
   display: flex;
   align-items: flex-end;
-  gap: 3px;
-  height: 26px;
+  gap: 4px;
+  height: 28px;
   padding: 0 2px;
 }
 .fx-preview-bars span {
@@ -556,6 +572,7 @@ body.fx-public-site {
   border-top-left-radius: 2px;
   border-top-right-radius: 2px;
   background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
 }
 .fx-preview-bars span.highlight {
   background-color: #F5C451;
@@ -567,9 +584,9 @@ body.fx-public-site {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 10px;
+  border-radius: 12px;
   background-color: #F5C451;
-  padding: 0.65rem 1rem;
+  padding: 0.625rem 1rem;
   font-size: 12px;
   font-weight: 700;
   color: #0B1F3B;
@@ -577,10 +594,10 @@ body.fx-public-site {
   border: none;
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(245, 196, 81, 0.25);
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 .fx-mega-cta-btn:hover {
-  background-color: #D9B33F;
+  background-color: #FACC15;
   color: #0B1F3B;
   transform: translateY(-1px);
 }
@@ -1563,26 +1580,55 @@ body.fx-public-site {
   text-align: center;
   overflow: hidden;
 }
-.fx-cta-rings {
-  position: absolute;
-  right: -80px;
-  top: -120px;
-  width: 480px;
-  height: 480px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  pointer-events: none;
+
+/* CTA Buttons — Gold (primary) */
+.fx-cta-btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.9rem;
+  background-color: #F5C451;
+  color: #0B1F3B;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
 }
-.fx-cta-rings-2 {
-  position: absolute;
-  right: -30px;
-  top: -80px;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  pointer-events: none;
+.fx-cta-btn-gold:hover {
+  background-color: #e8b83d;
+  color: #0B1F3B;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 196, 81, 0.35);
+  text-decoration: none;
 }
+
+/* CTA Buttons — Navy outline (secondary) */
+.fx-cta-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.9rem;
+  background-color: rgba(255, 255, 255, 0.07);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+.fx-cta-btn-outline:hover {
+  background-color: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
 .fx-cta-gold-divider {
   display: flex;
   align-items: center;
@@ -1799,3 +1845,1479 @@ body.fx-public-site {
   font-size: 12px;
   color: #A8841E;
 }
+
+/* ==========================================================================
+   Ecosystem Architecture Section (About Page)
+   ========================================================================== */
+.fx-ecosystem-section {
+  padding: 4.5rem 0 5.5rem 0;
+  background-color: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  position: relative;
+  overflow: hidden;
+}
+
+.fx-ecosystem-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.fx-ecosystem-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #C9A227;
+  margin-bottom: 0.75rem;
+}
+
+.fx-ecosystem-heading {
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.16;
+  color: #0B1F3B;
+  margin: 0 auto 0.85rem auto;
+  max-width: 900px;
+}
+
+.fx-ecosystem-desc {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #64748B;
+  margin: 0 auto;
+  max-width: 680px;
+}
+
+/* ── Carousel Wrapper & Rows ────────────────────────────────────────────── */
+.fx-ecosystem-carousel-wrap {
+  margin-top: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.fx-ecosystem-row-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* ── Viewport & Navigation Buttons ──────────────────────────────────────── */
+.fx-carousel-viewport-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.fx-carousel-track-container {
+  overflow: hidden;
+  flex: 1 1 auto;
+  position: relative;
+  padding: 12px 4px;
+  mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
+}
+
+.fx-carousel-track {
+  display: flex;
+  gap: 1.25rem;
+  width: max-content;
+  will-change: transform;
+}
+
+.fx-carousel-nav-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background-color: #0B1F3B;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(11, 31, 59, 0.18);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.fx-carousel-nav-btn:hover {
+  background-color: #162A4B;
+  border-color: #F5C451;
+  color: #F5C451;
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(11, 31, 59, 0.25), 0 0 10px rgba(245, 196, 81, 0.25);
+}
+
+.fx-carousel-nav-btn:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+}
+
+/* ── Ecosystem Cards (Normal, Hover, Selected) ──────────────────────────── */
+.fx-ecosystem-card {
+  flex: 0 0 295px;
+  min-width: 295px;
+  max-width: 295px;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 1.15rem 1.25rem;
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 59, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 350ms ease,
+              border-color 350ms ease,
+              background-color 350ms ease;
+}
+
+.fx-ecosystem-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(11, 31, 59, 0.09), 0 2px 8px rgba(11, 31, 59, 0.04);
+  border-color: #CBD5E1;
+}
+
+.fx-ecosystem-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+/* Highlighted / Active Card (Deep Navy + Gold) */
+.fx-ecosystem-card.is-selected {
+  background: linear-gradient(145deg, #0B1F3B, #162A4B) !important;
+  border: 1.5px solid #F5C451 !important;
+  box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.5),
+              0 12px 32px rgba(245, 196, 81, 0.28),
+              0 4px 14px rgba(11, 31, 59, 0.18) !important;
+  transform: translateY(-2px);
+}
+
+.fx-ecosystem-card.is-selected:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 0 1.5px rgba(245, 196, 81, 0.7),
+              0 16px 38px rgba(245, 196, 81, 0.35),
+              0 6px 18px rgba(11, 31, 59, 0.22) !important;
+}
+
+.fx-ecosystem-icon-box {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 11px;
+  background-color: #0B1F3B;
+  color: #F5C451;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 350ms ease;
+  border: 1px solid rgba(245, 196, 81, 0.2);
+}
+
+.fx-ecosystem-icon-box svg {
+  display: block;
+  stroke: #F5C451;
+  transition: transform 300ms ease;
+}
+
+.fx-ecosystem-card:hover .fx-ecosystem-icon-box svg {
+  transform: scale(1.08);
+}
+
+.fx-ecosystem-card.is-selected .fx-ecosystem-icon-box {
+  background-color: rgba(245, 196, 81, 0.14);
+  border: 1.5px solid #F5C451;
+  box-shadow: 0 0 12px rgba(245, 196, 81, 0.28);
+}
+
+.fx-ecosystem-card-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  justify-content: center;
+}
+
+.fx-ecosystem-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0B1F3B;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.2;
+  transition: color 350ms ease;
+}
+
+.fx-ecosystem-card.is-selected .fx-ecosystem-card-title {
+  color: #FFFFFF !important;
+}
+
+.fx-ecosystem-card-desc {
+  font-size: 0.8125rem;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.35;
+  font-weight: 400;
+  white-space: nowrap;
+  transition: color 350ms ease;
+}
+
+.fx-ecosystem-card.is-selected .fx-ecosystem-card-desc {
+  color: #CBD5E1 !important;
+}
+
+/* ── Pagination Indicator Dots ──────────────────────────────────────────── */
+.fx-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 1.35rem;
+}
+
+.fx-dot {
+  width: 20px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: #CBD5E1;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.fx-dot:hover {
+  background-color: #94A3B8;
+}
+
+.fx-dot:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+.fx-dot.is-active {
+  width: 34px;
+  background-color: #F5C451;
+  box-shadow: 0 0 10px rgba(245, 196, 81, 0.45);
+}
+
+/* ── Responsive & Accessibility ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .fx-carousel-nav-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+  .fx-ecosystem-card {
+    flex: 0 0 260px;
+    min-width: 260px;
+    max-width: 260px;
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-carousel-track {
+    transition: none !important;
+  }
+  .fx-ecosystem-card {
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   Five Core Principles Feature Cards (Interactive Animations)
+   ========================================================================== */
+.fx-principle-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 3px 10px rgba(11, 31, 59, 0.02) !important;
+  transition: background-color 0.3s ease,
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s ease,
+              border-color 0.3s ease;
+}
+
+/* ── Hover: direct background-color change (most reliable approach) ── */
+.fx-principle-card:hover {
+  background-color: #FFF3CC !important;
+  transform: translateY(-5px);
+  border-color: #F5C451 !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 196, 81, 0.4),
+    0 10px 28px rgba(245, 196, 81, 0.22),
+    0 4px 12px rgba(11, 31, 59, 0.08) !important;
+}
+
+/* Icon brightens on hover */
+.fx-principle-card:hover .fx-principle-icon-box {
+  background-color: #F5C451;
+  color: #0B1F3B;
+  box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.25);
+}
+
+.fx-principle-card:hover .fx-principle-icon-box svg {
+  stroke: #0B1F3B;
+}
+
+/* Title turns gold on hover */
+.fx-principle-card:hover .fx-principle-title {
+  color: #8B6914;
+}
+
+/* Focus indicator for keyboard accessibility */
+.fx-principle-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+}
+
+/* Icon Box inside card */
+.fx-principle-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background-color: #0B1F3B;
+  color: #F5C451;
+  transition: background-color 0.3s ease,
+              box-shadow 0.3s ease,
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fx-principle-icon-box svg {
+  display: block;
+  stroke: currentColor;
+  transition: stroke 0.3s ease;
+}
+
+/* Title inside card */
+.fx-principle-title {
+  color: #0B1F3B;
+  transition: color 0.3s ease;
+}
+
+/* ── Selected State ─────────────────────────────────────────── */
+.fx-principle-card.is-selected {
+  background-color: #FFF8E1 !important;
+  border-color: #F5C451 !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 196, 81, 0.5),
+    0 10px 30px rgba(245, 196, 81, 0.25),
+    0 2px 8px rgba(11, 31, 59, 0.05) !important;
+}
+
+.fx-principle-card.is-selected:hover {
+  transform: translateY(-5px);
+  border-color: #F5C451 !important;
+  box-shadow:
+    0 0 0 1.5px rgba(245, 196, 81, 0.6),
+    0 14px 36px rgba(245, 196, 81, 0.3),
+    0 4px 12px rgba(11, 31, 59, 0.07) !important;
+}
+
+.fx-principle-card.is-selected .fx-principle-title {
+  color: #C9A227;
+}
+
+.fx-principle-card.is-selected .fx-principle-icon-box {
+  background-color: #F5C451;
+  color: #0B1F3B;
+  box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.25);
+}
+
+.fx-principle-card.is-selected .fx-principle-icon-box svg {
+  stroke: #0B1F3B;
+}
+
+/* ── Click Pulse Animation ──────────────────────────────────── */
+@keyframes fx-card-gold-pulse {
+  0% {
+    transform: scale(0.98);
+    box-shadow: 0 0 0 0 rgba(245, 196, 81, 0.75);
+  }
+  40% {
+    transform: translateY(-5px) scale(1.015);
+    box-shadow: 0 0 0 14px rgba(245, 196, 81, 0);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow:
+      0 0 0 1px rgba(245, 196, 81, 0.5),
+      0 10px 30px rgba(245, 196, 81, 0.25),
+      0 2px 8px rgba(11, 31, 59, 0.05);
+  }
+}
+
+@keyframes fx-icon-gold-pop {
+  0%   { transform: scale(1) rotate(0deg); }
+  35%  { transform: scale(1.2) rotate(4deg); }
+  70%  { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.fx-principle-card.is-pulsing {
+  animation: fx-card-gold-pulse 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fx-principle-card.is-pulsing .fx-principle-icon-box {
+  animation: fx-icon-gold-pop 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Reduced Motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .fx-principle-card,
+  .fx-principle-card:hover,
+  .fx-principle-card.is-selected,
+  .fx-principle-card.is-selected:hover {
+    transform: none !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  }
+  .fx-principle-card.is-pulsing,
+  .fx-principle-card.is-pulsing .fx-principle-icon-box {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   About Page: Right-Side Hero Visual Interactive Zoom & Click
+   ========================================================================== */
+.fx-about-hero-card {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden; /* Strict containment: prevents image from bleeding outside */
+  background: #0B1F3A;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 400ms ease-in-out, box-shadow 400ms ease-in-out;
+}
+
+.fx-about-hero-card:hover {
+  border-color: rgba(245, 196, 81, 0.45) !important;
+  box-shadow: 0 16px 36px rgba(7, 20, 38, 0.5), 0 0 24px rgba(245, 196, 81, 0.12) !important;
+}
+
+.fx-about-hero-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+  border-color: #F5C451 !important;
+}
+
+.fx-about-hero-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 440px;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 400ms ease-in-out;
+  will-change: transform;
+}
+
+/* Hover: smoothly zoom the image in slightly using transform: scale(1.03) */
+.fx-about-hero-card:hover .fx-about-hero-img,
+.fx-about-hero-card:focus-visible .fx-about-hero-img,
+.fx-about-hero-img:hover {
+  transform: scale(1.03);
+}
+
+/* Click animation: gentle temporary zoom-in and zoom-out */
+@keyframes fx-hero-img-click-hover {
+  0% {
+    transform: scale(1.03);
+  }
+  45% {
+    transform: scale(1.065);
+  }
+  100% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes fx-hero-img-click-base {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.fx-about-hero-img.is-clicked {
+  animation: fx-hero-img-click-base 420ms ease-in-out both;
+}
+
+.fx-about-hero-card:hover .fx-about-hero-img.is-clicked,
+.fx-about-hero-card:focus-visible .fx-about-hero-img.is-clicked {
+  animation: fx-hero-img-click-hover 420ms ease-in-out both;
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .fx-about-hero-img,
+  .fx-about-hero-card:hover .fx-about-hero-img,
+  .fx-about-hero-card:focus-visible .fx-about-hero-img,
+  .fx-about-hero-img:hover {
+    transform: none !important;
+    transition: none !important;
+  }
+  .fx-about-hero-img.is-clicked {
+    animation: none !important;
+  }
+  .fx-about-hero-card {
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   Resources Page Redesign (Split Hero, Featured Banner, Filters, Grid)
+   ========================================================================== */
+.fx-resources-hero {
+  padding: 3.5rem 0 2rem 0;
+  background-color: #FFFFFF;
+  position: relative;
+}
+
+.fx-resources-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: 1.5px solid #F5C451;
+  background: rgba(245, 196, 81, 0.08);
+  color: #C9A227;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+
+.fx-resources-pill-badge svg {
+  color: #F5C451;
+  stroke: #C9A227;
+}
+
+.fx-resources-hero-title {
+  font-size: clamp(2.25rem, 3.6vw, 3.25rem);
+  font-weight: 800;
+  color: #0B1F3B;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin-bottom: 1.25rem;
+}
+
+.fx-resources-hero-desc {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #64748B;
+  margin-bottom: 2rem;
+  max-width: 560px;
+}
+
+/* Statistics */
+.fx-resources-stats {
+  display: flex;
+  align-items: center;
+  gap: 2.25rem;
+  flex-wrap: wrap;
+  margin-top: 1.75rem;
+  padding-top: 0.5rem;
+}
+
+.fx-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.fx-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(245, 196, 81, 0.14);
+  color: #C9A227;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(245, 196, 81, 0.25);
+}
+
+.fx-stat-icon svg {
+  stroke: #C9A227;
+}
+
+.fx-stat-num {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0B1F3B;
+  line-height: 1.15;
+}
+
+.fx-stat-lbl {
+  font-size: 0.78rem;
+  color: #64748B;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Hero Media Visual & Quick Links */
+.fx-resources-hero-media {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(11, 31, 59, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(11, 31, 59, 0.08);
+  min-height: 380px;
+  background-color: #0B1F3A;
+}
+
+.fx-resources-hero-img {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  object-fit: cover;
+  display: block;
+}
+
+.fx-resources-quick-panel {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(11, 31, 59, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(245, 196, 81, 0.35);
+  border-radius: 14px;
+  padding: 1.15rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  z-index: 5;
+}
+
+.fx-quick-link-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #FFFFFF;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.fx-quick-link-item:hover {
+  color: #F5C451;
+  transform: translateX(3px);
+}
+
+.fx-quick-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(245, 196, 81, 0.15);
+  color: #F5C451;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fx-quick-icon svg {
+  stroke: #F5C451;
+}
+
+/* ── Featured Resource Banner ───────────────────────────────────────────── */
+.fx-featured-banner {
+  background: linear-gradient(135deg, #071527 0%, #0B1F3B 60%, #11284A 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(245, 196, 81, 0.25);
+  padding: 1.75rem 2rem;
+  margin: 3.5rem 0 2.5rem 0;
+  box-shadow: 0 16px 40px rgba(7, 20, 38, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.fx-featured-banner::before {
+  content: "";
+  position: absolute;
+  right: -50px;
+  top: -50px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.14) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.fx-featured-thumb-wrap {
+  width: 260px;
+  min-width: 260px;
+  height: 160px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0B1F3A;
+}
+
+.fx-featured-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.fx-featured-banner:hover .fx-featured-thumb-img {
+  transform: scale(1.03);
+}
+
+.fx-featured-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fx-featured-pill {
+  display: inline-block;
+  background-color: #F5C451;
+  color: #0B1F3B;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  margin-bottom: 0.65rem;
+}
+
+.fx-featured-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.35;
+  margin-bottom: 0.5rem;
+}
+
+.fx-featured-desc {
+  font-size: 0.875rem;
+  color: #CBD5E1;
+  line-height: 1.55;
+  margin-bottom: 0.75rem;
+  max-width: 620px;
+}
+
+.fx-featured-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #94A3B8;
+  font-size: 0.8rem;
+}
+
+.fx-featured-meta svg {
+  stroke: #F5C451;
+}
+
+/* ── Featured Resource Benefits Panel (Right Column) ────────────────────── */
+.fx-featured-benefits {
+  flex: 0 0 325px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-left: 2rem;
+  border-left: 1px solid rgba(165, 180, 200, 0.22);
+  margin-left: auto;
+}
+
+.fx-benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: transparent;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fx-benefit-item:hover {
+  background: rgba(22, 42, 75, 0.5);
+  transform: translateX(3px);
+}
+
+.fx-benefit-icon {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 50%;
+  background-color: #162A4B;
+  border: 1px solid rgba(245, 196, 81, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #F5C451;
+  box-shadow: 0 2px 8px rgba(7, 20, 38, 0.4);
+  transition: all 0.25s ease;
+}
+
+.fx-benefit-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: #F5C451 !important;
+  stroke-width: 2 !important;
+  display: block;
+}
+
+.fx-benefit-item:hover .fx-benefit-icon {
+  background-color: #1D355C;
+  border-color: rgba(245, 196, 81, 0.55);
+  box-shadow: 0 0 12px rgba(245, 196, 81, 0.25);
+}
+
+.fx-benefit-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fx-benefit-title {
+  font-size: 0.885rem;
+  font-weight: 700;
+  color: #F8FAFC !important;
+  line-height: 1.3;
+  margin: 0 0 0.2rem 0;
+  letter-spacing: -0.01em;
+  transition: color 0.25s ease;
+}
+
+.fx-benefit-item:hover .fx-benefit-title {
+  color: #F5C451 !important;
+}
+
+.fx-benefit-desc {
+  font-size: 0.8125rem;
+  color: #A5B4C8 !important;
+  line-height: 1.45;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────────────────────── */
+.fx-resources-catalog-section {
+  padding: 2rem 0 5rem 0;
+  background-color: #F8FAFC;
+}
+
+.fx-resources-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.75rem;
+}
+
+.fx-filter-btn {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.55rem 1.25rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  user-select: none;
+}
+
+.fx-filter-btn:hover {
+  border-color: #CBD5E1;
+  background-color: #F1F5F9;
+  color: #0B1F3B;
+}
+
+.fx-filter-btn:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+.fx-filter-btn.active {
+  background-color: #0B1F3B !important;
+  color: #FFFFFF !important;
+  border-color: #0B1F3B !important;
+  box-shadow: 0 4px 14px rgba(11, 31, 59, 0.2) !important;
+}
+
+/* ── 3-Column Resource Cards Grid ───────────────────────────────────────── */
+.fx-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+  align-items: start; /* Prevents sibling cards from stretching when a card expands */
+}
+
+.fx-resource-card-col {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fx-resource-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(11, 31, 59, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s ease,
+              border-color 0.35s ease,
+              border-left-width 0.25s ease;
+}
+
+.fx-resource-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(11, 31, 59, 0.09), 0 4px 12px rgba(11, 31, 59, 0.04);
+  border-color: #CBD5E1;
+}
+
+.fx-resource-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+}
+
+/* ── Expanded Card State ────────────────────────────────────────────────── */
+.fx-resource-card.is-expanded {
+  border-left: 3.5px solid #F5C451 !important;
+  border-color: #CBD5E1;
+  box-shadow: 0 16px 40px rgba(11, 31, 59, 0.08), 0 4px 12px rgba(11, 31, 59, 0.03);
+  transform: translateY(-2px);
+}
+
+.fx-resource-thumb-wrap {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+  background-color: #0B1F3A;
+}
+
+.fx-resource-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.45s ease;
+}
+
+.fx-resource-card:hover .fx-resource-thumb {
+  transform: scale(1.04);
+}
+
+/* Floating Circular Expand Button in top-right corner of image */
+.fx-card-expand-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(11, 31, 59, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 4;
+  outline: none;
+  padding: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.fx-card-expand-btn:hover {
+  background: #0B1F3B;
+  border-color: #F5C451;
+  transform: scale(1.08);
+}
+
+.fx-chevron-icon {
+  display: block;
+  stroke: #F5C451;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fx-resource-card.is-expanded .fx-chevron-icon {
+  transform: rotate(180deg);
+}
+
+.fx-resource-card-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.fx-card-top-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.fx-card-category {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #C9A227;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fx-card-read-time {
+  font-size: 0.75rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.fx-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0B1F3B;
+  line-height: 1.35;
+  margin-bottom: 0.65rem;
+  transition: color 0.2s ease;
+}
+
+.fx-resource-card:hover .fx-card-title {
+  color: #071426;
+}
+
+.fx-card-desc {
+  font-size: 0.875rem;
+  color: #64748B;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Inline Expandable Content ──────────────────────────────────────────── */
+.fx-card-expanded-content {
+  display: none;
+  opacity: 0;
+  margin-top: 0.5rem;
+  transition: opacity 0.3s ease;
+}
+
+.fx-resource-card.is-expanded .fx-card-expanded-content {
+  display: block;
+  opacity: 1;
+  animation: fx-fade-slide-down 0.35s ease forwards;
+}
+
+@keyframes fx-fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fx-card-extended-text {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #475569;
+  margin-bottom: 1.25rem;
+}
+
+/* Key Takeaways Panel */
+.fx-card-takeaways-box {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.fx-takeaways-heading {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0B1F3B;
+  margin-bottom: 0.85rem;
+}
+
+.fx-takeaways-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fx-takeaways-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.fx-takeaway-bullet {
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fx-card-expanded-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.fx-badge-best-practice {
+  display: inline-block;
+  background-color: #0B1F3B;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.fx-expanded-meta-text {
+  font-size: 0.8125rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+/* ── Card Footer & Controls ─────────────────────────────────────────────── */
+.fx-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1.1rem;
+  border-top: 1px solid #F1F5F9;
+  margin-top: auto;
+}
+
+.fx-card-date {
+  font-size: 0.8125rem;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.fx-card-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fx-read-more-link {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0B1F3B;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.2s ease;
+}
+
+.fx-read-more-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.fx-resource-card:hover .fx-read-more-link {
+  color: #C9A227;
+}
+
+.fx-resource-card:hover .fx-read-more-arrow {
+  transform: translateX(4px);
+}
+
+/* Collapse Button (Visible only when card is expanded) */
+.fx-collapse-trigger {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0B1F3B;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.fx-collapse-trigger:hover {
+  color: #C9A227;
+}
+
+.fx-resource-card.is-expanded .fx-collapse-trigger {
+  display: inline-flex;
+}
+
+.fx-resource-card.is-expanded .fx-read-more-link {
+  display: none;
+}
+
+/* ── Responsive Rules for Resources ─────────────────────────────────────── */
+@media (max-width: 991px) {
+  .fx-resources-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  .fx-featured-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.5rem;
+  }
+  .fx-featured-thumb-wrap {
+    width: 100%;
+    min-width: 100%;
+    height: 200px;
+  }
+  .fx-featured-benefits {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid rgba(165, 180, 200, 0.22);
+    padding-top: 1.25rem;
+    gap: 0.75rem;
+  }
+  .fx-resources-hero-media {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fx-resources-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .fx-resources-hero-title {
+    font-size: 2rem;
+  }
+  .fx-resources-stats {
+    gap: 1.25rem;
+  }
+  .fx-resources-quick-panel {
+    display: none; /* Hide floating overlay on small mobile to keep visual clean */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-resource-card,
+  .fx-resource-thumb,
+  .fx-benefit-item,
+  .fx-benefit-icon,
+  .fx-read-more-arrow,
+  .fx-faq-item {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Resources Page — FAQ Section
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.fx-faq-section {
+  background-color: #F8FAFC;
+  padding: 5rem 0 5.5rem;
+  border-top: 1px solid #E2E8F0;
+}
+
+/* Header */
+.fx-faq-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.fx-faq-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: 1px solid rgba(245, 196, 81, 0.45);
+  color: #C9A227;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.9rem;
+  border-radius: 9999px;
+  margin-bottom: 1.1rem;
+}
+
+.fx-faq-heading {
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-weight: 800;
+  color: #0B1F3B;
+  line-height: 1.25;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* FAQ list */
+.fx-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* Individual FAQ card */
+.fx-faq-item {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 1.6rem 1.75rem;
+  box-shadow: 0 2px 10px rgba(11, 31, 59, 0.045), 0 1px 3px rgba(11, 31, 59, 0.03);
+  transition: box-shadow 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+  position: relative;
+}
+
+.fx-faq-item:hover {
+  border-color: rgba(245, 196, 81, 0.55);
+  box-shadow: 0 6px 22px rgba(11, 31, 59, 0.08), 0 2px 6px rgba(11, 31, 59, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Gold left accent bar on hover */
+.fx-faq-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #F5C451;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.fx-faq-item:hover::before {
+  opacity: 1;
+}
+
+/* Q row: badge + question */
+.fx-faq-q-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
+}
+
+.fx-faq-q-badge {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #C9A227;
+  letter-spacing: 0.03em;
+  padding-top: 2px;
+  user-select: none;
+}
+
+.fx-faq-question {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0B1F3B;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.fx-faq-answer {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: #475569;
+  margin: 0;
+  padding-left: 1.5rem; /* aligns under question text, past the Q: badge */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .fx-faq-section {
+    padding: 3.5rem 0 4rem;
+  }
+  .fx-faq-item {
+    padding: 1.25rem 1.35rem;
+  }
+  .fx-faq-answer {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .fx-faq-heading {
+    font-size: 1.5rem;
+  }
+}
+
+
+
+
