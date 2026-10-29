@@ -74,7 +74,16 @@ def site_list(membership, org, params):
         qs = qs.annotate(asset_count=Count("assets", filter=~Q(assets__status__in=TERMINAL_STATES), distinct=True))
     else:
         qs = qs.annotate(asset_count=Value(0, output_field=IntegerField()))
-    return qs.order_by("code")
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "name": "name",
+        "-name": "-name",
+        "code": "code",
+        "-code": "-code",
+    }
+    return qs.order_by(ordering_map.get(ordering, "-created_at"))
 
 
 # --- zones -------------------------------------------------------------------------------------------

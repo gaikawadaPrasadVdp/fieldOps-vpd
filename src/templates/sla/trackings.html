@@ -49,7 +49,6 @@
       <option value="BREACHED" {% if filters.status == "BREACHED" %}selected{% endif %}>Breached</option><option value="UNDER_REVIEW" {% if filters.status == "UNDER_REVIEW" %}selected{% endif %}>Under Review</option><option value="COMPLETED" {% if filters.status == "COMPLETED" %}selected{% endif %}>Completed</option><option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>Closed</option><option value="CANCELLED" {% if filters.status == "CANCELLED" %}selected{% endif %}>Cancelled</option></select>
     <select class="form-select form-select-sm" style="max-width:190px" name="subject" aria-label="Item type"><option value="">All</option>
       <option value="REQUEST" {% if filters.subject == "REQUEST" %}selected{% endif %}>Incident / Breakdown</option><option value="WORK_ORDER" {% if filters.subject == "WORK_ORDER" %}selected{% endif %}>Work Order</option></select>
-    <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
     <a class="btn btn-sm btn-outline-secondary text-decoration-none" href="{% url 'sla:trackings' %}" id="reset-filter-btn" title="Clear all filters">Reset</a>
   </form>
   <div id="trackings-table-container">

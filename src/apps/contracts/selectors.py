@@ -52,7 +52,18 @@ def filter_agreements(qs, params, today=None):
         qs = qs.filter(is_active=True, end_date__lt=today)
     elif state == "INACTIVE":
         qs = qs.filter(is_active=False)
-    return qs.order_by("end_date", "reference")
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "reference": "reference",
+        "-reference": "-reference",
+        "title": "title",
+        "-title": "-title",
+        "end_date": "end_date",
+        "-end_date": "-end_date",
+    }
+    return qs.order_by(ordering_map.get(ordering, "-created_at"))
 
 
 def expiring(membership, org, days=60, today=None):

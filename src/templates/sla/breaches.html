@@ -26,7 +26,7 @@
       <option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>Open</option><option value="ACKNOWLEDGED" {% if filters.status == "ACKNOWLEDGED" %}selected{% endif %}>Acknowledged</option><option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>Closed</option></select>
     <select class="form-select form-select-sm" style="max-width:150px" name="target" aria-label="Target"><option value="">Both targets</option>
       <option value="RESPONSE" {% if filters.target == "RESPONSE" %}selected{% endif %}>Response</option><option value="RESOLUTION" {% if filters.target == "RESOLUTION" %}selected{% endif %}>Resolution</option></select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+    <a href="{% url 'sla:breaches' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
   <div class="table-responsive"><table class="table fx-table" id="breaches-table"><thead><tr><th>Item</th><th>Site</th><th>Target</th><th>Priority</th><th>Missed at</th><th>Escalation</th><th>Status</th><th></th></tr></thead><tbody>
   {% for b in page %}<tr><td><a href="{% url 'sla:tracking' b.tracking_id %}">{% if b.tracking.request %}{{ b.tracking.request.number }}{% else %}{{ b.tracking.work_order.number }}{% endif %}</a></td>
     <td class="text-nowrap">{{ b.site.code }}</td><td>{{ b.get_target_kind_display }}</td><td>{% status_badge b.priority %}</td><td class="small">{{ b.breached_at|date:"d M Y H:i" }}</td>

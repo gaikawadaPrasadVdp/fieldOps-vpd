@@ -1,6 +1,10 @@
 import re
 import time
 import uuid
+import zoneinfo
+
+from django.conf import settings
+from django.utils import timezone
 
 from . import logging as flogging
 
@@ -32,3 +36,52 @@ class RequestIdMiddleware:
             extra={"request_id": rid},
         )
         return response
+
+
+class TimezoneMiddleware:
+    """Activates the user's local timezone for each request so that all datetimes
+    render accurately in the client's local time (e.g. Asia/Kolkata +05:30).
+
+    Resolution priority:
+    1. Client-provided cookie: request.COOKIES.get("user_timezone")
+    2. Session value: request.session.get("django_timezone")
+    3. Active organization timezone: request.organization.timezone (if not "UTC" and valid)
+    4. Configured settings.TIME_ZONE (defaults to Asia/Kolkata)
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        cookie_tz = request.COOKIES.get("user_timezone")
+        session_tz = getattr(request, "session", {}).get("django_timezone") if hasattr(request, "session") else None
+        org_tz = getattr(getattr(request, "organization", None), "timezone", None)
+        default_tz = getattr(settings, "TIME_ZONE", "Asia/Kolkata")
+
+        candidates = [cookie_tz, session_tz]
+        if org_tz and org_tz.strip().upper() != "UTC":
+            candidates.append(org_tz)
+        candidates.append(default_tz)
+        candidates.append("Asia/Kolkata")
+
+        active_zone = None
+        for candidate in candidates:
+            if candidate and isinstance(candidate, str):
+                cleaned = candidate.strip()
+                try:
+                    active_zone = zoneinfo.ZoneInfo(cleaned)
+                    break
+                except Exception:
+                    continue
+
+        if active_zone:
+            timezone.activate(active_zone)
+            request.user_timezone = str(active_zone)
+        else:
+            timezone.deactivate()
+            request.user_timezone = "UTC"
+
+        try:
+            return self.get_response(request)
+        finally:
+            timezone.deactivate()

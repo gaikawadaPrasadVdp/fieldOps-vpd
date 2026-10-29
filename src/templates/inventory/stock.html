@@ -68,10 +68,7 @@
       </div>
     </div>
     <div class="col-12 col-md-2 d-flex justify-content-md-end gap-2">
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      {% if filters.q or filters.warehouse or filters.low %}
-        <a href="{% url 'inventory:stock' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      {% endif %}
+      <a href="{% url 'inventory:stock' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>

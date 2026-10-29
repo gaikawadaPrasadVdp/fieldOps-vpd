@@ -8,10 +8,17 @@
     <div class="text-body-secondary">Enterprise asset registry, equipment lifecycle and parent-child hierarchy.</div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="{% url 'identification:scan' %}">{% icon 'camera' 14 %} Scan QR</a>
+    <a class="btn btn-outline-secondary" href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" title="Export current filtered list to CSV">{% icon 'download' 14 %} Export CSV</a>
     <a class="btn btn-outline-primary" href="{% url 'assets:hierarchy_hub' %}">{% icon 'git-branch' 14 %} Hierarchy Hub</a>
     <a class="btn btn-outline-secondary" href="{% url 'assets:component_list' %}">{% icon 'package' 14 %} Component Catalog</a>
     {% if can_categories %}<a class="btn btn-outline-secondary" href="{% url 'assets:categories' %}">{% icon 'layers' 14 %} Categories</a>{% endif %}
-    {% if can_create %}<a class="btn btn-primary" href="{% url 'assets:create' %}">{% icon 'plus' 14 %} Register asset</a>{% endif %}
+    {% if can_create %}
+      <button type="button" class="btn btn-primary" id="btn-new-asset" hx-get="{% url 'assets:create' %}" hx-target="#assetModalContent" hx-swap="innerHTML">
+        {% icon 'plus' 14 %} Register asset
+      </button>
+      <noscript><a class="btn btn-primary" href="{% url 'assets:create' %}">{% icon 'plus' 14 %} Register asset</a></noscript>
+    {% endif %}
   </div>
 </div>
 
@@ -31,8 +38,15 @@
 </div>
 
 <div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
-  <form method="get" class="row g-2 align-items-center">
-    <div class="col-12 col-md-4">
+  <form method="get" id="asset-filter-form" class="row g-2 align-items-center"
+        hx-get="{% url 'assets:list' %}"
+        hx-trigger="input changed delay:300ms, change"
+        hx-target="#asset-list-card"
+        hx-select="#asset-list-card"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#global-loading-indicator">
+    <div class="col-12 col-md-2">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light border-end-0">
           {% icon 'search' 14 %}
@@ -58,16 +72,24 @@
         {% for s_val, s_label in statuses %}<option value="{{ s_val }}" {% if filters.status == s_val %}selected{% endif %}>{{ s_label }}</option>{% endfor %}
       </select>
     </div>
+    <div class="col-6 col-md-2">
+      <select name="ordering" class="form-select form-select-sm bg-light" aria-label="Sort by">
+        <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+        <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
+        <option value="-name" {% if filters.ordering == "-name" %}selected{% endif %}>Name (Z–A)</option>
+        <option value="asset_tag" {% if filters.ordering == "asset_tag" %}selected{% endif %}>Tag (A–Z)</option>
+        <option value="-asset_tag" {% if filters.ordering == "-asset_tag" %}selected{% endif %}>Tag (Z–A)</option>
+      </select>
+    </div>
     <div class="col-6 col-md-2 d-flex justify-content-md-end gap-2">
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      {% if filters.q or filters.site or filters.category or filters.status %}
-        <a href="{% url 'assets:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      {% endif %}
+      <a href="{% url 'assets:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>
 
-<div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
+<div class="card border-0 shadow-sm bg-white overflow-hidden" id="asset-list-card" style="border-radius:10px;"
+     hx-get="{% url 'assets:list' %}" hx-trigger="assetSaved from:body" hx-target="#asset-list-card" hx-select="#asset-list-card" hx-swap="outerHTML" hx-include="#asset-filter-form" hx-disinherit="*">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
@@ -77,6 +99,7 @@
           <th style="padding: 0.75rem 1rem;">Category</th>
           <th style="padding: 0.75rem 1rem;">Site &amp; Location</th>
           <th style="padding: 0.75rem 1rem;">Hierarchy Status</th>
+          <th style="padding: 0.75rem 1rem;">Created</th>
           <th style="padding: 0.75rem 1rem;">Status</th>
           <th style="padding: 0.75rem 1rem; width: 100px;" class="text-end">Actions</th>
         </tr>
@@ -84,12 +107,12 @@
       <tbody>
         {% for a in page %}
         <tr style="border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 0.75rem 1rem;">
+          <td data-label="Asset Tag" style="padding: 0.75rem 1rem;">
             <a href="{% url 'assets:detail' a.pk %}" class="fw-semibold text-decoration-none" style="color: #0B1F3A;">
               {{ a.asset_tag }}
             </a>
           </td>
-          <td style="padding: 0.75rem 1rem;">
+          <td data-label="Name &amp; Spec" style="padding: 0.75rem 1rem;">
             <div class="fw-medium text-dark">{{ a.name }}</div>
             {% if a.manufacturer or a.model %}
               <div class="small text-muted">{{ a.manufacturer }} {{ a.model }}{% if a.serial_number %} · <span class="font-monospace text-secondary">{{ a.serial_number }}</span>{% endif %}</div>
@@ -97,14 +120,14 @@
               <div class="small text-muted font-monospace">{{ a.serial_number }}</div>
             {% endif %}
           </td>
-          <td style="padding: 0.75rem 1rem;">
+          <td data-label="Category" style="padding: 0.75rem 1rem;">
             <span class="badge bg-light text-secondary border fw-normal px-2 py-1">{{ a.category.name }}</span>
           </td>
-          <td style="padding: 0.75rem 1rem;">
+          <td data-label="Site &amp; Location" style="padding: 0.75rem 1rem;">
             <div class="fw-medium text-dark">{{ a.site.code }}</div>
             {% if a.zone %}<div class="small text-muted">{{ a.zone.name }}</div>{% endif %}
           </td>
-          <td style="padding: 0.75rem 1rem;">
+          <td data-label="Hierarchy Status" style="padding: 0.75rem 1rem;">
             {% if a.parent_link %}
               <span class="badge bg-light text-secondary border" title="Component of {{ a.parent_link.parent.asset_tag }}">
                 {% icon 'git-branch' 12 %} {{ a.parent_link.get_relationship_type_display }}: {{ a.parent_link.parent.asset_tag }}
@@ -117,8 +140,9 @@
               <span class="text-muted small">Standalone</span>
             {% endif %}
           </td>
-          <td style="padding: 0.75rem 1rem;">{% status_badge a.status %}</td>
-          <td style="padding: 0.75rem 1rem;" class="text-end">
+          <td data-label="Created" style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td>
+          <td data-label="Status" style="padding: 0.75rem 1rem;">{% status_badge a.status %}</td>
+          <td data-label="Actions" style="padding: 0.75rem 1rem;" class="text-end">
             <div class="d-inline-flex gap-1">
               <a class="btn btn-sm btn-outline-secondary p-1" href="{% url 'assets:detail' a.pk %}?tab=hierarchy" title="View hierarchy tree">
                 {% icon 'git-branch' 13 %}
@@ -131,7 +155,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="py-4">
+          <td colspan="8" class="py-4">
             {% include "components/_empty_state.html" with title="No assets found" text="No assets match your current filters or none have been registered yet." %}
           </td>
         </tr>
@@ -144,5 +168,12 @@
       {% include "components/_pagination.html" %}
     </div>
   {% endif %}
+</div>
+
+<!-- Register Asset Modal Container -->
+<div class="modal fade" id="assetModal" tabindex="-1" aria-labelledby="assetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" id="assetModalContent"></div>
+  </div>
 </div>
 {% endblock %}

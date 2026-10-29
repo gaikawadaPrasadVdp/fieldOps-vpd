@@ -70,7 +70,7 @@ class SiteListView(SiteBase):
         qs = selectors.site_list(request.membership, request.organization, request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
         return render(request, "sites/list.html", {
-            "page": page, "q": request.GET.get("q", ""), "status": request.GET.get("status", ""),
+            "page": page, "q": request.GET.get("q", ""), "status": request.GET.get("status", ""), "ordering": request.GET.get("ordering", "-created_at"),
             "can_create": rbac.has_permission(request.membership, "site.create"),
             "total_sites": total_sites,
             "active_sites": active_sites,

@@ -33,8 +33,15 @@
 </div>
 
 <div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
-  <form method="get" class="row g-2 align-items-center">
-    <div class="col-12 col-md-6">
+  <form method="get" id="parts-filter-form" class="row g-2 align-items-center"
+        hx-get="{% url 'inventory:parts' %}"
+        hx-trigger="input changed delay:300ms, change"
+        hx-target="#parts-list-card"
+        hx-select="#parts-list-card"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#global-loading-indicator">
+    <div class="col-12 col-md-4">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light border-end-0">
           {% icon 'search' 14 %}
@@ -49,7 +56,7 @@
         />
       </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-2">
       <select
         class="form-select form-select-sm bg-light"
         name="active"
@@ -60,16 +67,24 @@
         <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive only</option>
       </select>
     </div>
+    <div class="col-6 col-md-3">
+      <select class="form-select form-select-sm bg-light" name="ordering" aria-label="Sort order">
+        <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+        <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
+        <option value="-name" {% if filters.ordering == "-name" %}selected{% endif %}>Name (Z–A)</option>
+        <option value="part_number" {% if filters.ordering == "part_number" %}selected{% endif %}>Part Number (A–Z)</option>
+        <option value="-part_number" {% if filters.ordering == "-part_number" %}selected{% endif %}>Part Number (Z–A)</option>
+      </select>
+    </div>
     <div class="col-6 col-md-3 d-flex justify-content-md-end gap-2">
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      {% if filters.q or filters.active %}
-        <a href="{% url 'inventory:parts' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      {% endif %}
+      <a href="{% url 'inventory:parts' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>
 
-<div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
+<div class="card border-0 shadow-sm bg-white overflow-hidden" id="parts-list-card" style="border-radius:10px;"
+     hx-get="{% url 'inventory:parts' %}" hx-trigger="partSaved from:body" hx-target="#parts-list-card" hx-select="#parts-list-card" hx-swap="outerHTML" hx-include="#parts-filter-form" hx-disinherit="*">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0" id="parts-table">
       <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
@@ -80,6 +95,7 @@
           <th style="padding: 0.75rem 1rem;">Min Stock</th>
           <th style="padding: 0.75rem 1rem;">Max Stock</th>
           <th style="padding: 0.75rem 1rem;">Reorder Qty</th>
+          <th style="padding: 0.75rem 1rem;">Created</th>
           <th style="padding: 0.75rem 1rem;">Status</th>
           <th style="padding: 0.75rem 1rem; width: 80px;" class="text-end">Actions</th>
         </tr>
@@ -102,6 +118,7 @@
           <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">{{ p.min_stock|floatformat:"-3"|default:"—" }}</td>
           <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">{{ p.max_stock|floatformat:"-3"|default:"—" }}</td>
           <td style="padding: 0.75rem 1rem;" class="font-monospace text-dark fw-medium">{{ p.reorder_quantity|floatformat:"-3"|default:"—" }}</td>
+          <td style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ p.created_at|date:"M d, Y H:i" }}</td>
           <td style="padding: 0.75rem 1rem;">
             {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
           </td>
@@ -113,7 +130,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="py-4">
+          <td colspan="9" class="py-4">
             {% include "components/_empty_state.html" with title="No parts match" text="Adjust the filters or create a part." %}
           </td>
         </tr>

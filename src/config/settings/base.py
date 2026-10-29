@@ -97,6 +97,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
+    "apps.core.middleware.TimezoneMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -230,7 +231,7 @@ EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "20"))  # never let a blocked SMTP port
 
 # --- I18N -------------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = env("TIME_ZONE", "Asia/Kolkata")
 USE_I18N = True
 USE_TZ = True
 

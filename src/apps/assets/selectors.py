@@ -20,8 +20,8 @@ from .models import (
     AssetStatusHistory,
 )
 
-ORDERINGS = {"asset_tag": "asset_tag", "-asset_tag": "-asset_tag", "name": "name", "-name": "-name",
-             "status": "status", "-created_at": "-created_at", "created_at": "created_at"}
+ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "name": "name", "-name": "-name",
+             "asset_tag": "asset_tag", "-asset_tag": "-asset_tag", "status": "status"}
 
 
 def assets_for(membership, org, code: str = "asset.view"):
@@ -55,7 +55,7 @@ def filter_assets(qs, params):
     if q:
         qs = qs.filter(Q(asset_tag__icontains=q) | Q(name__icontains=q) | Q(serial_number__icontains=q)
                        | Q(model__icontains=q) | Q(manufacturer__icontains=q))
-    return qs.order_by(ORDERINGS.get(params.get("ordering") or "", "asset_tag"))
+    return qs.order_by(ORDERINGS.get(params.get("ordering") or "", "-created_at"))
 
 
 def categories_for(org):
