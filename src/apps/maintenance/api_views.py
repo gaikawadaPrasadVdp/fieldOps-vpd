@@ -82,7 +82,7 @@ class ScheduleWriteSerializer(serializers.Serializer):
     start_value = serializers.DecimalField(max_digits=16, decimal_places=3, required=False)
     lead_days = serializers.IntegerField(required=False, min_value=0, max_value=60)
     window_start_time = serializers.TimeField(required=False)
-    window_hours = serializers.IntegerField(required=False, min_value=1, max_value=72)
+    window_hours = serializers.IntegerField(required=False, min_value=1, max_value=24)
     reminder_days = serializers.IntegerField(required=False, min_value=0, max_value=60)
 
 

@@ -756,6 +756,44 @@ def search(request):
     return render(request, "ui/_search_results.html", {"results": results, "q": q})
 
 
+def bad_request(request, exception=None):
+    if request.path.startswith("/api/"):
+        from django.http import JsonResponse
+        req_id = getattr(request, "request_id", "-")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": "bad_request",
+                    "message": str(exception) if exception else "Bad request.",
+                    "details": {},
+                },
+                "meta": {"request_id": req_id},
+            },
+            status=400,
+        )
+    return render(request, "errors/400.html", status=400)
+
+
+def bad_request(request, exception=None):
+    if request.path.startswith("/api/"):
+        from django.http import JsonResponse
+        req_id = getattr(request, "request_id", "-")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": "bad_request",
+                    "message": str(exception) if exception else "Bad request.",
+                    "details": {},
+                },
+                "meta": {"request_id": req_id},
+            },
+            status=400,
+        )
+    return render(request, "errors/400.html", status=400)
+
+
 def forbidden(request, exception=None):
     return render(request, "errors/403.html", status=403)
 

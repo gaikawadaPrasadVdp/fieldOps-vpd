@@ -49,7 +49,7 @@ class ScheduleForm(BootstrapFormMixin, forms.Form):
     lead_days = forms.IntegerField(min_value=0, max_value=60, initial=0, label="Generate the work order ... days early")
     window_start_time = forms.TimeField(initial="08:00", widget=forms.TimeInput(attrs={"type": "time"}),
                                         label="Maintenance window starts at (site time)")
-    window_hours = forms.IntegerField(min_value=1, max_value=72, initial=8, label="Window length (hours)")
+    window_hours = forms.IntegerField(min_value=1, max_value=24, initial=8, label="Window length (hours)")
     reminder_days = forms.IntegerField(min_value=0, max_value=60, initial=0, label="Remind planners ... days before")
 
     def __init__(self, *args, meters=None, editing=False, **kwargs):

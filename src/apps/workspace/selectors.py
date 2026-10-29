@@ -14,9 +14,23 @@ if TYPE_CHECKING:
 
 def route_context(work_order: WorkOrder) -> dict:
     """Return navigation and site routing details for the work order."""
-    site = work_order.site
-    contacts = SiteContact.objects.filter(site=site).order_by("escalation_order")
-    asset = work_order.asset
+    site = work_order.site if getattr(work_order, "site_id", None) else None
+    contacts = []
+    if site:
+        contacts_qs = SiteContact.objects.filter(site=site).order_by("escalation_order")
+        contacts = [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "role_title": c.role_title,
+                "phone": c.phone,
+                "email": c.email,
+                "escalation_order": c.escalation_order,
+                "notes": c.notes,
+            }
+            for c in contacts_qs
+        ]
+    asset = work_order.asset if getattr(work_order, "asset_id", None) else None
     location_path = []
     if asset and getattr(asset, "zone", None):
         z = asset.zone
@@ -25,15 +39,15 @@ def route_context(work_order: WorkOrder) -> dict:
             z = z.parent
 
     maps_query = ""
-    if site.address:
+    if site and site.address:
         maps_query = site.address.replace("\n", ", ").strip()
-    elif site.name:
+    elif site and site.name:
         maps_query = f"{site.name}, {site.code}"
 
     return {
-        "site_name": site.name,
-        "site_code": site.code,
-        "site_address": site.address,
+        "site_name": site.name if site else "",
+        "site_code": site.code if site else "",
+        "site_address": site.address if site else "",
         "location_path": " › ".join(location_path) if location_path else "",
         "contacts": contacts,
         "maps_query": maps_query,
@@ -253,18 +267,17 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     evidence_is_ready = (not evidence_required) or has_evidence
 
     # Checklist readiness evaluation
-    checklist_blockers = []
-    try:
-        from apps.checklists import services as checklist_services
-
-        checklist_blockers = checklist_services.checklist_blockers(wo)
-    except Exception:
-        checklist_blockers = []
+    from apps.workorders.checklist_adapter import get_checklist_status
+    chk_res = get_checklist_status(wo)
+    checklist_status = chk_res.status
+    checklist_is_ready = chk_res.is_valid
+    checklist_blockers = list(chk_res.missing_items) if chk_res.missing_items else []
+    if not checklist_is_ready and chk_res.message and chk_res.message != "Checklist validated.":
+        if chk_res.message not in checklist_blockers:
+            checklist_blockers.append(chk_res.message)
 
     if not wo.checklist_required:
         checklist_is_ready = True
-    else:
-        checklist_is_ready = (wo.checklist_status == "COMPLETED") and not checklist_blockers
 
     # Overall completion blockers
     blockers = []
@@ -299,7 +312,7 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
         "has_evidence": has_evidence,
         "evidence_is_ready": evidence_is_ready,
         "checklist_required": wo.checklist_required,
-        "checklist_status": wo.checklist_status,
+        "checklist_status": checklist_status,
         "checklist_blockers": checklist_blockers,
         "checklist_is_ready": checklist_is_ready,
         "can_complete": can_complete,

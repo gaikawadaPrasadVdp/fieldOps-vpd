@@ -123,11 +123,12 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         allowed_sites = [site.pk for site in sites if rbac.has_permission(membership, "work_order.create", site)]
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
+        allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
         assets = Asset.objects.for_organization(organization).filter(
-            site_id__in=allowed_sites, status=Asset.Status.ACTIVE).select_related("site")
+            site_id__in=allowed_sites, status__in=allowed_asset_statuses).select_related("site")
         self.fields["asset"].queryset = assets
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
-            status=Asset.Status.ACTIVE, parent_link__parent__site_id__in=allowed_sites,
+            status__in=allowed_asset_statuses, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
         self.fields["source_request"].queryset = ServiceRequest.objects.for_organization(organization).filter(
             status=APPROVED, site_id__in=allowed_sites)
@@ -157,8 +158,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if asset.site_id != site.pk:
             raise serializers.ValidationError({"asset": "Invalid asset for the selected site."})
-        if asset.status != Asset.Status.ACTIVE:
-            raise serializers.ValidationError({"asset": "Selected asset is inactive."})
+        if asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
+            raise serializers.ValidationError({"asset": f"Cannot create work order for a {asset.status.lower()} asset."})
         if component and not AssetComponent.objects.filter(organization=site.organization,
                 parent=asset, child=component,
                 relationship_type=AssetComponent.Relationship.COMPONENT).exists():
@@ -201,10 +202,11 @@ class UpdateWorkOrderSerializer(StrictInputSerializer):
                     if rbac.has_permission(request.membership, "work_order.update", site)]
                 sites = sites.filter(pk__in=allowed_ids)
             self.fields["site"].queryset = sites
+            allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
             self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
-                status=Asset.Status.ACTIVE, site__in=sites)
+                status__in=allowed_asset_statuses, site__in=sites)
             self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
-                status=Asset.Status.ACTIVE, parent_link__parent__site__in=sites,
+                status__in=allowed_asset_statuses, parent_link__parent__site__in=sites,
                 parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
 
     def validate(self, attrs):
@@ -288,7 +290,7 @@ class WorkOrderReasonSerializer(serializers.Serializer):
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
 
-class CompleteSerializer(StrictInputSerializer):
+class WorkOrderCompleteSerializer(StrictInputSerializer):
     resolution_notes = serializers.CharField(min_length=10)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
