@@ -73,14 +73,18 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
         site_ids = list(sites.values_list("pk", flat=True))
         linked_references = WorkOrder.objects.for_organization(membership.organization).exclude(
             source_reference=""
+        ).exclude(
+            status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)
         ).values_list("source_reference", flat=True)
         linked_source_ids = WorkOrder.objects.for_organization(membership.organization).exclude(
             source_id__isnull=True
+        ).exclude(
+            status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)
         ).values_list("source_id", flat=True)
 
         source_qs = ServiceRequest.objects.for_organization(
             membership.organization).filter(
-            status=APPROVED, site_id__in=site_ids, work_order__isnull=True, duplicate_of__isnull=True
+            status=APPROVED, site_id__in=site_ids, duplicate_of__isnull=True
         ).exclude(
             number__in=linked_references
         ).exclude(
@@ -270,6 +274,7 @@ class PlanForm(BootstrapFormMixin, forms.Form):
         help_text="Required. Must be greater than zero and fit within the planned start-to-end duration.")
 
     def __init__(self, *args, work_order=None, **kwargs):
+        self.work_order = work_order
         super().__init__(*args, **kwargs)
         if work_order:
             default_work_type = work_order.work_type
@@ -299,10 +304,13 @@ class PlanForm(BootstrapFormMixin, forms.Form):
                 self.initial.setdefault("priority", default_priority)
 
             if work_order.source_request_id:
-                self.fields["priority"].help_text = "Defaulted from linked source record; can be adjusted manually." 
+                self.fields["priority"].help_text = "Defaulted from linked source record; can be adjusted manually."
 
     def clean(self):
         cleaned = super().clean()
+        if self.work_order and not cleaned.get("priority") and self.work_order.priority:
+            cleaned["priority"] = self.work_order.priority
+            self.errors.pop("priority", None)
         start, end, due = (cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at"))
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be later than planned start.")

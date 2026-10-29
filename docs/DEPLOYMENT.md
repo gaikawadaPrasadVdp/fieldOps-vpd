@@ -53,6 +53,12 @@ Supabase automated backups (plan dependent) + periodic `pg_dump -n fieldops`; re
 
 ## Render Free runtime (live)
 - One free web service `fieldops-nexus-web` (https://fieldops-nexus-web.onrender.com) runs `python scripts/render_start.py`: Gunicorn (1 worker, threads) + Celery worker with embedded beat under a fail-fast supervisor (any child exit stops the container so Render restarts it). Uses the single Celery app `config` and the Render Key Value `fieldops-nexus-redis` (internal URL).
+- Celery Beat schedules automated background maintenance and monitoring tasks:
+  * monitor-sla (pps.sla.tasks.fan_out_sla_monitor): Runs every 60s for real-time SLA warning and breach detection (D-044).
+  * generate-due-maintenance (pps.maintenance.tasks.fan_out_maintenance): Runs every 15m to generate upcoming PM work orders.
+  * inventory-reorder-alerts (pps.inventory.tasks.fan_out_reorder_alerts): Runs every 6h to alert on low stock balances.
+  * contract-renewal-alerts (pps.contracts.tasks.fan_out_renewal_alerts): Runs every 12h for warranty/AMC expiration notifications.
+  * clear-expired-sessions (pps.core.tasks.clear_expired_sessions): Runs daily to prune stale session tokens.
 - Database: Supabase pooler (session mode) `aws-0-ap-southeast-1.pooler.supabase.com:5432`, user `fieldops_app.<ref>`. Migrations run at start (`RUN_MIGRATIONS_ON_START=true`).
 - Email: Brevo SMTP relay on **port 2525**. Render Free blocks outbound SMTP on 25/465/587 (tasks time out with `TimeoutError(110)`); `EMAIL_TIMEOUT=20` stops a blocked port from hanging the worker.
 - Free tier sleeps after ~15 min without traffic (Celery/beat sleep with it): `.github/workflows/keepalive.yml` pings `/health/live/` every 5 minutes. SLA/PM catch up from stored due times after any sleep.

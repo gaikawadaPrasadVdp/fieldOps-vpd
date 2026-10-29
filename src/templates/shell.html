@@ -5,7 +5,7 @@
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
-      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
+      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
         <span class="fx-brand-mark">FX</span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}

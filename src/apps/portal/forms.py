@@ -60,6 +60,14 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
         label="Photo / File Attachment",
         help_text="Optional document, log, or photo of the issue (up to 10 MB).",
     )
+    override_duplicate = forms.BooleanField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+    override_reason = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
 
     def __init__(self, *args, organization=None, membership=None, **kwargs):
         super().__init__(*args, **kwargs)

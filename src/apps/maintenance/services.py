@@ -142,7 +142,10 @@ def create_plan(org, *, asset, name, description="", priority="MEDIUM", estimate
         organization=org, asset=asset, site=asset.site, name=name, description=(description or "").strip(),
         priority=priority, estimated_hours=_decimal(estimated_hours, "Estimated hours", allow_none=True),
         checklist_key=_check_checklist(org, checklist_key), created_by=actor)
-    plan.save()
+    try:
+        plan.save()
+    except IntegrityError as exc:
+        raise Conflict("This asset already has a plan with that name.", code="plan_name_taken") from exc
     audit.record("maintenance.plan_created", actor=actor, organization=org, target=plan,
                  after={**audit.snapshot(plan, PLAN_FIELDS), "asset": asset.asset_tag}, request=request)
     return plan

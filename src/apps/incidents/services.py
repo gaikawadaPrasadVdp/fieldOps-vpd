@@ -135,10 +135,13 @@ def find_duplicate_incidents(org, *, asset_id, kind: str = "INCIDENT", failure_c
     }
     matches = []
     for sr in requests:
-        if description.strip() and sr.description.strip():
-            text_match = _report_text_matches(description, sr.description)
-        else:
-            text_match = _report_text_matches(title, sr.title)
+        text_match = False
+        if title.strip() and sr.title.strip() and _report_text_matches(title, sr.title):
+            text_match = True
+        elif description.strip() and sr.description.strip() and _report_text_matches(description, sr.description):
+            text_match = True
+        elif (not description.strip() or not sr.description.strip()) and _report_text_matches(title, sr.title):
+            text_match = True
         if not text_match:
             continue
 
@@ -483,7 +486,7 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
         models.Q(source_id=sr.pk) |
         models.Q(organization=sr.organization, source_reference=sr.number,
                  source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT)),
-    ).first()
+    ).exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)).first()
     if existing_wo:
         raise Conflict(f"A work order ({existing_wo.order_number}) already exists for this request.", code="duplicate_work_order")
     source_attachments = list(Attachment.objects.for_organization(sr.organization).filter(
