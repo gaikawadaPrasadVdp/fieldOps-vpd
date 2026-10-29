@@ -151,6 +151,8 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
 
+handler400 = "apps.ui.views.bad_request"
+handler400 = "apps.ui.views.bad_request"
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"
 handler500 = "apps.ui.views.server_error"

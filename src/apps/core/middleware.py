@@ -23,10 +23,53 @@ class RequestIdMiddleware:
         incoming = request.headers.get("X-Request-ID", "")
         rid = incoming if _VALID_ID.match(incoming) else uuid.uuid4().hex
         request.request_id = rid
+
+        path = request.path_info or request.path or ""
+        if path.startswith("/api/"):
+            content_length = request.META.get("CONTENT_LENGTH")
+            if content_length:
+                try:
+                    cl_int = int(content_length)
+                    content_type = request.META.get("CONTENT_TYPE", "")
+                    max_allowed = 10 * 1024 * 1024 if "multipart/form-data" in content_type else 5 * 1024 * 1024
+                    if cl_int > max_allowed:
+                        from django.http import JsonResponse
+                        return JsonResponse(
+                            {
+                                "success": False,
+                                "error": {
+                                    "code": "request_entity_too_large",
+                                    "message": f"Request body exceeds maximum allowed size ({max_allowed // (1024 * 1024)}MB).",
+                                    "details": {},
+                                },
+                                "meta": {"request_id": rid},
+                            },
+                            status=413,
+                        )
+                except (ValueError, TypeError):
+                    pass
+
         token = flogging.request_id_var.set(rid)
         started = time.monotonic()
         try:
             response = self.get_response(request)
+        except Exception as exc:
+            if exc.__class__.__name__ == "RequestDataTooBig":
+                from django.http import JsonResponse
+                flogging.request_id_var.reset(token)
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "request_entity_too_large",
+                            "message": "Request body exceeds maximum allowed size.",
+                            "details": {},
+                        },
+                        "meta": {"request_id": rid},
+                    },
+                    status=413,
+                )
+            raise
         finally:
             elapsed = int((time.monotonic() - started) * 1000)
             flogging.request_id_var.reset(token)

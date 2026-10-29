@@ -91,6 +91,10 @@ def _tag(value: str) -> str:
 
 
 def _check_dates(purchase, commission):
+    from django.utils import timezone as _tz
+    today = _tz.now().date()
+    if purchase and purchase > today:
+        raise ValidationFailed("Purchase date cannot be in the future.", code="invalid_dates")
     if purchase and commission and commission < purchase:
         raise ValidationFailed("Commissioning date cannot be before the purchase date.", code="invalid_dates")
 

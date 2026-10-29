@@ -394,8 +394,15 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
-        wo = wo_selectors.get_work_order(request.membership, request.organization,
-                                         request.query_params.get("work_order") or "")
+        import uuid as _uuid
+        wo_param = request.query_params.get("work_order")
+        if not wo_param:
+            raise ValidationFailed("work_order query parameter is required.", code="validation_failed")
+        try:
+            wo_id = _uuid.UUID(str(wo_param))
+        except (ValueError, TypeError, AttributeError):
+            raise ValidationFailed("work_order must be a valid UUID.", code="validation_failed")
+        wo = wo_selectors.get_work_order(request.membership, request.organization, wo_id)
         rows = selectors.requirements_for(request.organization, wo, services)
         return Response({"work_order": str(wo.pk), "blockers": services.checklist_blockers(wo), "checklists": [
             {"template": str(r["template"].pk), "name": r["template"].name, "version": r["template"].version,

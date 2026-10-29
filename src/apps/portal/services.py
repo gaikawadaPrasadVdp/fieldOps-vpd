@@ -657,10 +657,11 @@ def update_portal_account(
     *,
     company_name: str | None = None,
     notes: str | None = None,
+    is_enabled: bool | None = None,
     actor=None,
 ) -> PortalAccount:
     """Updates portal account metadata with audit trail."""
-    before = audit.snapshot(account, ["company_name", "notes"])
+    before = audit.snapshot(account, ["company_name", "notes", "is_enabled"])
     update_fields = ["updated_at"]
 
     if company_name is not None:
@@ -670,6 +671,10 @@ def update_portal_account(
     if notes is not None:
         account.notes = notes.strip()
         update_fields.append("notes")
+
+    if is_enabled is not None:
+        account.is_enabled = bool(is_enabled)
+        update_fields.append("is_enabled")
 
     account.save(update_fields=update_fields)
 

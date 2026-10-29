@@ -286,7 +286,7 @@ def _validate_schedule(plan: MaintenancePlan, data: dict) -> dict:
                    start_value=_decimal(data.get("start_value", 0) or 0, "Start value", positive=False))
     else:
         raise ValidationFailed("Choose time-based or meter-based.", code="invalid_trigger")
-    for field, low, high in (("lead_days", 0, 60), ("window_hours", 1, 72), ("reminder_days", 0, 60)):
+    for field, low, high in (("lead_days", 0, 60), ("window_hours", 1, 24), ("reminder_days", 0, 60)):
         default = {"lead_days": 0, "window_hours": 8, "reminder_days": 0}[field]
         try:
             value = int(data.get(field, default) if data.get(field) not in (None, "") else default)

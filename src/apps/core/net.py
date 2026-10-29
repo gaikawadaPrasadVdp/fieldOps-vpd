@@ -36,8 +36,9 @@ def axes_username(request, credentials=None) -> str | None:
     variants cannot dodge the failure counter."""
     value = None
     if credentials:
-        value = credentials.get("username")
+        value = credentials.get("username") or credentials.get("email")
     if value is None:
-        data = getattr(request, "data", None) or request.POST
-        value = data.get("username")
+        data = getattr(request, "data", None) or getattr(request, "POST", None)
+        if data and hasattr(data, "get"):
+            value = data.get("username") or data.get("email")
     return value.strip().lower() if isinstance(value, str) and value.strip() else None

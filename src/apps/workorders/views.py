@@ -18,8 +18,8 @@ from .serializers import (
     AssignSerializer,
     ChecklistReferenceSerializer,
     ClosureCommentSerializer,
-    CompleteSerializer,
     CreateWorkOrderSerializer,
+    WorkOrderCompleteSerializer,
     EvidenceSerializer,
     ExpectedVersionSerializer,
     LaborInputSerializer,
@@ -95,7 +95,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         if self.action == "notes":
             return WorkNoteSerializer
         if self.action == "complete":
-            return CompleteSerializer
+            return WorkOrderCompleteSerializer
         if self.action == "review":
             return ReviewSerializer
         if self.action == "labor":
@@ -122,10 +122,14 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def list(self, request):
         qs = self.get_queryset()
         state = request.query_params.get("status")
-        if state in dict(WorkOrder.Status.choices):
+        if state:
+            if state not in dict(WorkOrder.Status.choices):
+                raise ValidationFailed(f"Invalid status '{state}'.", code="invalid_filter")
             qs = qs.filter(status=state)
         priority = request.query_params.get("priority")
-        if priority in dict(WorkOrder.Priority.choices):
+        if priority:
+            if priority not in dict(WorkOrder.Priority.choices):
+                raise ValidationFailed(f"Invalid priority '{priority}'.", code="invalid_filter")
             qs = qs.filter(priority=priority)
         work_type = request.query_params.get("work_type")
         if work_type in dict(WorkOrder.WorkType.choices):
@@ -239,11 +243,11 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
-    @extend_schema(request=CompleteSerializer, responses={200: WorkOrderSerializer},
+    @extend_schema(request=WorkOrderCompleteSerializer, responses={200: WorkOrderSerializer},
                    description="IN_PROGRESS -> COMPLETED. Saves resolution notes after M08 checklist validation and work-type evidence requirements pass.")
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
-        return self._action(pk, services.complete_work_order, CompleteSerializer)
+        return self._action(pk, services.complete_work_order, WorkOrderCompleteSerializer)
 
     @extend_schema(request=ExpectedVersionSerializer, responses={200: WorkOrderSerializer},
                    description="Assigned technician only: COMPLETED -> SUPERVISOR_REVIEW after checklist, notes, and evidence validation.")
@@ -282,8 +286,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         return self._action(pk, lambda wo, **kw: services.record_work_update(
             wo, update=kw.pop("text"), **kw), WorkNoteSerializer)
 
-    @extend_schema(request=ProvisionalChecklistSerializer, responses={200: WorkOrderSerializer},
-                   description="Store M06 provisional development notes only; never used as M08 checklist answers or completion evidence.")
+    @extend_schema(exclude=True)
     @action(detail=True, methods=["post"], url_path="provisional-checklist")
     def provisional_checklist(self, request, pk=None):
         return self._action(pk, lambda wo, **kw: services.set_checklist(wo, items=kw.pop("items"), **kw),

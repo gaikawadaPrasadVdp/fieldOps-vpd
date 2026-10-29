@@ -388,8 +388,9 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     source_asset = Asset.objects.for_organization(organization).filter(pk=source_asset.pk).first()
     if source_asset is None:
         raise NotFound("Asset not found.")
-    if source_asset.status != Asset.Status.ACTIVE:
-        raise ValidationFailed("Selected asset is inactive.", code="asset_inactive")
+    allowed_asset_statuses = (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE)
+    if source_asset.status not in allowed_asset_statuses:
+        raise ValidationFailed(f"Cannot create work order for a {source_asset.status.lower()} asset.", code="asset_inactive")
     if source_asset.site_id != site.pk:
         raise ValidationFailed("Invalid asset for the selected site.", code="asset_site_mismatch")
     if component is not None:
@@ -851,10 +852,6 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     _need(membership, code, wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     notes = (notes or "").strip()
-    if approved and wo.status == WorkOrder.Status.CLOSED:
-        # The close endpoint is safe to retry after a network timeout.
-        if wo.closure_approvals.filter(decision=ClosureApproval.Decision.APPROVED).exists():
-            return wo
     if wo.status != WorkOrder.Status.SUPERVISOR_REVIEW:
         raise InvalidTransition("Only work orders awaiting supervisor review can be reviewed.")
     if approved and require_comment and not notes:

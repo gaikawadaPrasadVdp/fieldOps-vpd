@@ -36,7 +36,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 class ProviderWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     contact_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
-    email = serializers.CharField(max_length=254, required=False, allow_blank=True)
+    email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 

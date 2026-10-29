@@ -73,6 +73,8 @@ class HasOrgPermission(permissions.BasePermission):
     message = "You do not have permission to perform this action."
 
     def has_permission(self, request, view):
+        if request.method == "OPTIONS" or getattr(view, "action", None) == "metadata":
+            return True
         membership = getattr(request, "membership", None)
         if membership is None:
             self.message = "Select an organization (X-Organization header) with an active membership."
