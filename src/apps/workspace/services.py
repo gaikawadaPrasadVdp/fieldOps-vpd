@@ -234,6 +234,9 @@ def record_work_note(
 ) -> WorkNote:
     """Appends an execution note for the technician work order."""
     assert_can_execute_job(work_order, membership)
+    if work_order.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
+        from apps.core.exceptions import Conflict
+        raise Conflict("Work updates can only be recorded while work is in progress or on hold.")
     note_clean = (note or "").strip()
     if not note_clean:
         raise ValidationFailed("Work note cannot be blank.")

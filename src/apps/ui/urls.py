@@ -5,6 +5,8 @@ from . import views
 app_name = "ui"
 urlpatterns = [
     path("", views.root, name="root"),
+    path("product/", views.public_product_overview, name="public_product_overview"),
+    path("product/<slug:slug>/", views.public_product, name="public_product"),
     path("features/", views.public_features, name="public_features"),
     path("solutions/", views.public_solutions, name="public_solutions"),
     path("solutions/<slug:slug>/", views.public_solution, name="public_solution"),

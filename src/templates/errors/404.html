@@ -1,3 +1,95 @@
-{% extends "public.html" %}
-{% block content %}<h1 class="h4">Not found</h1><p>The page or record does not exist, or is not available to you.</p>
-<a href="{% url 'ui:root' %}">Back to the app</a>{% endblock %}
+{% extends "base.html" %}
+{% load static ui_tags %}
+
+{% block title %}404 · Page Not Found · FieldOps Nexus{% endblock %}
+
+{% block body_class %}fx-error-body{% endblock %}
+
+{% block body %}
+<div class="fx-error-page min-vh-100 d-flex flex-column justify-content-between" style="background: #F8FAFC;">
+  <!-- Top Navigation Bar -->
+  <header class="py-3 px-4 border-bottom bg-white d-flex align-items-center justify-content-between shadow-sm">
+    <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+      <div class="fx-pub-brand-badge" style="width:34px; height:34px; background:#0B1F3A; color:#F5C451; display:flex; align-items:center; justify-content:center; border-radius:8px; font-weight:bold; font-size:14px; letter-spacing:0.5px;">
+        FX
+      </div>
+      <div class="lh-1">
+        <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
+        <span class="d-none d-sm-inline-block ms-2 badge bg-light text-secondary border">Platform</span>
+      </div>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'ui:root' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+        {% icon 'grid' 15 %} <span>Dashboard</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Error Content Section -->
+  <main class="container my-auto py-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-10 col-lg-8 col-xl-7 text-center">
+        <!-- Error Pill Status Badge -->
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-white border shadow-sm mb-4">
+          <span class="badge rounded-pill" style="background:#0B1F3A; color:#F5C451; font-weight:600; font-size:0.8rem; padding: 0.35rem 0.65rem;">HTTP 404</span>
+          <span class="text-secondary small fw-medium">Resource Not Found</span>
+        </div>
+
+        <!-- Big 404 Headline -->
+        <h1 class="display-5 fw-bold text-dark mb-3">We couldn’t find that page</h1>
+        <p class="lead text-secondary mb-4 mx-auto" style="max-width: 520px; font-size: 1.05rem; line-height: 1.6;">
+          The page or record you are trying to reach does not exist, has been moved or archived, or is not accessible within your current organization permissions.
+        </p>
+
+        <!-- Quick Navigation Action Buttons -->
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+          <a href="{% url 'ui:root' %}" class="btn btn-primary px-4 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="background:#0B1F3A; border-color:#0B1F3A;">
+            {% icon 'grid' 16 %}
+            <span>Return to Dashboard</span>
+          </a>
+          <a href="/app/work-orders/" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white">
+            {% icon 'clipboard' 16 %}
+            <span>Work Orders</span>
+          </a>
+          <a href="/app/assets/" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white">
+            {% icon 'box' 16 %}
+            <span>Assets</span>
+          </a>
+          <button type="button" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'ui:root' %}'">
+            {% icon 'refresh-cw' 15 %}
+            <span>Go Back</span>
+          </button>
+        </div>
+
+        <!-- Troubleshooting Guidance Box -->
+        <div class="card border-0 shadow-sm bg-white p-4 text-start mx-auto" style="max-width: 540px; border-radius: 12px; border: 1px solid #E2E8F0 !important;">
+          <h2 class="h6 fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+            <span class="text-warning">{% icon 'alert-circle' 16 %}</span>
+            Troubleshooting Suggestions
+          </h2>
+          <ul class="text-secondary small mb-0 ps-3 d-flex flex-column gap-2" style="line-height: 1.5;">
+            <li>Verify the URL address in your browser for any spelling or path errors.</li>
+            <li>If you switched organizations, make sure the active organization owns this site or asset.</li>
+            <li>If you clicked a direct notification link, the corresponding work order or inspection may have concluded.</li>
+            <li>If you believe you should have access, contact your organization supervisor or system admin.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Clean Bottom Footer -->
+  <footer class="py-3 px-4 border-top bg-white text-center text-secondary small">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 container">
+      <div>&copy; {% now "Y" %} FieldOps Nexus · Enterprise Field Operations</div>
+      <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'ui:root' %}" class="text-decoration-none text-secondary">Dashboard</a>
+        <span class="text-black-50">&bull;</span>
+        <a href="/app/sites/" class="text-decoration-none text-secondary">Sites</a>
+        <span class="text-black-50">&bull;</span>
+        <a href="/health/live/" class="text-decoration-none text-secondary">System Health</a>
+      </div>
+    </div>
+  </footer>
+</div>
+{% endblock %}

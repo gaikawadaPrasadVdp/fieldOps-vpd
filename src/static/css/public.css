@@ -1732,59 +1732,6 @@ body.fx-public-site {
 }
 
 /* ==========================================================================
-   Floating Concierge Chat FAB & Modal
-   ========================================================================== */
-.fx-floating-chat {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1060;
-  user-select: none;
-}
-.fx-chat-modal {
-  display: none;
-  margin-bottom: 12px;
-  width: 340px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: #0B1F3B;
-  padding: 1.25rem;
-  color: #FFFFFF;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px);
-}
-.fx-chat-modal.is-open {
-  display: block;
-}
-.fx-chat-fab {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background-color: #F5C451;
-  color: #0B1F3B;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px rgba(245, 196, 81, 0.45);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.fx-chat-fab:hover {
-  background-color: #D9B33F;
-  transform: scale(1.05);
-}
-.fx-chat-ping {
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background-color: rgba(245, 196, 81, 0.35);
-  animation: pulse-dot 2s infinite;
-  pointer-events: none;
-}
-
-/* ==========================================================================
    Split-Screen Auth Pages (Login & Registration)
    ========================================================================== */
 .fx-auth-split {
@@ -3318,6 +3265,671 @@ body.fx-public-site {
   }
 }
 
+/* ==========================================================================
+   Product, Solutions & Modules Detail Pages Design System
+   Matches FieldOps Nexus Design Specification:
+   - Deep navy: #0B1F3B, Secondary navy: #162A4B, Background: #071426
+   - Gold primary: #F5C451, Gold accent: #D97706 / #C9A227
+   - White: #F8FAFC / #FFFFFF, Slate text: #64748B
+   ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Global Button Primitives
+   -------------------------------------------------------------------------- */
+.btn-fx-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #F5C451 0%, #D99B16 100%);
+  color: #0B1F3B !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(245, 196, 81, 0.6);
+  box-shadow: 0 4px 14px rgba(245, 196, 81, 0.35);
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
 
+.btn-fx-gold:hover {
+  background: linear-gradient(135deg, #FAD068 0%, #E5A922 100%);
+  color: #040D1A !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245, 196, 81, 0.45);
+}
 
+.btn-fx-gold:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(245, 196, 81, 0.3);
+}
+
+.btn-outline-light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 0.5rem;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.btn-outline-light:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-2px);
+}
+
+.btn-outline-light:active {
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   Scroll-Reveal Entrance System
+   -------------------------------------------------------------------------- */
+.fx-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.fx-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered card appearance */
+.row .col-12:nth-child(1) .fx-reveal { transition-delay: 0.05s; }
+.row .col-12:nth-child(2) .fx-reveal { transition-delay: 0.12s; }
+.row .col-12:nth-child(3) .fx-reveal { transition-delay: 0.19s; }
+.row .col-12:nth-child(4) .fx-reveal { transition-delay: 0.26s; }
+
+/* --------------------------------------------------------------------------
+   1. Detail Page Hero Section
+   -------------------------------------------------------------------------- */
+.fx-detail-hero {
+  position: relative;
+  background-color: #0B1F3B;
+  color: #FFFFFF;
+  padding-top: 4.5rem;
+  padding-bottom: 5.5rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 992px) {
+  .fx-detail-hero {
+    padding-top: 6rem;
+    padding-bottom: 6.5rem;
+  }
+}
+
+.fx-detail-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+}
+
+.fx-detail-glow {
+  position: absolute;
+  top: -15%;
+  right: 12%;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.08) 0%, rgba(11, 31, 59, 0) 70%);
+  pointer-events: none;
+  filter: blur(50px);
+}
+
+/* Breadcrumb Navigation */
+.fx-detail-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 1.75rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+}
+
+.fx-detail-breadcrumb a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.fx-detail-breadcrumb a:hover {
+  color: #F5C451;
+}
+
+.fx-detail-breadcrumb .separator {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Subtitle Eyebrow Badge */
+.fx-detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(245, 196, 81, 0.35);
+  background: rgba(245, 196, 81, 0.12);
+  padding: 0.38rem 1rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #F5C451;
+  margin-bottom: 1.25rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Page Title */
+.fx-detail-title {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .fx-detail-title {
+    font-size: 3.25rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .fx-detail-title {
+    font-size: 3.75rem;
+  }
+}
+
+/* Gold Subtitle / Tagline */
+.fx-detail-tagline {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #F5C451;
+  line-height: 1.45;
+  margin-bottom: 1.1rem;
+}
+
+@media (min-width: 992px) {
+  .fx-detail-tagline {
+    font-size: 1.3rem;
+  }
+}
+
+/* Description */
+.fx-detail-desc {
+  font-size: 1.025rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 600px;
+  margin-bottom: 1.75rem;
+}
+
+/* Hero Action CTA Buttons Row */
+.fx-detail-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.fx-hero-cta {
+  padding: 0.85rem 1.85rem !important;
+  font-size: 1rem !important;
+}
+
+.fx-hero-secondary-btn {
+  padding: 0.85rem 1.65rem !important;
+  font-size: 1rem !important;
+}
+
+/* Hero Trust Badges Row */
+.fx-detail-hero-trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 580px;
+}
+
+.fx-trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.fx-trust-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+/* Right-Side Photograph Card */
+.fx-detail-image-card {
+  position: relative;
+  border-radius: 1.125rem;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: #071426;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.fx-detail-image-card:hover {
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 196, 81, 0.3);
+}
+
+.fx-detail-image-card img {
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fx-detail-image-card:hover img {
+  transform: scale(1.035);
+}
+
+.fx-detail-image-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(7, 20, 38, 0.92) 0%, rgba(7, 20, 38, 0.35) 45%, transparent 100%);
+}
+
+.fx-detail-image-badge {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.15rem;
+  border-radius: 0.75rem;
+  background: rgba(7, 20, 38, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.fx-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: fx-pulse-dot 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes fx-pulse-dot {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.fx-badge-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.01em;
+}
+
+.fx-badge-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   2. Capabilities Section (Positioned Directly Below Hero)
+   -------------------------------------------------------------------------- */
+.fx-capabilities-section {
+  background-color: #FFFFFF;
+  padding: 5.5rem 0 6.5rem;
+  position: relative;
+}
+
+.fx-capability-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  padding: 2rem 1.75rem;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(11, 31, 59, 0.04);
+}
+
+.fx-capability-card:hover,
+.fx-capability-card.fx-capability-active {
+  transform: translateY(-6px);
+  border-color: #F5C451;
+  background-color: #FFFFFF;
+  box-shadow: 0 12px 30px -4px rgba(245, 196, 81, 0.22), 0 4px 10px rgba(11, 31, 59, 0.04);
+}
+
+.fx-capability-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.75rem;
+  background-color: #0B1F3B;
+  color: #F5C451;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  transition: all 0.35s ease;
+  box-shadow: 0 4px 12px rgba(11, 31, 59, 0.15);
+}
+
+.fx-capability-card:hover .fx-capability-icon,
+.fx-capability-card.fx-capability-active .fx-capability-icon {
+  background: linear-gradient(135deg, #F5C451 0%, #D99B16 100%);
+  color: #0B1F3B;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(245, 196, 81, 0.4);
+}
+
+.fx-capability-title {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: #0B1F3B;
+  margin-bottom: 0.65rem;
+  letter-spacing: -0.015em;
+  transition: color 0.2s ease;
+}
+
+.fx-capability-card:hover .fx-capability-title,
+.fx-capability-card.fx-capability-active .fx-capability-title {
+  color: #D97706;
+}
+
+.fx-capability-desc {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: #64748B;
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Metrics Bar Section
+   -------------------------------------------------------------------------- */
+.fx-detail-metrics-section {
+  background-color: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 3.5rem 0;
+}
+
+.fx-detail-metric-card {
+  border-left: 3.5px solid #F5C451;
+  padding-left: 1.5rem;
+  height: 100%;
+}
+
+.fx-detail-metric-val {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #0B1F3B;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.fx-detail-metric-lbl {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-top: 0.4rem;
+}
+
+.fx-detail-metric-sub {
+  font-size: 0.825rem;
+  color: #64748B;
+  margin-top: 0.25rem;
+  line-height: 1.55;
+}
+
+/* --------------------------------------------------------------------------
+   4. Deep Dive Architecture Section
+   -------------------------------------------------------------------------- */
+.fx-deepdive-section {
+  background-color: #FFFFFF;
+  padding: 5.5rem 0 6rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.fx-deepdive-panel {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 1.125rem;
+  padding: 2.25rem;
+  box-shadow: 0 4px 20px rgba(11, 31, 59, 0.04);
+}
+
+/* --------------------------------------------------------------------------
+   5. Bottom CTA Section
+   -------------------------------------------------------------------------- */
+.fx-detail-cta {
+  position: relative;
+  background-color: #0B1F3B;
+  color: #FFFFFF;
+  padding: 5.5rem 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.fx-detail-cta-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.5rem auto 1.25rem;
+}
+
+.fx-detail-cta-divider .line {
+  height: 2px;
+  width: 52px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, #F5C451);
+}
+
+.fx-detail-cta-divider .line.reverse {
+  background: linear-gradient(to left, transparent, #F5C451);
+}
+
+.fx-detail-cta-divider .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #F5C451;
+  box-shadow: 0 0 8px rgba(245, 196, 81, 0.8);
+}
+
+/* --------------------------------------------------------------------------
+   6. Comprehensive Responsive System
+   Breakpoints: 1440px, 1366px, 991px, 768px, 393px, 320px
+   -------------------------------------------------------------------------- */
+@media (max-width: 1440px) {
+  .fx-detail-title {
+    font-size: 3.4rem;
+  }
+}
+
+@media (max-width: 1366px) {
+  .fx-detail-title {
+    font-size: 3.1rem;
+  }
+  .fx-detail-image-card img {
+    height: 390px;
+  }
+}
+
+@media (max-width: 991px) {
+  .fx-detail-hero {
+    padding-top: 4rem;
+    padding-bottom: 4.5rem;
+  }
+  .fx-detail-desc {
+    max-width: 100%;
+  }
+  .fx-detail-hero-trust {
+    max-width: 100%;
+  }
+  .fx-detail-image-card img {
+    height: 360px;
+  }
+  .fx-capabilities-section {
+    padding: 4rem 0 4.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .fx-detail-hero {
+    padding-top: 3.25rem;
+    padding-bottom: 3.75rem;
+  }
+  .fx-detail-title {
+    font-size: 2.35rem;
+  }
+  .fx-detail-tagline {
+    font-size: 1.1rem;
+  }
+  .fx-detail-desc {
+    font-size: 0.95rem;
+  }
+  .fx-detail-image-card img {
+    height: 300px;
+  }
+  .fx-detail-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fx-detail-hero-actions .btn-fx-gold,
+  .fx-detail-hero-actions .btn-outline-light {
+    width: 100%;
+    justify-content: center;
+  }
+  .fx-detail-metric-card {
+    border-left: none;
+    border-top: 3px solid #F5C451;
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+  .fx-detail-metric-val {
+    font-size: 2.1rem;
+  }
+  .fx-deepdive-panel {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 393px) {
+  .fx-detail-title {
+    font-size: 1.95rem;
+    line-height: 1.15;
+  }
+  .fx-detail-badge {
+    font-size: 10px;
+    padding: 0.3rem 0.75rem;
+  }
+  .fx-detail-image-card img {
+    height: 250px;
+  }
+  .fx-badge-text {
+    font-size: 11px;
+  }
+  .fx-capability-card {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .fx-detail-hero {
+    padding-top: 2.5rem;
+    padding-bottom: 3rem;
+  }
+  .fx-detail-title {
+    font-size: 1.7rem;
+  }
+  .fx-detail-tagline {
+    font-size: 1rem;
+  }
+  .fx-detail-breadcrumb {
+    font-size: 11px;
+  }
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  .fx-reveal,
+  .fx-capability-card,
+  .fx-capability-icon,
+  .fx-detail-image-card,
+  .fx-detail-image-card img,
+  .btn-fx-gold,
+  .btn-outline-light {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .fx-reveal {
+    opacity: 1 !important;
+  }
+}

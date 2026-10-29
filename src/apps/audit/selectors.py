@@ -208,6 +208,8 @@ def search(qs, params, *, org=None, strict=True):
         )
         failed_ids = qs.filter(failed_q).values_list("pk", flat=True)
         qs = qs.exclude(pk__in=failed_ids)
+    elif outcome:
+        raise ValidationFailed(f"Invalid outcome '{outcome}'. Allowed: failed, success.", code="invalid_filter")
     if org is not None and (get("asset") or get("work_order")):
         from apps.assets.models import Asset
         from apps.workorders.models import WorkOrder

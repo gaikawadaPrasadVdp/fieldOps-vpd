@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from apps.core.apiutils import htmx_success
 """M08 HTML views: template management (checklist.view / checklist.manage) and read-only inspection results with
 finding resolution. Technician execution lives in the M07 workspace and calls the same services. Chain: login ->
 membership -> permission gate -> organization (+ site) scoped lookup (404) -> permission for the object -> service."""
-from __future__ import annotations
 
 import logging
 
@@ -60,6 +62,11 @@ class TemplateCreateView(_View):
     crumbs = [("Checklists", "/app/checklists/"), ("New", None)]
 
     def get(self, request):
+        if request.headers.get("HX-Request"):
+            return render(request, "checklists/_template_modal.html", {
+                "title": "New checklist", "form": TemplateForm(), "submit": "Create draft",
+                "action_url": request.path,
+            })
         return form_page(request, title="New checklist", form=TemplateForm(), submit="Create draft",
                          cancel_url="/app/checklists/", crumbs=self.crumbs,
                          subtitle="Add the questions on the next screen, then activate.")
@@ -71,9 +78,16 @@ class TemplateCreateView(_View):
                 t = services.create_template(request.organization, actor=request.user, request=request,
                                              **form.cleaned_data)
                 messages.success(request, "Draft checklist created. Add its questions.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeChecklistModal": True, "checklistSaved": True})
                 return redirect("checklists:detail", pk=t.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+        if request.headers.get("HX-Request"):
+            return render(request, "checklists/_template_modal.html", {
+                "title": "New checklist", "form": form, "submit": "Create draft",
+                "action_url": request.path,
+            }, status=200)
         return form_page(request, title="New checklist", form=form, submit="Create draft",
                          cancel_url="/app/checklists/", crumbs=self.crumbs, status=400)
 

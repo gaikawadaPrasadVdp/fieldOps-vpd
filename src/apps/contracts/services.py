@@ -158,6 +158,20 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
     name = _text(name, "Name", minimum=2, maximum=150)
     if ServiceProvider.objects.for_organization(org).filter(name__iexact=name).exists():
         raise Conflict("A provider with that name already exists.", code="provider_name_taken")
+    if email and email.strip():
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_email(email.strip())
+        except DjangoValidationError:
+            raise ValidationFailed("Invalid email format.", code="invalid_email")
+    if email and email.strip():
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_email(email.strip())
+        except DjangoValidationError:
+            raise ValidationFailed("Invalid email format.", code="invalid_email")
     p = ServiceProvider(organization=org, name=name, contact_name=_text(contact_name, "Contact", maximum=120,
                                                                          required=False),
                         email=_text(email, "Email", maximum=254, required=False),

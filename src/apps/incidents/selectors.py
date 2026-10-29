@@ -13,7 +13,8 @@ from apps.sites.selectors import scoped_get
 
 from .models import Downtime, ServiceRequest, ServiceRequestHistory
 
-ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "number": "number", "-number": "-number",
+ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "title": "title", "-title": "-title",
+             "name": "title", "-name": "-title", "number": "number", "-number": "-number",
              "severity": "severity", "status": "status"}
 
 

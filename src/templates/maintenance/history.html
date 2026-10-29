@@ -8,7 +8,7 @@
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <select class="form-select form-select-sm" style="max-width:260px" name="plan" aria-label="Plan"><option value="">All plans</option>
       {% for p in plans %}<option value="{{ p.pk }}" {% if filters.plan == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }} ({{ p.asset.asset_tag }})</option>{% endfor %}</select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+    <a href="{% url 'maintenance:history' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
   {% include "maintenance/_cycle_table.html" with rows=page %}
   {% include "components/_pagination.html" %}
 </div>

@@ -224,7 +224,7 @@ class JobDetailAPIView(TenantAPIMixin, APIView):
         drawer = data["drawer"]
         return Response({
             "work_order": WorkOrderSerializer(wo).data,
-            "route": drawer["route"],
+            "route": data["route"],
             "drawer": {
                 "can_start": drawer["can_start"],
                 "can_pause": drawer["can_pause"],
@@ -494,73 +494,39 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
 
-        # Detect whether customer sign-off payload is present
-        raw_signer = request.data.get("signer_name") if isinstance(request.data, dict) else None
-        raw_sig = request.data.get("signature_data") if isinstance(request.data, dict) else None
-        has_signoff = bool(
-            (raw_signer and str(raw_signer).strip())
-            or raw_sig
-            or request.FILES.get("signature_file")
+        serializer = JobCompleteWithSignoffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        final_photo = request.FILES.get("final_photo") or d.get("final_photo")
+        sig_file = request.FILES.get("signature_file") or d.get("signature_file")
+
+        try:
+            order, signoff = services.complete_job_with_signoff(
+                wo,
+                resolution_notes=d["resolution_notes"],
+                signer_name=d["signer_name"],
+                signer_title=d.get("signer_title", ""),
+                signature_data_base64=d.get("signature_data") or None,
+                signature_file=sig_file,
+                final_photo_file=final_photo,
+                customer_notes=d.get("customer_notes", ""),
+                technician_notes=d.get("technician_notes", ""),
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+        except DomainError as exc:
+            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "status": order.status,
+                "order_number": order.order_number,
+                "signoff": WorkOrderSignoffSerializer(signoff).data,
+            },
+            status=status.HTTP_200_OK,
         )
-
-        if has_signoff:
-            serializer = JobCompleteWithSignoffSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            d = serializer.validated_data
-
-            final_photo = request.FILES.get("final_photo") or d.get("final_photo")
-            sig_file = request.FILES.get("signature_file") or d.get("signature_file")
-
-            try:
-                order, signoff = services.complete_job_with_signoff(
-                    wo,
-                    resolution_notes=d["resolution_notes"],
-                    signer_name=d["signer_name"],
-                    signer_title=d.get("signer_title", ""),
-                    signature_data_base64=d.get("signature_data") or None,
-                    signature_file=sig_file,
-                    final_photo_file=final_photo,
-                    customer_notes=d.get("customer_notes", ""),
-                    technician_notes=d.get("technician_notes", ""),
-                    membership=request.membership,
-                    actor=request.user,
-                    request=request,
-                )
-            except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
-
-            return Response(
-                {
-                    "status": order.status,
-                    "order_number": order.order_number,
-                    "signoff": WorkOrderSignoffSerializer(signoff).data,
-                },
-                status=status.HTTP_200_OK,
-            )
-        else:
-            serializer = CompleteJobSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            res_notes = serializer.validated_data["resolution_notes"]
-
-            try:
-                order = services.complete_job(
-                    wo,
-                    resolution_notes=res_notes,
-                    membership=request.membership,
-                    actor=request.user,
-                    request=request,
-                )
-            except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
-
-            return Response(
-                {
-                    "status": order.status,
-                    "order_number": order.order_number,
-                    "message": f"Work order {order.order_number} marked as completed.",
-                },
-                status=status.HTTP_200_OK,
-            )
 
 
 class JobMeterReadingAPIView(TenantAPIMixin, APIView):

@@ -6,8 +6,11 @@ from .models import WorkOrder
 
 
 def get_work_order(membership, organization, pk):
-    wo = WorkOrder.objects.for_organization(organization).select_related(
-        "site", "assigned_to__user", "created_by").filter(pk=pk).first()
+    try:
+        wo = WorkOrder.objects.for_organization(organization).select_related(
+            "site", "assigned_to__user", "created_by").filter(pk=pk).first()
+    except (ValueError, TypeError):
+        raise NotFound("Work order not found.")
     if wo is None:
         raise NotFound("Work order not found.")
     can_view = (
@@ -70,15 +73,26 @@ def filter_work_orders(queryset, params, membership):
     if params.get("q"):
         query = str(params["q"]).strip()
         qs = qs.filter(Q(order_number__icontains=query) | Q(title__icontains=query) | Q(description__icontains=query))
-    ordering = params.get("ordering")
-    if ordering:
-        allowed_ordering = {
-            "created_at", "-created_at", "priority", "-priority",
-            "order_number", "-order_number", "planned_start", "-planned_start",
-            "due_date", "-due_date", "updated_at", "-updated_at"
-        }
-        if ordering in allowed_ordering:
-            qs = qs.order_by(ordering)
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "title": "title",
+        "-title": "-title",
+        "name": "title",
+        "-name": "-title",
+        "order_number": "order_number",
+        "-order_number": "-order_number",
+        "priority": "priority",
+        "-priority": "-priority",
+        "planned_start": "planned_start",
+        "-planned_start": "-planned_start",
+        "due_date": "due_date",
+        "-due_date": "-due_date",
+        "updated_at": "updated_at",
+        "-updated_at": "-updated_at",
+    }
+    qs = qs.order_by(ordering_map.get(ordering, "-created_at"))
     return qs
 
 

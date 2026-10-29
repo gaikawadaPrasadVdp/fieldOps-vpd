@@ -59,6 +59,7 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
         "create": "portal.manage",
         "update": "portal.manage",
         "partial_update": "portal.manage",
+        "destroy": "portal.manage",
         "toggle": "portal.manage",
     }
     serializer_class = PortalAccountSerializer
@@ -101,9 +102,12 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
             account,
             company_name=data.get("company_name", account.company_name),
             notes=data.get("notes", account.notes),
+            is_enabled=data.get("is_enabled", account.is_enabled),
             actor=self.request.user,
         )
 
+    @extend_schema(request=None)
+    @extend_schema(request=None)
     @action(detail=True, methods=["post"])
     def toggle(self, request, pk=None):
         account = self.get_object()
@@ -602,17 +606,23 @@ class PortalRequestConfirmView(TenantAPIMixin, APIView):
                 request=request,
             )
         except NotFound as exc:
-            return Response({"detail": exc.message}, status=status.HTTP_404_NOT_FOUND)
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "not_found")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
         except Conflict as exc:
-            return Response(
-                {"detail": exc.message, "code": getattr(exc, "code", "conflict")},
-                status=status.HTTP_409_CONFLICT,
-            )
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "conflict")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=status.HTTP_409_CONFLICT)
         except DomainError as exc:
-            return Response(
-                {"detail": exc.message, "code": getattr(exc, "code", "domain_error")},
-                status=exc.status_code,
-            )
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "domain_error")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=exc.status_code)
 
         return Response(PortalClosureConfirmationSerializer(confirmation).data, status=status.HTTP_200_OK)
 
@@ -659,17 +669,23 @@ class PortalRequestReopenView(TenantAPIMixin, APIView):
                 request=request,
             )
         except NotFound as exc:
-            return Response({"detail": exc.message}, status=status.HTTP_404_NOT_FOUND)
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "not_found")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
         except Conflict as exc:
-            return Response(
-                {"detail": exc.message, "code": getattr(exc, "code", "conflict")},
-                status=status.HTTP_409_CONFLICT,
-            )
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "conflict")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=status.HTTP_409_CONFLICT)
         except DomainError as exc:
-            return Response(
-                {"detail": exc.message, "code": getattr(exc, "code", "domain_error")},
-                status=exc.status_code,
-            )
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "domain_error")
+            data = _envelope(code, exc.message)
+            data.update({"detail": exc.message, "code": code})
+            return Response(data, status=exc.status_code)
 
         return Response(PortalServiceRequestDetailSerializer(sr).data, status=status.HTTP_200_OK)
 

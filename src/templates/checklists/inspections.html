@@ -56,10 +56,7 @@
       </div>
     </div>
     <div class="col-12 col-md-2 d-flex justify-content-md-end gap-2">
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      {% if filters.site or filters.status or filters.q %}
-        <a href="{% url 'checklists:inspections' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      {% endif %}
+      <a href="{% url 'checklists:inspections' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>
