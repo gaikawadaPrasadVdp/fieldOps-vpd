@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       closeMega();
       closeMobileNav();
-      closeChat();
     }
   });
 
@@ -252,29 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 5. Floating Concierge Chat FAB & Modal
-  // =========================================================================
-  const chatFab = document.querySelector('[data-fx-chat-fab]');
-  const chatModal = document.querySelector('[data-fx-chat-modal]');
-  const chatClose = document.querySelector('[data-fx-chat-close]');
-
-  const closeChat = () => {
-    if (chatModal) {
-      chatModal.classList.remove('is-open');
-    }
-  };
-
-  if (chatFab && chatModal) {
-    chatFab.addEventListener('click', () => {
-      chatModal.classList.toggle('is-open');
-    });
-  }
-  if (chatClose) {
-    chatClose.addEventListener('click', closeChat);
-  }
-
-  // =========================================================================
-  // 6. Reveal On Scroll Observer
+  // 5. Reveal On Scroll Observer
   // =========================================================================
   const revealElements = document.querySelectorAll('.landing-reveal, .fx-reveal');
   if ('IntersectionObserver' in window) {

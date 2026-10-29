@@ -2,8 +2,8 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=2.0">
-  <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=2.0">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.0">
+  <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.0">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% endblock %}
@@ -721,44 +721,9 @@
   </div>
 </footer>
 
-<!-- Floating Concierge Chat FAB & Modal -->
-<div class="fx-floating-chat select-none">
-  <div class="fx-chat-modal" data-fx-chat-modal>
-    <div class="d-flex align-items-center justify-content-between pb-3 border-bottom border-white border-opacity-10">
-      <div class="d-flex align-items-center gap-2">
-        <span class="rounded-circle bg-success d-inline-block" style="width:8px; height:8px; box-shadow:0 0 6px #10B981;"></span>
-        <strong class="small text-white">FieldOps Nexus Concierge</strong>
-      </div>
-      <button type="button" class="btn-close btn-close-white small" data-fx-chat-close aria-label="Close concierge"></button>
-    </div>
-    <p class="small text-white-50 mt-3 mb-3" style="line-height:1.5;">
-      Welcome to FieldOps Nexus. How can our operations advisory team assist your organization today?
-    </p>
-    <div class="d-flex flex-column gap-2">
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Request Platform Demo</span>
-        {% icon 'arrow-right' 13 class="text-warning" %}
-      </a>
-      <a href="{% url 'ui:public_solution' 'sla-management' %}" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Review SLA Commitments</span>
-        {% icon 'arrow-right' 13 class="text-warning" %}
-      </a>
-      <a href="mailto:support@fieldopsnexus.com" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Email Direct Support (24/7)</span>
-        {% icon 'envelope' 13 class="text-warning" %}
-      </a>
-    </div>
-  </div>
-
-  <button type="button" class="fx-chat-fab" data-fx-chat-fab aria-label="Open support and inquiry chat">
-    <span class="fx-chat-ping"></span>
-    {% icon 'chat-dots' 24 %}
-  </button>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
-<script defer src="{% static 'js/public.js' %}?v=2.0"></script>
-<script defer src="{% static 'js/public-detail.js' %}?v=2.0"></script>
+<script defer src="{% static 'js/public.js' %}?v=4.0"></script>
+<script defer src="{% static 'js/public-detail.js' %}?v=4.0"></script>
 {% endblock %}
