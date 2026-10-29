@@ -937,6 +937,7 @@ def _work_order_tab_context(wo, membership, tab):
     elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
         context["materials"] = wo.material_entries.all()
+        context["part_lines"] = wo.part_lines.select_related("part", "warehouse").all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0

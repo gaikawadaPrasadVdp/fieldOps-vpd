@@ -388,12 +388,12 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     source_asset = Asset.objects.for_organization(organization).filter(pk=source_asset.pk).first()
     if source_asset is None:
         raise NotFound("Asset not found.")
-    if source_asset.status != Asset.Status.ACTIVE:
+    if source_asset.status not in (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE):
         raise ValidationFailed("Selected asset is inactive.", code="asset_inactive")
     if source_asset.site_id != site.pk:
         raise ValidationFailed("Invalid asset for the selected site.", code="asset_site_mismatch")
     if component is not None:
-        if (component.organization_id != organization.pk or component.status != Asset.Status.ACTIVE or
+        if (component.organization_id != organization.pk or component.status not in (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE) or
                 not AssetComponent.objects.filter(organization=organization, parent=source_asset,
                                                   child=component,
                                                   relationship_type=AssetComponent.Relationship.COMPONENT).exists()):

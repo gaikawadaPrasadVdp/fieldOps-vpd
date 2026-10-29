@@ -325,8 +325,10 @@ class HistoryView(PmBase):
     def get(self, request):
         m, org = request.membership, request.organization
         qs = selectors.filter_cycles(selectors.cycles_for(m, org), request.GET)
+        compliance = selectors.pm_compliance_ratio(m, org, plan_id=request.GET.get("plan"))
         page = _paged(request, qs, 25)
         page.object_list = _with_state(page.object_list)
         return render(request, "maintenance/history.html", {
             "page": page, "filters": request.GET,
-            "plans": selectors.plans_for(m, org).order_by("name")})
+            "plans": selectors.plans_for(m, org).order_by("name"),
+            "compliance": compliance})
