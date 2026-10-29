@@ -45,7 +45,7 @@
         </form>
         {% endif %}
         <div class="dropdown">
-          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-truncate" style="max-width: 140px;" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>

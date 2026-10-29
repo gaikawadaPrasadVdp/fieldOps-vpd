@@ -4,6 +4,7 @@
   <td data-label="Priority"><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span></td>
   <td data-label="Status"><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
   <td data-label="Assignee">{{ wo.assigned_to.user.full_name|default:"Unassigned" }}</td>
+  <td data-label="Created" class="small text-nowrap text-secondary">{{ wo.created_at|date:"M j, Y · H:i" }}</td>
   <td data-label="Due / warning">{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% elif wo.planned_end %}{{ wo.planned_end|date:"M j, Y · H:i" }}{% else %}<span class="wo-muted">Not scheduled</span>{% endif %}{% if wo.is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</td>
   <td data-label="Actions" class="wo-actions-cell"><div class="wo-row-actions">
     <a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>

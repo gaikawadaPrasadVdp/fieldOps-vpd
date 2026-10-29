@@ -12,9 +12,10 @@
       {% icon 'clipboard' 14 %} Executed Inspections
     </a>
     {% if can_manage %}
-    <a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'checklists:create' %}">
+    <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-1" id="btn-new-checklist" hx-get="{% url 'checklists:create' %}" hx-target="#checklistModalContent" hx-swap="innerHTML">
       {% icon 'plus' 14 %} New Checklist
-    </a>
+    </button>
+    <noscript><a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'checklists:create' %}">{% icon 'plus' 14 %} New Checklist</a></noscript>
     {% endif %}
   </div>
 </div>
@@ -36,8 +37,15 @@
 </div>
 
 <div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
-  <form method="get" class="row g-2 align-items-center">
-    <div class="col-12 col-md-6">
+  <form method="get" id="checklist-filter-form" class="row g-2 align-items-center"
+        hx-get="{% url 'checklists:list' %}"
+        hx-trigger="input changed delay:300ms, change"
+        hx-target="#checklist-list-card"
+        hx-select="#checklist-list-card"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#global-loading-indicator">
+    <div class="col-12 col-md-5">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light border-end-0">
           {% icon 'search' 14 %}
@@ -45,7 +53,7 @@
         <input class="form-control form-control-sm border-start-0 bg-light" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Search templates..." aria-label="Search checklists">
       </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-2">
       <select class="form-select form-select-sm bg-light" name="status" aria-label="Status">
         <option value="">All statuses</option>
         <option value="DRAFT" {% if filters.status == "DRAFT" %}selected{% endif %}>Draft</option>
@@ -53,16 +61,22 @@
         <option value="INACTIVE" {% if filters.status == "INACTIVE" %}selected{% endif %}>Inactive</option>
       </select>
     </div>
+    <div class="col-6 col-md-3">
+      <select class="form-select form-select-sm bg-light" name="ordering" aria-label="Sort order">
+        <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+        <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
+        <option value="-name" {% if filters.ordering == "-name" %}selected{% endif %}>Name (Z–A)</option>
+      </select>
+    </div>
     <div class="col-6 col-md-3 d-flex justify-content-md-end gap-2">
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      {% if filters.q or filters.status %}
-        <a href="{% url 'checklists:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      {% endif %}
+      <a href="{% url 'checklists:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>
 
-<div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
+<div class="card border-0 shadow-sm bg-white overflow-hidden" id="checklist-list-card" style="border-radius:10px;"
+     hx-get="{% url 'checklists:list' %}" hx-trigger="checklistSaved from:body" hx-target="#checklist-list-card" hx-select="#checklist-list-card" hx-swap="outerHTML" hx-include="#checklist-filter-form" hx-disinherit="*">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0" id="checklist-table">
       <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
@@ -72,6 +86,7 @@
           <th style="padding: 0.75rem 1rem;">Status</th>
           <th style="padding: 0.75rem 1rem;">Work Type</th>
           <th style="padding: 0.75rem 1rem;">Mandatory Gate</th>
+          <th style="padding: 0.75rem 1rem;">Created</th>
           <th style="padding: 0.75rem 1rem;">Questions</th>
           <th style="padding: 0.75rem 1rem; width: 100px;" class="text-end">Actions</th>
         </tr>
@@ -99,6 +114,7 @@
               <span class="badge bg-light text-secondary border">Optional</span>
             {% endif %}
           </td>
+          <td style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ t.created_at|date:"M d, Y H:i" }}</td>
           <td style="padding: 0.75rem 1rem;">
             <span class="fw-semibold text-dark">{{ t.items.count }}</span> <span class="small text-muted">item{{ t.items.count|pluralize }}</span>
           </td>
@@ -108,7 +124,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="py-4">
+          <td colspan="8" class="py-4">
             {% include "components/_empty_state.html" with title="No checklists yet" text="Create a checklist template to establish standardized field inspection steps." %}
           </td>
         </tr>
@@ -121,5 +137,12 @@
       {% include "components/_pagination.html" %}
     </div>
   {% endif %}
+</div>
+
+<!-- New Checklist Modal Container -->
+<div class="modal fade" id="checklistModal" tabindex="-1" aria-labelledby="checklistModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" id="checklistModalContent"></div>
+  </div>
 </div>
 {% endblock %}

@@ -15,16 +15,25 @@
       {% for v, l in priorities %}<option value="{{ v }}" {% if filters.priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <select class="form-select form-select-sm" style="max-width:200px" name="work_type" aria-label="Type"><option value="">All types</option>
       {% for v, l in types %}<option value="{{ v }}" {% if filters.work_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:160px" name="ordering" aria-label="Sort by">
+      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="title" {% if filters.ordering == "title" %}selected{% endif %}>Title (A–Z)</option>
+      <option value="-title" {% if filters.ordering == "-title" %}selected{% endif %}>Title (Z–A)</option>
+      <option value="order_number" {% if filters.ordering == "order_number" %}selected{% endif %}>Number (A–Z)</option>
+      <option value="-order_number" {% if filters.ordering == "-order_number" %}selected{% endif %}>Number (Z–A)</option>
+      <option value="-priority" {% if filters.ordering == "-priority" %}selected{% endif %}>Priority</option>
+    </select>
     <div class="form-check ms-1"><input class="form-check-input" type="checkbox" name="mine" value="1" id="mine" {% if filters.mine %}checked{% endif %}><label class="form-check-label small" for="mine">Mine</label></div>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    <a href="{% url 'workorders:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
   </form>
   <div class="table-responsive"><table class="table fx-table">
-    <thead><tr><th>Number</th><th>Title</th><th>Type</th><th>Asset</th><th>Priority</th><th>Status</th><th>Technician</th><th>Planned</th></tr></thead>
+    <thead><tr><th>Number</th><th>Title</th><th>Type</th><th>Asset</th><th>Priority</th><th>Status</th><th>Technician</th><th>Created</th><th>Planned</th></tr></thead>
     <tbody>{% for w in page %}
       <tr><td><a class="fx-id" href="{% url 'workorders:detail' w.pk %}">{{ w.number }}</a></td><td><div class="fw-medium">{{ w.title }}</div>{% if w.source_request %}<div class="fx-sub">from {{ w.source_request.number }}</div>{% endif %}</td>
         <td><span class="fx-chip" data-t="{{ w.work_type }}">{{ w.get_work_type_display }}</span></td><td><div class="fw-medium">{{ w.asset.asset_tag }}</div><div class="fx-sub">{{ w.site.code }}</div></td><td>{% status_badge w.priority %}</td><td>{% status_badge w.status %}</td>
-        <td>{{ w.assigned_to.user.display_name|default:"—" }}</td><td class="small">{{ w.planned_start|date:"d M H:i"|default:"—" }}</td></tr>
-    {% empty %}<tr><td colspan="8">{% include "components/_empty_state.html" with title="No work orders match" text="Adjust the filters or create a work order." %}</td></tr>{% endfor %}
+        <td>{{ w.assigned_to.user.display_name|default:"—" }}</td><td class="small text-nowrap text-secondary">{{ w.created_at|date:"d M H:i" }}</td><td class="small">{{ w.planned_start|date:"d M H:i"|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="9">{% include "components/_empty_state.html" with title="No work orders match" text="Adjust the filters or create a work order." %}</td></tr>{% endfor %}
     </tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>

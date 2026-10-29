@@ -144,12 +144,12 @@
         <tbody>
           {% for wo in trace_data.recent_orders %}
           <tr>
-            <td><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
-            <td>{{ wo.title }}</td>
-            <td><span class="badge bg-light text-dark border">{{ wo.site.code }}</span></td>
-            <td><span class="badge bg-secondary">{{ wo.get_priority_display }}</span></td>
-            <td><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
-            <td>{{ wo.assigned_to.user.display_name|default:"Unassigned" }}</td>
+            <td data-label="Order Number"><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
+            <td data-label="Title">{{ wo.title }}</td>
+            <td data-label="Site"><span class="badge bg-light text-dark border">{{ wo.site.code }}</span></td>
+            <td data-label="Priority"><span class="badge bg-secondary">{{ wo.get_priority_display }}</span></td>
+            <td data-label="Status"><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
+            <td data-label="Assigned To">{{ wo.assigned_to.user.display_name|default:"Unassigned" }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="6" class="text-center py-3 text-body-secondary">No work orders recorded in scope.</td></tr>
@@ -169,11 +169,11 @@
         <tbody>
           {% for a in trace_data.recent_assets %}
           <tr>
-            <td><a href="{% url 'assets:detail' a.pk %}" class="fw-semibold">{{ a.asset_tag }}</a></td>
-            <td>{{ a.name }}</td>
-            <td><span class="badge bg-light text-dark border">{{ a.site.code }}</span></td>
-            <td>{{ a.category.name|default:"-" }}</td>
-            <td><span class="badge bg-success">{{ a.get_status_display }}</span></td>
+            <td data-label="Asset Tag"><a href="{% url 'assets:detail' a.pk %}" class="fw-semibold">{{ a.asset_tag }}</a></td>
+            <td data-label="Name">{{ a.name }}</td>
+            <td data-label="Site"><span class="badge bg-light text-dark border">{{ a.site.code }}</span></td>
+            <td data-label="Category">{{ a.category.name|default:"-" }}</td>
+            <td data-label="Status"><span class="badge bg-success">{{ a.get_status_display }}</span></td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="text-center py-3 text-body-secondary">No assets found in scope.</td></tr>
@@ -193,11 +193,11 @@
         <tbody>
           {% for wo in trace_data.preventive_orders %}
           <tr>
-            <td><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
-            <td>{{ wo.title }}</td>
-            <td>{{ wo.asset.name|default:"-" }}</td>
-            <td>{{ wo.due_at|date:"Y-m-d"|default:"-" }}</td>
-            <td><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
+            <td data-label="PM Order"><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
+            <td data-label="Title">{{ wo.title }}</td>
+            <td data-label="Asset">{{ wo.asset.name|default:"-" }}</td>
+            <td data-label="Due Date">{{ wo.due_at|date:"Y-m-d"|default:"-" }}</td>
+            <td data-label="Status"><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="text-center py-3 text-body-secondary">No preventive maintenance orders found.</td></tr>
@@ -217,11 +217,11 @@
         <tbody>
           {% for sr in trace_data.service_requests %}
           <tr>
-            <td><a href="{% url 'incidents:detail' sr.pk %}" class="fw-semibold">{{ sr.number }}</a></td>
-            <td>{{ sr.title }}</td>
-            <td><span class="badge bg-light text-dark border">{{ sr.site.code }}</span></td>
-            <td><span class="badge bg-warning text-dark">{{ sr.get_severity_display }}</span></td>
-            <td><span class="badge bg-primary">{{ sr.get_status_display }}</span></td>
+            <td data-label="Request Number"><a href="{% url 'incidents:detail' sr.pk %}" class="fw-semibold">{{ sr.number }}</a></td>
+            <td data-label="Title">{{ sr.title }}</td>
+            <td data-label="Site"><span class="badge bg-light text-dark border">{{ sr.site.code }}</span></td>
+            <td data-label="Severity"><span class="badge bg-warning text-dark">{{ sr.get_severity_display }}</span></td>
+            <td data-label="Status"><span class="badge bg-primary">{{ sr.get_status_display }}</span></td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="text-center py-3 text-body-secondary">No service requests recorded.</td></tr>
@@ -242,12 +242,12 @@
         <tbody>
           {% for b in trace_data.low_stock_lines %}
           <tr>
-            <td><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
-            <td>{{ b.part.name }}</td>
-            <td>{{ b.warehouse.name }}</td>
-            <td class="text-danger fw-bold">{{ b.on_hand }}</td>
-            <td>{{ b.min_level|default:"-" }}</td>
-            <td><span class="badge bg-danger">Low Stock Alert</span></td>
+            <td data-label="Part Number"><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
+            <td data-label="Part Name">{{ b.part.name }}</td>
+            <td data-label="Warehouse">{{ b.warehouse.name }}</td>
+            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand }}</td>
+            <td data-label="Min Level">{{ b.min_level|default:"-" }}</td>
+            <td data-label="Status"><span class="badge bg-danger">Low Stock Alert</span></td>
           </tr>
           {% empty %}
           <tr><td colspan="6" class="text-center py-3 text-body-secondary">All stock levels are within normal thresholds.</td></tr>

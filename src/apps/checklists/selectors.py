@@ -30,7 +30,14 @@ def filter_templates(qs, params):
     q = (params.get("q") or "").strip()
     if q:
         qs = qs.filter(name__icontains=q)
-    return qs
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "name": "name",
+        "-name": "-name",
+    }
+    return qs.order_by(ordering_map.get(ordering, "-created_at"), "-version")
 
 
 def items_for(org, template):
