@@ -144,6 +144,69 @@ def status_badge(value):
     return format_html('<span class="badge fx-badge fx-badge-{}">{}</span>', tone, str(value).replace("_", " ").title())
 
 
+@register.simple_tag
+def component_health_badge(asset, show_icon=True, show_count=True, extra_class=""):
+    """Renders a visual component health status badge reflecting active breakdown tickets.
+    
+    States:
+      - HEALTHY: Emerald badge with solid dot (● Healthy)
+      - DEGRADED: Amber badge with warning indicator (▲ Degraded)
+      - CRITICAL: Crimson badge with pulsing beacon (● Breakdown Active)
+      - OFFLINE: Slate badge (○ Inactive / Retired)
+    """
+    if not asset:
+        return ""
+
+    info = getattr(asset, "_health_info", None)
+    if info is None:
+        try:
+            from apps.assets.health import get_asset_health
+            info = get_asset_health(asset)
+        except Exception:
+            is_active = str(getattr(asset, "status", "")).upper() == "ACTIVE"
+            info = {
+                "status": "HEALTHY" if is_active else "OFFLINE",
+                "tone": "success" if is_active else "secondary",
+                "label": "Healthy" if is_active else str(getattr(asset, "status", "Offline")).title(),
+                "breakdown_count": 0,
+                "tickets": [],
+                "has_active_breakdown": False,
+            }
+
+    tone = info.get("tone", "secondary")
+    status = info.get("status", "HEALTHY")
+    label = info.get("label", "Healthy")
+    count = info.get("breakdown_count", 0)
+    tickets = info.get("tickets", [])
+
+    if count > 0 and tickets:
+        nums = ", ".join(t["number"] for t in tickets[:2])
+        if count > 2:
+            nums += f" +{count - 2} more"
+        tooltip = f"Active Breakdown Ticket{'s' if count > 1 else ''}: {nums}"
+        if info.get("highest_severity"):
+            tooltip += f" · Severity: {info['highest_severity']}"
+    elif info.get("subcomponent_alert"):
+        tooltip = f"Sub-assembly alert: {info['subcomponent_alert']}"
+    else:
+        tooltip = f"Component Health: {label}"
+
+    if status == "CRITICAL":
+        indicator = '<span class="fx-health-dot fx-health-pulse bg-danger" aria-hidden="true"></span>'
+    elif status == "DEGRADED":
+        indicator = '<span class="fx-health-dot bg-warning" aria-hidden="true"></span>'
+    elif status == "HEALTHY":
+        indicator = '<span class="fx-health-dot bg-success" aria-hidden="true"></span>'
+    else:
+        indicator = '<span class="fx-health-dot bg-secondary" aria-hidden="true"></span>'
+
+    extra = f" {extra_class}".strip()
+    return format_html(
+        '<span class="badge fx-badge fx-health-badge fx-health-{} {}" title="{}" data-health-status="{}" data-breakdown-count="{}">{}{}</span>',
+        tone, extra, tooltip, status, count, mark_safe(indicator), label
+    )
+
+
 @register.filter
 def pretty_json(value):
     if value in (None, ""):
