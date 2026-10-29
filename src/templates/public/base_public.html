@@ -2,7 +2,8 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=1.1">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=2.0">
+  <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=2.0">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% endblock %}
@@ -38,7 +39,7 @@
     <!-- Desktop Navigation Menu -->
     <nav class="fx-pub-nav-desktop" aria-label="Main Navigation">
       <!-- Product Dropdown Trigger -->
-      <button type="button" class="fx-pub-nav-link" data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
+      <button type="button" class="fx-pub-nav-link {% if active_page == 'product' %}active{% endif %}" data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
         <span>Product</span>
         <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -107,7 +108,7 @@
           <div class="fx-mega-heading">OVERVIEW</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'asset-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Asset Management</strong>
@@ -117,7 +118,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'service-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'wrench' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service Management</strong>
@@ -127,7 +128,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'work-order-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Work Order Management</strong>
@@ -137,7 +138,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Inventory Management</strong>
@@ -153,7 +154,7 @@
           <div class="fx-mega-heading">CAPABILITIES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'maintenance-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Maintenance Management</strong>
@@ -163,7 +164,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'workforce-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Workforce Management</strong>
@@ -173,7 +174,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'analytics-reporting' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Analytics & Reporting</strong>
@@ -183,7 +184,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'audit-traceability' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Audit & Traceability</strong>
@@ -403,7 +404,7 @@
           <div class="fx-mega-heading">CORE MODULES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#organization-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'organization-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'building' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Organization Management</strong>
@@ -413,7 +414,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Asset Management</strong>
@@ -423,7 +424,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Work Order Management</strong>
@@ -433,7 +434,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'service-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'file-text' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service Management</strong>
@@ -443,7 +444,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'inventory-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Inventory Management</strong>
@@ -459,7 +460,7 @@
           <div class="fx-mega-heading">OPERATIONS & GOVERNANCE</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Maintenance Management</strong>
@@ -469,7 +470,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'workforce-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Workforce Management</strong>
@@ -479,7 +480,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Analytics & Reporting</strong>
@@ -489,7 +490,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Audit & Traceability</strong>
@@ -563,10 +564,10 @@
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-product">
         <a href="{% url 'ui:public_features' %}" class="fx-mobile-sublink">Overview &amp; Features</a>
-        <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
-        <a href="{% url 'ui:public_module' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
-        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
-        <a href="{% url 'ui:public_module' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
+        <a href="{% url 'ui:public_product' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
+        <a href="{% url 'ui:public_product' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
+        <a href="{% url 'ui:public_product' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
+        <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
       </div>
     </div>
 
@@ -580,7 +581,7 @@
         <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise Operations</a>
         <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="fx-mobile-sublink">Manufacturing</a>
         <a href="{% url 'ui:public_solution' 'facilities' %}" class="fx-mobile-sublink">Facilities Management</a>
-        <a href="{% url 'ui:public_solution' 'maintenance-management' %}" class="fx-mobile-sublink">Maintenance Management</a>
+        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fx-mobile-sublink">Service &amp; Maintenance</a>
       </div>
     </div>
 
@@ -673,7 +674,7 @@
           <li><a href="{% url 'ui:public_solution' 'enterprise-operations' %}">Enterprise Operations</a></li>
           <li><a href="{% url 'ui:public_solution' 'manufacturing' %}">Manufacturing</a></li>
           <li><a href="{% url 'ui:public_solution' 'facilities' %}">Facilities Management</a></li>
-          <li><a href="{% url 'ui:public_solution' 'maintenance-management' %}">Maintenance</a></li>
+          <li><a href="{% url 'ui:public_solution' 'service-maintenance' %}">Service &amp; Maintenance</a></li>
         </ul>
       </div>
 
@@ -755,5 +756,9 @@
   </button>
 </div>
 
-<script src="{% static 'js/public.js' %}"></script>
+{% endblock %}
+
+{% block scripts %}
+<script defer src="{% static 'js/public.js' %}?v=2.0"></script>
+<script defer src="{% static 'js/public-detail.js' %}?v=2.0"></script>
 {% endblock %}
