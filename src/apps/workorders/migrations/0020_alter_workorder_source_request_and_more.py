@@ -17,6 +17,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql='DROP INDEX IF EXISTS "workorders_workorder_source_request_id_ea25df01";',
+            reverse_sql="",
+        ),
         migrations.AlterField(
             model_name="workorder",
             name="source_request",
