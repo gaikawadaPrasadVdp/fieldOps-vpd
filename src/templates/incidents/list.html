@@ -28,8 +28,16 @@
   </div>
 </div>
 
-<div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+<div class="fx-card" id="incident-list-card"
+     hx-get="{% url 'incidents:list' %}" hx-trigger="incidentSaved from:body" hx-target="#incident-list-card" hx-select="#incident-list-card" hx-swap="outerHTML" hx-include="#incident-filter-form" hx-disinherit="*">
+  <form method="get" id="incident-filter-form" class="d-flex flex-wrap gap-2 p-3 border-bottom"
+        hx-get="{% url 'incidents:list' %}"
+        hx-trigger="input changed delay:300ms, change"
+        hx-target="#incident-list-card"
+        hx-select="#incident-list-card"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#global-loading-indicator">
     <input class="form-control form-control-sm" style="max-width:352px" type="search" name="q" value="{{ filters.q }}" placeholder="Number, title, asset" aria-label="Search requests">
     <select class="form-select form-select-sm" style="max-width:192px" name="site" aria-label="Site"><option value="">All sites</option>
       {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
@@ -39,7 +47,16 @@
       {% for v, l in severities %}<option value="{{ v }}" {% if filters.severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <select class="form-select form-select-sm" style="max-width:192px" name="kind" aria-label="Type"><option value="">All types</option>
       {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
+      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="title" {% if filters.ordering == "title" %}selected{% endif %}>Title (A–Z)</option>
+      <option value="-title" {% if filters.ordering == "-title" %}selected{% endif %}>Title (Z–A)</option>
+      <option value="number" {% if filters.ordering == "number" %}selected{% endif %}>Number (A–Z)</option>
+      <option value="-number" {% if filters.ordering == "-number" %}selected{% endif %}>Number (Z–A)</option>
+      <option value="severity" {% if filters.ordering == "severity" %}selected{% endif %}>Severity</option>
+    </select>
+    <a href="{% url 'incidents:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
   </form>
   <div class="table-responsive"><table class="table fx-table align-middle">
     <thead><tr><th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th><th style="min-width: 180px;">Actions</th></tr></thead>

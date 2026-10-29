@@ -48,7 +48,16 @@ def filter_parts(qs, params):
         qs = qs.filter(is_active=True)
     elif active in ("0", "false"):
         qs = qs.filter(is_active=False)
-    return qs.order_by("part_number")
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "name": "name",
+        "-name": "-name",
+        "part_number": "part_number",
+        "-part_number": "-part_number",
+    }
+    return qs.order_by(ordering_map.get(ordering, "-created_at"))
 
 
 def part_totals(membership, org, part: Part) -> dict:

@@ -16,11 +16,13 @@
 </form></div></div>
 <div class="fx-card mt-3" style="max-width:720px"><div class="fx-card-header">Role assignments</div><div class="fx-card-body">
   <p class="small text-body-secondary">A role applies organization-wide, or only to the site it is assigned for (site-scoped permissions only).</p>
-  <table class="table fx-table" id="role-assignments"><thead><tr><th>Role</th><th>Scope</th><th></th></tr></thead><tbody>
+  <div class="table-responsive">
+    <table class="table fx-table" id="role-assignments"><thead><tr><th>Role</th><th>Scope</th><th></th></tr></thead><tbody>
   {% for a in assignments %}<tr><td>{{ a.role.name }}</td>
     <td>{% if a.site %}<span class="badge text-bg-info">Site {{ a.site.code }}</span>{% else %}Organization-wide{% endif %}</td>
     <td class="text-end">{% if can_update %}<form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="action" value="remove_role"><input type="hidden" name="assignment_id" value="{{ a.pk }}"><button class="btn btn-sm btn-outline-danger" data-confirm="Remove this role assignment?">Remove</button></form>{% endif %}</td></tr>
   {% endfor %}</tbody></table>
+  </div>
   {% if can_update %}<form method="post" class="row g-2 align-items-end" novalidate>{% csrf_token %}<input type="hidden" name="action" value="assign_role">
     <div class="col-sm-5"><label class="form-label small" for="id_role">Role</label>{{ assign_form.role }}{% for e in assign_form.role.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
     <div class="col-sm-5"><label class="form-label small" for="id_site">Scope</label>{{ assign_form.site }}{% for e in assign_form.site.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>

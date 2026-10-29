@@ -13,6 +13,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
+from apps.core.apiutils import htmx_success
 from apps.core.exceptions import DomainError, NotFound
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
@@ -135,6 +136,44 @@ class AssetListView(AssetBase):
         m, org = request.membership, request.organization
         base_assets = selectors.assets_for(m, org)
         qs = selectors.filter_assets(base_assets.select_related("parent_link__parent"), request.GET)
+        # CSV Export Handling
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv":
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+            response["Content-Disposition"] = f'attachment; filename="assets_export_{org.slug}_{timestamp}.csv"'
+
+            writer = csv.writer(response)
+            writer.writerow([
+                "Asset Tag",
+                "Name",
+                "Category",
+                "Site Code",
+                "Zone",
+                "Status",
+                "Manufacturer",
+                "Model",
+                "Serial Number",
+                "Purchase Date",
+                "Commission Date",
+                "Created At",
+            ])
+            for asset in qs.select_related("category", "site", "zone"):
+                writer.writerow([
+                    asset.asset_tag,
+                    asset.name,
+                    asset.category.name if asset.category else "",
+                    asset.site.code if asset.site else "",
+                    asset.zone.name if asset.zone else "",
+                    asset.get_status_display(),
+                    asset.manufacturer or "",
+                    asset.model or "",
+                    asset.serial_number or "",
+                    asset.purchase_date.strftime("%Y-%m-%d") if asset.purchase_date else "",
+                    asset.commission_date.strftime("%Y-%m-%d") if asset.commission_date else "",
+                    asset.created_at.strftime("%Y-%m-%d %H:%M:%S") if asset.created_at else "",
+                ])
+            return response
+
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
 
         total_count = base_assets.count()
@@ -259,6 +298,11 @@ class AssetCreateView(AssetBase):
         initial.update(_prefill(request))
         form = AssetForm(initial=initial, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, initial))
+        if request.headers.get("HX-Request") and not parent:
+            return render(request, "assets/_asset_modal.html", {
+                "title": "Register asset", "form": form, "submit": "Register asset",
+                "action_url": request.path,
+            })
         return self._page(request, form, parent, NewChildForm() if parent else None)
 
     def post(self, request):
@@ -289,7 +333,14 @@ class AssetCreateView(AssetBase):
                     form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Asset {asset.asset_tag} registered.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeAssetModal": True, "assetSaved": True})
                 return redirect("assets:detail", pk=asset.pk)
+        if request.headers.get("HX-Request") and not parent:
+            return render(request, "assets/_asset_modal.html", {
+                "title": "Register asset", "form": form, "submit": "Register asset",
+                "action_url": request.path,
+            }, status=200)
         return self._page(request, form, parent, rel_form, status=400)
 
 

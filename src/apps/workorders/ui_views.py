@@ -162,7 +162,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
             qs = qs.filter(Q(order_number__icontains=search) | Q(title__icontains=search)
                            | Q(asset_reference__icontains=search) | Q(source_reference__icontains=search))
         ordering = request.GET.get("ordering", "-created_at")
-        allowed_ordering = {"created_at", "-created_at", "due_at", "-due_at", "priority", "-priority",
+        allowed_ordering = {"created_at", "-created_at", "title", "-title", "due_at", "-due_at", "priority", "-priority",
                             "planned_start", "-planned_start", "order_number", "-order_number"}
         if ordering not in allowed_ordering:
             ordering = "-created_at"

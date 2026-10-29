@@ -37,7 +37,7 @@ PRD_MODULES = [
 def root(request):
     """Public landing page for visitors; authenticated users are routed to their workspace."""
     if request.user.is_authenticated:
-        if getattr(request.user, "is_platform_admin", False):
+        if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
             return redirect("platform_admin:organizations")
         membership = getattr(request, "membership", None)
         if membership and is_client_membership(membership):
@@ -297,7 +297,7 @@ def home(request):
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
-    if getattr(request.user, "is_platform_admin", False):
+    if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
         return redirect("platform_admin:organizations")
 
     if request.tenant_error:
@@ -383,19 +383,22 @@ def home(request):
     # Build Role-Tailored KPIs, Shortcuts, Actions, and Recent Activity
     if persona_key in ("owner", "admin"):
         kpi_cards = [
+            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "gold", "icon": "building"},
+            {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating equipment assets", "tone": "accent", "icon": "box"},
+            {"title": "Active Work Orders", "value": stats["open_work_orders"], "subtitle": "Jobs in execution & planned", "tone": "warning", "icon": "clipboard"},
             {"title": "Active Users", "value": stats["active_members"], "subtitle": "Active tenant memberships", "tone": "accent", "icon": "people"},
-            {"title": "Pending Invitations", "value": stats["pending_invites"], "subtitle": "Pending activation links", "tone": "warning", "icon": "clock"},
-            {"title": "RBAC Roles", "value": stats["roles"], "subtitle": "Configured system & custom roles", "tone": "gold", "icon": "shield"},
-            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
         ]
         shortcuts = [
+            {"label": "Operations Analytics", "url": reverse("dashboards:hub"), "icon": "activity"},
+            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Facility Sites", "url": reverse("sites:list"), "icon": "building"},
             {"label": "Users & Access", "url": reverse("tenancy:members"), "icon": "people"},
             {"label": "Roles & Permissions", "url": reverse("rbac:roles"), "icon": "shield"},
-            {"label": "Facility Sites", "url": reverse("sites:list"), "icon": "building"},
-            {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "clock"},
+            {"label": "Immutable Audit Trail", "url": reverse("audit:list"), "icon": "clock"},
         ]
         header_actions = [
-            {"label": "Users", "url": reverse("tenancy:members"), "icon": "people"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "activity"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "shield"},
         ]
         if rbac.has_permission(request.membership, "audit.view"):
@@ -496,11 +499,14 @@ def home(request):
             {"title": "Completed Jobs", "value": my_completed, "subtitle": "Successfully resolved orders", "tone": "gold", "icon": "clipboard-check"},
             {"title": "My Inspections", "value": my_inspections, "subtitle": "Checklist audits conducted", "tone": "accent", "icon": "list-check"},
         ]
+        can_view_inspections = rbac.has_permission_anywhere(request.membership, "inspection.view")
         shortcuts = [
             {"label": "Technician Workspace", "url": reverse("workspace:my_jobs"), "icon": "wrench"},
             {"label": "My Work Cockpit", "url": reverse("dashboards:my_work"), "icon": "activity"},
             {"label": "Scan Asset Label", "url": reverse("identification:scan"), "icon": "qr"},
-            {"label": "Checklist Inspections", "url": reverse("checklists:inspections"), "icon": "list-check"},
+            {"label": "Checklist Inspections" if can_view_inspections else "My Work Orders",
+             "url": reverse("checklists:inspections") if can_view_inspections else reverse("workorders:mine"),
+             "icon": "list-check" if can_view_inspections else "clipboard"},
         ]
         header_actions = [
             {"label": "My Jobs", "url": reverse("workspace:my_jobs"), "icon": "wrench"},
@@ -666,6 +672,8 @@ def home(request):
             continue
         if "/app/incidents" in u and not (rbac.has_permission(request.membership, "incident.view") or rbac.has_permission(request.membership, "incident.view_assigned")):
             continue
+        if "/app/dashboards" in u and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+            continue
         if "/app/sla" in u and not rbac.has_permission(request.membership, "sla.view"):
             continue
         filtered_shortcuts.append(s)
@@ -686,6 +694,8 @@ def home(request):
         if "/app/maintenance" in u and not rbac.has_permission(request.membership, "maintenance.view"):
             continue
         if "/app/incidents" in u and not rbac.has_permission(request.membership, "incident.view"):
+            continue
+        if "/app/dashboards" in u and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
         filtered_headers.append(h)
 
