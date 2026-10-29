@@ -1732,59 +1732,6 @@ body.fx-public-site {
 }
 
 /* ==========================================================================
-   Floating Concierge Chat FAB & Modal
-   ========================================================================== */
-.fx-floating-chat {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1060;
-  user-select: none;
-}
-.fx-chat-modal {
-  display: none;
-  margin-bottom: 12px;
-  width: 340px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: #0B1F3B;
-  padding: 1.25rem;
-  color: #FFFFFF;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px);
-}
-.fx-chat-modal.is-open {
-  display: block;
-}
-.fx-chat-fab {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background-color: #F5C451;
-  color: #0B1F3B;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px rgba(245, 196, 81, 0.45);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.fx-chat-fab:hover {
-  background-color: #D9B33F;
-  transform: scale(1.05);
-}
-.fx-chat-ping {
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background-color: rgba(245, 196, 81, 0.35);
-  animation: pulse-dot 2s infinite;
-  pointer-events: none;
-}
-
-/* ==========================================================================
    Split-Screen Auth Pages (Login & Registration)
    ========================================================================== */
 .fx-auth-split {
