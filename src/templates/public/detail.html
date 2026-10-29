@@ -5,7 +5,7 @@
 
 {% block public_content %}
 <!-- =========================================================================
-     1. Hero Section (Vercel Reference Design)
+     1. Hero Section (Vercel Reference Standard - Clean Two-Column Layout)
      ========================================================================= -->
 <section class="fx-detail-hero" aria-label="{{ item.title }} Hero">
   <!-- Subtle Grid Background & Ambient Glow -->
@@ -23,7 +23,7 @@
     </nav>
 
     <div class="row align-items-center gy-5">
-      <!-- Left Hero Column -->
+      <!-- Left Hero Column: Clean Typography & Balanced Spacing -->
       <div class="col-lg-6">
         <!-- Subtitle Eyebrow Badge -->
         <div class="fx-detail-badge fx-reveal">
@@ -45,41 +45,6 @@
         <p class="fx-detail-desc fx-reveal">
           {{ item.description }}
         </p>
-
-        <!-- Hero Action Buttons -->
-        <div class="fx-detail-hero-actions fx-reveal">
-          {% if request.user.is_authenticated %}
-            <a href="{% url 'ui:home' %}" class="btn-fx-gold fx-hero-cta">
-              <span>Launch ERP Workspace</span>
-              {% icon 'arrow-right' 16 %}
-            </a>
-          {% else %}
-            <a href="{% url 'ui:client_register' %}" class="btn-fx-gold fx-hero-cta">
-              <span>Get Started Free</span>
-              {% icon 'arrow-right' 16 %}
-            </a>
-            <a href="#capabilities" class="btn btn-outline-light fx-hero-secondary-btn">
-              <span>Explore Capabilities</span>
-              {% icon 'arrow-down' 14 %}
-            </a>
-          {% endif %}
-        </div>
-
-        <!-- Trust Indicators & Assurance Badges -->
-        <div class="fx-detail-hero-trust fx-reveal">
-          <div class="fx-trust-pill">
-            <span class="fx-trust-dot" aria-hidden="true"></span>
-            <span>Enterprise Ready</span>
-          </div>
-          <div class="fx-trust-pill">
-            {% icon 'shield' 13 class="text-warning" %}
-            <span>SOC2 &amp; ISO 27001</span>
-          </div>
-          <div class="fx-trust-pill">
-            {% icon 'activity' 13 class="text-warning" %}
-            <span>99.9% Uptime SLA</span>
-          </div>
-        </div>
       </div>
 
       <!-- Right Hero Column: Large Photograph Matching Vercel Reference -->
@@ -229,45 +194,4 @@
   </div>
 </section>
 {% endif %}
-
-<!-- =========================================================================
-     5. Bottom CTA Section (Dark Navy Background with Grid & Ambient Glow)
-     ========================================================================= -->
-<section class="fx-detail-cta" aria-label="Connect Your Operations">
-  <div class="fx-detail-grid-bg" aria-hidden="true"></div>
-  <div class="fx-detail-glow" style="left:50%; top:50%; transform:translate(-50%, -50%);" aria-hidden="true"></div>
-
-  <div class="container-xl px-4 position-relative z-10 fx-reveal">
-    <h2 class="display-6 fw-extrabold text-white mb-2">
-      Ready to Connect Your Operations?
-    </h2>
-
-    <div class="fx-detail-cta-divider" aria-hidden="true">
-      <span class="line"></span>
-      <span class="dot"></span>
-      <span class="line reverse"></span>
-    </div>
-
-    <p class="lead text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.7;">
-      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
-    </p>
-
-    <div class="d-flex flex-wrap justify-content-center gap-3">
-      {% if request.user.is_authenticated %}
-        <a href="{% url 'ui:home' %}" class="btn-fx-gold px-4 py-3 fw-bold text-decoration-none">
-          <span>Launch ERP Workspace</span>
-          {% icon 'arrow-right' 16 %}
-        </a>
-      {% else %}
-        <a href="{% url 'ui:client_register' %}" class="btn-fx-gold px-4 py-3 fw-bold text-decoration-none">
-          <span>Get Started Free</span>
-          {% icon 'arrow-right' 16 %}
-        </a>
-        <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
-          <span>Sign In to ERP</span>
-        </a>
-      {% endif %}
-    </div>
-  </div>
-</section>
 {% endblock %}

@@ -268,54 +268,7 @@
   line-height: 1.75;
   color: rgba(255, 255, 255, 0.8) !important;
   max-width: 600px;
-  margin-bottom: 2rem;
-}
-
-/* Hero Action CTA Buttons Row */
-.fx-detail-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2.25rem;
-}
-
-.fx-hero-cta {
-  padding: 0.85rem 1.85rem !important;
-  font-size: 1rem !important;
-}
-
-.fx-hero-secondary-btn {
-  padding: 0.85rem 1.65rem !important;
-  font-size: 1rem !important;
-}
-
-/* Hero Trust Badges Row */
-.fx-detail-hero-trust {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1.35rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  max-width: 580px;
-}
-
-.fx-trust-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.fx-trust-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10B981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+  margin-bottom: 0;
 }
 
 /* Right-Side Photograph Container */
@@ -607,9 +560,6 @@
   .fx-detail-desc {
     max-width: 100%;
   }
-  .fx-detail-hero-trust {
-    max-width: 100%;
-  }
   .fx-detail-image-card img {
     height: 360px;
   }
@@ -634,15 +584,6 @@
   }
   .fx-detail-image-card img {
     height: 300px;
-  }
-  .fx-detail-hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .fx-detail-hero-actions .btn-fx-gold,
-  .fx-detail-hero-actions .btn-outline-light {
-    width: 100%;
-    justify-content: center;
   }
   .fx-detail-metric-card {
     border-left: none;
