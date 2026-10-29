@@ -73,14 +73,18 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
         site_ids = list(sites.values_list("pk", flat=True))
         linked_references = WorkOrder.objects.for_organization(membership.organization).exclude(
             source_reference=""
+        ).exclude(
+            status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)
         ).values_list("source_reference", flat=True)
         linked_source_ids = WorkOrder.objects.for_organization(membership.organization).exclude(
             source_id__isnull=True
+        ).exclude(
+            status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)
         ).values_list("source_id", flat=True)
 
         source_qs = ServiceRequest.objects.for_organization(
             membership.organization).filter(
-            status=APPROVED, site_id__in=site_ids, work_order__isnull=True, duplicate_of__isnull=True
+            status=APPROVED, site_id__in=site_ids, duplicate_of__isnull=True
         ).exclude(
             number__in=linked_references
         ).exclude(

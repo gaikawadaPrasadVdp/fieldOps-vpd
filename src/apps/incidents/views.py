@@ -344,14 +344,18 @@ class RequestDetailView(IncidentBase):
                 models.Q(organization=org, source_reference=sr.number,
                          source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
             )
-            if linked_orders.exists():
+            live_linked_orders = linked_orders.exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED))
+            if live_linked_orders.exists():
                 can["create_work_order"] = False
                 if (rbac.has_permission(m, "work_order.view", sr.site_id) or
                         rbac.has_permission(m, "work_order.view_assigned", sr.site_id)):
-                    linked_work_order = linked_orders.first()
+                    linked_work_order = live_linked_orders.first()
             else:
                 can["create_work_order"] = (sr.status == "APPROVED" and
                                              rbac.has_permission(m, "work_order.create", sr.site_id))
+                if (rbac.has_permission(m, "work_order.view", sr.site_id) or
+                        rbac.has_permission(m, "work_order.view_assigned", sr.site_id)):
+                    linked_work_order = linked_orders.first()
 
         can["triage"] = (sr.status == "NEW" and rbac.has_permission(m, "incident.triage", sr.site_id))
         can["approve"] = (sr.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", sr.site_id))
@@ -492,7 +496,7 @@ class RequestWorkOrderView(_Post):
             models.Q(source_id=sr.pk) |
             models.Q(organization=request.organization, source_reference=sr.number,
                      source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
-        ).first()
+        ).exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)).first()
         if existing_wo:
             messages.error(
                 request,

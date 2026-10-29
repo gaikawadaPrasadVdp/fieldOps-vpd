@@ -24,7 +24,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     site_name = serializers.CharField(source="site.name", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default="")
     component_tag = serializers.CharField(source="component.asset_tag", read_only=True, default="")
-    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, default=None)
+    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, allow_null=True, default=None)
     closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
     checklist = serializers.SerializerMethodField()
 
@@ -130,7 +130,7 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             status=Asset.Status.ACTIVE, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
         self.fields["source_request"].queryset = ServiceRequest.objects.for_organization(organization).filter(
-            status=APPROVED, site_id__in=allowed_sites, work_order__isnull=True)
+            status=APPROVED, site_id__in=allowed_sites)
 
     def validate(self, attrs):
         start, end, due = attrs.get("planned_start"), attrs.get("planned_end"), attrs.get("due_at")

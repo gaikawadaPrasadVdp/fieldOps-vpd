@@ -43,7 +43,8 @@ log = logging.getLogger(__name__)
 Status, TS = SLATracking.Status, SLATracking.TargetState
 
 REQUEST_PRIORITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
-WORK_ORDER_PRIORITIES = ("LOW", "MEDIUM", "HIGH", "URGENT")
+WORK_ORDER_PRIORITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL", "URGENT")
+DEFAULT_PAUSE_STATES = ("WORK_ORDER:ON_HOLD",)
 SEVERITY = {"LOW": "MINOR", "MEDIUM": "MINOR", "HIGH": "MAJOR", "CRITICAL": "CRITICAL", "URGENT": "CRITICAL"}
 MAX_RULES_PER_PROFILE = 6
 PROFILE_FIELDS = ["name", "description", "applies_to", "site", "work_type", "pause_states", "is_active",
@@ -163,12 +164,14 @@ def _ensure_scope_available(org, scope, *, current=None, coverage_only=False):
 
 
 @transaction.atomic
-def create_profile(org, *, name, applies_to, actor, description="", site=None, work_type="", pause_states=(),
+def create_profile(org, *, name, applies_to, actor, description="", site=None, work_type="", pause_states=None,
                    coverage_only=False, client=None, contract=None, asset=None, asset_category=None,
                    service_type="", is_active=True, request=None) -> SLAProfile:
     from apps.workorders.models import WorkOrder
 
     name = (name or "").strip()
+    if pause_states is None:
+        pause_states = DEFAULT_PAUSE_STATES
     from apps.tenancy.models import Organization
     Organization.objects.select_for_update().get(pk=org.pk)
     if len(name) < 3:

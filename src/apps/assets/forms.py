@@ -16,6 +16,14 @@ class _ZoneChoice(forms.ModelChoiceField):
         return f"{obj.site.code} · {obj.name}"
 
 
+class _SiteChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        name = obj.name
+        if len(name) > 60:
+            name = name[:57] + "..."
+        return f"{obj.code} · {name}"
+
+
 class _OwnerChoice(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         return obj.user.display_name
@@ -25,7 +33,7 @@ class AssetForm(BootstrapFormMixin, forms.Form):
     asset_tag = forms.CharField(max_length=40, label="Asset tag", help_text="Human-readable ID, unique in the organization.")
     name = forms.CharField(max_length=200)
     category = forms.ModelChoiceField(queryset=AssetCategory.objects.none())
-    site = forms.ModelChoiceField(queryset=Site.objects.none())
+    site = _SiteChoice(queryset=Site.objects.none())
     zone = _ZoneChoice(queryset=Zone.objects.none(), required=False, label="Location (building / zone)",
                        empty_label="(none)")
     manufacturer = forms.CharField(max_length=100, required=False)

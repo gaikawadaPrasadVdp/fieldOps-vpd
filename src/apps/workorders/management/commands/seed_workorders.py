@@ -231,7 +231,7 @@ class Command(BaseCommand):
         for kind in (ServiceRequest.Kind.SERVICE_REQUEST, ServiceRequest.Kind.INCIDENT):
             base_title = f"Work Order create form source {kind.lower().replace('_', ' ')}"
             eligible = ServiceRequest.objects.for_organization(organization).filter(
-                kind=kind, status=APPROVED, work_order__isnull=True)
+                kind=kind, status=APPROVED, work_orders__isnull=True)
             serial = 1
             # Keep two options of each source kind available even after earlier
             # tests/demo flows consume a source by creating its one-to-one WO.
