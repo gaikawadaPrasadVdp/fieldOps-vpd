@@ -129,6 +129,20 @@ def filter_components(qs, params):
     if status and status in Asset.Status.values:
         qs = qs.filter(child__status=status)
 
+    health = (params.get("health") or "").strip().lower()
+    if health:
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        breakdown_asset_ids = ServiceRequest.objects.filter(
+            status__in=ACTIVE_INCIDENT_STATUSES
+        ).values_list("asset_id", flat=True)
+        if health in ("breakdown", "critical"):
+            qs = qs.filter(child_id__in=breakdown_asset_ids)
+        elif health == "healthy":
+            qs = qs.filter(child__status="ACTIVE").exclude(child_id__in=breakdown_asset_ids)
+        elif health == "degraded":
+            qs = qs.filter(Q(child__status="UNDER_MAINTENANCE") | Q(child_id__in=breakdown_asset_ids))
+
     q = (params.get("q") or "").strip()
     if q:
         qs = qs.filter(

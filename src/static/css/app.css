@@ -556,6 +556,75 @@ body.fx-app {
   border: 1px solid #E2C968;
 }
 
+<<<<<<< Updated upstream=======
+
+/* Component Health Status Badges reflecting active breakdown tickets */
+.fx-health-badge {
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.22rem 0.65rem;
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease-in-out;
+}
+
+.fx-health-badge.fx-health-success {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.fx-health-badge.fx-health-warning {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.fx-health-badge.fx-health-danger {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.fx-health-badge.fx-health-secondary {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+
+.fx-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes fx-health-beacon {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+  }
+
+  70% {
+    box-shadow: 0 0 0 5px rgba(220, 38, 38, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}
+
+.fx-health-pulse {
+  animation: fx-health-beacon 1.8s infinite ease-out;
+}
+
+>>>>>>>Stashed changes
+
 /* question builder / checklist execution items */
 .fx-question-card {
   background: #FFFFFF;
@@ -1124,7 +1193,7 @@ body.fx-app {
 }
 
 /* Continuous vertical guide line connecting sibling nodes */
-.fx-tree-branch > .fx-tree-node-item::before {
+.fx-tree-branch>.fx-tree-node-item::before {
   content: "";
   position: absolute;
   top: 0;
@@ -1135,12 +1204,12 @@ body.fx-app {
 }
 
 /* Last child terminates the vertical guide cleanly at the horizontal branch */
-.fx-tree-branch > .fx-tree-node-item:last-child::before {
+.fx-tree-branch>.fx-tree-node-item:last-child::before {
   height: 1.65rem;
 }
 
 /* Horizontal branch connecting vertical guide into the node card */
-.fx-tree-branch > .fx-tree-node-item::after {
+.fx-tree-branch>.fx-tree-node-item::after {
   content: "";
   position: absolute;
   top: 1.65rem;
@@ -1660,13 +1729,13 @@ body.fx-app {
   padding: 16px;
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .completion-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
 }
 
 .evidence-dropzone {
@@ -1717,9 +1786,17 @@ body.htmx-request .fx-global-loader {
 }
 
 @keyframes fxLoaderSlide {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Smooth Table & Container Loading Opacity Transitions */
@@ -1862,6 +1939,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
 
 /* 5. Mobile Form & Header Responsive Layout */
 @media (max-width: 576px) {
+
   .fx-filter-bar,
   form[id$="-filter-form"] {
     flex-direction: column !important;
@@ -1948,7 +2026,9 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   box-sizing: border-box !important;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -2029,12 +2109,15 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   .fx-topbar .fx-search {
     max-width: 85px !important;
   }
+
   .fx-topbar .fx-search input::placeholder {
     color: transparent !important;
   }
+
   .fx-topbar .dropdown .btn {
     max-width: 85px !important;
   }
+
   .fx-topbar select.form-select-sm {
     max-width: 75px !important;
   }
@@ -2044,6 +2127,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   .fx-topbar .fx-search {
     display: none !important;
   }
+
   .fx-topbar .dropdown .btn {
     max-width: 75px !important;
   }
@@ -2054,20 +2138,24 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   .fx-content {
     padding: 0.65rem 0.65rem 2.5rem !important;
   }
+
   .fx-card,
   .card {
     padding: 0.75rem !important;
     margin-bottom: 0.75rem !important;
     max-width: 100% !important;
   }
+
   .fx-page-header {
     margin-bottom: 0.75rem !important;
   }
+
   .nav-tabs {
     flex-wrap: wrap !important;
     gap: 0.25rem !important;
     border-bottom: 1px solid var(--fx-border) !important;
   }
+
   .nav-tabs .nav-link {
     font-size: 0.8rem !important;
     padding: 0.35rem 0.65rem !important;
@@ -2082,7 +2170,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     width: 100% !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked),
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked),
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) {
     display: block !important;
     width: 100% !important;
@@ -2091,12 +2179,12 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     background: transparent !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) thead,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) thead,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) thead {
     display: none !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody {
     display: flex !important;
     flex-direction: column !important;
@@ -2105,7 +2193,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     padding: 0 !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr {
     display: flex !important;
     flex-direction: column !important;
@@ -2119,7 +2207,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     box-sizing: border-box !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td {
     display: flex !important;
     justify-content: space-between !important;
@@ -2136,13 +2224,13 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     box-sizing: border-box !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td:last-child,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td:last-child,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td:last-child {
     border-bottom: none !important;
     padding-bottom: 0 !important;
   }
 
-  .table-responsive > .table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td[data-label]::before,
+  .table-responsive>.table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td[data-label]::before,
   .fx-table:not(.wo-list-table):not(.fx-calendar-table):not(.table-unstacked) tbody tr td[data-label]::before {
     content: attr(data-label);
     font-weight: 600;
@@ -2157,11 +2245,11 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   }
 
   /* Block layout for Title / Description / Long Text fields */
-  .table-responsive > .table tbody tr td[data-label*="Title"],
-  .table-responsive > .table tbody tr td[data-label*="Description"],
-  .table-responsive > .table tbody tr td[data-label*="PM Order"],
-  .table-responsive > .table tbody tr td[data-label*="Request Number"],
-  .table-responsive > .table tbody tr td[data-label*="Name"],
+  .table-responsive>.table tbody tr td[data-label*="Title"],
+  .table-responsive>.table tbody tr td[data-label*="Description"],
+  .table-responsive>.table tbody tr td[data-label*="PM Order"],
+  .table-responsive>.table tbody tr td[data-label*="Request Number"],
+  .table-responsive>.table tbody tr td[data-label*="Name"],
   .fx-table tbody tr td[data-label*="Title"],
   .fx-table tbody tr td[data-label*="Description"],
   .fx-table tbody tr td[data-label*="Name"] {
@@ -2171,11 +2259,11 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     gap: 0.15rem !important;
   }
 
-  .table-responsive > .table tbody tr td[data-label*="Title"]::before,
-  .table-responsive > .table tbody tr td[data-label*="Description"]::before,
-  .table-responsive > .table tbody tr td[data-label*="PM Order"]::before,
-  .table-responsive > .table tbody tr td[data-label*="Request Number"]::before,
-  .table-responsive > .table tbody tr td[data-label*="Name"]::before,
+  .table-responsive>.table tbody tr td[data-label*="Title"]::before,
+  .table-responsive>.table tbody tr td[data-label*="Description"]::before,
+  .table-responsive>.table tbody tr td[data-label*="PM Order"]::before,
+  .table-responsive>.table tbody tr td[data-label*="Request Number"]::before,
+  .table-responsive>.table tbody tr td[data-label*="Name"]::before,
   .fx-table tbody tr td[data-label*="Title"]::before,
   .fx-table tbody tr td[data-label*="Description"]::before,
   .fx-table tbody tr td[data-label*="Name"]::before {
@@ -2183,7 +2271,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   }
 
   /* Empty State Rows */
-  .table-responsive > .table tbody tr td[colspan],
+  .table-responsive>.table tbody tr td[colspan],
   .fx-table tbody tr td[colspan] {
     display: block !important;
     text-align: center !important;
@@ -2191,27 +2279,27 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     padding: 1.5rem 0.5rem !important;
   }
 
-  .table-responsive > .table tbody tr td[colspan]::before,
+  .table-responsive>.table tbody tr td[colspan]::before,
   .fx-table tbody tr td[colspan]::before {
     display: none !important;
   }
 
   /* Action Buttons inside cards */
-  .table-responsive > .table tbody tr td[data-label*="Action"],
-  .table-responsive > .table tbody tr td:last-child,
+  .table-responsive>.table tbody tr td[data-label*="Action"],
+  .table-responsive>.table tbody tr td:last-child,
   .fx-table tbody tr td:last-child {
     justify-content: flex-end !important;
   }
 
-  .table-responsive > .table tbody tr td:last-child .d-flex,
-  .table-responsive > .table tbody tr td:last-child .btn-group,
+  .table-responsive>.table tbody tr td:last-child .d-flex,
+  .table-responsive>.table tbody tr td:last-child .btn-group,
   .fx-table tbody tr td:last-child .d-flex {
     flex-wrap: wrap !important;
     gap: 0.35rem !important;
     justify-content: flex-end !important;
   }
 
-  .table-responsive > .table tbody tr td:last-child .btn,
+  .table-responsive>.table tbody tr td:last-child .btn,
   .fx-table tbody tr td:last-child .btn {
     font-size: 0.75rem !important;
     padding: 0.22rem 0.55rem !important;
