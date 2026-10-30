@@ -184,9 +184,36 @@ def _site_field(org, membership=None, *, required=False):
     )
 
 
-class InviteForm(forms.Form):
-    email = forms.EmailField()
-    full_name = forms.CharField(max_length=150, required=False, help_text="Required for new accounts.")
+class InviteForm(BootstrapFormMixin, forms.Form):
+    email = forms.EmailField(
+        label="Email",
+        widget=forms.EmailInput(attrs={
+            "placeholder": "e.g. user@example.com",
+            "required": "required",
+            "autocomplete": "email",
+        }),
+    )
+    full_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Full name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Jane Doe",
+            "autocomplete": "name",
+        }),
+        help_text="Required for new accounts."
+    )
+    password = forms.CharField(
+        max_length=128,
+        required=False,
+        initial="FieldOps@2026!",
+        label="Password",
+        widget=forms.PasswordInput(render_value=True, attrs={
+            "placeholder": "FieldOps@2026!",
+            "autocomplete": "new-password",
+        }),
+        help_text="Initial password for login (default: FieldOps@2026!). The user can change this in their dashboard."
+    )
 
     def __init__(self, *args, org, membership=None, **kwargs):
         super().__init__(*args, **kwargs)

@@ -170,10 +170,12 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     elif password and not user.has_usable_password():
         user.set_password(password)
         user.save()
+
     if Membership.objects.unscoped().filter(user=user, organization=org).exists():
         raise Conflict("This user is already a member of the organization.", code="already_member")
-    # Existing accounts (with a password) are activated at once (D-006); new accounts must set a password.
-    status = Membership.Status.INVITED if not user.has_usable_password() else Membership.Status.ACTIVE
+
+    is_direct = bool(password or user.has_usable_password())
+    status = Membership.Status.ACTIVE if is_direct else Membership.Status.INVITED
     membership = Membership(
         organization=org, user=user, status=status, invited_by=invited_by,
         activated_at=timezone.now() if status == Membership.Status.ACTIVE else None,
@@ -181,11 +183,14 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     membership.save()
     assignments = assignments if assignments is not None else [(r, None) for r in roles]
     rbac.set_membership_assignments(membership, assignments, actor=invited_by, request=request, system=system)
-    audit.record("user.invited", actor=invited_by, organization=org, target=membership,
+    audit.record("user.created" if is_direct else "user.invited", actor=invited_by, organization=org, target=membership,
                  target_repr=f"{user.email} @ {org.slug}",
                  after={"email": user.email, "status": status, "roles": sorted(rbac._describe(r, st) for r, st in assignments),
                         "new_account": created_user}, request=request)
-    accounts.queue_invitation_email(user, org, membership, new_account=created_user)
+
+    if not is_direct:
+        accounts.queue_invitation_email(user, org, membership, new_account=created_user)
+
     return membership
 
 
@@ -219,12 +224,12 @@ def resolve_assignments(org, *, role_ids=None, site_ids=None, assignments=None) 
 
 @transaction.atomic
 def invite_member(org, *, email, full_name, role_ids=None, actor, request=None, site_ids=None,
-                  assignments=None) -> Membership:
+                  assignments=None, password=None) -> Membership:
     resolved = resolve_assignments(org, role_ids=role_ids, site_ids=site_ids, assignments=assignments)
     if not resolved:
         raise ValidationFailed("Assign at least one role.", code="roles_required")
     return _invite(org, email=email, full_name=full_name, roles=[r for r, _ in resolved], invited_by=actor,
-                   request=request, assignments=resolved)
+                   request=request, assignments=resolved, password=password)
 
 
 @transaction.atomic

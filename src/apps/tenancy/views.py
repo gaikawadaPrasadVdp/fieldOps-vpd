@@ -72,17 +72,22 @@ class MemberInviteView(TenantPermissionMixin, View):
         form = InviteForm(request.POST, org=request.organization, membership=request.membership)
         if form.is_valid():
             try:
+                raw_password = (form.cleaned_data.get("password") or "").strip() or None
                 m = services.invite_member(
                     request.organization, email=form.cleaned_data["email"],
                     full_name=form.cleaned_data["full_name"],
                     role_ids=[r.pk for r in form.cleaned_data["roles"]],
                     site_ids=[x.pk for x in form.cleaned_data["sites"]] or None,
+                    password=raw_password,
                     actor=request.user, request=request,
                 )
             except DomainError as exc:
                 form.add_error(None, exc.message)
             else:
-                messages.success(request, f"Invitation sent to {m.user.email}.")
+                if raw_password:
+                    messages.success(request, f"User account for {m.user.email} created successfully. They can now sign in directly.")
+                else:
+                    messages.success(request, f"Invitation sent to {m.user.email}.")
                 return redirect("tenancy:member_detail", pk=m.pk)
         return render(request, "tenancy/member_invite.html", {"form": form})
 

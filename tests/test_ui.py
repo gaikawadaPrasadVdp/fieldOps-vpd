@@ -96,6 +96,22 @@ def test_invite_form_persists_and_audits(client, owner_a, org_a):
     assert m.status == "INVITED"
 
 
+def test_user_creation_with_password_creates_active_member(client, owner_a, org_a):
+    client.force_login(owner_a)
+    rid = Role.objects.unscoped().get(organization=org_a, system_key="technician").pk
+    r = client.post("/app/users/invite/", {
+        "email": "direct.tech@alpha.test",
+        "full_name": "Direct Tech",
+        "roles": [rid],
+        "password": "FieldOps@2026!",
+    })
+    assert r.status_code == 302
+    m = Membership.objects.unscoped().get(organization=org_a, user__email="direct.tech@alpha.test")
+    assert m.status == Membership.Status.ACTIVE
+    assert m.user.has_usable_password()
+    assert m.user.check_password("FieldOps@2026!")
+
+
 def test_member_actions_via_ui_require_permission(client, tech_a, org_a, owner_a):
     m = Membership.objects.unscoped().get(organization=org_a, user=owner_a)
     client.force_login(tech_a)
