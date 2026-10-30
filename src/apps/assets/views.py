@@ -13,8 +13,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
-from apps.core.apiutils import htmx_success
-from apps.core.exceptions import DomainError, NotFound
+from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
 from apps.sites.views import need, or404
@@ -96,6 +95,14 @@ class AssetHierarchyHubView(AssetBase):
         replaceable_parts = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART").count()
         parts_without_num = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART", part_number="").count()
 
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        total_breakdowns = ServiceRequest.objects.filter(
+            organization=org,
+            asset_id__in=assets_qs.values_list("id", flat=True),
+            status__in=ACTIVE_INCIDENT_STATUSES,
+        ).values("asset_id").distinct().count()
+
         # Selected Root Asset for Tree View
         root_id = request.GET.get("root")
         selected_root = None
@@ -120,6 +127,7 @@ class AssetHierarchyHubView(AssetBase):
             "total_components": total_components,
             "replaceable_parts": replaceable_parts,
             "parts_without_num": parts_without_num,
+            "total_breakdowns": total_breakdowns,
             "roots": roots_with_children.select_related("site", "category"),
             "selected_root": selected_root,
             "tree": tree,
@@ -252,7 +260,19 @@ class ComponentListView(AssetBase):
         total_replaceable = base_qs.filter(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART).count()
         missing_parts = base_qs.filter(Q(part_number__isnull=True) | Q(part_number="")).count()
 
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        from apps.assets.health import batch_annotate_assets_health
+
+        child_pks = base_qs.values_list("child_id", flat=True)
+        breakdown_count = ServiceRequest.objects.filter(
+            organization=org,
+            asset_id__in=child_pks,
+            status__in=ACTIVE_INCIDENT_STATUSES,
+        ).values("asset_id").distinct().count()
+
         page = Paginator(qs, 25).get_page(request.GET.get("page"))
+        batch_annotate_assets_health([comp.child for comp in page], organization=org)
 
         return render(request, "assets/component_list.html", {
             "page": page,
@@ -260,6 +280,7 @@ class ComponentListView(AssetBase):
             "total_items": total_items,
             "total_replaceable": total_replaceable,
             "missing_parts": missing_parts,
+            "breakdown_count": breakdown_count,
             "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
             "relationship_types": AssetComponent.Relationship.choices,
             "statuses": Asset.Status.choices,
@@ -279,6 +300,11 @@ class AssetCreateView(AssetBase):
         if not pid:
             return None
         parent = _asset(request, pid, "asset.hierarchy.manage")
+        if AssetComponent.objects.filter(child=parent).exists():
+            raise ValidationFailed(
+                f"Cannot create a child under {parent.asset_tag}: It is a child component of another machine. Multi-level nested parent assets are not permitted.",
+                code="child_cannot_be_parent",
+            )
         return parent
 
     def _page(self, request, form, parent, rel_form=None, status=200):
@@ -471,22 +497,28 @@ class AssetDetailView(AssetBase):
         ctx = {}
         above = hierarchy.ancestors(asset)
         ctx["ancestors"] = list(reversed(above))
+        is_child = getattr(asset, "parent_link", None) is not None
         if can["asset_hierarchy_manage"] and asset.status not in TERMINAL_STATES:
             exclude_ids = {asset.pk, *(a.pk for a in above)}
             base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage",
                                            site=asset.site)
-            ctx["add_form"] = ComponentAddForm(candidates=base.filter(parent_link__isnull=True).exclude(
-                pk__in=exclude_ids), initial={"relationship_type": "COMPONENT", "quantity": 1})
-            if getattr(asset, "parent_link", None) is not None:
+            parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+            if not is_child:
+                candidates = base.filter(parent_link__isnull=True).exclude(
+                    pk__in=exclude_ids
+                ).exclude(id__in=parent_ids)
+                ctx["add_form"] = ComponentAddForm(candidates=candidates, initial={"relationship_type": "COMPONENT", "quantity": 1})
+            else:
                 link = asset.parent_link
                 ctx["edit_link_form"] = ComponentEditForm(initial={
                     "relationship_type": link.relationship_type, "quantity": link.quantity,
                     "part_number": link.part_number, "notes": link.notes})
                 below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset))}
-                ctx["move_form"] = ComponentMoveForm(candidates=base.exclude(pk__in=below))
+                # Only root assets can be candidates for new parent
+                ctx["move_form"] = ComponentMoveForm(candidates=base.filter(parent_link__isnull=True).exclude(pk__in=below))
 
                 parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, asset.pk} | below
-                replace_candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors)
+                replace_candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors).exclude(id__in=parent_ids)
                 ctx["replace_form"] = ComponentReplaceForm(candidates=replace_candidates)
         return ctx
 
@@ -659,8 +691,10 @@ class ComponentAddView(AssetBase):
 
     def post(self, request, pk):
         asset = _asset(request, pk, "asset.hierarchy.manage")
-        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage")
-        form = ComponentAddForm(request.POST, candidates=base)
+        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=asset.site)
+        parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids)
+        form = ComponentAddForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
                 raise DomainError("Choose an asset and a valid relationship.")
@@ -711,8 +745,9 @@ class ComponentMoveView(AssetBase):
     def post(self, request, pk):
         link = _link(request, pk)
         child = link.child
-        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage")
-        form = ComponentMoveForm(request.POST, candidates=base)
+        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
+        candidates = base.filter(parent_link__isnull=True).exclude(pk=child.pk)
+        form = ComponentMoveForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
                 raise DomainError("Choose a valid new parent.")
@@ -737,7 +772,8 @@ class ComponentReplaceView(AssetBase):
         below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
         parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, child.pk} | below
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
-        candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors)
+        parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors).exclude(id__in=parent_ids)
         form = ComponentReplaceForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
@@ -773,6 +809,7 @@ class ComponentDetailModalView(AssetBase):
             "ancestors": ancestors,
             "parent_link": getattr(asset, "parent_link", None),
             "custom_attributes": attributes.display(asset.category.attribute_definitions, asset.attributes),
+            "health": getattr(asset, "_health_info", None),
         })
 
 

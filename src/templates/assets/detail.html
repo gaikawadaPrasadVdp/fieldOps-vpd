@@ -11,7 +11,7 @@
         <li class="breadcrumb-item active">{{ asset.asset_tag }}</li>
       </ol>
     </nav>
-    <h1>{{ asset.name }} {% status_badge asset.status %}</h1>
+    <h1>{{ asset.name }} {% status_badge asset.status %} {% component_health_badge asset %}</h1>
     <div class="text-body-secondary">
       <span class="fw-medium text-dark">{{ asset.asset_tag }}</span> · {{ asset.category.name }} · <a href="{% url 'sites:detail' asset.site_id %}">{{ asset.site.code }}</a>
       {% if asset.zone %} · {{ asset.zone.name }}{% endif %}
@@ -30,6 +30,11 @@
     <div class="d-flex align-items-center gap-2">
       <span class="text-muted">Status:</span>
       {% status_badge asset.status %}
+    </div>
+    <div class="vr my-1 d-none d-md-block text-muted opacity-25"></div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted">Health:</span>
+      {% component_health_badge asset %}
     </div>
     <div class="vr my-1 d-none d-md-block text-muted opacity-25"></div>
     <div class="d-flex align-items-center gap-2">
