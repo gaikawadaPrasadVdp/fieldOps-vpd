@@ -48,6 +48,7 @@ class PlatformOrganizationCreateSerializer(serializers.Serializer):
     slug = serializers.CharField(max_length=60, required=False, allow_blank=True)
     owner_name = serializers.CharField(max_length=150)
     owner_email = serializers.EmailField()
+    owner_password = serializers.CharField(max_length=128, required=False, allow_blank=True, default="FieldOps@2026!")
     timezone = serializers.CharField(max_length=64, required=False, default="UTC")
     country = serializers.CharField(max_length=2, required=False, allow_blank=True)
 
@@ -76,6 +77,7 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
             slug=data.get("slug") or None,
             owner_name=data["owner_name"],
             owner_email=data["owner_email"],
+            owner_password=data.get("owner_password") or "FieldOps@2026!",
             timezone_name=data.get("timezone", "UTC"),
             country=data.get("country", ""),
             actor=request.user,

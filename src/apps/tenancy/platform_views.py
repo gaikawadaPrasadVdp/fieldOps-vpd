@@ -53,11 +53,13 @@ def organization_create(request):
         form = PlatformOrganizationCreateForm(request.POST)
         if form.is_valid():
             try:
+                owner_pwd = form.cleaned_data.get("owner_password") or "FieldOps@2026!"
                 org, owner_m = services.create_organization(
                     name=form.cleaned_data["name"],
                     slug=form.cleaned_data.get("slug") or None,
                     owner_name=form.cleaned_data["owner_name"],
                     owner_email=form.cleaned_data["owner_email"],
+                    owner_password=owner_pwd,
                     timezone_name=form.cleaned_data["timezone"],
                     country=form.cleaned_data["country"],
                     actor=request.user,

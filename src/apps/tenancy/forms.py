@@ -306,7 +306,18 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
             "required": "required",
             "autocomplete": "email",
         }),
-        help_text="The owner will receive an activation invitation to set their password."
+        help_text="The owner email address used for logging in."
+    )
+    owner_password = forms.CharField(
+        max_length=128,
+        required=False,
+        initial="FieldOps@2026!",
+        label="Initial Owner Password",
+        widget=forms.PasswordInput(render_value=True, attrs={
+            "placeholder": "FieldOps@2026!",
+            "autocomplete": "new-password",
+        }),
+        help_text="Initial password for owner login (default: FieldOps@2026!). The owner can change this in their dashboard."
     )
     timezone = forms.CharField(
         max_length=64,

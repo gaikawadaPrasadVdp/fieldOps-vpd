@@ -60,6 +60,12 @@
             {% if form.owner_email.help_text %}<div class="form-text">{{ form.owner_email.help_text }}</div>{% endif %}
             {% for error in form.owner_email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
           </div>
+          <div class="col-md-6 mb-3">
+            <label for="{{ form.owner_password.id_for_label }}" class="form-label fw-semibold">{{ form.owner_password.label }}</label>
+            {{ form.owner_password }}
+            {% if form.owner_password.help_text %}<div class="form-text">{{ form.owner_password.help_text }}</div>{% endif %}
+            {% for error in form.owner_password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
         </div>
 
         <hr class="my-4">

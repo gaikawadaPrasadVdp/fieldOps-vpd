@@ -42,7 +42,7 @@ def _check_timezone(tz: str):
 
 @transaction.atomic
 def create_organization(*, name, owner_email, owner_name, actor=None, slug=None, timezone_name="UTC",
-                        country="", contact_email="", request=None) -> tuple[Organization, Membership]:
+                        country="", contact_email="", request=None, owner_password="FieldOps@2026!") -> tuple[Organization, Membership]:
     """Enterprise onboarding: creates the org, seeds system roles, invites the initial Owner."""
     if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
         raise PermissionDenied("Only administrators can create organizations.")
@@ -66,7 +66,7 @@ def create_organization(*, name, owner_email, owner_name, actor=None, slug=None,
     audit.record("organization.created", actor=actor, organization=org, target=org,
                  after=audit.snapshot(org, _ORG_FIELDS + ["slug", "status"]), request=request)
     membership = _invite(org, email=owner_email, full_name=owner_name, roles=[roles["owner"]],
-                         invited_by=actor, request=request, system=True)
+                         invited_by=actor, request=request, system=True, password=owner_password)
     return org, membership
 
 
@@ -155,7 +155,7 @@ def delete_organization(org: Organization, *, actor, request=None) -> tuple[bool
 
 
 def _invite(org, *, email, full_name, roles, invited_by, request=None, system=False,
-            assignments=None) -> Membership:
+            assignments=None, password=None) -> Membership:
     from apps.accounts import services as accounts
 
     email = _check_email(email)
@@ -165,8 +165,11 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     if user is None:
         if not full_name:
             full_name = email.split("@")[0].replace(".", " ").title()
-        user = User.objects.create_user(email=email, password=None, full_name=full_name)
+        user = User.objects.create_user(email=email, password=password, full_name=full_name)
         created_user = True
+    elif password and not user.has_usable_password():
+        user.set_password(password)
+        user.save()
     if Membership.objects.unscoped().filter(user=user, organization=org).exists():
         raise Conflict("This user is already a member of the organization.", code="already_member")
     # Existing accounts (with a password) are activated at once (D-006); new accounts must set a password.
