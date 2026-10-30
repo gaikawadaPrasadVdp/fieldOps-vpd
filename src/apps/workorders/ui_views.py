@@ -162,7 +162,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
             qs = qs.filter(Q(order_number__icontains=search) | Q(title__icontains=search)
                            | Q(asset_reference__icontains=search) | Q(source_reference__icontains=search))
         ordering = request.GET.get("ordering", "-created_at")
-        allowed_ordering = {"created_at", "-created_at", "due_at", "-due_at", "priority", "-priority",
+        allowed_ordering = {"created_at", "-created_at", "title", "-title", "due_at", "-due_at", "priority", "-priority",
                             "planned_start", "-planned_start", "order_number", "-order_number"}
         if ordering not in allowed_ordering:
             ordering = "-created_at"
@@ -937,6 +937,7 @@ def _work_order_tab_context(wo, membership, tab):
     elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
         context["materials"] = wo.material_entries.all()
+        context["part_lines"] = wo.part_lines.select_related("part", "warehouse").all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
@@ -1197,6 +1198,9 @@ class WorkOrderActionView(TenantPermissionMixin, View):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
             action_data["scheduled_end"] = timezone.localtime(wo.planned_end).strftime("%Y-%m-%dT%H:%M")
+        elif self.operation == "plan" and "priority" not in request.POST and wo.priority:
+            action_data = request.POST.copy()
+            action_data["priority"] = wo.priority
         form = (form_type(action_data, request.FILES if self.operation == "evidence" else None,
                           **form_kwargs) if form_type else None)
         if form is None:

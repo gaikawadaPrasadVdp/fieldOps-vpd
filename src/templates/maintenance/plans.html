@@ -31,8 +31,16 @@
   </div>
 </div>
 
-<div class="fx-card mb-4">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+<div class="fx-card mb-4" id="plans-list-card"
+     hx-get="{% url 'maintenance:plans' %}" hx-trigger="planSaved from:body" hx-target="#plans-list-card" hx-select="#plans-list-card" hx-swap="outerHTML" hx-include="#plans-filter-form" hx-disinherit="*">
+  <form method="get" id="plans-filter-form" class="d-flex flex-wrap gap-2 p-3 border-bottom"
+        hx-get="{% url 'maintenance:plans' %}"
+        hx-trigger="input changed delay:300ms, change"
+        hx-target="#plans-list-card"
+        hx-select="#plans-list-card"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#global-loading-indicator">
     <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Plan or asset" aria-label="Search plans">
     <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site">
       <option value="">All sites</option>
@@ -45,7 +53,13 @@
       <option value="1" {% if filters.active == "1" %}selected{% endif %}>Enabled</option>
       <option value="0" {% if filters.active == "0" %}selected{% endif %}>Disabled</option>
     </select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    <select class="form-select form-select-sm" style="max-width:160px" name="ordering" aria-label="Sort by">
+      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
+      <option value="-name" {% if filters.ordering == "-name" %}selected{% endif %}>Name (Z–A)</option>
+    </select>
+    <a href="{% url 'maintenance:plans' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
   </form>
   <div class="table-responsive">
     <table class="table fx-table" id="plans-table">
@@ -55,6 +69,7 @@
           <th>Asset</th>
           <th>Priority</th>
           <th>Checklist</th>
+          <th>Created</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -65,11 +80,12 @@
           <td><div class="fw-medium">{{ p.asset.asset_tag }}</div><div class="fx-sub">{{ p.site.code }}</div></td>
           <td>{% status_badge p.priority %}</td>
           <td>{{ p.checklist_key|yesno:"Yes,—" }}</td>
+          <td class="small text-nowrap text-secondary">{{ p.created_at|date:"M d, Y H:i" }}</td>
           <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "DISABLED" %}{% endif %}</td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="5">{% include "components/_empty_state.html" with title="No plans match" text="Adjust the filters or create a plan." %}</td>
+          <td colspan="6">{% include "components/_empty_state.html" with title="No plans match" text="Adjust the filters or create a plan." %}</td>
         </tr>
         {% endfor %}
       </tbody>

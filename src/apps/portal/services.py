@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from django.db import models, transaction
 
+import logging
 import uuid
+
+logger = logging.getLogger(__name__)
 
 from apps.assets.models import Asset
 from apps.audit import services as audit
@@ -231,15 +234,22 @@ def create_portal_service_request(
 
     # Notify staff with incident.triage
     try:
-        from apps.rbac.models import MembershipRole
+        from apps.accounts.models import User
         from apps.notifications import services as notifications
-        triage_recipients = [
-            mr.membership.user for mr in MembershipRole.objects.filter(
+        from apps.rbac.models import MembershipRole
+
+        recipient_ids = (
+            MembershipRole.objects.filter(
                 membership__organization=org,
-                membership__is_active=True,
-                role__role_permissions__permission__code="incident.triage"
-            ).select_related("membership__user").distinct()
-        ]
+                membership__status=Membership.Status.ACTIVE,
+                membership__user__is_active=True,
+                role__role_permissions__permission__code="incident.triage",
+            )
+            .filter(models.Q(site__isnull=True) | models.Q(site=sr.site))
+            .values_list("membership__user_id", flat=True)
+            .distinct()
+        )
+        triage_recipients = list(User.objects.filter(pk__in=recipient_ids))
         if triage_recipients:
             notifications.notify(
                 org,
@@ -250,7 +260,7 @@ def create_portal_service_request(
                 source="portal",
             )
     except Exception:
-        pass
+        logger.exception("Failed to notify staff of new portal service request %s", sr.number)
 
     return sr
 
@@ -510,15 +520,22 @@ def reopen_portal_service_request(
 
     # Notify internal staff with incident.triage / incident.approve
     try:
-        from apps.rbac.models import MembershipRole
+        from apps.accounts.models import User
         from apps.notifications import services as notifications
-        staff_recipients = [
-            mr.membership.user for mr in MembershipRole.objects.filter(
+        from apps.rbac.models import MembershipRole
+
+        recipient_ids = (
+            MembershipRole.objects.filter(
                 membership__organization=sr.organization,
-                membership__is_active=True,
-                role__role_permissions__permission__code__in=("incident.triage", "incident.approve")
-            ).select_related("membership__user").distinct()
-        ]
+                membership__status=Membership.Status.ACTIVE,
+                membership__user__is_active=True,
+                role__role_permissions__permission__code__in=("incident.triage", "incident.approve"),
+            )
+            .filter(models.Q(site__isnull=True) | models.Q(site=sr.site))
+            .values_list("membership__user_id", flat=True)
+            .distinct()
+        )
+        staff_recipients = list(User.objects.filter(pk__in=recipient_ids))
         if staff_recipients:
             notifications.notify(
                 sr.organization,
@@ -529,7 +546,7 @@ def reopen_portal_service_request(
                 source="portal",
             )
     except Exception:
-        pass
+        logger.exception("Failed to notify staff of reopened portal service request %s", sr.number)
 
     return sr
 
@@ -640,10 +657,11 @@ def update_portal_account(
     *,
     company_name: str | None = None,
     notes: str | None = None,
+    is_enabled: bool | None = None,
     actor=None,
 ) -> PortalAccount:
     """Updates portal account metadata with audit trail."""
-    before = audit.snapshot(account, ["company_name", "notes"])
+    before = audit.snapshot(account, ["company_name", "notes", "is_enabled"])
     update_fields = ["updated_at"]
 
     if company_name is not None:
@@ -653,6 +671,10 @@ def update_portal_account(
     if notes is not None:
         account.notes = notes.strip()
         update_fields.append("notes")
+
+    if is_enabled is not None:
+        account.is_enabled = bool(is_enabled)
+        update_fields.append("is_enabled")
 
     account.save(update_fields=update_fields)
 

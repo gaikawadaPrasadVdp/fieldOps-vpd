@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     # third party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "django_filters",
     "corsheaders",
@@ -97,6 +98,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
+    "apps.core.middleware.TimezoneMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -204,6 +206,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.maintenance.tasks.fan_out_maintenance",
         "schedule": 60 * 15,
     },
+    "monitor-sla": {
+        "task": "apps.sla.tasks.fan_out_sla_monitor",
+        "schedule": 60,
+    },
+    "contract-renewal-alerts": {
+        "task": "apps.contracts.tasks.fan_out_renewal_alerts",
+        "schedule": 60 * 60 * 12,
+    },
+    "inventory-reorder-alerts": {
+        "task": "apps.inventory.tasks.fan_out_reorder_alerts",
+        "schedule": 60 * 60 * 6,
+    },
 }
 
 # --- Email ------------------------------------------------------------------------------------
@@ -218,15 +232,15 @@ EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "20"))  # never let a blocked SMTP port
 
 # --- I18N -------------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = env("TIME_ZONE", "Asia/Kolkata")
 USE_I18N = True
 USE_TZ = True
 
 # --- Static / media ---------------------------------------------------------------------------
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR.parent / "staticfiles"
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR.parent / "media")))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
@@ -278,6 +292,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }

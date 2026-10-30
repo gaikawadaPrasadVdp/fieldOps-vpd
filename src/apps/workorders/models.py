@@ -85,8 +85,8 @@ class WorkOrder(TenantOwnedModel):
                               related_name="work_orders")
     component = models.ForeignKey("assets.Asset", null=True, blank=True, on_delete=models.PROTECT,
                                   related_name="component_work_orders")
-    source_request = models.OneToOneField("incidents.ServiceRequest", null=True, blank=True,
-        on_delete=models.PROTECT, related_name="work_order")
+    source_request = models.ForeignKey("incidents.ServiceRequest", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="work_orders")
     # Stable upstream identifier for integrations (PM, requests, or other source systems).
     source_id = models.UUIDField(null=True, blank=True)
     source_type = models.CharField(max_length=24, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
@@ -150,6 +150,11 @@ class WorkOrder(TenantOwnedModel):
                 condition=models.Q(source_type__in=["PM", "PREVENTIVE_MAINTENANCE"]),
                 name="uniq_work_order_per_pm_source",
             ),
+            models.UniqueConstraint(
+                fields=["source_request"],
+                condition=~models.Q(status__in=["CANCELLED", "CLOSED"]),
+                name="uniq_live_work_order_per_request",
+            ),
         ]
         indexes = [models.Index(fields=["organization", "status"]),
                    models.Index(fields=["site", "status"]),
@@ -169,8 +174,8 @@ class WorkOrder(TenantOwnedModel):
                 raise ValidationError({"asset": "Asset must belong to this work order's organization."})
             if self.asset.site_id != self.site_id:
                 raise ValidationError({"asset": "Asset must belong to the selected site."})
-            if self.asset.status != "ACTIVE":
-                raise ValidationError({"asset": "Selected asset is inactive."})
+            if self.asset.status in ("RETIRED", "DISPOSED"):
+                raise ValidationError({"asset": f"Cannot create work order for a {self.asset.status.lower()} asset."})
         if self.component_id:
             if self.component.organization_id != self.organization_id or not self.asset_id:
                 raise ValidationError({"component": "Component must belong to the selected asset."})
@@ -304,15 +309,19 @@ class WorkOrderLabor(TenantOwnedModel):
     work_date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.CharField(max_length=500)
+    notes = models.CharField(max_length=500, blank=True, default="")
 
     class Meta:
         ordering = ["-work_date", "-created_at"]
         constraints = [models.CheckConstraint(condition=Q(hours__gt=0) & Q(hours__lte=24),
                                               name="wo_labor_hours_1_24")]
 
-    @property
-    def notes(self):
-        return self.description
+    def save(self, *args, **kwargs):
+        if not self.notes and self.description:
+            self.notes = self.description[:300]
+        elif not self.description and self.notes:
+            self.description = self.notes
+        super().save(*args, **kwargs)
 
 
 class WorkOrderMaterial(TenantOwnedModel):

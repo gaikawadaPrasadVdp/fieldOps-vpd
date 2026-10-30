@@ -18,7 +18,9 @@
   </div>
 
   <div class="d-flex gap-2 flex-wrap">
-    <a class="btn btn-outline-success" href="?{% for k, v in filters.items %}{% if k != 'export' and k != 'format' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}export=csv" title="Download CSV of current filtered components">
+    <a class="btn btn-outline-success"
+      href="?{% for k, v in filters.items %}{% if k != 'export' and k != 'format' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}export=csv"
+      title="Download CSV of current filtered components">
       {% icon 'download' 14 %} Export CSV
     </a>
     <a class="btn btn-outline-primary" href="{% url 'assets:hierarchy_hub' %}">
@@ -32,7 +34,7 @@
 
 <!-- Summary Metric Cards -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-4">
+  <div class="col-sm-6 col-lg-3">
     <div class="fx-card p-3 d-flex align-items-center gap-3">
       <div class="p-3 rounded-3 bg-primary-subtle text-primary">
         {% icon 'package' 22 %}
@@ -44,7 +46,7 @@
     </div>
   </div>
 
-  <div class="col-sm-4">
+  <div class="col-sm-6 col-lg-3">
     <div class="fx-card p-3 d-flex align-items-center gap-3">
       <div class="p-3 rounded-3 bg-success-subtle text-success">
         {% icon 'refresh-cw' 22 %}
@@ -56,10 +58,24 @@
     </div>
   </div>
 
-  <div class="col-sm-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="fx-card p-3 d-flex align-items-center gap-3">
+      <div
+        class="p-3 rounded-3 {% if breakdown_count %}bg-danger-subtle text-danger{% else %}bg-secondary-subtle text-body-secondary{% endif %}">
+        {% icon 'alert-circle' 22 %}
+      </div>
+      <div>
+        <div class="fx-stat {% if breakdown_count %}text-danger{% else %}text-dark{% endif %}">{{ breakdown_count }}
+        </div>
+        <div class="fx-stat-label">Active Breakdown Items</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
     <div class="fx-card p-3 d-flex align-items-center gap-3">
       <div class="p-3 rounded-3 bg-warning-subtle text-warning">
-        {% icon 'alert-circle' 22 %}
+        {% icon 'alert-triangle' 22 %}
       </div>
       <div>
         <div class="fx-stat text-dark">{{ missing_parts }}</div>
@@ -74,13 +90,15 @@
   <div class="fx-card-body p-3">
     <form method="get" class="row g-2 align-items-center">
       <div class="col-md-3">
-        <input type="search" name="q" value="{{ filters.q|default:'' }}" class="form-control form-control-sm" placeholder="Search tag, part #, name, maker…">
+        <input type="search" name="q" value="{{ filters.q|default:'' }}" class="form-control form-control-sm"
+          placeholder="Search tag, part #, name, maker…">
       </div>
       <div class="col-md-2">
         <select name="site" class="form-select form-select-sm" aria-label="Filter by site">
           <option value="">All Sites</option>
           {% for s in sites %}
-            <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>
+          <option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{
+            s.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -88,20 +106,30 @@
         <select name="relationship_type" class="form-select form-select-sm" aria-label="Filter by relationship role">
           <option value="">All Roles</option>
           {% for r_val, r_label in relationship_types %}
-            <option value="{{ r_val }}" {% if filters.relationship_type == r_val %}selected{% endif %}>{{ r_label }}</option>
+          <option value="{{ r_val }}" {% if filters.relationship_type==r_val %}selected{% endif %}>{{ r_label }}
+          </option>
           {% endfor %}
         </select>
       </div>
       <div class="col-md-2">
         <select name="has_part" class="form-select form-select-sm" aria-label="Filter by part number status">
           <option value="">Part # Status (All)</option>
-          <option value="yes" {% if filters.has_part == 'yes' %}selected{% endif %}>Has Part Number</option>
-          <option value="no" {% if filters.has_part == 'no' %}selected{% endif %}>Missing Part Number</option>
+          <option value="yes" {% if filters.has_part=='yes' %}selected{% endif %}>Has Part Number</option>
+          <option value="no" {% if filters.has_part=='no' %}selected{% endif %}>Missing Part Number</option>
         </select>
       </div>
-      <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-        <a href="{% url 'assets:component_list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+      <div class="col-md-2">
+        <select name="health" class="form-select form-select-sm" aria-label="Filter by health status">
+          <option value="">Health (All)</option>
+          <option value="healthy" {% if filters.health=='healthy' %}selected{% endif %}>Healthy</option>
+          <option value="breakdown" {% if filters.health=='breakdown' %}selected{% endif %}>Active Breakdown</option>
+          <option value="degraded" {% if filters.health=='degraded' %}selected{% endif %}>Degraded / Maint.</option>
+        </select>
+      </div>
+      <div class="col-md-1 d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-primary px-2" title="Apply filters">{% icon 'search' 12 %}</button>
+        <a href="{% url 'assets:component_list' %}" class="btn btn-sm btn-outline-secondary px-2"
+          title="Reset filters">{% icon 'refresh-cw' 12 %}</a>
       </div>
     </form>
   </div>
@@ -120,108 +148,122 @@
           <th>Part Number</th>
           <th>Site / Location</th>
           <th>Status</th>
+          <th>Health Status</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for comp in page %}
-          <tr>
-            <!-- Component Child -->
-            <td>
-              <div class="fw-semibold">
-                <a href="{% url 'assets:detail' comp.child.pk %}" class="text-decoration-none">
-                  {{ comp.child.asset_tag }}
-                </a>
-              </div>
-              <div class="text-dark small fw-medium">{{ comp.child.name }}</div>
-              {% if comp.child.manufacturer or comp.child.model %}
-                <div class="text-body-secondary small">
-                  {{ comp.child.manufacturer|default:"" }} {{ comp.child.model|default:"" }}
-                  {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number }}</span>{% endif %}
-                </div>
-              {% endif %}
-            </td>
+        <tr>
+          <!-- Component Child -->
+          <td>
+            <div class="fw-semibold">
+              <a href="{% url 'assets:detail' comp.child.pk %}" class="text-decoration-none">
+                {{ comp.child.asset_tag }}
+              </a>
+            </div>
+            <div class="text-dark small fw-medium">{{ comp.child.name }}</div>
+            {% if comp.child.manufacturer or comp.child.model %}
+            <div class="text-body-secondary small">
+              {{ comp.child.manufacturer|default:"" }} {{ comp.child.model|default:"" }}
+              {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number
+                }}</span>{% endif %}
+            </div>
+            {% endif %}
+          </td>
 
-            <!-- Installed Parent -->
-            <td>
-              <div class="fw-medium">
-                <a href="{% url 'assets:detail' comp.parent.pk %}?tab=hierarchy" class="text-decoration-none text-dark">
-                  {% icon 'layers' 13 %} {{ comp.parent.asset_tag }}
-                </a>
-              </div>
-              <div class="text-body-secondary small text-truncate" style="max-width: 180px;">
-                {{ comp.parent.name }}
-              </div>
-            </td>
+          <!-- Installed Parent -->
+          <td>
+            <div class="fw-medium">
+              <a href="{% url 'assets:detail' comp.parent.pk %}?tab=hierarchy" class="text-decoration-none text-dark">
+                {% icon 'layers' 13 %} {{ comp.parent.asset_tag }}
+              </a>
+            </div>
+            <div class="text-body-secondary small text-truncate" style="max-width: 180px;">
+              {{ comp.parent.name }}
+            </div>
+          </td>
 
-            <!-- Role Badge -->
-            <td>
-              {% if comp.relationship_type == 'ASSEMBLY' %}
-                <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
-              {% elif comp.relationship_type == 'REPLACEABLE_PART' %}
-                <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
-              {% else %}
-                <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
-              {% endif %}
-            </td>
+          <!-- Role Badge -->
+          <td>
+            {% if comp.relationship_type == 'ASSEMBLY' %}
+            <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
+            {% elif comp.relationship_type == 'REPLACEABLE_PART' %}
+            <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
+            {% else %}
+            <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
+            {% endif %}
+          </td>
 
-            <!-- Quantity -->
-            <td>
-              <span class="badge text-bg-light border font-monospace">&times;{{ comp.quantity }}</span>
-            </td>
+          <!-- Quantity -->
+          <td>
+            <span class="badge text-bg-light border font-monospace">&times;{{ comp.quantity }}</span>
+          </td>
 
-            <!-- Part Number -->
-            <td>
-              {% if comp.part_number %}
-                <div class="d-inline-flex align-items-center gap-1">
-                  <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ comp.part_number }}" title="Click to copy part number">
-                    {% icon 'copy' 11 %} {{ comp.part_number }}
-                  </button>
-                  <a href="{% url 'inventory:parts' %}?q={{ comp.part_number|urlencode }}" class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn" title="View '{{ comp.part_number }}' in Parts Catalog">
-                    {% icon 'external-link' 11 %}
-                  </a>
-                </div>
-              {% else %}
-                <span class="badge text-bg-warning-subtle text-warning border border-warning-subtle small">
-                  Unassigned
-                </span>
-              {% endif %}
-              {% if comp.notes %}
-                <div class="small text-body-secondary mt-1"><em>{{ comp.notes|truncatechars:35 }}</em></div>
-              {% endif %}
-            </td>
+          <!-- Part Number -->
+          <td>
+            {% if comp.part_number %}
+            <div class="d-inline-flex align-items-center gap-1">
+              <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ comp.part_number }}"
+                title="Click to copy part number">
+                {% icon 'copy' 11 %} {{ comp.part_number }}
+              </button>
+              <a href="{% url 'inventory:parts' %}?q={{ comp.part_number|urlencode }}"
+                class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn"
+                title="View '{{ comp.part_number }}' in Parts Catalog">
+                {% icon 'external-link' 11 %}
+              </a>
+            </div>
+            {% else %}
+            <span class="badge text-bg-warning-subtle text-warning border border-warning-subtle small">
+              Unassigned
+            </span>
+            {% endif %}
+            {% if comp.notes %}
+            <div class="small text-body-secondary mt-1"><em>{{ comp.notes|truncatechars:35 }}</em></div>
+            {% endif %}
+          </td>
 
-            <!-- Site & Zone -->
-            <td>
-              <div class="fw-medium">{{ comp.parent.site.code }}</div>
-              {% if comp.child.zone %}
-                <div class="text-body-secondary small">{{ comp.child.zone.name }}</div>
-              {% endif %}
-            </td>
+          <!-- Site & Zone -->
+          <td>
+            <div class="fw-medium">{{ comp.parent.site.code }}</div>
+            {% if comp.child.zone %}
+            <div class="text-body-secondary small">{{ comp.child.zone.name }}</div>
+            {% endif %}
+          </td>
 
-            <!-- Status -->
-            <td>
-              {% status_badge comp.child.status %}
-            </td>
+          <!-- Status -->
+          <td>
+            {% status_badge comp.child.status %}
+          </td>
 
-            <!-- Actions -->
-            <td class="text-end">
-              <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary" hx-get="{% url 'assets:quick_view' comp.child.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect">
-                  {% icon 'info' 13 %}
-                </button>
-                <a class="btn btn-outline-secondary" href="{% url 'assets:detail' comp.child.pk %}?tab=hierarchy" title="Open in hierarchy tree">
-                  {% icon 'git-branch' 13 %}
-                </a>
-              </div>
-            </td>
-          </tr>
+          <!-- Health Status Badge -->
+          <td>
+            {% component_health_badge comp.child %}
+          </td>
+
+          <!-- Actions -->
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-outline-secondary"
+                hx-get="{% url 'assets:quick_view' comp.child.pk %}" hx-target="#quickViewModalContent"
+                data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect">
+                {% icon 'info' 13 %}
+              </button>
+              <a class="btn btn-outline-secondary" href="{% url 'assets:detail' comp.child.pk %}?tab=hierarchy"
+                title="Open in hierarchy tree">
+                {% icon 'git-branch' 13 %}
+              </a>
+            </div>
+          </td>
+        </tr>
         {% empty %}
-          <tr>
-            <td colspan="8">
-              {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components or replaceable parts match your search criteria." %}
-            </td>
-          </tr>
+        <tr>
+          <td colspan="9">
+            {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components
+            or replaceable parts match your search criteria." %}
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>

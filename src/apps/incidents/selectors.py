@@ -13,7 +13,8 @@ from apps.sites.selectors import scoped_get
 
 from .models import Downtime, ServiceRequest, ServiceRequestHistory
 
-ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "number": "number", "-number": "-number",
+ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "title": "title", "-title": "-title",
+             "name": "title", "-name": "-title", "number": "number", "-number": "-number",
              "severity": "severity", "status": "status"}
 
 
@@ -25,7 +26,7 @@ def is_owned_asset_reporter(membership) -> bool:
 
 
 def requests_for(membership, org, code: str = "incident.view"):
-    qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user", "work_order", "downtime")
+    qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user", "downtime").prefetch_related("work_orders")
     from apps.rbac.models import MembershipRole
 
     role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))

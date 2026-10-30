@@ -24,7 +24,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     site_name = serializers.CharField(source="site.name", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default="")
     component_tag = serializers.CharField(source="component.asset_tag", read_only=True, default="")
-    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, default=None)
+    assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, allow_null=True, default=None)
     closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
     checklist = serializers.SerializerMethodField()
 
@@ -36,7 +36,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         model = WorkOrder
         fields = ["id", "order_number", "number", "site", "site_name", "asset", "asset_tag", "asset_reference",
                   "component", "component_tag", "component_reference", "source_request", "service_request_reference",
-                  "source_type", "source_reference", "title", "description", "work_type", "priority", "status",
+                  "source_type", "source_id", "source_reference", "title", "description", "work_type", "priority", "status",
                   "planned_start", "planned_end", "due_at",
                   "estimated_hours", "assigned_to", "assignee_name", "created_by", "version", "started_at", "completed_at",
                   "closed_at", "closed_by", "hold_reason", "resolution_notes", "checklist",
@@ -45,7 +45,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                   "closure_approvals",
                   "created_at", "updated_at"]
         read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "created_by",
-                            "asset", "component", "source_request", "asset_tag", "component_tag",
+                            "asset", "component", "source_request", "source_id", "asset_tag", "component_tag",
                             "started_at", "completed_at", "closed_at", "hold_reason", "resolution_notes",
                             "closed_by", "supervisor_notes", "version", "created_at", "updated_at", "checklist",
                             "checklist_required", "checklist_template_ref", "checklist_instance_ref",
@@ -123,14 +123,15 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         allowed_sites = [site.pk for site in sites if rbac.has_permission(membership, "work_order.create", site)]
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
+        allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
         assets = Asset.objects.for_organization(organization).filter(
-            site_id__in=allowed_sites, status=Asset.Status.ACTIVE).select_related("site")
+            site_id__in=allowed_sites, status__in=allowed_asset_statuses).select_related("site")
         self.fields["asset"].queryset = assets
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
-            status=Asset.Status.ACTIVE, parent_link__parent__site_id__in=allowed_sites,
+            status__in=allowed_asset_statuses, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
         self.fields["source_request"].queryset = ServiceRequest.objects.for_organization(organization).filter(
-            status=APPROVED, site_id__in=allowed_sites, work_order__isnull=True)
+            status=APPROVED, site_id__in=allowed_sites)
 
     def validate(self, attrs):
         start, end, due = attrs.get("planned_start"), attrs.get("planned_end"), attrs.get("due_at")
@@ -157,8 +158,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if asset.site_id != site.pk:
             raise serializers.ValidationError({"asset": "Invalid asset for the selected site."})
-        if asset.status != Asset.Status.ACTIVE:
-            raise serializers.ValidationError({"asset": "Selected asset is inactive."})
+        if asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
+            raise serializers.ValidationError({"asset": f"Cannot create work order for a {asset.status.lower()} asset."})
         if component and not AssetComponent.objects.filter(organization=site.organization,
                 parent=asset, child=component,
                 relationship_type=AssetComponent.Relationship.COMPONENT).exists():
@@ -201,10 +202,11 @@ class UpdateWorkOrderSerializer(StrictInputSerializer):
                     if rbac.has_permission(request.membership, "work_order.update", site)]
                 sites = sites.filter(pk__in=allowed_ids)
             self.fields["site"].queryset = sites
+            allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
             self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
-                status=Asset.Status.ACTIVE, site__in=sites)
+                status__in=allowed_asset_statuses, site__in=sites)
             self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
-                status=Asset.Status.ACTIVE, parent_link__parent__site__in=sites,
+                status__in=allowed_asset_statuses, parent_link__parent__site__in=sites,
                 parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
 
     def validate(self, attrs):
@@ -288,7 +290,7 @@ class WorkOrderReasonSerializer(serializers.Serializer):
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
 
-class CompleteSerializer(StrictInputSerializer):
+class WorkOrderCompleteSerializer(StrictInputSerializer):
     resolution_notes = serializers.CharField(min_length=10)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 

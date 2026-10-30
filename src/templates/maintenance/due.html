@@ -37,7 +37,7 @@
         <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
       {% endfor %}
     </select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    <a href="{% url 'maintenance:due' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
   </form>
   <div class="table-responsive">
     <table class="table fx-table" id="due-table">

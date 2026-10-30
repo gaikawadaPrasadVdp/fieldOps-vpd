@@ -16,6 +16,10 @@ REQUEST, WORK_ORDER = "REQUEST", "WORK_ORDER"
 RESPONSE, RESOLUTION = "RESPONSE", "RESOLUTION"
 
 
+def default_pause_states():
+    return ["WORK_ORDER:ON_HOLD"]
+
+
 class SLAProfile(TenantOwnedModel):
     class AppliesTo(models.TextChoices):
         REQUEST = "REQUEST", "Incident / Breakdown"
@@ -38,7 +42,7 @@ class SLAProfile(TenantOwnedModel):
                                     help_text="Incident/request kind or Work Order type")
     work_type = models.CharField(max_length=20, blank=True, help_text="Work-order profiles: only this work type")
     # tokens such as WORK_ORDER:ON_HOLD or REQUEST:RESOLVED; empty = the timers never pause (D-044)
-    pause_states = models.JSONField(default=list, blank=True)
+    pause_states = models.JSONField(default=default_pause_states, blank=True)
     is_active = models.BooleanField(default=True)
     coverage_only = models.BooleanField(
         default=False,

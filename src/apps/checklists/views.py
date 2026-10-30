@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from apps.core.apiutils import htmx_success
 """M08 HTML views: template management (checklist.view / checklist.manage) and read-only inspection results with
 finding resolution. Technician execution lives in the M07 workspace and calls the same services. Chain: login ->
 membership -> permission gate -> organization (+ site) scoped lookup (404) -> permission for the object -> service."""
-from __future__ import annotations
 
 import logging
 
@@ -60,6 +62,11 @@ class TemplateCreateView(_View):
     crumbs = [("Checklists", "/app/checklists/"), ("New", None)]
 
     def get(self, request):
+        if request.headers.get("HX-Request"):
+            return render(request, "checklists/_template_modal.html", {
+                "title": "New checklist", "form": TemplateForm(), "submit": "Create draft",
+                "action_url": request.path,
+            })
         return form_page(request, title="New checklist", form=TemplateForm(), submit="Create draft",
                          cancel_url="/app/checklists/", crumbs=self.crumbs,
                          subtitle="Add the questions on the next screen, then activate.")
@@ -71,9 +78,16 @@ class TemplateCreateView(_View):
                 t = services.create_template(request.organization, actor=request.user, request=request,
                                              **form.cleaned_data)
                 messages.success(request, "Draft checklist created. Add its questions.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeChecklistModal": True, "checklistSaved": True})
                 return redirect("checklists:detail", pk=t.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+        if request.headers.get("HX-Request"):
+            return render(request, "checklists/_template_modal.html", {
+                "title": "New checklist", "form": form, "submit": "Create draft",
+                "action_url": request.path,
+            }, status=200)
         return form_page(request, title="New checklist", form=form, submit="Create draft",
                          cancel_url="/app/checklists/", crumbs=self.crumbs, status=400)
 
@@ -240,11 +254,22 @@ class ItemMoveView(_Post):
 class InspectionListView(_View):
     required_permission = "inspection.view"
 
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        self.required_permission = (
+            "inspection.view"
+            if m and rbac.has_permission_anywhere(m, "inspection.view")
+            else "inspection.execute"
+        )
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request):
         m, org = request.membership, request.organization
         all_inspections = selectors.inspections_for(m, org)
         qs = selectors.filter_inspections(all_inspections, request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+        can_view = rbac.has_permission_anywhere(m, "inspection.view")
+        site_perm = "inspection.view" if can_view else "inspection.execute"
         return render(request, "checklists/inspections.html", {
             "page": page, "filters": request.GET,
             "kpis": {
@@ -253,7 +278,7 @@ class InspectionListView(_View):
                 "completed": all_inspections.filter(status="COMPLETED").count(),
                 "open_findings": Finding.objects.filter(organization=org, status="OPEN").count(),
             },
-            "sites": site_selectors.sites_for(m, org, "inspection.view").order_by("code")})
+            "sites": site_selectors.sites_for(m, org, site_perm).order_by("code")})
 
 
 class InspectionDetailView(_View):

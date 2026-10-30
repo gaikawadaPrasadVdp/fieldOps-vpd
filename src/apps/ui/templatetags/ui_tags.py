@@ -75,6 +75,9 @@ _ICONS = {
     "funnel": '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
     "geo-alt": '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
     "image": '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+    "linkedin": '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>',
+    "youtube": '<path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>',
+    "instagram": '<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>',
     "inbox": '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
     "lock": '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     "map-pin": '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
@@ -139,6 +142,69 @@ _BADGES = {
 def status_badge(value):
     tone = _BADGES.get(str(value).upper(), "secondary")
     return format_html('<span class="badge fx-badge fx-badge-{}">{}</span>', tone, str(value).replace("_", " ").title())
+
+
+@register.simple_tag
+def component_health_badge(asset, show_icon=True, show_count=True, extra_class=""):
+    """Renders a visual component health status badge reflecting active breakdown tickets.
+    
+    States:
+      - HEALTHY: Emerald badge with solid dot (● Healthy)
+      - DEGRADED: Amber badge with warning indicator (▲ Degraded)
+      - CRITICAL: Crimson badge with pulsing beacon (● Breakdown Active)
+      - OFFLINE: Slate badge (○ Inactive / Retired)
+    """
+    if not asset:
+        return ""
+
+    info = getattr(asset, "_health_info", None)
+    if info is None:
+        try:
+            from apps.assets.health import get_asset_health
+            info = get_asset_health(asset)
+        except Exception:
+            is_active = str(getattr(asset, "status", "")).upper() == "ACTIVE"
+            info = {
+                "status": "HEALTHY" if is_active else "OFFLINE",
+                "tone": "success" if is_active else "secondary",
+                "label": "Healthy" if is_active else str(getattr(asset, "status", "Offline")).title(),
+                "breakdown_count": 0,
+                "tickets": [],
+                "has_active_breakdown": False,
+            }
+
+    tone = info.get("tone", "secondary")
+    status = info.get("status", "HEALTHY")
+    label = info.get("label", "Healthy")
+    count = info.get("breakdown_count", 0)
+    tickets = info.get("tickets", [])
+
+    if count > 0 and tickets:
+        nums = ", ".join(t["number"] for t in tickets[:2])
+        if count > 2:
+            nums += f" +{count - 2} more"
+        tooltip = f"Active Breakdown Ticket{'s' if count > 1 else ''}: {nums}"
+        if info.get("highest_severity"):
+            tooltip += f" · Severity: {info['highest_severity']}"
+    elif info.get("subcomponent_alert"):
+        tooltip = f"Sub-assembly alert: {info['subcomponent_alert']}"
+    else:
+        tooltip = f"Component Health: {label}"
+
+    if status == "CRITICAL":
+        indicator = '<span class="fx-health-dot fx-health-pulse bg-danger" aria-hidden="true"></span>'
+    elif status == "DEGRADED":
+        indicator = '<span class="fx-health-dot bg-warning" aria-hidden="true"></span>'
+    elif status == "HEALTHY":
+        indicator = '<span class="fx-health-dot bg-success" aria-hidden="true"></span>'
+    else:
+        indicator = '<span class="fx-health-dot bg-secondary" aria-hidden="true"></span>'
+
+    extra = f" {extra_class}".strip()
+    return format_html(
+        '<span class="badge fx-badge fx-health-badge fx-health-{} {}" title="{}" data-health-status="{}" data-breakdown-count="{}">{}{}</span>',
+        tone, extra, tooltip, status, count, mark_safe(indicator), label
+    )
 
 
 @register.filter

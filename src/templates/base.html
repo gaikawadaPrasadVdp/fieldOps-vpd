@@ -1,28 +1,41 @@
 {% load static %}<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}FieldOps Nexus{% endblock %}</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=3.0">
-  {% block extra_css %}{% endblock %}</head>
-<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  {% block body %}{% endblock %}
-  <dialog id="fx-confirm" class="fx-dialog">
-    <form method="dialog">
-      <h2 class="h5" id="fx-confirm-title">Please confirm</h2>
-      <p id="fx-confirm-text" class="text-body-secondary"></p>
-      <div class="d-flex justify-content-end gap-2">
-        <button value="cancel" class="btn btn-outline-secondary">Cancel</button>
-        <button value="ok" class="btn btn-danger" id="fx-confirm-ok">Confirm</button>
-      </div>
-    </form>
-  </dialog>
-  <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
-  <script src="{% static 'lib/htmx.min.js' %}"></script>
-  <script src="{% static 'js/app.js' %}?v=2.8"></script>
-  {% block scripts %}{% endblock %}
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}FieldOps Nexus{% endblock %}</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230B1F3A'/><path d='M8 10h16M8 16h11M8 22h7' stroke='%2300D4FF' stroke-width='2.5' stroke-linecap='round'/></svg>"
+    />
+    <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=4.0" />
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body
+    class="{% block body_class %}{% endblock %}"
+    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+  >
+    <div id="global-loading-indicator" class="fx-global-loader"></div>
+    {% block body %}{% endblock %}
+    <dialog id="fx-confirm" class="fx-dialog">
+      <form method="dialog">
+        <h2 class="h5" id="fx-confirm-title">Please confirm</h2>
+        <p id="fx-confirm-text" class="text-body-secondary"></p>
+        <div class="d-flex justify-content-end gap-2">
+          <button value="cancel" class="btn btn-outline-secondary">
+            Cancel
+          </button>
+          <button value="ok" class="btn btn-danger" id="fx-confirm-ok">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'lib/htmx.min.js' %}"></script>
+    <script src="{% static 'js/app.js' %}?v=4.0"></script>
+    {% block scripts %}{% endblock %}
+  </body>
 </html>

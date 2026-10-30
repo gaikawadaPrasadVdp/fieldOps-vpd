@@ -5,7 +5,7 @@
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
-      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
+      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
         <span class="fx-brand-mark">FX</span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
@@ -45,7 +45,7 @@
         </form>
         {% endif %}
         <div class="dropdown">
-          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-truncate" style="max-width: 140px;" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>

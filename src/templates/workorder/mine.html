@@ -5,7 +5,7 @@
 {% block content %}
 <div class="wo-page"><nav class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ My jobs</span></nav>
   <header class="wo-detail-header"><div><p class="wo-eyebrow">WORK ORDERS</p><h1>My jobs</h1></div><a class="wo-view-button" href="{% url 'workorders:schedule' %}">Schedule board</a></header>
-  <form method="get" class="wo-filter-form mb-3"><label><span class="visually-hidden">Status</span><select name="status"><option value="">All statuses</option>{% for key,label in statuses %}<option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="wo-filter-button" type="submit">Filter</button><a class="wo-reset" href="{% url 'workorders:mine' %}">Reset</a></form>
+  <form method="get" class="wo-filter-form mb-3"><label><span class="visually-hidden">Status</span><select name="status"><option value="">All statuses</option>{% for key,label in statuses %}<option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><a class="wo-reset btn btn-sm btn-outline-secondary" href="{% url 'workorders:mine' %}">Reset</a></form>
   <section class="wo-panel"><div class="table-responsive"><table class="wo-table"><thead><tr><th>Work order</th><th>Site / asset</th><th>Priority</th><th>Status</th><th>Schedule / due</th><th>Checklist</th><th>Actions</th></tr></thead><tbody>
     {% for wo in work_orders %}<tr class="{% if wo.overdue %}is-overdue{% endif %}">
       <td><a href="{% url 'workorders:detail' wo.pk %}" class="wo-number">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>

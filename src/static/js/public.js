@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       closeMega();
       closeMobileNav();
-      closeChat();
     }
   });
 
@@ -252,31 +251,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 5. Floating Concierge Chat FAB & Modal
+  // 5. Reveal On Scroll Observer
   // =========================================================================
-  const chatFab = document.querySelector('[data-fx-chat-fab]');
-  const chatModal = document.querySelector('[data-fx-chat-modal]');
-  const chatClose = document.querySelector('[data-fx-chat-close]');
-
-  const closeChat = () => {
-    if (chatModal) {
-      chatModal.classList.remove('is-open');
-    }
-  };
-
-  if (chatFab && chatModal) {
-    chatFab.addEventListener('click', () => {
-      chatModal.classList.toggle('is-open');
-    });
-  }
-  if (chatClose) {
-    chatClose.addEventListener('click', closeChat);
-  }
-
-  // =========================================================================
-  // 6. Reveal On Scroll Observer
-  // =========================================================================
-  const revealElements = document.querySelectorAll('.landing-reveal');
+  const revealElements = document.querySelectorAll('.landing-reveal, .fx-reveal');
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -324,6 +301,36 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // =========================================================================
+  // 8.1 Detail Page: Interactive Hero Image Depth & Capability Cards
+  // =========================================================================
+  const heroImageCards = document.querySelectorAll('[data-hero-interactive-image]');
+  const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (heroImageCards.length > 0 && !isReducedMotion) {
+    heroImageCards.forEach((card) => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        card.style.transform = `perspective(1000px) rotateY(${x * 5}deg) rotateX(${-y * 5}deg) translateY(-3px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(1000px) rotateY(0deg) rotateX(0deg) translateY(0px)';
+      });
+    });
+  }
+
+  const interactiveCards = document.querySelectorAll('[data-fx-interactive-card]');
+  if (interactiveCards.length > 0) {
+    interactiveCards.forEach((card) => {
+      card.addEventListener('mouseenter', () => {
+        interactiveCards.forEach(c => c.classList.remove('fx-capability-active'));
+        card.classList.add('fx-capability-active');
+      });
+    });
+  }
 
   // =========================================================================
   // 9. About Page: Five Core Principles Interactive Feature Cards
@@ -792,7 +799,385 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // =========================================================================
+  // 14. Features Page: 8-Stage Interactive Connected Service Flow Explanation
+  // =========================================================================
+  const featuresFlowRoot = document.getElementById('fx-workflow-flow-section');
+  if (featuresFlowRoot) {
+    const FLOW_STAGES = [
+      {
+        step: '01',
+        title: 'Asset Monitored',
+        category: 'Telemetry / Sensor',
+        role: 'Telemetry Sensors & Asset Operators',
+        desc: 'Continuous real-time monitoring tracks operational vibration, temperature, pressure, and cycle counts to detect early deviations from normal operating baselines before failure occurs.',
+        actions: [
+          'Capture automated telemetry feeds from IoT sensors and plant SCADA systems.',
+          'Run edge threshold checks and continuous anomaly detection algorithms.',
+          'Validate abnormal operational variances against historical performance baselines.',
+          'Trigger condition-based maintenance alert when safety tolerances exceed thresholds.'
+        ],
+        outcome: 'Operational anomaly verified and logged with complete diagnostic telemetry payload.',
+        handoff: 'Handoff \u2192 Stage 02: Service Request Logged',
+        images: [
+          { src: '/static/images/workflow-field-operations.jpg', caption: 'Real-time asset telemetry & condition monitoring capture' },
+          { src: '/static/images/workflow-asset-management.jpg', caption: 'Asset lifecycle & health status tracking' },
+          { src: '/static/images/operational-visibility.jpg', caption: 'Operational visibility across field assets' }
+        ]
+      },
+      {
+        step: '02',
+        title: 'Service Request Logged',
+        category: 'Client / Requester',
+        role: 'Client Representative & Service Desk',
+        desc: 'Maintenance requests\u2014whether auto-triggered by telemetry or submitted via customer portal\u2014are validated, prioritized by SLA tier, and prepared for planning.',
+        actions: [
+          'Ingest automated telemetry tickets and customer-submitted service inquiries.',
+          'Verify client contract coverage, SLA response deadlines, and priority tier.',
+          'Perform initial triage, asset verification, and severity categorization.',
+          'Issue confirmation to requester with ticket tracking and expected arrival window.'
+        ],
+        outcome: 'Qualified, SLA-tagged service ticket generated with asset history and urgency tier.',
+        handoff: 'Handoff \u2192 Stage 03: Work Order Formulated',
+        images: [
+          { src: '/static/images/workflow-service-requests.jpg', caption: 'Customer request intake & automated SLA contract triage' },
+          { src: '/static/images/connected-data.jpg', caption: 'Centralised service request management dashboard' },
+          { src: '/static/images/smarter-workflows.jpg', caption: 'Intelligent workflow routing & SLA prioritisation' }
+        ]
+      },
+      {
+        step: '03',
+        title: 'Work Order Formulated',
+        category: 'Maintenance Planner',
+        role: 'Maintenance Planner & Operations Coordinator',
+        desc: 'Planners transform raw service requests into structured work orders with procedural task checklists, required tooling, safety guidelines, and labor requirements.',
+        actions: [
+          'Define detailed operational scope, task steps, and standard operating procedures.',
+          'Attach mandatory safety protocols, hazard mitigation steps, and PPE requirements.',
+          'Estimate job duration and match required technician certifications and skills.',
+          'Link bill of materials and reserve preliminary spare parts from inventory.'
+        ],
+        outcome: 'Comprehensive work package generated with attached digital compliance checklists.',
+        handoff: 'Handoff \u2192 Stage 04: Technician Dispatched',
+        images: [
+          { src: '/static/images/module-work-orders.jpg', caption: 'Detailed work package formulation & task checklist design' },
+          { src: '/static/images/module-maintenance.jpg', caption: 'Preventive & corrective maintenance planning' },
+          { src: '/static/images/fieldops-workflow-visual.jpg', caption: 'End-to-end workflow orchestration' }
+        ]
+      },
+      {
+        step: '04',
+        title: 'Technician Dispatched',
+        category: 'Field Technician',
+        role: 'Dispatch Controller & Mobile Field Technician',
+        desc: 'The work order is assigned using skill-based and location-aware scheduling, transmitting full job context, schematics, and route navigation to the technician mobile device.',
+        actions: [
+          'Match qualified technicians based on skills, certifications, and real-time proximity.',
+          'Sync complete work order packet, asset history, and safety instructions to mobile app.',
+          'Track en-route status, travel duration, and GPS arrival at the physical job site.',
+          'Enable offline task execution and safety checklist sign-off at point of work.'
+        ],
+        outcome: 'Certified technician arrives on site fully equipped with job context and safety clearance.',
+        handoff: 'Handoff \u2192 Stage 05: Spare Parts Allocated',
+        images: [
+          { src: '/static/images/module-workforce.jpg', caption: 'Skill-based mobile dispatch & technician geolocation' },
+          { src: '/static/images/workflow-field-operations.jpg', caption: 'Field technician mobile job execution' },
+          { src: '/static/images/module-organization.jpg', caption: 'Team scheduling & workforce management' }
+        ]
+      },
+      {
+        step: '05',
+        title: 'Spare Parts Allocated',
+        category: 'Warehouse / Stock',
+        role: 'Warehouse Manager & Inventory Controller',
+        desc: 'Every part, tool, and consumable required for the work order is verified, staged from depot stock or van inventory, and scanned to guarantee traceability.',
+        actions: [
+          'Check real-time stock levels across central depots, local staging, and technician vans.',
+          'Reserve and stage required replacement components and specialized tooling.',
+          'Scan barcodes and serial numbers to link consumed parts directly to the work order.',
+          'Auto-trigger min-max inventory replenishment orders for consumed stock items.'
+        ],
+        outcome: 'All required components are verified and physically issued with serial-level audit tracking.',
+        handoff: 'Handoff \u2192 Stage 06: Supervisor Verification',
+        images: [
+          { src: '/static/images/workflow-inventory-management.jpg', caption: 'Depot & van stock staging with barcode serialization' },
+          { src: '/static/images/module-inventory.jpg', caption: 'Real-time inventory levels & reserve management' },
+          { src: '/static/images/module-assets.jpg', caption: 'Parts traceability & asset-linked consumption' }
+        ]
+      },
+      {
+        step: '06',
+        title: 'Supervisor Verification',
+        category: 'Field Supervisor',
+        role: 'Field Operations Supervisor & Quality Inspector',
+        desc: 'Field supervisors inspect completed maintenance work, review before-and-after photo evidence, check test measurements, and approve labor timesheets.',
+        actions: [
+          'Audit digital checklist completion and mandatory before/after photo documentation.',
+          'Verify technical measurements and operational test runs against tolerance specs.',
+          'Review recorded technician labor hours, travel time, and material consumption.',
+          'Authorize formal technical sign-off and mark job as ready for customer handover.'
+        ],
+        outcome: 'Work order validated for engineering quality, regulatory compliance, and safety standards.',
+        handoff: 'Handoff \u2192 Stage 07: Client Confirmation',
+        images: [
+          { src: '/static/images/workflow-approval.jpg', caption: 'Quality assurance verification & photographic evidence review' },
+          { src: '/static/images/workflow-insights.jpg', caption: 'Supervisor dashboard & field team performance insights' },
+          { src: '/static/images/smarter-workflows.jpg', caption: 'Compliance sign-off & checklist audit trail' }
+        ]
+      },
+      {
+        step: '07',
+        title: 'Client Confirmation',
+        category: 'Client Representative',
+        role: 'Client Representative & Facility Manager',
+        desc: 'The client inspects the completed work, witnesses equipment run-up and testing, and provides cryptographic on-glass digital signature confirmation.',
+        actions: [
+          'Review service executive summary and resolution documentation on-site or via portal.',
+          'Perform equipment test run-up and verify restored operational conditions.',
+          'Capture client digital signature and timestamp on mobile device glass.',
+          'Collect instant customer satisfaction rating (CSAT) and service feedback.'
+        ],
+        outcome: 'Formal client acceptance signed and immutable customer satisfaction recorded.',
+        handoff: 'Handoff \u2192 Stage 08: Closure & Audit Trace',
+        images: [
+          { src: '/static/images/resources_hero.jpg', caption: 'Client acceptance sign-off & on-glass digital signature' },
+          { src: '/static/images/module-service.jpg', caption: 'Service delivery & client satisfaction management' },
+          { src: '/static/images/connected-data.jpg', caption: 'Client portal & real-time service status' }
+        ]
+      },
+      {
+        step: '08',
+        title: 'Closure & Audit Trace',
+        category: 'Compliance & Finance',
+        role: 'Compliance Auditor & Finance Controller',
+        desc: 'The workflow terminates with complete tamper-proof audit trails, automated ledger journal postings into the ERP, warranty updates, and SLA performance calculations.',
+        actions: [
+          'Compile full chronological activity history with cryptographic SHA-256 integrity hash.',
+          'Post labor hours, consumed material costs, and invoice details to ERP finance ledger.',
+          'Update asset master record with new service history, run hours, and warranty expiration.',
+          'Calculate final MTTR, first-time fix rate, and contractual SLA compliance metrics.'
+        ],
+        outcome: 'Legally binding, permanent audit record generated; asset record updated; financials settled.',
+        handoff: 'Loop Complete \u2192 Equipment returned to Stage 01 Monitoring',
+        images: [
+          { src: '/static/images/audit-traceability.jpg', caption: 'Immutable audit package & ERP financial reconciliation' },
+          { src: '/static/images/module-analytics.jpg', caption: 'SLA performance analytics & compliance reporting' },
+          { src: '/static/images/workflow-insights.jpg', caption: 'Post-closure insights & KPI benchmarking' }
+        ]
+      }
+    ];
+
+    let currentStageIndex = 0;
+    let currentGalleryIndex = 0;
+
+    const stageCards = featuresFlowRoot.querySelectorAll('.fx-flow-stage-card');
+    const flowPanel = document.getElementById('fx-flow-panel');
+    const pillEl = document.getElementById('fx-flow-pill');
+    const titleEl = document.getElementById('fx-flow-title');
+    const descEl = document.getElementById('fx-flow-desc');
+    const roleValEl = document.getElementById('fx-flow-role-val');
+    const actionsListEl = document.getElementById('fx-flow-actions-list');
+    const outcomeTextEl = document.getElementById('fx-flow-outcome-text');
+    const handoffNextEl = document.getElementById('fx-flow-handoff-next');
+    const mainImgEl = document.getElementById('fx-flow-main-img');
+    const mediaStepEl = document.getElementById('fx-flow-media-step');
+    const mediaCaptionEl = document.getElementById('fx-flow-media-caption');
+    const prevBtn = document.getElementById('fx-flow-btn-prev');
+    const nextBtn = document.getElementById('fx-flow-btn-next');
+
+    // Gallery controls
+    const galleryPrevBtn = document.getElementById('fx-gallery-prev');
+    const galleryNextBtn = document.getElementById('fx-gallery-next');
+    const thumbStripEl = document.getElementById('fx-gallery-thumb-strip');
+
+    // -----------------------------------------------------------------------
+    // Gallery: render image at galleryIdx for the currently active stage
+    // -----------------------------------------------------------------------
+    const renderGalleryImage = (galleryIdx, animate = true) => {
+      const stage = FLOW_STAGES[currentStageIndex];
+      if (!stage || !stage.images) return;
+
+      const total = stage.images.length;
+      currentGalleryIndex = (galleryIdx + total) % total; // wrap
+      const imgData = stage.images[currentGalleryIndex];
+
+      // Update main image
+      if (mainImgEl) {
+        if (animate) {
+          mainImgEl.style.opacity = '0.45';
+          setTimeout(() => {
+            mainImgEl.src = imgData.src;
+            mainImgEl.alt = `${stage.title} — image ${currentGalleryIndex + 1}`;
+            mainImgEl.style.opacity = '1';
+          }, 120);
+        } else {
+          mainImgEl.src = imgData.src;
+          mainImgEl.alt = `${stage.title} — image ${currentGalleryIndex + 1}`;
+        }
+      }
+
+      // Update caption
+      if (mediaCaptionEl) mediaCaptionEl.textContent = imgData.caption;
+
+      // Update arrow disabled states — keep enabled (wrap-around)
+      if (galleryPrevBtn) galleryPrevBtn.disabled = false;
+      if (galleryNextBtn) galleryNextBtn.disabled = false;
+
+      // Highlight active thumbnail
+      if (thumbStripEl) {
+        thumbStripEl.querySelectorAll('.fx-gallery-thumb').forEach((th, i) => {
+          th.classList.toggle('is-active', i === currentGalleryIndex);
+        });
+      }
+    };
+
+    // -----------------------------------------------------------------------
+    // Gallery: rebuild thumbnail strip for the active stage
+    // -----------------------------------------------------------------------
+    const buildThumbStrip = (stageIdx) => {
+      if (!thumbStripEl) return;
+      const stage = FLOW_STAGES[stageIdx];
+      if (!stage || !stage.images) { thumbStripEl.innerHTML = ''; return; }
+
+      thumbStripEl.innerHTML = stage.images.map((img, i) => `
+        <button type="button"
+                class="fx-gallery-thumb${i === currentGalleryIndex ? ' is-active' : ''}"
+                data-gallery-idx="${i}"
+                aria-label="View image ${i + 1}: ${img.caption}">
+          <img src="${img.src}" alt="" loading="lazy">
+        </button>
+      `).join('');
+
+      thumbStripEl.querySelectorAll('.fx-gallery-thumb').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          renderGalleryImage(parseInt(btn.dataset.galleryIdx, 10));
+        });
+      });
+    };
+
+    // -----------------------------------------------------------------------
+    // Main stage renderer — wires columns 1 & 2 and resets gallery
+    // -----------------------------------------------------------------------
+    const renderStage = (index, animate = true) => {
+      if (index < 0 || index >= FLOW_STAGES.length) return;
+      currentStageIndex = index;
+      currentGalleryIndex = 0;
+      const stage = FLOW_STAGES[currentStageIndex];
+
+      // Update stage cards active state
+      stageCards.forEach((c, idx) => {
+        const isActive = idx === currentStageIndex;
+        c.classList.toggle('is-active', isActive);
+        c.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        c.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+
+      // Subtle panel transition
+      if (animate && flowPanel) {
+        flowPanel.classList.add('is-switching');
+        setTimeout(() => flowPanel.classList.remove('is-switching'), 200);
+      }
+
+      // Column 1: Stage Overview & Narrative
+      if (pillEl) pillEl.textContent = `Stage ${stage.step} • ${stage.category}`;
+      if (titleEl) titleEl.textContent = stage.title;
+      if (roleValEl) roleValEl.textContent = stage.role;
+      if (descEl) descEl.textContent = stage.desc;
+
+      // Stage nav buttons (Previous Step / Next Workflow Step)
+      if (prevBtn) {
+        prevBtn.disabled = currentStageIndex === 0;
+      }
+      if (nextBtn) {
+        if (currentStageIndex === FLOW_STAGES.length - 1) {
+          nextBtn.innerHTML = '<span>Restart Flow</span> ↺';
+        } else {
+          nextBtn.innerHTML = '<span>Next Workflow Step</span> &rarr;';
+        }
+      }
+
+      // Column 2: Key Actions & Handoff
+      if (actionsListEl) {
+        actionsListEl.innerHTML = stage.actions.map((act, i) => `
+          <div class="fx-flow-action-item">
+            <span class="fx-flow-action-num">${i + 1}</span>
+            <span>${act}</span>
+          </div>
+        `).join('');
+      }
+
+      if (outcomeTextEl) outcomeTextEl.textContent = stage.outcome;
+      if (handoffNextEl) handoffNextEl.textContent = stage.handoff;
+
+      // Column 3: Stage tag
+      if (mediaStepEl) mediaStepEl.textContent = `STAGE ${stage.step}`;
+
+      // Rebuild thumbnails and show first image (no cross-fade on stage switch)
+      buildThumbStrip(currentStageIndex);
+      renderGalleryImage(0, animate);
+    };
+
+    // -----------------------------------------------------------------------
+    // Gallery arrow event listeners
+    // -----------------------------------------------------------------------
+    if (galleryPrevBtn) {
+      galleryPrevBtn.addEventListener('click', () => {
+        renderGalleryImage(currentGalleryIndex - 1);
+      });
+    }
+    if (galleryNextBtn) {
+      galleryNextBtn.addEventListener('click', () => {
+        renderGalleryImage(currentGalleryIndex + 1);
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Stage timeline card events (click + keyboard)
+    // -----------------------------------------------------------------------
+    stageCards.forEach((card, idx) => {
+      card.addEventListener('click', () => {
+        renderStage(idx);
+      });
+
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          renderStage(idx);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          const nextIdx = (idx + 1) % FLOW_STAGES.length;
+          stageCards[nextIdx].focus();
+          renderStage(nextIdx);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const prevIdx = (idx - 1 + FLOW_STAGES.length) % FLOW_STAGES.length;
+          stageCards[prevIdx].focus();
+          renderStage(prevIdx);
+        }
+      });
+    });
+
+    // Stage Prev / Next navigation buttons
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (currentStageIndex > 0) {
+          renderStage(currentStageIndex - 1);
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        if (currentStageIndex < FLOW_STAGES.length - 1) {
+          renderStage(currentStageIndex + 1);
+        } else {
+          renderStage(0);
+        }
+      });
+    }
+
+    // Initial render
+    renderStage(0, false);
+  }
 });
-
-
-

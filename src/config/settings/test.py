@@ -3,11 +3,12 @@ import os
 import secrets
 
 os.environ.setdefault("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))  # ephemeral, never persisted
-_pg_pass = os.environ.get("POSTGRES_PASSWORD", "McEXD9PVj4TKfk31GaBHYlAA14pXAhFLvlhJZuYA0BU")
+_pg_pass = os.environ.get("POSTGRES_PASSWORD") or "fieldops"
 os.environ.setdefault("DATABASE_URL", f"postgres://fieldops:{_pg_pass}@localhost:5432/fieldops")
 
 from .base import *  # noqa: E402,F401,F403
 
+TIME_ZONE = "UTC"
 DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # speed only; tests only
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

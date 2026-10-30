@@ -534,3 +534,92 @@ def test_disabled_work_is_not_picked_up_by_the_task(pm_, monkeypatch):
     pm.set_plan_active(plan, True, actor=None)
     assert tasks.generate_due_maintenance()["generated"] == 1
     assert (T0 + timedelta(seconds=1)) > T0
+
+
+# --- PM compliance ratio calculations (scheduled vs on-time vs overdue vs skipped) ---
+
+
+def test_pm_compliance_ratio_empty(pm_):
+    p = pm_
+    from apps.maintenance import selectors
+    res = selectors.pm_compliance_ratio(p["planner"], p["org"])
+    assert res == {
+        "scheduled": 0,
+        "on_time": 0,
+        "overdue": 0,
+        "skipped": 0,
+        "pending": 0,
+        "compliance_ratio": 100.0,
+        "value": "100.0%",
+    }
+
+
+def test_pm_compliance_ratio_with_on_time_overdue_and_skipped(pm_, monkeypatch):
+    p = pm_
+    freeze(monkeypatch, T0)
+    from apps.maintenance import selectors
+
+    # 1. Plan & Schedule
+    plan = make_plan(p)
+    sch = time_schedule(plan, start_date=date(2026, 3, 10))
+
+    # Cycle 1: Generated and completed on-time
+    c1 = pm.generate_cycle(sch)
+    wo1 = c1.work_order
+    WorkOrder.objects.filter(pk=wo1.pk).update(status="COMPLETED", completed_at=at(2026, 3, 10, 10))
+    wo1.refresh_from_db()
+
+    res1 = selectors.pm_compliance_ratio(p["planner"], p["org"], now=T0)
+    assert res1["scheduled"] == 1
+    assert res1["on_time"] == 1
+    assert res1["overdue"] == 0
+    assert res1["skipped"] == 0
+    assert res1["compliance_ratio"] == 100.0
+    assert res1["value"] == "100.0%"
+
+    # Cycle 2: Fast forward 3 months (collapsed with 2 skipped cycles)
+    # Due on 2026-06-10; now is 2026-06-20 -> work order is open past due date (overdue)
+    freeze(monkeypatch, at(2026, 6, 20))
+    c2 = pm.generate_cycle(sch)
+    assert c2.skipped == 2
+
+    res2 = selectors.pm_compliance_ratio(p["planner"], p["org"], now=at(2026, 6, 20))
+    # Total scheduled: 1 (cycle 1) + 1 (cycle 2) + 2 (skipped) = 4
+    assert res2["scheduled"] == 4
+    assert res2["on_time"] == 1
+    assert res2["overdue"] == 1  # c2's WO is open and due_date (2026-06-10) is past
+    assert res2["skipped"] == 2
+    # ratio = 1 / (1 + 1 + 2) * 100 = 25.0%
+    assert res2["compliance_ratio"] == 25.0
+    assert res2["value"] == "25.0%"
+
+
+def test_pm_compliance_api_endpoint(pm_, monkeypatch):
+    p = pm_
+    freeze(monkeypatch, T0)
+    from rest_framework.test import APIClient
+    client = APIClient()
+    client.force_authenticate(user=p["planner"].user)
+    client.credentials(HTTP_X_ORGANIZATION=str(p["org"].pk))
+
+    res = client.get("/api/v1/maintenance-cycles/compliance/")
+    assert res.status_code == 200
+    assert res.data["scheduled"] == 0
+    assert res.data["compliance_ratio"] == 100.0
+    assert "value" in res.data
+
+
+def test_pm_history_view_with_compliance(pm_, monkeypatch):
+    p = pm_
+    freeze(monkeypatch, T0)
+    from django.test import Client
+    client = Client()
+    client.force_login(p["planner"].user)
+    session = client.session
+    session["active_org_id"] = str(p["org"].pk)
+    session.save()
+
+    res = client.get("/app/maintenance/history/")
+    assert res.status_code == 200
+    assert "compliance" in res.context
+    assert res.context["compliance"]["compliance_ratio"] == 100.0

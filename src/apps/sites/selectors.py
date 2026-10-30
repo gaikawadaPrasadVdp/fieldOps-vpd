@@ -54,7 +54,10 @@ def filter_sites(qs, params):
     status = (params.get("status") or "").strip()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(city__icontains=q))
-    if status in Site.Status.values:
+    if status:
+        if status not in Site.Status.values:
+            from apps.core.exceptions import ValidationFailed
+            raise ValidationFailed(f"Invalid status '{status}'.", code="invalid_filter")
         qs = qs.filter(status=status)
     return qs
 
@@ -74,7 +77,16 @@ def site_list(membership, org, params):
         qs = qs.annotate(asset_count=Count("assets", filter=~Q(assets__status__in=TERMINAL_STATES), distinct=True))
     else:
         qs = qs.annotate(asset_count=Value(0, output_field=IntegerField()))
-    return qs.order_by("code")
+    ordering = (params.get("ordering") or "").strip()
+    ordering_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "name": "name",
+        "-name": "-name",
+        "code": "code",
+        "-code": "-code",
+    }
+    return qs.order_by(ordering_map.get(ordering, "-created_at"))
 
 
 # --- zones -------------------------------------------------------------------------------------------

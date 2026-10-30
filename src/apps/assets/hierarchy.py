@@ -16,6 +16,7 @@ from django.db import connection, transaction
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, ValidationFailed
 
+from .health import annotate_tree_health, batch_annotate_assets_health, get_asset_health
 from .models import Asset, AssetComponent
 from .workflow import TERMINAL_STATES
 
@@ -73,13 +74,23 @@ def check_link(parent: Asset, child: Asset, *, moving: bool = False):
         raise Conflict(f"Cannot modify hierarchy: Parent {parent.asset_tag} is in terminal status ({parent.status}).", code="asset_terminal")
     if child.status in TERMINAL_STATES:
         raise Conflict(f"Cannot modify hierarchy: Child {child.asset_tag} is in terminal status ({child.status}).", code="asset_terminal")
-    if not moving and AssetComponent.objects.filter(child=child).exists():
-        raise Conflict(f"Cannot attach: {child.asset_tag} is already a component of another asset. Use 'Move / Re-parent' instead.",
-                       code="already_has_parent")
     above = ancestors(parent)
     if any(a.pk == child.pk for a in above):
         raise ValidationFailed(f"Circular dependency detected: {child.asset_tag} is already an ancestor of {parent.asset_tag}.",
                                code="hierarchy_cycle")
+    if AssetComponent.objects.filter(child=parent).exists():
+        raise ValidationFailed(
+            f"Cannot attach component under {parent.asset_tag}: It is already a child component of another asset. Nested parent assets are not permitted.",
+            code="child_cannot_be_parent",
+        )
+    if AssetComponent.objects.filter(parent=child).exists():
+        raise ValidationFailed(
+            f"Cannot attach {child.asset_tag}: It is already a parent asset with child components. Nested parent assets are not permitted.",
+            code="parent_cannot_be_child",
+        )
+    if not moving and AssetComponent.objects.filter(child=child).exists():
+        raise Conflict(f"Cannot attach: {child.asset_tag} is already a component of another asset. Use 'Move / Re-parent' instead.",
+                       code="already_has_parent")
     levels = len(above) + 1 + 1 + subtree_height(child)  # ancestors + parent + child + below child
     if levels > MAX_DEPTH:
         raise ValidationFailed(f"Hierarchy depth limit exceeded: Linking {child.asset_tag} under {parent.asset_tag} would create a {levels}-level tree (maximum allowed is {MAX_DEPTH}).", code="hierarchy_too_deep")
@@ -235,7 +246,7 @@ def root_of(asset: Asset) -> Asset:
     return above[-1] if above else asset
 
 
-def build_tree(root: Asset) -> dict:
+def build_tree(root: Asset, *, annotate_health: bool = True) -> dict:
     """Nested subtree of ``root`` (one query per level, depth-bounded):
     {"asset", "link", "children": [...], "depth"}. All nodes share the root's site (enforced on write)."""
     node = {"asset": root, "link": None, "children": [], "depth": 0}
@@ -251,6 +262,11 @@ def build_tree(root: Asset) -> dict:
             level[link.parent_id]["children"].append(child_node)
             nxt[link.child_id] = child_node
         level = nxt
+    if annotate_health and root:
+        try:
+            annotate_tree_health(node, organization=root.organization)
+        except Exception:
+            pass
     return node
 
 

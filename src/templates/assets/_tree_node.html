@@ -69,6 +69,12 @@
       {% endif %}
 
       {% status_badge node.asset.status %}
+      {% component_health_badge node.asset %}
+      {% if node.child_breakdown_count and node.child_breakdown_count > 0 and not node.health.breakdown_count %}
+        <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle small ms-1" title="{{ node.child_breakdown_count }} sub-component{{ node.child_breakdown_count|pluralize }} with active breakdown tickets">
+          {% icon 'alert-triangle' 11 %} {{ node.child_breakdown_count }} child alert{{ node.child_breakdown_count|pluralize }}
+        </span>
+      {% endif %}
 
       <!-- Quick Inspect Button -->
       <button type="button" class="btn btn-sm btn-outline-secondary fx-tree-btn" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect {{ node.asset.asset_tag }}">
@@ -82,6 +88,14 @@
             •••
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
+            {% if node.health.breakdown_count and node.health.breakdown_count > 0 %}
+              <li>
+                <a class="dropdown-item text-danger fw-semibold" href="{% url 'incidents:list' %}?asset={{ node.asset.pk }}">
+                  {% icon 'alert-circle' 13 %} Active Breakdown ({{ node.health.breakdown_count }})
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+            {% endif %}
             <li>
               <button type="button" class="dropdown-item" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal">
                 {% icon 'info' 13 %} Quick Inspection
@@ -92,11 +106,13 @@
                 {% icon 'eye' 13 %} Focus in Hierarchy
               </a>
             </li>
-            <li>
-              <a class="dropdown-item" href="{% url 'assets:create' %}?parent={{ node.asset.pk }}">
-                {% icon 'plus' 13 %} Register Child Under This
-              </a>
-            </li>
+            {% if not node.link %}
+              <li>
+                <a class="dropdown-item" href="{% url 'assets:create' %}?parent={{ node.asset.pk }}">
+                  {% icon 'plus' 13 %} Register Child Under This
+                </a>
+              </li>
+            {% endif %}
             {% if node.link %}
               <li><hr class="dropdown-divider"></li>
               <li>

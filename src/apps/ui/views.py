@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -12,6 +12,7 @@ from apps.tenancy import selectors
 from apps.tenancy.models import Membership
 from .forms import ClientOnboardingForm
 from .utils import is_client_membership
+from .public_catalog import get_catalog_item, DETAIL_PAGES
 
 
 PRD_MODULES = [
@@ -36,11 +37,36 @@ PRD_MODULES = [
 def root(request):
     """Public landing page for visitors; authenticated users are routed to their workspace."""
     if request.user.is_authenticated:
+        if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
+            return redirect("platform_admin:organizations")
         membership = getattr(request, "membership", None)
         if membership and is_client_membership(membership):
             return redirect("portal:dashboard")
         return redirect("ui:home")
     return render(request, "public/landing.html", {"active_page": "home"})
+
+
+def public_product_overview(request):
+    return render(request, "public/features.html", {"active_page": "product"})
+
+
+def public_product(request, slug):
+    slug_lower = slug.lower().strip()
+    item = get_catalog_item("product", slug_lower)
+    if not item:
+        raise Http404(f"Product '{slug}' not found.")
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "product",
+            "category": "product",
+            "section_name": "Product",
+            "section_url": "/product/",
+            "item": item,
+            "selected_slug": slug_lower,
+        },
+    )
 
 
 def public_features(request):
@@ -52,7 +78,23 @@ def public_solutions(request):
 
 
 def public_solution(request, slug):
-    return render(request, "public/solutions.html", {"active_page": "solutions", "selected_slug": slug})
+    slug_lower = slug.lower().strip()
+    item = get_catalog_item("solutions", slug_lower)
+    if not item:
+        raise Http404(f"Solution '{slug}' not found.")
+    canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "solutions",
+            "category": "solutions",
+            "section_name": "Solutions",
+            "section_url": "/solutions/",
+            "item": item,
+            "selected_slug": canonical_slug,
+        },
+    )
 
 
 def public_modules(request):
@@ -61,8 +103,22 @@ def public_modules(request):
 
 def public_module(request, module_id):
     slug_lower = module_id.lower().strip()
-    mod = next((m for m in PRD_MODULES if m.get("slug") == slug_lower or m["id"].lower() == slug_lower), None)
-    return render(request, "public/modules.html", {"active_page": "modules", "module_list": PRD_MODULES, "selected_module": mod, "selected_slug": slug_lower})
+    item = get_catalog_item("modules", slug_lower)
+    if not item:
+        raise Http404(f"Module '{module_id}' not found.")
+    canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    return render(
+        request,
+        "public/detail.html",
+        {
+            "active_page": "modules",
+            "category": "modules",
+            "section_name": "Modules",
+            "section_url": "/modules/",
+            "item": item,
+            "selected_slug": canonical_slug,
+        },
+    )
 
 
 def public_resources(request):
@@ -112,6 +168,7 @@ def public_legal(request, slug):
     titles = {
         "privacy-policy": "Privacy Policy & Data Protection",
         "terms-and-conditions": "Terms and Conditions of Use",
+        "terms-of-service": "Terms of Service & User Agreement",
         "disclaimer": "Enterprise System Disclaimer",
         "cookie-policy": "Cookie & Session Policy",
     }
@@ -119,6 +176,7 @@ def public_legal(request, slug):
     contents = {
         "privacy-policy": "<p>FieldOps Nexus enforces strict tenant-isolated data protection compliant with enterprise standards. User credentials and operational telemetry are encrypted and never shared cross-tenant.</p><p>Audit logs record user interactions solely for traceability, accountability, and compliance verification under HPE Delivery Oversight guidelines.</p>",
         "terms-and-conditions": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
+        "terms-of-service": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
         "disclaimer": "<p>This system operates as an Enterprise Asset, Maintenance & Field Service ERP. System specifications and operational workflows adhere to verified technical draft standards.</p><p>Final formal acceptance is subject to the mandatory 90-calendar-day evaluation gate.</p>",
         "cookie-policy": "<p>FieldOps Nexus utilizes strictly necessary session cookies (<code>sessionid</code> and <code>csrftoken</code>) configured with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections to maintain authenticated sessions and protect against cross-site request forgery.</p>",
     }
@@ -239,6 +297,9 @@ def home(request):
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
+    if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
+        return redirect("platform_admin:organizations")
+
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
     if request.membership is None:
@@ -309,6 +370,9 @@ def home(request):
         rbac.has_permission(request.membership, "work_order.view")
         or rbac.has_permission(request.membership, "work_order.view_assigned")
     )
+    capacity_summary = None
+    current_in_progress_job = None
+    assigned_work_orders = []
 
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
@@ -328,13 +392,16 @@ def home(request):
             {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
         ]
         shortcuts = [
+            {"label": "Operations Analytics", "url": reverse("dashboards:hub"), "icon": "activity"},
+            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Facility Sites", "url": reverse("sites:list"), "icon": "building"},
             {"label": "Users & Access", "url": reverse("tenancy:members"), "icon": "people"},
             {"label": "Roles & Permissions", "url": reverse("rbac:roles"), "icon": "shield"},
-            {"label": "Facility Sites", "url": reverse("sites:list"), "icon": "building"},
-            {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "clock"},
+            {"label": "Immutable Audit Trail", "url": reverse("audit:list"), "icon": "clock"},
         ]
         header_actions = [
-            {"label": "Users", "url": reverse("tenancy:members"), "icon": "people"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "activity"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "shield"},
         ]
         if rbac.has_permission(request.membership, "audit.view"):
@@ -425,6 +492,23 @@ def home(request):
         activity_link_label = "All Incidents →"
 
     elif persona_key in ("technician", "field_technician"):
+        from apps.workspace import selectors as workspace_selectors
+        capacity_summary = workspace_selectors.daily_capacity_summary(request.membership)
+        current_in_progress_job = (
+            WorkOrder.objects.for_organization(org)
+            .filter(assigned_to=request.membership, status="IN_PROGRESS")
+            .select_related("site", "asset")
+            .first()
+        )
+        assigned_work_orders = list(
+            WorkOrder.objects.for_organization(org)
+            .filter(
+                assigned_to=request.membership,
+                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "PLANNED"],
+            )
+            .select_related("site", "asset")
+            .order_by("-status", "-priority", "planned_start", "due_at")[:8]
+        )
         my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
         my_active = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status="IN_PROGRESS").count()
         my_completed = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status__in=["COMPLETED", "CLOSED"]).count()
@@ -435,11 +519,14 @@ def home(request):
             {"title": "Completed Jobs", "value": my_completed, "subtitle": "Successfully resolved orders", "tone": "gold", "icon": "clipboard-check"},
             {"title": "My Inspections", "value": my_inspections, "subtitle": "Checklist audits conducted", "tone": "accent", "icon": "list-check"},
         ]
+        can_view_inspections = rbac.has_permission_anywhere(request.membership, "inspection.view")
         shortcuts = [
             {"label": "Technician Workspace", "url": reverse("workspace:my_jobs"), "icon": "wrench"},
             {"label": "My Work Cockpit", "url": reverse("dashboards:my_work"), "icon": "activity"},
             {"label": "Scan Asset Label", "url": reverse("identification:scan"), "icon": "qr"},
-            {"label": "Checklist Inspections", "url": reverse("checklists:inspections"), "icon": "list-check"},
+            {"label": "Checklist Inspections" if can_view_inspections else "My Work Orders",
+             "url": reverse("checklists:inspections") if can_view_inspections else reverse("workorders:mine"),
+             "icon": "list-check" if can_view_inspections else "clipboard"},
         ]
         header_actions = [
             {"label": "My Jobs", "url": reverse("workspace:my_jobs"), "icon": "wrench"},
@@ -605,6 +692,8 @@ def home(request):
             continue
         if "/app/incidents" in u and not (rbac.has_permission(request.membership, "incident.view") or rbac.has_permission(request.membership, "incident.view_assigned")):
             continue
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+            continue
         if "/app/sla" in u and not rbac.has_permission(request.membership, "sla.view"):
             continue
         filtered_shortcuts.append(s)
@@ -626,8 +715,11 @@ def home(request):
             continue
         if "/app/incidents" in u and not rbac.has_permission(request.membership, "incident.view"):
             continue
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+            continue
         filtered_headers.append(h)
 
+    is_tech = persona_key in ("technician", "field_technician")
     return render(request, "ui/home.html", {
         "persona": persona,
         "kpi_cards": kpi_cards,
@@ -640,6 +732,10 @@ def home(request):
         "activity_link_label": activity_link_label,
         "can_view_users": can_view_users,
         "can_view_assets": can_view_assets,
+        "is_technician": is_tech,
+        "current_in_progress_job": current_in_progress_job if is_tech else None,
+        "assigned_work_orders": assigned_work_orders if is_tech else [],
+        "capacity_summary": capacity_summary if is_tech else None,
     })
 
 
@@ -685,6 +781,44 @@ def search(request):
     return render(request, "ui/_search_results.html", {"results": results, "q": q})
 
 
+def bad_request(request, exception=None):
+    if request.path.startswith("/api/"):
+        from django.http import JsonResponse
+        req_id = getattr(request, "request_id", "-")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": "bad_request",
+                    "message": str(exception) if exception else "Bad request.",
+                    "details": {},
+                },
+                "meta": {"request_id": req_id},
+            },
+            status=400,
+        )
+    return render(request, "errors/400.html", status=400)
+
+
+def bad_request(request, exception=None):
+    if request.path.startswith("/api/"):
+        from django.http import JsonResponse
+        req_id = getattr(request, "request_id", "-")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": "bad_request",
+                    "message": str(exception) if exception else "Bad request.",
+                    "details": {},
+                },
+                "meta": {"request_id": req_id},
+            },
+            status=400,
+        )
+    return render(request, "errors/400.html", status=400)
+
+
 def forbidden(request, exception=None):
     return render(request, "errors/403.html", status=403)
 
@@ -694,5 +828,11 @@ def not_found(request, exception=None):
 
 
 def server_error(request):
+    import sys
+    import logging
+    logger = logging.getLogger("django.request")
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    if exc_value:
+        logger.error("Internal Server Error on %s: %s", request.path, exc_value, exc_info=(exc_type, exc_value, exc_tb))
     return HttpResponse("Server error. Please quote the X-Request-ID header when reporting this.", status=500)
 

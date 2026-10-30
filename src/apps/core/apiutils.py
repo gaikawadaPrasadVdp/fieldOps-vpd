@@ -25,3 +25,11 @@ def require_permission(membership, code: str, site=None):
     can see the object but lacks ``code`` for its site."""
     if not rbac.has_permission(membership, code, site):
         raise PermissionDenied("You do not have permission to perform this action.")
+
+import json
+from django.http import HttpResponse
+
+def htmx_success(trigger_data: dict) -> HttpResponse:
+    response = HttpResponse(status=204)
+    response["HX-Trigger"] = json.dumps(trigger_data)
+    return response

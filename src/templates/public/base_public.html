@@ -2,13 +2,15 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.2">
+  <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.2">
 {% endblock %}
 
-{% block body_class %}fx-public-site{% endblock %}
+{% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
 
 {% block body %}
-<!-- Global Right Rail: NexusScrollFlow Operational Telemetry -->
+<!-- Global Right Rail: NexusScrollFlow Operational Telemetry (excluded on features page to prevent collision with its 8-stage workflow) -->
+{% if active_page != 'features' %}
 <div class="nexus-scroll-flow-rail" aria-hidden="true">
   <div class="nexus-rail-track">
     <div class="nexus-rail-line" id="nexus-rail-line" style="transform: scaleY(0);"></div>
@@ -16,6 +18,7 @@
   </div>
   <div class="nexus-rail-stage-tag" id="nexus-stage-tag">SIGNAL INITIATED</div>
 </div>
+{% endif %}
 
 <!-- Top Sticky Public Navigation Header -->
 <header class="fx-pub-header" role="banner">
@@ -38,7 +41,7 @@
     <!-- Desktop Navigation Menu -->
     <nav class="fx-pub-nav-desktop" aria-label="Main Navigation">
       <!-- Product Dropdown Trigger -->
-      <button type="button" class="fx-pub-nav-link" data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
+      <button type="button" class="fx-pub-nav-link {% if active_page == 'product' %}active{% endif %}" data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
         <span>Product</span>
         <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -83,10 +86,10 @@
         <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
           Sign In
         </a>
-        {% comment %} <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
+        <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
           <span>Get Started</span>
           {% icon 'arrow-up-right' 15 class="arrow-icon" %}
-        </a> {% endcomment %}
+        </a>
       {% endif %}
 
       <!-- Mobile Hamburger Toggle -->
@@ -107,7 +110,7 @@
           <div class="fx-mega-heading">OVERVIEW</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'asset-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Asset Management</strong>
@@ -117,7 +120,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'service-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'wrench' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service Management</strong>
@@ -127,7 +130,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'work-order-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Work Order Management</strong>
@@ -137,7 +140,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Inventory Management</strong>
@@ -153,7 +156,7 @@
           <div class="fx-mega-heading">CAPABILITIES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'maintenance-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Maintenance Management</strong>
@@ -163,7 +166,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'workforce-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Workforce Management</strong>
@@ -173,7 +176,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'analytics-reporting' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Analytics & Reporting</strong>
@@ -183,7 +186,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+              <a href="{% url 'ui:public_product' 'audit-traceability' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Audit & Traceability</strong>
@@ -403,7 +406,7 @@
           <div class="fx-mega-heading">CORE MODULES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#organization-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'organization-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'building' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Organization Management</strong>
@@ -413,7 +416,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Asset Management</strong>
@@ -423,7 +426,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Work Order Management</strong>
@@ -433,7 +436,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'service-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'file-text' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service Management</strong>
@@ -443,7 +446,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'inventory-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Inventory Management</strong>
@@ -459,7 +462,7 @@
           <div class="fx-mega-heading">OPERATIONS & GOVERNANCE</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Maintenance Management</strong>
@@ -469,7 +472,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'workforce-management' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Workforce Management</strong>
@@ -479,7 +482,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Analytics & Reporting</strong>
@@ -489,7 +492,7 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+              <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Audit & Traceability</strong>
@@ -563,10 +566,10 @@
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-product">
         <a href="{% url 'ui:public_features' %}" class="fx-mobile-sublink">Overview &amp; Features</a>
-        <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
-        <a href="{% url 'ui:public_module' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
-        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
-        <a href="{% url 'ui:public_module' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
+        <a href="{% url 'ui:public_product' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
+        <a href="{% url 'ui:public_product' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
+        <a href="{% url 'ui:public_product' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
+        <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
       </div>
     </div>
 
@@ -580,7 +583,7 @@
         <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise Operations</a>
         <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="fx-mobile-sublink">Manufacturing</a>
         <a href="{% url 'ui:public_solution' 'facilities' %}" class="fx-mobile-sublink">Facilities Management</a>
-        <a href="{% url 'ui:public_solution' 'maintenance-management' %}" class="fx-mobile-sublink">Maintenance Management</a>
+        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fx-mobile-sublink">Service &amp; Maintenance</a>
       </div>
     </div>
 
@@ -616,9 +619,9 @@
         <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark flex-fill py-2 text-center text-decoration-none">
           Sign In
         </a>
-        {% comment %} <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
+        <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
           Get Started
-        </a> {% endcomment %}
+        </a>
       {% else %}
         <a href="{% url 'ui:home' %}" class="btn-fx-gold w-100 py-2 text-center text-decoration-none">
           Launch ERP
@@ -673,7 +676,7 @@
           <li><a href="{% url 'ui:public_solution' 'enterprise-operations' %}">Enterprise Operations</a></li>
           <li><a href="{% url 'ui:public_solution' 'manufacturing' %}">Manufacturing</a></li>
           <li><a href="{% url 'ui:public_solution' 'facilities' %}">Facilities Management</a></li>
-          <li><a href="{% url 'ui:public_solution' 'maintenance-management' %}">Maintenance</a></li>
+          <li><a href="{% url 'ui:public_solution' 'service-maintenance' %}">Service &amp; Maintenance</a></li>
         </ul>
       </div>
 
@@ -714,46 +717,15 @@
 
     <!-- Copyright -->
     <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 pt-4 small text-white-50">
-      <span>&copy; 2026 FieldOps Nexus. All rights reserved.</span>
+      <span>&copy; {% now "Y" %} FieldOps Nexus. All rights reserved.</span>
       <span>Enterprise Operations Platform Architecture</span>
     </div>
   </div>
 </footer>
 
-<!-- Floating Concierge Chat FAB & Modal -->
-<div class="fx-floating-chat select-none">
-  <div class="fx-chat-modal" data-fx-chat-modal>
-    <div class="d-flex align-items-center justify-content-between pb-3 border-bottom border-white border-opacity-10">
-      <div class="d-flex align-items-center gap-2">
-        <span class="rounded-circle bg-success d-inline-block" style="width:8px; height:8px; box-shadow:0 0 6px #10B981;"></span>
-        <strong class="small text-white">FieldOps Nexus Concierge</strong>
-      </div>
-      <button type="button" class="btn-close btn-close-white small" data-fx-chat-close aria-label="Close concierge"></button>
-    </div>
-    <p class="small text-white-50 mt-3 mb-3" style="line-height:1.5;">
-      Welcome to FieldOps Nexus. How can our operations advisory team assist your organization today?
-    </p>
-    <div class="d-flex flex-column gap-2">
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Request Platform Demo</span>
-        {% icon 'arrow-right' 13 class="text-warning" %}
-      </a>
-      <a href="{% url 'ui:public_solution' 'sla-management' %}" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Review SLA Commitments</span>
-        {% icon 'arrow-right' 13 class="text-warning" %}
-      </a>
-      <a href="mailto:support@fieldopsnexus.com" class="d-flex align-items-center justify-content-between p-2 rounded text-white text-decoration-none small" style="background:#162A4B; border:1px solid rgba(255,255,255,0.1);">
-        <span>Email Direct Support (24/7)</span>
-        {% icon 'envelope' 13 class="text-warning" %}
-      </a>
-    </div>
-  </div>
+{% endblock %}
 
-  <button type="button" class="fx-chat-fab" data-fx-chat-fab aria-label="Open support and inquiry chat">
-    <span class="fx-chat-ping"></span>
-    {% icon 'chat-dots' 24 %}
-  </button>
-</div>
-
-<script src="{% static 'js/public.js' %}"></script>
+{% block scripts %}
+<script defer src="{% static 'js/public.js' %}?v=4.2"></script>
+<script defer src="{% static 'js/public-detail.js' %}?v=4.2"></script>
 {% endblock %}

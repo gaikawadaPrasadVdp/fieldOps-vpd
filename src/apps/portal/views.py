@@ -13,6 +13,7 @@ from django.views.generic import TemplateView
 from apps.core.exceptions import DomainError
 from apps.incidents.models import ServiceRequest
 from apps.incidents.selectors import evidence_for
+from apps.incidents.services import DuplicateIncidentError
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import forms, selectors, services
@@ -98,10 +99,14 @@ class RequestCreateView(LoginRequiredMixin, View):
         form = forms.PortalServiceRequestForm(
             request.POST, request.FILES, organization=request.organization, membership=request.membership
         )
+        duplicate_detected = False
+        duplicate_records = []
         if form.is_valid():
             d = form.cleaned_data
             attachment = d.pop("attachment", None)
             attachments = [attachment] if attachment else []
+            override_dup = bool(request.POST.get("override_duplicate") in ("true", "True", "1"))
+            override_rsn = request.POST.get("override_reason", "Client confirmed separate issue")
             try:
                 sr = services.create_portal_service_request(
                     request.membership,
@@ -112,6 +117,8 @@ class RequestCreateView(LoginRequiredMixin, View):
                     service_impact=d.get("service_impact", ServiceRequest.Impact.NONE),
                     impact_notes=d.get("impact_notes", ""),
                     attachments=attachments,
+                    override_duplicate=override_dup,
+                    override_reason=override_rsn,
                     actor=request.user,
                     request=request,
                 )
@@ -120,6 +127,14 @@ class RequestCreateView(LoginRequiredMixin, View):
                     f"Service request {sr.number} has been submitted successfully.",
                 )
                 return redirect(f"/app/portal/?created={sr.number}")
+            except DuplicateIncidentError as exc:
+                duplicate_detected = True
+                duplicate_records = exc.duplicates
+                dup_num = exc.duplicates[0]["number"] if exc.duplicates else "an active request"
+                form.add_error(
+                    None,
+                    f"Possible duplicate request detected: An active request ({dup_num}) already exists for this equipment. If this is a separate issue, click 'Confirm & Submit Anyway' below.",
+                )
             except DomainError as exc:
                 form.add_error(None, exc.message)
 
@@ -131,6 +146,8 @@ class RequestCreateView(LoginRequiredMixin, View):
                 "account": self.account,
                 "company_name": self.account.company_name or request.organization.name,
                 "org": request.organization,
+                "duplicate_detected": duplicate_detected,
+                "duplicate_records": duplicate_records,
             },
             status=400,
         )

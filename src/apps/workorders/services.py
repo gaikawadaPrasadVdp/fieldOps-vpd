@@ -138,6 +138,9 @@ def transition_work_order(work_order, target_status, *, membership, actor, permi
         del wo._workflow_transition_write
     _record(wo, actor=actor, action=action, before=before, notes=reason,
             metadata=metadata, request=request)
+    _sla().on_work_order_changed(wo, (before or {}).get("status", ""), target_status, actor=actor)
+    if "priority" in (changes or {}) and (before or {}).get("priority") != wo.priority:
+        _sla().on_work_order_updated(wo, (before or {}).get("priority"), actor=actor, request=request)
     return wo
 
 
@@ -196,16 +199,26 @@ def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=
 
 def _sync_incident_request(wo, action, actor, request=None):
     """Mirror M06 lifecycle events to an M05 source incident/request when linked."""
-    if wo.source_type not in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT) or not wo.source_reference:
-        return
     from apps.incidents import services as incident_services
     from apps.incidents.models import ServiceRequest
 
-    source = ServiceRequest.objects.for_organization(wo.organization).select_for_update().filter(
-        number=wo.source_reference).first()
+    source = None
+    if getattr(wo, "source_request_id", None):
+        source = ServiceRequest.objects.for_organization(wo.organization).select_for_update().filter(
+            pk=wo.source_request_id).first()
+    elif wo.source_type in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT) and wo.source_reference:
+        source = ServiceRequest.objects.for_organization(wo.organization).select_for_update().filter(
+            number=wo.source_reference).first()
+
     if source is not None:
-        callback = getattr(incident_services, f"on_work_order_{action}")
-        callback(source, actor=actor, request=request)
+        callback = getattr(incident_services, f"on_work_order_{action}", None)
+        if callback is not None:
+            callback(source, actor=actor, request=request)
+
+
+def _sla():
+    from apps.sla import services as sla_services
+    return sla_services
 
 
 def _notify_transition(wo, action, actor):
@@ -297,7 +310,8 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         if WorkOrder.objects.filter(
                 Q(source_request=source_request) |
                 Q(source_id=source_request.pk) |
-                Q(organization=organization, source_type=source_type, source_reference=source_reference)).exists():
+                Q(organization=organization, source_type=source_type, source_reference=source_reference)
+        ).exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)).exists():
             raise Conflict("A work order is already linked to this incident or request.",
                            code="source_work_order_exists")
         fields.update({
@@ -374,12 +388,13 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     source_asset = Asset.objects.for_organization(organization).filter(pk=source_asset.pk).first()
     if source_asset is None:
         raise NotFound("Asset not found.")
-    if source_asset.status != Asset.Status.ACTIVE:
-        raise ValidationFailed("Selected asset is inactive.", code="asset_inactive")
+    allowed_asset_statuses = (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE)
+    if source_asset.status not in allowed_asset_statuses:
+        raise ValidationFailed(f"Cannot create work order for a {source_asset.status.lower()} asset.", code="asset_inactive")
     if source_asset.site_id != site.pk:
         raise ValidationFailed("Invalid asset for the selected site.", code="asset_site_mismatch")
     if component is not None:
-        if (component.organization_id != organization.pk or component.status != Asset.Status.ACTIVE or
+        if (component.organization_id != organization.pk or component.status not in (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE) or
                 not AssetComponent.objects.filter(organization=organization, parent=source_asset,
                                                   child=component,
                                                   relationship_type=AssetComponent.Relationship.COMPONENT).exists()):
@@ -426,6 +441,7 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
             msg = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
             raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
     _record(wo, actor=actor, action="created", request=request)
+    _sla().on_work_order_created(wo)
     return wo
 
 
@@ -460,6 +476,8 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
             raise ValidationFailed("Site must remain linked to the approved source record.", code="source_site_locked")
         if wo.status != WorkOrder.Status.DRAFT and new_site.pk != wo.site_id:
             raise Conflict("The site cannot be changed after the work order is planned.", code="site_locked")
+        if new_site.pk != wo.site_id and getattr(wo, "part_lines", None) and wo.part_lines.exclude(status="RECONCILED").exclude(status="CANCELLED").exists():
+            raise Conflict("The site cannot be changed while active part requirements exist.", code="part_lines_locked")
         wo.site = new_site
     asset_value = values.pop("asset", None)
     component_not_submitted = object()
@@ -541,6 +559,8 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
     except ValidationError as exc:
         raise ValidationFailed("Work order is invalid.", details={"fields": exc.message_dict if hasattr(exc, "message_dict") else exc.messages}) from exc
     _record(wo, actor=actor, action="updated", before=before, request=request)
+    if before.get("priority") != wo.priority:
+        _sla().on_work_order_updated(wo, before.get("priority"), actor=actor, request=request)
     return wo
 
 
@@ -726,6 +746,9 @@ def start_work_order(wo, *, membership, actor, expected_version=None, request=No
         permission="work_order.start", action="started", changes={"started_at": timezone.now()},
         expected_version=expected_version, request=request)
     _sync_incident_request(wo, "started", actor, request)
+    if wo.asset_id:
+        from apps.assets import services as asset_services
+        asset_services.on_work_order_started(wo, actor=actor, request=request)
     return wo
 
 
@@ -779,6 +802,8 @@ def _check_completion(wo, notes):
         raise ValidationFailed("Resolution notes must contain at least 10 characters.", code="resolution_notes_required")
     from .checklist_adapter import validate_for_completion
     validate_for_completion(wo)
+    if not wo.labor_entries.exists():
+        raise Conflict("Record at least one labor entry before completing this work order.", code="labor_required")
     evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
     if evidence_required and not wo.completion_evidence.exists():
         raise Conflict("Attach completion evidence before completing this work order.", code="evidence_required")
@@ -829,10 +854,6 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     _need(membership, code, wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     notes = (notes or "").strip()
-    if approved and wo.status == WorkOrder.Status.CLOSED:
-        # The close endpoint is safe to retry after a network timeout.
-        if wo.closure_approvals.filter(decision=ClosureApproval.Decision.APPROVED).exists():
-            return wo
     if wo.status != WorkOrder.Status.SUPERVISOR_REVIEW:
         raise InvalidTransition("Only work orders awaiting supervisor review can be reviewed.")
     if approved and require_comment and not notes:
@@ -861,6 +882,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     elif approved:
         from apps.inventory import services as inventory_services
         inventory_services.on_work_order_closed(wo, actor=actor, request=request)
+        if wo.asset_id:
+            from apps.assets import services as asset_services
+            asset_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -882,11 +906,13 @@ def cancel_work_order(wo, *, membership, actor, reason="", expected_version=None
     _need(membership, "work_order.cancel", wo.site)
     from apps.inventory import services as inventory_services
     inventory_services.on_work_order_cancelled(wo, actor=actor, request=request)
-    return transition_work_order(
+    wo = transition_work_order(
         wo, WorkOrder.Status.CANCELLED, membership=membership, actor=actor,
         permission="work_order.cancel", action="cancelled", reason=reason,
         expected_version=expected_version, request=request,
     )
+    _sync_incident_request(wo, "cancelled", actor, request)
+    return wo
 
 
 @transaction.atomic
@@ -917,9 +943,9 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
     if wo.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED):
         raise Conflict("Checklist references are read-only after work is assigned.",
                        code="checklist_reference_read_only")
-    if template_ref != wo.checklist_template_ref:
-        raise ValidationFailed("Checklist template does not match the required work-type template.",
-                               code="checklist_template_mismatch")
+    template_ref = (template_ref or "").strip()
+    if not template_ref:
+        raise ValidationFailed("A checklist template reference is required.", code="checklist_template_required")
     instance_ref = (instance_ref or "").strip()
     if not instance_ref:
         raise ValidationFailed("A checklist instance reference is required.", code="checklist_instance_required")
@@ -954,7 +980,7 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
-                                          description=desc)
+                                          description=desc, notes=desc[:300])
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
             request=request)
     return entry
@@ -1019,6 +1045,8 @@ def closure_blockers(wo):
     blockers = []
     if len((wo.resolution_notes or "").strip()) < 10:
         blockers.append("Resolution notes must contain at least 10 characters.")
+    if not wo.labor_entries.exists():
+        blockers.append("Record at least one labor entry before completing this work order.")
     from apps.checklists import services as checklist_services
     blockers.extend(checklist_services.checklist_blockers(wo))
     from apps.inventory import services as inventory_services

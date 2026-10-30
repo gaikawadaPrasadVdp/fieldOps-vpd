@@ -55,7 +55,7 @@ from apps.sla.api_views import (
     SLAProfileViewSet,
     SLATrackingViewSet,
 )
-from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet
+from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet
 from apps.workorders.views import WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
@@ -104,6 +104,12 @@ api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
+    path("platform/organizations/", PlatformOrganizationViewSet.as_view({"get": "list", "post": "create"}),
+         name="platform-organizations-list"),
+    path("platform/organizations/<uuid:pk>/", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
+         name="platform-organizations-detail"),
+    path("platform/organizations/<uuid:pk>/status/", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
+         name="platform-organizations-status"),
     path("portal/", include("apps.portal.api_urls")),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
@@ -131,8 +137,8 @@ urlpatterns = [
     path("app/", include("apps.assets.urls")),
     path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
-    path("app/", include("apps.workorders.urls_ui")),
     path("app/", include("apps.inventory.urls")),
+    path("app/", include("apps.workorders.urls_ui")),
     path("app/", include("apps.maintenance.urls")),
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
@@ -145,6 +151,8 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
 
+handler400 = "apps.ui.views.bad_request"
+handler400 = "apps.ui.views.bad_request"
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"
 handler500 = "apps.ui.views.server_error"

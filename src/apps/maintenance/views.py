@@ -3,8 +3,13 @@ permission for the plan's site (403) -> service (validation, row locks, audit). 
 generate / enable / disable buttons post to endpoints that call the services (no client-side scheduling)."""
 from __future__ import annotations
 
+import logging
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import IntegrityError
+
+logger = logging.getLogger(__name__)
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -84,9 +89,19 @@ class PlanCreateView(PmBase):
         return PlanForm(data, assets=assets, checklist_keys=_checklist_keys(request.organization),
                         initial={"asset": request.GET.get("asset")} if data is None else None)
 
+    def _page(self, request, form, status=200):
+        return render(request, "maintenance/plan_form.html", {
+            "title": "New maintenance plan",
+            "subtitle": "Define preventive maintenance protocol, asset assignment, checklist, and default priority.",
+            "form": form,
+            "editing": False,
+            "submit": "Create plan",
+            "cancel_url": "/app/maintenance/plans/",
+            "crumbs": self.crumbs,
+        }, status=status)
+
     def get(self, request):
-        return form_page(request, title="New maintenance plan", form=self._form(request), submit="Create plan",
-                         cancel_url="/app/maintenance/plans/", crumbs=self.crumbs)
+        return self._page(request, self._form(request))
 
     def post(self, request):
         form = self._form(request, request.POST)
@@ -101,8 +116,14 @@ class PlanCreateView(PmBase):
                 return redirect("maintenance:plan", pk=plan.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
-        return form_page(request, title="New maintenance plan", form=form, submit="Create plan",
-                         cancel_url="/app/maintenance/plans/", crumbs=self.crumbs, status=400)
+            except PermissionDenied:
+                form.add_error(None, "You do not have permission to create a maintenance plan for this asset's site.")
+            except IntegrityError as exc:
+                form.add_error(None, "A plan with this name already exists for this asset or a database conflict occurred.")
+            except Exception as exc:
+                logger.exception("Error creating maintenance plan: %s", exc)
+                form.add_error(None, f"Unable to create plan: {exc}")
+        return self._page(request, form, status=400)
 
 
 class PlanEditView(PmBase):
@@ -114,10 +135,17 @@ class PlanEditView(PmBase):
         return plan
 
     def _page(self, request, plan, form, status=200):
-        return form_page(request, title=f"Edit {plan.name}", form=form, submit="Save", status=status,
-                         cancel_url=f"/app/maintenance/plans/{plan.pk}/",
-                         crumbs=[("Maintenance plans", "/app/maintenance/plans/"),
-                                 (plan.name, f"/app/maintenance/plans/{plan.pk}/"), ("Edit", None)])
+        return render(request, "maintenance/plan_form.html", {
+            "title": f"Edit {plan.name}",
+            "subtitle": "Update maintenance plan details, checklist template, or estimated labor duration.",
+            "form": form,
+            "plan": plan,
+            "editing": True,
+            "submit": "Save",
+            "cancel_url": f"/app/maintenance/plans/{plan.pk}/",
+            "crumbs": [("Maintenance plans", "/app/maintenance/plans/"),
+                      (plan.name, f"/app/maintenance/plans/{plan.pk}/"), ("Edit", None)],
+        }, status=status)
 
     def get(self, request, pk):
         plan = self._plan(request, pk)
@@ -181,12 +209,17 @@ class ScheduleCreateView(PmBase):
         return plan
 
     def _page(self, request, plan, form, status=200):
-        return form_page(request, title=f"New schedule for {plan.name}", form=form, submit="Create schedule",
-                         status=status, cancel_url=f"/app/maintenance/plans/{plan.pk}/",
-                         crumbs=[("Maintenance plans", "/app/maintenance/plans/"),
-                                 (plan.name, f"/app/maintenance/plans/{plan.pk}/"), ("New schedule", None)],
-                         subtitle="Time-based schedules fill the frequency, interval and first due date; "
-                                  "meter-based schedules pick one of the asset's meters and an interval.")
+        return render(request, "maintenance/schedule_form.html", {
+            "title": f"New schedule for {plan.name}",
+            "subtitle": "Time-based schedules fill the frequency, interval and first due date; meter-based schedules pick one of the asset's meters and an interval.",
+            "form": form,
+            "plan": plan,
+            "editing": False,
+            "cancel_url": f"/app/maintenance/plans/{plan.pk}/",
+            "crumbs": [("Maintenance plans", "/app/maintenance/plans/"),
+                       (plan.name, f"/app/maintenance/plans/{plan.pk}/"), ("New schedule", None)],
+            "submit": "Create schedule",
+        }, status=status)
 
     def get(self, request, pk):
         plan = self._plan(request, pk)
@@ -230,20 +263,27 @@ class ScheduleEditView(ScheduleBase):
     required_permission = "maintenance.update"
 
     def _page(self, request, sch, form, status=200):
-        return form_page(request, title=f"Edit schedule: {sch.describe()}", form=form, submit="Save", status=status,
-                         cancel_url=f"/app/maintenance/schedules/{sch.pk}/",
-                         crumbs=[("Maintenance plans", "/app/maintenance/plans/"),
-                                 (sch.plan.name, f"/app/maintenance/plans/{sch.plan_id}/"), ("Edit schedule", None)],
-                         subtitle="Changing the recurrence restarts it at the next occurrence that is not in the past.")
+        return render(request, "maintenance/schedule_form.html", {
+            "title": f"Edit schedule: {sch.describe()}",
+            "subtitle": "Changing the recurrence restarts it at the next occurrence that is not in the past.",
+            "form": form,
+            "plan": sch.plan,
+            "sch": sch,
+            "editing": True,
+            "cancel_url": f"/app/maintenance/schedules/{sch.pk}/",
+            "crumbs": [("Maintenance plans", "/app/maintenance/plans/"),
+                       (sch.plan.name, f"/app/maintenance/plans/{sch.plan_id}/"), ("Edit schedule", None)],
+            "submit": "Save schedule",
+        }, status=status)
 
     def get(self, request, pk):
         sch = self.sch(request, pk, "maintenance.update")
         initial = {f: getattr(sch, f) for f in ScheduleForm.base_fields if f != "trigger_type"}
-        return self._page(request, sch, ScheduleForm(editing=True, meters=_meters(sch.plan), initial=initial))
+        return self._page(request, sch, ScheduleForm(editing=True, meters=_meters(sch.plan), initial=initial, trigger_type=sch.trigger_type))
 
     def post(self, request, pk):
         sch = self.sch(request, pk, "maintenance.update")
-        form = ScheduleForm(request.POST, editing=True, meters=_meters(sch.plan))
+        form = ScheduleForm(request.POST, editing=True, meters=_meters(sch.plan), trigger_type=sch.trigger_type)
         if form.is_valid():
             try:
                 services.update_schedule(sch, actor=request.user, request=request, **form.cleaned_data)
@@ -313,8 +353,10 @@ class HistoryView(PmBase):
     def get(self, request):
         m, org = request.membership, request.organization
         qs = selectors.filter_cycles(selectors.cycles_for(m, org), request.GET)
+        compliance = selectors.pm_compliance_ratio(m, org, plan_id=request.GET.get("plan"))
         page = _paged(request, qs, 25)
         page.object_list = _with_state(page.object_list)
         return render(request, "maintenance/history.html", {
             "page": page, "filters": request.GET,
-            "plans": selectors.plans_for(m, org).order_by("name")})
+            "plans": selectors.plans_for(m, org).order_by("name"),
+            "compliance": compliance})
