@@ -120,6 +120,7 @@
             <span class="fw-bold">{{ selected_root.asset_tag }}</span>
             <span class="text-body-secondary">· {{ selected_root.name }}</span>
             {% status_badge selected_root.status %}
+            {% component_health_badge selected_root %}
           </div>
           <div class="d-flex gap-2">
             <a class="btn btn-sm btn-outline-primary" href="{% url 'assets:detail' selected_root.pk %}?tab=hierarchy">

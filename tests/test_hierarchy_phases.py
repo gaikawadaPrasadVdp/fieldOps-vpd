@@ -49,22 +49,24 @@ def test_phase_2_direct_circular_dependency_prevention(org_a, site_a1, make_cate
 
 
 def test_phase_3_multilevel_deep_circular_dependency_prevention(org_a, site_a1, make_category, owner_a):
-    """Phase 3: Multi-level cycle (A -> B -> C, then moving A under C) must be blocked."""
+    """Phase 3: Registering a parent under another parent (multi-level nesting) must be blocked."""
     cat = make_category(org_a, "HVAC")
     node_a = services.create_asset(org_a, site=site_a1, category=cat, actor=owner_a, asset_tag="NODE-A", name="Node A")
     node_b = services.create_asset(org_a, site=site_a1, category=cat, actor=owner_a, asset_tag="NODE-B", name="Node B")
     node_c = services.create_asset(org_a, site=site_a1, category=cat, actor=owner_a, asset_tag="NODE-C", name="Node C")
 
-    # Build chain: A -> B -> C
+    # Link A -> B (node_b becomes a child)
     hierarchy.add_component(parent=node_a, child=node_b, actor=owner_a)
-    hierarchy.add_component(parent=node_b, child=node_c, actor=owner_a)
 
-    assert hierarchy.ancestors(node_c) == [node_b, node_a]
-
-    # Try creating cycle: C -> A
+    # Attempting to add node_c under node_b (which is already a child) must fail: child_cannot_be_parent
     with pytest.raises(ValidationFailed) as exc:
+        hierarchy.add_component(parent=node_b, child=node_c, actor=owner_a)
+    assert exc.value.code == "child_cannot_be_parent"
+
+    # Attempting to add node_a (which is already a parent) as a child under node_c must fail: parent_cannot_be_child
+    with pytest.raises(ValidationFailed) as exc2:
         hierarchy.add_component(parent=node_c, child=node_a, actor=owner_a)
-    assert exc.value.code == "hierarchy_cycle"
+    assert exc2.value.code == "parent_cannot_be_child"
 
 
 def test_phase_4_self_parenting_prevention(org_a, site_a1, make_category, owner_a):
