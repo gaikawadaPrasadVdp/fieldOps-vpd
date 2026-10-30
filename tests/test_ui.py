@@ -96,6 +96,22 @@ def test_invite_form_persists_and_audits(client, owner_a, org_a):
     assert m.status == "INVITED"
 
 
+def test_user_creation_with_password_creates_active_member(client, owner_a, org_a):
+    client.force_login(owner_a)
+    rid = Role.objects.unscoped().get(organization=org_a, system_key="technician").pk
+    r = client.post("/app/users/invite/", {
+        "email": "direct.tech@alpha.test",
+        "full_name": "Direct Tech",
+        "roles": [rid],
+        "password": "FieldOps@2026!",
+    })
+    assert r.status_code == 302
+    m = Membership.objects.unscoped().get(organization=org_a, user__email="direct.tech@alpha.test")
+    assert m.status == Membership.Status.ACTIVE
+    assert m.user.has_usable_password()
+    assert m.user.check_password("FieldOps@2026!")
+
+
 def test_member_actions_via_ui_require_permission(client, tech_a, org_a, owner_a):
     m = Membership.objects.unscoped().get(organization=org_a, user=owner_a)
     client.force_login(tech_a)
@@ -293,3 +309,123 @@ def test_technician_dashboard_active_clocked_in_banner_and_queue(client, org_a, 
     # 3. Capacity utilization gauge
     assert "Today&#x27;s Shift Capacity" in html or "Today's Shift Capacity" in html
     assert "Shift Utilization" in html
+
+
+def test_technician_dashboard_shows_only_assigned_and_no_unassigned(client, org_a, tech_a, owner_a):
+    from apps.sites.models import Site
+    from apps.assets.models import Asset, AssetCategory
+    from apps.workorders.models import WorkOrder
+    from django.urls import reverse
+
+    membership = Membership.objects.get(organization=org_a, user=tech_a)
+    site = Site.objects.create(organization=org_a, name="Test Plant Site", code="TPS-01")
+    cat = AssetCategory.objects.create(organization=org_a, name="Turbines")
+    asset = Asset.objects.create(organization=org_a, site=site, category=cat, name="Steam Turbine 1", asset_tag="TRB-001")
+
+    # 1. Assigned job to technician
+    wo_assigned = WorkOrder.objects.create(
+        organization=org_a,
+        site=site,
+        asset=asset,
+        order_number="WO-ASSIGNED-101",
+        title="Assigned Turbine Maintenance",
+        status=WorkOrder.Status.DISPATCHED,
+        priority=WorkOrder.Priority.HIGH,
+        assigned_to=membership,
+    )
+    # 2. Unassigned job
+    wo_unassigned = WorkOrder.objects.create(
+        organization=org_a,
+        site=site,
+        asset=asset,
+        order_number="WO-UNASSIGNED-999",
+        title="Unassigned Turbine Inspection",
+        status=WorkOrder.Status.PLANNED,
+        priority=WorkOrder.Priority.MEDIUM,
+        assigned_to=None,
+    )
+
+    client.force_login(tech_a)
+
+    # Check Technician Home (/app/)
+    r_home = client.get("/app/")
+    assert r_home.status_code == 200
+    home_html = r_home.content.decode()
+    assert "WO-ASSIGNED-101" in home_html
+    assert "Assigned Turbine Maintenance" in home_html
+    assert "WO-UNASSIGNED-999" not in home_html
+    assert "Unassigned Turbine Inspection" not in home_html
+
+    # Check Work Orders List (/app/work-orders/)
+    r_list = client.get(reverse("workorders:list"))
+    assert r_list.status_code == 200
+    list_html = r_list.content.decode()
+    assert "WO-ASSIGNED-101" in list_html
+    assert "Assigned Turbine Maintenance" in list_html
+    assert "WO-UNASSIGNED-999" not in list_html
+    assert "Unassigned Turbine Inspection" not in list_html
+    assert "My assigned work orders" in list_html
+    # Status cards: PLANNED has 0 because the unassigned planned order is NOT visible to technician
+    status_card_map = {c["code"]: c["count"] for c in r_list.context["status_cards"]}
+    assert status_card_map.get(WorkOrder.Status.DISPATCHED, 0) == 1
+    assert status_card_map.get(WorkOrder.Status.PLANNED, 0) == 0
+
+    # Check Technician Workspace (/app/workspace/)
+    r_workspace = client.get(reverse("workspace:my_jobs"))
+    assert r_workspace.status_code == 200
+    ws_html = r_workspace.content.decode()
+    assert "WO-ASSIGNED-101" in ws_html
+    assert "WO-UNASSIGNED-999" not in ws_html
+
+    # Check My Work Cockpit (/app/dashboards/my-work/)
+    r_cockpit = client.get(reverse("dashboards:my_work"))
+    assert r_cockpit.status_code == 200
+    cockpit_html = r_cockpit.content.decode()
+    assert "WO-ASSIGNED-101" in cockpit_html
+    assert "WO-UNASSIGNED-999" not in cockpit_html
+
+    # Supervisor / Owner CAN see both assigned and unassigned work orders in /app/work-orders/
+    client.force_login(owner_a)
+    r_owner = client.get(reverse("workorders:list"))
+    assert r_owner.status_code == 200
+    owner_html = r_owner.content.decode()
+    assert "WO-ASSIGNED-101" in owner_html
+    assert "WO-UNASSIGNED-999" in owner_html
+
+
+def test_client_user_creation_creates_portal_account_and_grants(client, org_a, owner_a, site_a1, make_asset):
+    from apps.portal.models import PortalAccount, PortalAssetGrant
+    from apps.rbac.models import Role
+    from apps.tenancy import services as tenancy_services
+
+    asset = make_asset(org_a, site_a1, "CHILLER-PORTAL-TEST")
+    client_role = Role.objects.unscoped().get(organization=org_a, system_key="client_requester")
+
+    client.force_login(owner_a)
+    # Invite/create member via UI POST
+    post_data = {
+        "email": "new.portal.requester@acme.test",
+        "full_name": "New Requester",
+        "password": "FieldOps@2026!",
+        "roles": [str(client_role.pk)],
+        "sites": [],
+    }
+    from django.urls import reverse
+    r = client.post(reverse("tenancy:member_invite"), data=post_data, follow=True)
+    assert r.status_code == 200
+
+    # Verify membership is active and PortalAccount exists
+    from apps.accounts.models import User
+    new_user = User.objects.get(email="new.portal.requester@acme.test")
+    membership = new_user.memberships.get(organization=org_a)
+    assert membership.status == "ACTIVE"
+
+    account = PortalAccount.objects.filter(membership=membership).first()
+    assert account is not None
+    assert account.is_enabled is True
+    assert PortalAssetGrant.objects.filter(portal_account=account, asset=asset).exists()
+
+    # Client can log in and view /app/portal/ without 403
+    client.force_login(new_user)
+    r_portal = client.get("/app/portal/")
+    assert r_portal.status_code == 200

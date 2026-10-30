@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% load ui_tags %}
 {% block title %}Create Organization · Platform Administration · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header">
@@ -59,6 +60,18 @@
             {{ form.owner_email }}
             {% if form.owner_email.help_text %}<div class="form-text">{{ form.owner_email.help_text }}</div>{% endif %}
             {% for error in form.owner_email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="{{ form.owner_password.id_for_label }}" class="form-label fw-semibold">{{ form.owner_password.label }}</label>
+            <div class="input-group">
+              {{ form.owner_password }}
+              <button class="btn btn-outline-secondary fx-password-toggle" type="button" aria-label="Toggle password visibility" title="Show password" data-target="{{ form.owner_password.id_for_label }}" tabindex="-1">
+                <span class="fx-pw-show">{% icon 'eye' 16 %}</span>
+                <span class="fx-pw-hide d-none">{% icon 'eye-off' 16 %}</span>
+              </button>
+            </div>
+            {% if form.owner_password.help_text %}<div class="form-text">{{ form.owner_password.help_text }}</div>{% endif %}
+            {% for error in form.owner_password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
           </div>
         </div>
 

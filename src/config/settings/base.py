@@ -218,6 +218,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.inventory.tasks.fan_out_reorder_alerts",
         "schedule": 60 * 60 * 6,
     },
+    "process-scheduled-organization-deletions": {
+        "task": "apps.tenancy.tasks.process_scheduled_deletions",
+        "schedule": 60 * 60,
+    },
 }
 
 # --- Email ------------------------------------------------------------------------------------

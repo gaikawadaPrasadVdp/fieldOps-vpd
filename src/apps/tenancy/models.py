@@ -27,6 +27,12 @@ class Organization(BaseModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deletion_reason = models.CharField(max_length=500, blank=True)
+    deletion_grace_days = models.PositiveIntegerField(default=0, null=True, blank=True)
+    deletion_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     class Meta:
         ordering = ["name"]
@@ -38,6 +44,18 @@ class Organization(BaseModel):
     @property
     def is_active(self):
         return self.status == self.Status.ACTIVE
+
+    @property
+    def is_scheduled_for_deletion(self) -> bool:
+        return bool(self.deletion_scheduled_at and self.deletion_scheduled_at > timezone.now())
+
+    @property
+    def days_until_deletion(self) -> int:
+        if not self.deletion_scheduled_at:
+            return 0
+        diff = self.deletion_scheduled_at - timezone.now()
+        from math import ceil
+        return max(1, ceil(diff.total_seconds() / 86400)) if diff.total_seconds() > 0 else 0
 
     @staticmethod
     def make_slug(name: str) -> str:

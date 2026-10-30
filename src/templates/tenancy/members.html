@@ -3,7 +3,7 @@
 {% block title %}Users · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header"><h1>Users</h1>
-  {% if can_invite %}<a class="btn btn-primary" href="{% url 'tenancy:member_invite' %}">{% icon 'plus' 16 %} Invite user</a>{% endif %}</div>
+  {% if can_invite %}<a class="btn btn-primary" href="{% url 'tenancy:member_invite' %}">{% icon 'plus' 16 %} Add user</a>{% endif %}</div>
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <input class="form-control form-control-sm" style="max-width:280px" type="search" name="q" value="{{ q }}" placeholder="Name or email">

@@ -60,18 +60,6 @@ def _save(obj, message: str, code: str):
 @transaction.atomic
 def create_site(org, *, actor, request=None, **data) -> Site:
     data = _clean(data, SITE_FIELDS)
-    cp = (data.get("contact_phone") or "").strip()
-    if cp:
-        import re as _phone_re
-        digits = _phone_re.sub(r"\D", "", cp)
-        if len(digits) < 7 or len(digits) > 15 or not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cp):
-            raise ValidationFailed("Invalid contact phone number format.", code="invalid_phone")
-    cp = (data.get("contact_phone") or "").strip()
-    if cp:
-        import re as _phone_re
-        digits = _phone_re.sub(r"\D", "", cp)
-        if len(digits) < 7 or len(digits) > 15 or not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cp):
-            raise ValidationFailed("Invalid contact phone number format.", code="invalid_phone")
     data["code"] = _code(data.get("code", ""), what="Site code")
     if not data.get("name"):
         raise ValidationFailed("Site name is required.")
@@ -432,18 +420,6 @@ def _check_escalation_order(order):
 @transaction.atomic
 def add_contact(site: Site, *, actor, request=None, **data) -> SiteContact:
     data = _clean(data, CONTACT_FIELDS)
-    p = (data.get("phone") or "").strip()
-    if p:
-        import re as _phone_re
-        digits = _phone_re.sub(r"\D", "", p)
-        if len(digits) < 7 or len(digits) > 15 or not _phone_re.match(r"^[+]?[0-9\s()./-]+$", p):
-            raise ValidationFailed("Invalid phone number format.", code="invalid_phone")
-    p = (data.get("phone") or "").strip()
-    if p:
-        import re as _phone_re
-        digits = _phone_re.sub(r"\D", "", p)
-        if len(digits) < 7 or len(digits) > 15 or not _phone_re.match(r"^[+]?[0-9\s()./-]+$", p):
-            raise ValidationFailed("Invalid phone number format.", code="invalid_phone")
     if not data.get("name"):
         raise ValidationFailed("Contact name is required.")
     if not (data.get("phone") or data.get("email")):

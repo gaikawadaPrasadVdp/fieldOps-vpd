@@ -26,36 +26,6 @@ class SiteSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-import re as _phone_re
-
-def _validate_phone_num(val: str):
-    if not val:
-        return val
-    cleaned = val.strip()
-    if not cleaned:
-        return ""
-    digits = _phone_re.sub(r"\D", "", cleaned)
-    if len(digits) < 7 or len(digits) > 15:
-        raise serializers.ValidationError("Phone number must contain between 7 and 15 digits.")
-    if not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cleaned):
-        raise serializers.ValidationError("Phone number format is invalid.")
-    return cleaned
-
-import re as _phone_re
-
-def _validate_phone_num(val: str):
-    if not val:
-        return val
-    cleaned = val.strip()
-    if not cleaned:
-        return ""
-    digits = _phone_re.sub(r"\D", "", cleaned)
-    if len(digits) < 7 or len(digits) > 15:
-        raise serializers.ValidationError("Phone number must contain between 7 and 15 digits.")
-    if not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cleaned):
-        raise serializers.ValidationError("Phone number format is invalid.")
-    return cleaned
-
 class SiteWriteSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=30)
     name = serializers.CharField(max_length=150)
@@ -69,12 +39,6 @@ class SiteWriteSerializer(serializers.Serializer):
     contact_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
-
-    def validate_contact_phone(self, value):
-        return _validate_phone_num(value)
-
-    def validate_contact_phone(self, value):
-        return _validate_phone_num(value)
 
 
 class ReasonSerializer(serializers.Serializer):
@@ -171,12 +135,6 @@ class ContactWriteSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     escalation_order = serializers.IntegerField(min_value=1, max_value=MAX_ESCALATION_ORDER, required=False)
     notes = serializers.CharField(max_length=300, required=False, allow_blank=True)
-
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
-
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
 
 
 class ContactUpdateSerializer(ContactWriteSerializer):

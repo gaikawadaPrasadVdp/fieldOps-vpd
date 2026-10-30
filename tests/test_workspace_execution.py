@@ -322,6 +322,10 @@ class WorkspaceExecutionTests(TestCase):
             attachment=att,
             linked_by=self.tech.user,
         )
+        wo_services.record_labor(
+            wo, technician=self.tech, work_date=timezone.localdate(), hours="1.5",
+            description="Replaced impeller", actor=self.tech.user, membership=self.tech,
+        )
 
         completed = ws_services.complete_job(
             wo,
@@ -347,6 +351,10 @@ class WorkspaceExecutionTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"My Assigned Jobs", res.content)
         self.assertIn(wo.order_number.encode(), res.content)
+        self.assertNotIn(b"{% include", res.content)
+        self.assertIn(b"fx-kpi-card", res.content)
+        self.assertIn(b"Active Execution", res.content)
+        self.assertIn(b"Upcoming / Assigned", res.content)
 
         # Job detail view
         res_detail = client.get(f"/app/workspace/jobs/{wo.pk}/")
@@ -519,6 +527,10 @@ class WorkspaceExecutionTests(TestCase):
         # Attach evidence so evidence blocker passes
         dummy_file = SimpleUploadedFile("evidence.txt", b"Valid checklist verification text.", content_type="text/plain")
         ws_services.upload_job_evidence(wo, file=dummy_file, membership=self.tech, actor=self.tech.user)
+        wo_services.record_labor(
+            wo, technician=self.tech, work_date=timezone.localdate(), hours="1.0",
+            description="Checklist work", actor=self.tech.user, membership=self.tech,
+        )
 
         # Now completion succeeds
         completed = ws_services.complete_job(
@@ -741,6 +753,10 @@ class WorkspaceExecutionTests(TestCase):
         # Bypass checklist requirement to isolate evidence requirement test
         wo.checklist_required = False
         wo.save()
+        wo_services.record_labor(
+            wo, technician=self.tech, work_date=timezone.localdate(), hours="1.0",
+            description="Work logged", actor=self.tech.user, membership=self.tech,
+        )
 
         # Negative path: Corrective job without evidence fails closed
         with self.assertRaises(Conflict) as ctx:
@@ -760,6 +776,10 @@ class WorkspaceExecutionTests(TestCase):
         photo = SimpleUploadedFile("completion_evidence.txt", b"Repair verified and casing sealed.", content_type="text/plain")
         ws_services.upload_job_evidence(
             wo, file=photo, description="Completed repair photo", membership=self.tech, actor=self.tech.user
+        )
+        wo_services.record_labor(
+            wo, technician=self.tech, work_date=timezone.localdate(), hours="1.0",
+            description="Evidence verified", actor=self.tech.user, membership=self.tech,
         )
 
         # Now completion succeeds

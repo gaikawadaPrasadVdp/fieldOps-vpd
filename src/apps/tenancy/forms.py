@@ -1,11 +1,51 @@
 from django import forms
 
 from apps.rbac.models import Role
+from apps.sites.geo_data import COUNTRIES, TIMEZONES
 from apps.ui.forms import BootstrapFormMixin
 
 
 import re
 import zoneinfo
+
+
+class TimezoneChoiceField(forms.ChoiceField):
+    """Dropdown selection for Operating Timezone populated with standard IANA options."""
+    def __init__(self, *args, **kwargs):
+        choices = [("", "Select Operating Timezone...")] + list(TIMEZONES)
+        kwargs.setdefault("choices", choices)
+        kwargs.setdefault("label", "Operating Timezone")
+        widget = kwargs.get("widget") or forms.Select(attrs={"class": "form-select", "id": "id_timezone"})
+        kwargs["widget"] = widget
+        super().__init__(*args, **kwargs)
+
+    def validate(self, value):
+        if value:
+            try:
+                zoneinfo.ZoneInfo(value)
+            except Exception:
+                raise forms.ValidationError(f"Unknown timezone '{value}'. Please select a valid IANA timezone.")
+        elif self.required:
+            raise forms.ValidationError("Operating timezone is required.")
+
+
+class CountryChoiceField(forms.ChoiceField):
+    """Dropdown selection for Country Code populated with standard ISO country options."""
+    def __init__(self, *args, **kwargs):
+        choices = [("", "Select Country Code...")] + list(COUNTRIES)
+        kwargs.setdefault("choices", choices)
+        kwargs.setdefault("label", "Country Code")
+        widget = kwargs.get("widget") or forms.Select(attrs={"class": "form-select", "id": "id_country"})
+        kwargs["widget"] = widget
+        super().__init__(*args, **kwargs)
+
+    def validate(self, value):
+        if value:
+            code = value.strip().upper()
+            if len(code) != 2 or not code.isalpha():
+                raise forms.ValidationError("Country must be a valid 2-letter ISO code.")
+        elif self.required:
+            raise forms.ValidationError("Country code is required.")
 
 class OrganizationForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(
@@ -27,29 +67,13 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
         }),
         help_text="Official registered name for invoices, tax, and compliance exports."
     )
-    timezone = forms.CharField(
-        max_length=64,
-        label="Operating Timezone",
-        widget=forms.TextInput(attrs={
-            "list": "tz-datalist",
-            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
-            "required": "required",
-            "id": "id_timezone",
-        }),
+    timezone = TimezoneChoiceField(
+        required=True,
         help_text="Standard IANA timezone for operational scheduling, audits, and SLA tracking."
     )
-    country = forms.CharField(
-        max_length=2,
+    country = CountryChoiceField(
         required=False,
-        label="Country Code",
-        widget=forms.TextInput(attrs={
-            "list": "country-datalist",
-            "placeholder": "e.g. IN, US, GB, DE",
-            "maxlength": "2",
-            "style": "text-transform: uppercase;",
-            "id": "id_country",
-        }),
-        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+        help_text="Standard ISO 3166-1 alpha-2 country code."
     )
     contact_email = forms.EmailField(
         required=False,
@@ -160,9 +184,36 @@ def _site_field(org, membership=None, *, required=False):
     )
 
 
-class InviteForm(forms.Form):
-    email = forms.EmailField()
-    full_name = forms.CharField(max_length=150, required=False, help_text="Required for new accounts.")
+class InviteForm(BootstrapFormMixin, forms.Form):
+    email = forms.EmailField(
+        label="Email",
+        widget=forms.EmailInput(attrs={
+            "placeholder": "e.g. user@example.com",
+            "required": "required",
+            "autocomplete": "email",
+        }),
+    )
+    full_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Full name",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Jane Doe",
+            "autocomplete": "name",
+        }),
+        help_text="Required for new accounts."
+    )
+    password = forms.CharField(
+        max_length=128,
+        required=False,
+        initial="FieldOps@2026!",
+        label="Password",
+        widget=forms.PasswordInput(render_value=True, attrs={
+            "placeholder": "FieldOps@2026!",
+            "autocomplete": "new-password",
+        }),
+        help_text="Initial password for login (default: FieldOps@2026!). The user can change this in their dashboard."
+    )
 
     def __init__(self, *args, org, membership=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -306,32 +357,27 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
             "required": "required",
             "autocomplete": "email",
         }),
-        help_text="The owner will receive an activation invitation to set their password."
+        help_text="The owner email address used for logging in."
     )
-    timezone = forms.CharField(
-        max_length=64,
-        initial="UTC",
-        label="Operating Timezone",
-        widget=forms.TextInput(attrs={
-            "list": "tz-datalist",
-            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
-            "required": "required",
-            "id": "id_timezone",
+    owner_password = forms.CharField(
+        max_length=128,
+        required=False,
+        initial="FieldOps@2026!",
+        label="Initial Owner Password",
+        widget=forms.PasswordInput(render_value=True, attrs={
+            "placeholder": "FieldOps@2026!",
+            "autocomplete": "new-password",
         }),
+        help_text="Initial password for owner login (default: FieldOps@2026!). The owner can change this in their dashboard."
+    )
+    timezone = TimezoneChoiceField(
+        initial="UTC",
+        required=True,
         help_text="Standard IANA timezone for tenant operations and SLA calculations."
     )
-    country = forms.CharField(
-        max_length=2,
+    country = CountryChoiceField(
         required=False,
-        label="Country Code",
-        widget=forms.TextInput(attrs={
-            "list": "country-datalist",
-            "placeholder": "e.g. US, IN, GB, DE",
-            "maxlength": "2",
-            "style": "text-transform: uppercase;",
-            "id": "id_country",
-        }),
-        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+        help_text="Standard ISO 3166-1 alpha-2 country code."
     )
 
     def clean_name(self):

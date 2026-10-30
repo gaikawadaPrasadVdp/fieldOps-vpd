@@ -329,8 +329,18 @@
         <div class="card-body p-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <span class="text-body-secondary small fw-medium">Work Order Status</span>
-            <span class="badge bg-info-subtle text-info fw-semibold">{{ work_order.get_status_display }}</span>
+            <span class="badge {% if work_order.status == 'SUPERVISOR_REVIEW' %}bg-warning text-dark border border-warning{% elif work_order.status == 'CLOSED' %}bg-success text-white border border-success{% elif work_order.status == 'COMPLETED' %}bg-info text-dark border border-info{% else %}bg-info-subtle text-info{% endif %} fw-semibold">
+              {% if work_order.status == 'SUPERVISOR_REVIEW' %}{% icon 'clock' 12 %} Under Supervisor Review{% else %}{{ work_order.get_status_display }}{% endif %}
+            </span>
           </div>
+          {% if work_order.status == 'SUPERVISOR_REVIEW' %}
+          <div class="alert alert-warning d-flex align-items-center gap-2 small p-2 mb-3 shadow-none border-warning-subtle" style="background-color: #fffbeb;">
+            {% icon 'clock' 16 %}
+            <div>
+              <strong>Under Quality Review:</strong> Field work completed. Supervisor review is in progress before client confirmation.
+            </div>
+          </div>
+          {% endif %}
 
           {% if work_order.planned_start or work_order.planned_end %}
           <div class="mb-3 p-3 bg-light rounded border">

@@ -502,20 +502,30 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
         sig_file = request.FILES.get("signature_file") or d.get("signature_file")
 
         try:
-            order, signoff = services.complete_job_with_signoff(
-                wo,
-                resolution_notes=d["resolution_notes"],
-                signer_name=d["signer_name"],
-                signer_title=d.get("signer_title", ""),
-                signature_data_base64=d.get("signature_data") or None,
-                signature_file=sig_file,
-                final_photo_file=final_photo,
-                customer_notes=d.get("customer_notes", ""),
-                technician_notes=d.get("technician_notes", ""),
-                membership=request.membership,
-                actor=request.user,
-                request=request,
-            )
+            if d.get("signer_name") and (d.get("signature_data") or sig_file):
+                order, signoff = services.complete_job_with_signoff(
+                    wo,
+                    resolution_notes=d["resolution_notes"],
+                    signer_name=d["signer_name"],
+                    signer_title=d.get("signer_title", ""),
+                    signature_data_base64=d.get("signature_data") or None,
+                    signature_file=sig_file,
+                    final_photo_file=final_photo,
+                    customer_notes=d.get("customer_notes", ""),
+                    technician_notes=d.get("technician_notes", ""),
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+            else:
+                order = services.complete_job(
+                    wo,
+                    resolution_notes=d["resolution_notes"],
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+                signoff = None
         except DomainError as exc:
             return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -523,7 +533,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
             {
                 "status": order.status,
                 "order_number": order.order_number,
-                "signoff": WorkOrderSignoffSerializer(signoff).data,
+                "signoff": WorkOrderSignoffSerializer(signoff).data if signoff else None,
             },
             status=status.HTTP_200_OK,
         )

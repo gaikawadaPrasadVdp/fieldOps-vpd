@@ -252,6 +252,28 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
+    @action(detail=True, methods=["post"])
+    def transition(self, request, pk=None):
+        act = request.data.get("action")
+        clean_data = {k: v for k, v in request.data.items() if k != "action"}
+        request._full_data = clean_data
+        handler_map = {
+            "complete": self.complete,
+            "start": self.start,
+            "hold": self.hold,
+            "resume": self.resume,
+            "plan": self.plan,
+            "assign": self.assign,
+            "dispatch": self.dispatch_order,
+            "submit_for_review": self.submit_for_review,
+            "close": self.close,
+            "return_for_rework": self.return_for_rework,
+        }
+        handler = handler_map.get(act)
+        if not handler:
+            raise ValidationFailed(f"Unsupported transition action: {act}")
+        return handler(request, pk=pk)
+
     @extend_schema(request=WorkOrderCompleteSerializer, responses={200: WorkOrderSerializer},
                    description="IN_PROGRESS -> COMPLETED. Saves resolution notes after M08 checklist validation and work-type evidence requirements pass.")
     @action(detail=True, methods=["post"])

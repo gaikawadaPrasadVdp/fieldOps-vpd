@@ -458,3 +458,273 @@ function setupResponsiveTables() {
 document.addEventListener("DOMContentLoaded", setupResponsiveTables);
 document.body.addEventListener("htmx:afterSwap", setupResponsiveTables);
 document.body.addEventListener("htmx:afterSettle", setupResponsiveTables);
+
+
+/* ==========================================================================
+   Universal Password Visibility Toggle
+   ========================================================================== */
+document.addEventListener("click", function (e) {
+  var toggleBtn = e.target.closest(".fx-password-toggle");
+  if (!toggleBtn) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  var targetId = toggleBtn.getAttribute("data-target");
+  var input = targetId ? document.getElementById(targetId) : null;
+  if (!input) {
+    var group = toggleBtn.closest(".input-group");
+    if (group) {
+      input = group.querySelector("input[type='password'], input[type='text']");
+    }
+  }
+  if (!input) {
+    var prev = toggleBtn.previousElementSibling;
+    if (prev && prev.tagName && prev.tagName.toLowerCase() === "input") {
+      input = prev;
+    }
+  }
+  if (!input) return;
+
+  var isPassword = (input.type === "password");
+  input.type = isPassword ? "text" : "password";
+
+  var showIcon = toggleBtn.querySelector(".fx-pw-show");
+  var hideIcon = toggleBtn.querySelector(".fx-pw-hide");
+  if (showIcon && hideIcon) {
+    if (isPassword) {
+      showIcon.classList.add("d-none");
+      hideIcon.classList.remove("d-none");
+      toggleBtn.setAttribute("aria-label", "Hide password");
+      toggleBtn.setAttribute("title", "Hide password");
+    } else {
+      showIcon.classList.remove("d-none");
+      hideIcon.classList.add("d-none");
+      toggleBtn.setAttribute("aria-label", "Show password");
+      toggleBtn.setAttribute("title", "Show password");
+    }
+  } else {
+    var svg = toggleBtn.querySelector("svg");
+    if (svg) {
+      if (isPassword) {
+        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        toggleBtn.setAttribute("aria-label", "Hide password");
+        toggleBtn.setAttribute("title", "Hide password");
+      } else {
+        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        toggleBtn.setAttribute("aria-label", "Show password");
+        toggleBtn.setAttribute("title", "Show password");
+      }
+    }
+  }
+
+  try { input.focus(); } catch (err) {}
+});
+
+/* ==========================================================================
+   Universal Form Validation & Feedback System
+   ========================================================================== */
+(function() {
+  function getFieldLabel(field) {
+    if (!field) return "This field";
+    var id = field.id;
+    if (id) {
+      var labelEl = document.querySelector('label[for="' + id + '"]');
+      if (labelEl) {
+        var clone = labelEl.cloneNode(true);
+        clone.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        var text = clone.textContent.trim().replace(/:$/, "");
+        if (text) return text;
+      }
+    }
+    var parent = field.closest(".mb-3, .form-group, .col-md-6, .col-12");
+    if (parent) {
+      var l = parent.querySelector("label");
+      if (l) {
+        var c = l.cloneNode(true);
+        c.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        var t = c.textContent.trim().replace(/:$/, "");
+        if (t) return t;
+      }
+    }
+    return field.placeholder || field.name || "This field";
+  }
+
+  function getErrorMessage(field) {
+    var label = getFieldLabel(field);
+    var validity = field.validity;
+
+    if (validity.valueMissing) {
+      if (field.type === "checkbox") return "You must accept this to proceed.";
+      if (field.tagName.toLowerCase() === "select") return "Please select an option for " + label + ".";
+      return label + " is required.";
+    }
+
+    if (validity.typeMismatch) {
+      if (field.type === "email") return "Please enter a valid email address (e.g. name@example.com).";
+      if (field.type === "url") return "Please enter a valid website URL (starting with http:// or https://).";
+    }
+
+    if (field.type === "email" && field.value) {
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(field.value.trim())) {
+        return "Please enter a valid email address format.";
+      }
+    }
+
+    if (validity.tooShort) {
+      return label + " must be at least " + field.minLength + " characters long (currently " + field.value.length + ").";
+    }
+
+    if (validity.tooLong) {
+      return label + " must not exceed " + field.maxLength + " characters.";
+    }
+
+    if (validity.rangeUnderflow) {
+      return "Value must be at least " + field.min + ".";
+    }
+
+    if (validity.rangeOverflow) {
+      return "Value must not exceed " + field.max + ".";
+    }
+
+    if (validity.patternMismatch) {
+      return field.title || "Please match the requested format.";
+    }
+
+    return field.validationMessage || "Please enter a valid value.";
+  }
+
+  function showFieldError(field, message) {
+    field.classList.add("is-invalid");
+    field.classList.remove("is-valid");
+
+    var container = field.closest(".input-group") || field;
+    var parent = container.parentElement;
+    if (!parent) return;
+
+    var existingFeedback = parent.querySelector(".invalid-feedback[data-dynamic-error='1']");
+    if (!existingFeedback) {
+      existingFeedback = document.createElement("div");
+      existingFeedback.className = "invalid-feedback d-block small mt-1 fw-medium";
+      existingFeedback.setAttribute("data-dynamic-error", "1");
+      if (container.nextSibling) {
+        parent.insertBefore(existingFeedback, container.nextSibling);
+      } else {
+        parent.appendChild(existingFeedback);
+      }
+    }
+    existingFeedback.textContent = message;
+  }
+
+  function clearFieldError(field) {
+    field.classList.remove("is-invalid");
+    var container = field.closest(".input-group") || field;
+    var parent = container.parentElement;
+    if (parent) {
+      var feedback = parent.querySelector(".invalid-feedback[data-dynamic-error='1']");
+      if (feedback) feedback.remove();
+    }
+  }
+
+  function validateField(field) {
+    if (field.disabled || field.type === "hidden" || field.type === "submit" || field.type === "button") {
+      return true;
+    }
+
+    var isValid = field.checkValidity();
+    var customMsg = "";
+
+    if (isValid && field.type === "email" && field.value.trim()) {
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(field.value.trim())) {
+        isValid = false;
+        customMsg = "Please enter a valid email address (e.g. name@example.com).";
+      }
+    }
+
+    if (isValid && field.id === "id_new_password2") {
+      var p1 = document.getElementById("id_new_password1");
+      if (p1 && p1.value !== field.value) {
+        isValid = false;
+        customMsg = "The two password fields didn't match.";
+      }
+    }
+
+    if (!isValid) {
+      var msg = customMsg || getErrorMessage(field);
+      showFieldError(field, msg);
+      return false;
+    } else {
+      clearFieldError(field);
+      return true;
+    }
+  }
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || form.tagName.toLowerCase() !== "form") return;
+    if (form.dataset.noValidation === "true") return;
+
+    var fields = Array.from(form.querySelectorAll("input, select, textarea"));
+    var firstInvalid = null;
+    var allValid = true;
+
+    fields.forEach(function (field) {
+      var valid = validateField(field);
+      if (!valid) {
+        allValid = false;
+        if (!firstInvalid) firstInvalid = field;
+      }
+    });
+
+    if (!allValid) {
+      e.preventDefault();
+      e.stopPropagation();
+      form.classList.add("was-validated");
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      if (window.fxToast) {
+        window.fxToast("Please complete all required fields correctly before submitting.", "warning");
+      }
+    } else {
+      if (form.dataset.submitting === "true") {
+        e.preventDefault();
+        return;
+      }
+      form.dataset.submitting = "true";
+      setTimeout(function () {
+        var submitBtns = form.querySelectorAll("button[type='submit'], input[type='submit']");
+        submitBtns.forEach(function (btn) {
+          btn.disabled = true;
+        });
+      }, 50);
+    }
+  });
+
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll("form").forEach(function (form) {
+      delete form.dataset.submitting;
+      form.querySelectorAll("button[type='submit'], input[type='submit']").forEach(function (btn) {
+        btn.disabled = false;
+      });
+    });
+  });
+
+  document.addEventListener("input", function (e) {
+    var field = e.target;
+    if (field && field.classList.contains("is-invalid")) {
+      validateField(field);
+    }
+  });
+
+  document.addEventListener("change", function (e) {
+    var field = e.target;
+    if (field && (field.tagName.toLowerCase() === "select" || field.type === "checkbox" || field.type === "radio")) {
+      validateField(field);
+    }
+  });
+})();
