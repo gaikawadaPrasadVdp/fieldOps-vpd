@@ -1,11 +1,51 @@
 from django import forms
 
 from apps.rbac.models import Role
+from apps.sites.geo_data import COUNTRIES, TIMEZONES
 from apps.ui.forms import BootstrapFormMixin
 
 
 import re
 import zoneinfo
+
+
+class TimezoneChoiceField(forms.ChoiceField):
+    """Dropdown selection for Operating Timezone populated with standard IANA options."""
+    def __init__(self, *args, **kwargs):
+        choices = [("", "Select Operating Timezone...")] + list(TIMEZONES)
+        kwargs.setdefault("choices", choices)
+        kwargs.setdefault("label", "Operating Timezone")
+        widget = kwargs.get("widget") or forms.Select(attrs={"class": "form-select", "id": "id_timezone"})
+        kwargs["widget"] = widget
+        super().__init__(*args, **kwargs)
+
+    def validate(self, value):
+        if value:
+            try:
+                zoneinfo.ZoneInfo(value)
+            except Exception:
+                raise forms.ValidationError(f"Unknown timezone '{value}'. Please select a valid IANA timezone.")
+        elif self.required:
+            raise forms.ValidationError("Operating timezone is required.")
+
+
+class CountryChoiceField(forms.ChoiceField):
+    """Dropdown selection for Country Code populated with standard ISO country options."""
+    def __init__(self, *args, **kwargs):
+        choices = [("", "Select Country Code...")] + list(COUNTRIES)
+        kwargs.setdefault("choices", choices)
+        kwargs.setdefault("label", "Country Code")
+        widget = kwargs.get("widget") or forms.Select(attrs={"class": "form-select", "id": "id_country"})
+        kwargs["widget"] = widget
+        super().__init__(*args, **kwargs)
+
+    def validate(self, value):
+        if value:
+            code = value.strip().upper()
+            if len(code) != 2 or not code.isalpha():
+                raise forms.ValidationError("Country must be a valid 2-letter ISO code.")
+        elif self.required:
+            raise forms.ValidationError("Country code is required.")
 
 class OrganizationForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(
@@ -27,29 +67,13 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
         }),
         help_text="Official registered name for invoices, tax, and compliance exports."
     )
-    timezone = forms.CharField(
-        max_length=64,
-        label="Operating Timezone",
-        widget=forms.TextInput(attrs={
-            "list": "tz-datalist",
-            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
-            "required": "required",
-            "id": "id_timezone",
-        }),
+    timezone = TimezoneChoiceField(
+        required=True,
         help_text="Standard IANA timezone for operational scheduling, audits, and SLA tracking."
     )
-    country = forms.CharField(
-        max_length=2,
+    country = CountryChoiceField(
         required=False,
-        label="Country Code",
-        widget=forms.TextInput(attrs={
-            "list": "country-datalist",
-            "placeholder": "e.g. IN, US, GB, DE",
-            "maxlength": "2",
-            "style": "text-transform: uppercase;",
-            "id": "id_country",
-        }),
-        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+        help_text="Standard ISO 3166-1 alpha-2 country code."
     )
     contact_email = forms.EmailField(
         required=False,
@@ -319,30 +343,14 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
         }),
         help_text="Initial password for owner login (default: FieldOps@2026!). The owner can change this in their dashboard."
     )
-    timezone = forms.CharField(
-        max_length=64,
+    timezone = TimezoneChoiceField(
         initial="UTC",
-        label="Operating Timezone",
-        widget=forms.TextInput(attrs={
-            "list": "tz-datalist",
-            "placeholder": "e.g. UTC, Asia/Kolkata, America/New_York",
-            "required": "required",
-            "id": "id_timezone",
-        }),
+        required=True,
         help_text="Standard IANA timezone for tenant operations and SLA calculations."
     )
-    country = forms.CharField(
-        max_length=2,
+    country = CountryChoiceField(
         required=False,
-        label="Country Code",
-        widget=forms.TextInput(attrs={
-            "list": "country-datalist",
-            "placeholder": "e.g. US, IN, GB, DE",
-            "maxlength": "2",
-            "style": "text-transform: uppercase;",
-            "id": "id_country",
-        }),
-        help_text="Two-letter ISO 3166-1 alpha-2 country code."
+        help_text="Standard ISO 3166-1 alpha-2 country code."
     )
 
     def clean_name(self):

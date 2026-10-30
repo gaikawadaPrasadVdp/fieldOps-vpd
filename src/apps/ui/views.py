@@ -374,13 +374,21 @@ def home(request):
     current_in_progress_job = None
     assigned_work_orders = []
 
+    if can_view_work_orders:
+        open_wo_qs = WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED])
+        if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
+            open_wo_qs = open_wo_qs.filter(assigned_to=request.membership)
+        open_wo_count = open_wo_qs.count()
+    else:
+        open_wo_count = 0
+
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
         "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count() if can_view_users else 0,
         "roles": Role.objects.for_organization(org).count() if can_view_roles else 0,
         "total_assets": Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
         "total_sites": Site.objects.for_organization(org).filter(status="ACTIVE").count() if can_view_sites else 0,
-        "open_work_orders": WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]).count() if can_view_work_orders else 0,
+        "open_work_orders": open_wo_count,
     }
 
     # Build Role-Tailored KPIs, Shortcuts, Actions, and Recent Activity
@@ -504,7 +512,7 @@ def home(request):
             WorkOrder.objects.for_organization(org)
             .filter(
                 assigned_to=request.membership,
-                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "PLANNED"],
+                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "ASSIGNED", "PLANNED"],
             )
             .select_related("site", "asset")
             .order_by("-status", "-priority", "planned_start", "due_at")[:8]
@@ -669,7 +677,10 @@ def home(request):
             activity_link = reverse("audit:list")
             activity_link_label = "Full Audit Trail →"
         else:
-            recent_objs = WorkOrder.objects.for_organization(org).order_by("-created_at")[:8]
+            recent_qs = WorkOrder.objects.for_organization(org)
+            if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
+                recent_qs = recent_qs.filter(assigned_to=request.membership)
+            recent_objs = recent_qs.order_by("-created_at")[:8]
             recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_objs]
             activity_title = "Recent Work Orders"
             activity_link = reverse("workorders:list")

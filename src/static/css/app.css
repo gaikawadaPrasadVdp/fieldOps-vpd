@@ -2305,3 +2305,97 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     padding: 0.22rem 0.55rem !important;
   }
 }
+
+/* ==========================================================================
+   UI / UX Enhancements: Password Toggle, Validation Feedback & Pagination
+   ========================================================================== */
+
+/* Password Visibility Toggle */
+.fx-password-toggle {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-in-out;
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+  color: #64748b;
+  z-index: 4;
+}
+
+.fx-password-toggle:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  border-color: #94a3b8;
+}
+
+.fx-password-toggle:focus {
+  box-shadow: 0 0 0 0.2rem rgba(11, 31, 58, 0.15);
+  border-color: var(--fx-accent);
+  outline: none;
+}
+
+.input-group .form-control:focus + .fx-password-toggle {
+  border-color: var(--fx-accent);
+}
+
+/* Form Validation UI / UX Enhancements */
+.was-validated .form-control:invalid,
+.form-control.is-invalid,
+.was-validated .form-select:invalid,
+.form-select.is-invalid {
+  border-color: var(--fx-danger) !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+
+.was-validated .form-control:valid,
+.form-control.is-valid,
+.was-validated .form-select:valid,
+.form-select.is-valid {
+  border-color: var(--fx-success) !important;
+}
+
+.invalid-feedback[data-dynamic-error="1"],
+.invalid-feedback.d-block {
+  font-size: 0.8125rem;
+  color: var(--fx-danger);
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+/* Pagination UI / UX Enhancements */
+.pagination {
+  gap: 3px;
+}
+
+.pagination .page-item .page-link {
+  border-radius: 6px !important;
+  border: 1px solid var(--fx-border);
+  color: var(--fx-text);
+  font-weight: 500;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.pagination .page-item:not(.disabled):not(.active) .page-link:hover {
+  background-color: var(--fx-accent-soft);
+  border-color: #cbd5e1;
+  color: var(--fx-accent);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--fx-accent) !important;
+  border-color: var(--fx-accent) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(11, 31, 58, 0.25);
+}
+
+.pagination .page-item.disabled .page-link {
+  background-color: transparent;
+  border-color: var(--fx-border);
+  color: var(--fx-muted);
+  opacity: 0.65;
+  cursor: not-allowed;
+}

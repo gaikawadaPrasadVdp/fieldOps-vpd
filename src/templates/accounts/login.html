@@ -44,8 +44,11 @@
         {% icon 'shield' 15 %}
       </span>
       <input type="password" name="password" id="id_password"
-             class="form-control form-control-sm border-start-0 bg-light {% if form.password.errors %}is-invalid{% endif %}"
+             class="form-control form-control-sm border-start-0 border-end-0 bg-light {% if form.password.errors %}is-invalid{% endif %}"
              required autocomplete="current-password" placeholder="Enter your password">
+      <button class="btn btn-outline-secondary border-start-0 bg-light fx-password-toggle text-secondary" type="button" aria-label="Toggle password visibility" data-target="id_password" tabindex="-1">
+        {% icon 'eye' 15 %}
+      </button>
     </div>
     {% if form.password.errors %}
       <div class="invalid-feedback d-block small mt-1">{{ form.password.errors.0 }}</div>
