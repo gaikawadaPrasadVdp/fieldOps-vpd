@@ -46,6 +46,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body.fx-public-site {
@@ -53,7 +54,7 @@ body.fx-public-site {
   background-color: #FFFFFF;
   color: var(--fx-text-primary);
   font-family: var(--font-sans);
-  overflow-x: hidden;
+  overflow-x: clip;
   line-height: 1.5;
 }
 
@@ -339,6 +340,24 @@ body.fx-public-site {
 }
 @media (min-width: 1200px) {
   .fx-pub-mobile-toggle {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .fx-pub-nav-actions {
+    gap: 0.5rem;
+  }
+  .fx-pub-signin-btn {
+    display: none;
+  }
+  .fx-pub-getstarted-btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 13px;
+  }
+}
+@media (max-width: 360px) {
+  .fx-pub-getstarted-btn {
     display: none;
   }
 }
@@ -3913,6 +3932,934 @@ body.fx-public-site {
   }
   .fx-detail-breadcrumb {
     font-size: 11px;
+  }
+}
+
+/* ==========================================================================
+   Features Page: Dark Navy Hero Section (Vercel Reference Standard)
+   ========================================================================== */
+.fx-features-dark-hero {
+  position: relative;
+  background: linear-gradient(180deg, #071529 0%, #0B1F3B 55%, #0E2445 100%);
+  padding-top: 5.5rem;
+  padding-bottom: 5rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fx-features-dark-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0.2) 90%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0.2) 90%, transparent 100%);
+}
+
+.fx-features-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  padding: 6px 16px;
+  background: rgba(245, 196, 81, 0.12);
+  border: 1px solid rgba(245, 196, 81, 0.32);
+  color: #F5C451;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.fx-features-dark-title {
+  font-size: clamp(2.35rem, 4.5vw, 3.75rem);
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.fx-features-dark-gold {
+  color: #F5C451;
+}
+
+.fx-features-dark-subtitle {
+  color: rgba(226, 232, 240, 0.78);
+  font-size: clamp(1rem, 1.35vw, 1.15rem);
+  line-height: 1.7;
+  max-width: 780px;
+}
+
+/* Ensure floating chat widgets remain absent */
+.fx-chat-btn,
+.fx-floating-chat,
+#chat-widget,
+#nexus-chat-widget {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Features Page: 8-Stage Connected Service Flow UI System
+   ========================================================================== */
+.fx-features-hero-section {
+  position: relative;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 50%, #F1F5F9 100%);
+  padding-top: 4.5rem;
+  padding-bottom: 5rem;
+  overflow: hidden;
+}
+
+/* Header typography */
+.fx-features-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #D97706;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+.fx-features-eyebrow::before,
+.fx-features-eyebrow::after {
+  content: "";
+  display: inline-block;
+  width: 24px;
+  height: 1.5px;
+  background-color: #F5C451;
+  opacity: 0.8;
+}
+
+.fx-features-main-title {
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-weight: 800;
+  color: #0B1F3B;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin-bottom: 0.85rem;
+}
+
+.fx-features-gold-text {
+  color: #E5A82E;
+  position: relative;
+  display: inline-block;
+}
+
+.fx-features-subtitle {
+  font-size: 1.05rem;
+  color: #64748B;
+  max-width: 660px;
+  line-height: 1.6;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 8-Stage Timeline Grid & Connecting Dotted Line */
+.fx-flow-timeline-container {
+  position: relative;
+  margin-top: 2rem;
+  margin-bottom: 1.25rem;
+}
+
+.fx-flow-timeline-track {
+  position: absolute;
+  top: 50%;
+  left: 4%;
+  right: 4%;
+  height: 2px;
+  border-top: 2px dashed #CBD5E1;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fx-flow-timeline-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Individual Stage Card */
+.fx-flow-stage-card {
+  position: relative;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 14px 6px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  outline: none;
+  height: 120px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.fx-flow-stage-card:hover:not(.is-active) {
+  border-color: #F5C451;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(11, 31, 59, 0.08);
+}
+
+.fx-flow-stage-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+.fx-flow-stage-icon {
+  color: #0B1F3B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: color 0.2s ease;
+}
+
+.fx-flow-stage-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0B1F3B;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  margin-bottom: 3px;
+  transition: opacity 0.2s ease;
+}
+
+.fx-flow-stage-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0B1F3B;
+  line-height: 1.25;
+  transition: color 0.2s ease;
+}
+
+.fx-flow-stage-sub {
+  font-size: 10px;
+  color: #94A3B8;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Active Stage Card Styling */
+.fx-flow-stage-card.is-active {
+  background: #0B1F3B !important;
+  border-color: #F5C451 !important;
+  box-shadow: 0 12px 30px rgba(11, 31, 59, 0.35), 0 0 16px rgba(245, 196, 81, 0.25) !important;
+  transform: translateY(-4px);
+}
+
+.fx-flow-stage-card.is-active .fx-flow-stage-icon {
+  color: #F5C451 !important;
+}
+
+.fx-flow-stage-card.is-active .fx-flow-stage-title {
+  color: #FFFFFF !important;
+}
+
+.fx-flow-stage-card.is-active .fx-flow-stage-sub {
+  color: #94A3B8 !important;
+}
+
+.fx-flow-stage-card.is-active .fx-flow-stage-num {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* Top Floating Step Badge on Active Card */
+.fx-flow-stage-badge {
+  display: none;
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #F5C451;
+  color: #0B1F3B;
+  font-weight: 800;
+  font-size: 11px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(245, 196, 81, 0.55);
+  border: 2px solid #FFFFFF;
+  z-index: 3;
+}
+
+.fx-flow-stage-card.is-active .fx-flow-stage-badge {
+  display: flex;
+}
+
+/* Workflow Detail Panel */
+.fx-flow-panel {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  box-shadow: 0 14px 44px rgba(11, 31, 59, 0.05);
+  padding: 2.25rem;
+  margin-top: 0;
+  transition: opacity 0.18s ease;
+}
+
+.fx-flow-panel.is-switching {
+  opacity: 0.75;
+}
+
+/* Left Column */
+.fx-flow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid rgba(245, 196, 81, 0.45);
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 4px 13px;
+  margin-bottom: 0.9rem;
+}
+
+.fx-flow-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0B1F3B;
+  line-height: 1.25;
+  margin-bottom: 0.75rem;
+}
+
+.fx-flow-desc {
+  font-size: 0.885rem;
+  color: #64748B;
+  line-height: 1.65;
+  margin-bottom: 1.5rem;
+}
+
+/* Column 1: Role Box & Action Buttons */
+.fx-flow-role-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-left: 3.5px solid #F5C451;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 1.15rem;
+}
+
+.fx-flow-role-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #64748B;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.fx-flow-role-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0B1F3B;
+  line-height: 1.35;
+}
+
+.fx-flow-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.fx-flow-btn-prev {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fx-flow-btn-prev:hover:not(:disabled) {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0B1F3B;
+}
+
+.fx-flow-btn-prev:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fx-flow-btn-next {
+  background: #F5C451;
+  border: 1px solid #E5B43B;
+  color: #0B1F3B;
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 196, 81, 0.35);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fx-flow-btn-next:hover:not(:disabled) {
+  background: #E5B43B;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 196, 81, 0.45);
+}
+
+.fx-flow-btn-next:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Column 2: Key Actions Performed & Expected Handoff */
+.fx-flow-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.fx-flow-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.fx-flow-card-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0B1F3B;
+}
+
+.fx-flow-section-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: #F1F5F9;
+  color: #475569;
+  padding: 2.5px 8px;
+  border-radius: 6px;
+}
+
+.fx-flow-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fx-flow-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.fx-flow-action-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FEF3C7;
+  color: #B45309;
+  font-size: 10.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.fx-flow-handoff-card {
+  background: linear-gradient(135deg, #0B1F3B 0%, #162A4B 100%);
+  border-radius: 14px;
+  padding: 16px 18px;
+  color: #FFFFFF;
+  box-shadow: 0 6px 18px rgba(11, 31, 59, 0.12);
+}
+
+.fx-flow-handoff-head {
+  margin-bottom: 8px;
+}
+
+.fx-flow-handoff-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #F5C451;
+}
+
+.fx-flow-handoff-outcome {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #E2E8F0;
+  margin-bottom: 10px;
+}
+
+.fx-flow-handoff-next {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 196, 81, 0.15);
+  border: 1px solid rgba(245, 196, 81, 0.35);
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #FDE68A;
+}
+
+/* Column 3: Industrial Context Media */
+.fx-flow-media-wrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  box-shadow: 0 6px 24px rgba(11, 31, 59, 0.08);
+  background: #0B1F3B;
+  display: flex;
+}
+
+.fx-flow-main-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: opacity 0.3s ease;
+}
+
+.fx-flow-media-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(11, 31, 59, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  z-index: 3;
+}
+
+.fx-flow-media-step {
+  font-size: 10px;
+  font-weight: 800;
+  background: #F5C451;
+  color: #0B1F3B;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.fx-flow-media-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.fx-flow-media-caption {
+  position: absolute;
+  bottom: 96px; /* raised above thumbnail strip */
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(11, 31, 59, 0.88) 0%, rgba(11, 31, 59, 0.6) 60%, transparent 100%);
+  color: #F1F5F9;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 18px 14px 10px;
+  z-index: 3;
+  line-height: 1.4;
+}
+
+/* Gallery Left / Right Nav Arrows */
+.fx-gallery-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(11, 31, 59, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  padding: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  margin-top: -22px; /* nudge up from centre to avoid caption overlap */
+}
+
+.fx-gallery-arrow:hover,
+.fx-gallery-arrow:focus-visible {
+  background: rgba(245, 196, 81, 0.9);
+  border-color: #F5C451;
+  color: #0B1F3B;
+  transform: translateY(-50%) scale(1.08);
+  outline: none;
+}
+
+.fx-gallery-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.fx-gallery-arrow-prev {
+  left: 12px;
+}
+
+.fx-gallery-arrow-next {
+  right: 12px;
+}
+
+/* Gallery Thumbnail Strip */
+.fx-gallery-thumb-strip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(11, 31, 59, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 4;
+  min-height: 70px;
+}
+
+.fx-gallery-thumb {
+  flex-shrink: 0;
+  width: 72px;
+  height: 52px;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  transition: border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.68;
+}
+
+.fx-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 5px;
+}
+
+.fx-gallery-thumb:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.fx-gallery-thumb.is-active {
+  border-color: #F5C451;
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px #F5C451;
+}
+
+.fx-gallery-thumb:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+/* Benefits Section */
+.fx-flow-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 2rem;
+}
+
+.fx-flow-benefit-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.fx-flow-benefit-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(11, 31, 59, 0.08);
+  border-color: #CBD5E1;
+}
+
+.fx-flow-benefit-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #FEF3C7;
+  color: #D97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fx-flow-benefit-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0B1F3B;
+  margin-bottom: 2px;
+}
+
+.fx-flow-benefit-desc {
+  font-size: 12px;
+  color: #64748B;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+/* Responsive Media Queries */
+@media (min-width: 1024px) and (max-width: 1199.98px) {
+  .fx-flow-timeline-grid {
+    gap: 8px;
+  }
+  .fx-flow-stage-card {
+    padding: 12px 4px 8px;
+    height: 114px;
+    min-height: 114px;
+  }
+  .fx-flow-stage-title {
+    font-size: 10.5px;
+  }
+  .fx-flow-stage-sub {
+    font-size: 9.5px;
+  }
+  .fx-flow-panel {
+    padding: 1.75rem;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .fx-flow-timeline-container {
+    overflow-x: auto;
+    padding-bottom: 14px;
+    padding-top: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+  .fx-flow-timeline-container::-webkit-scrollbar {
+    height: 6px;
+  }
+  .fx-flow-timeline-container::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 3px;
+  }
+  .fx-flow-timeline-track {
+    display: none;
+  }
+  .fx-flow-timeline-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    width: max-content;
+    padding-top: 14px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .fx-flow-stage-card {
+    width: 126px;
+    flex-shrink: 0;
+    height: 114px;
+    min-height: 114px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .fx-flow-benefits-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .fx-flow-panel {
+    padding: 1.5rem;
+  }
+  .fx-flow-media-wrapper {
+    min-height: 380px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .fx-features-dark-hero {
+    padding-top: 3.75rem;
+    padding-bottom: 3.25rem;
+  }
+  .fx-features-dark-title {
+    font-size: 2rem;
+  }
+  .fx-features-dark-subtitle {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  .fx-features-hero-section {
+    padding-top: 3rem;
+    padding-bottom: 3.5rem;
+  }
+  .fx-features-main-title {
+    font-size: 1.85rem;
+  }
+  .fx-features-subtitle {
+    font-size: 0.95rem;
+  }
+  .fx-flow-benefits-grid {
+    grid-template-columns: 1fr;
+  }
+  .fx-flow-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .fx-flow-btn-prev,
+  .fx-flow-btn-next {
+    width: 100%;
+    justify-content: center;
+  }
+  /* Gallery on mobile */
+  .fx-gallery-arrow {
+    width: 30px;
+    height: 30px;
+    font-size: 17px;
+    margin-top: -18px;
+  }
+  .fx-gallery-arrow-prev { left: 8px; }
+  .fx-gallery-arrow-next { right: 8px; }
+  .fx-gallery-thumb {
+    width: 56px;
+    height: 42px;
+  }
+  .fx-gallery-thumb-strip {
+    gap: 6px;
+    padding: 6px 8px;
+    min-height: 58px;
+  }
+  .fx-flow-media-caption {
+    bottom: 70px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fx-features-dark-hero {
+    padding-top: 3rem;
+    padding-bottom: 2.75rem;
+  }
+  .fx-features-dark-title {
+    font-size: 1.65rem;
+  }
+  .fx-features-badge-pill {
+    font-size: 10.5px;
+    padding: 5px 12px;
+  }
+  .fx-flow-panel {
+    padding: 1.15rem;
+    border-radius: 16px;
+  }
+  .fx-flow-title {
+    font-size: 1.45rem;
+  }
+  .fx-flow-media-wrapper {
+    min-height: 280px;
+  }
+  .fx-flow-actions-list {
+    gap: 8px;
+  }
+  .fx-flow-action-item {
+    font-size: 12px;
+  }
+  .fx-gallery-thumb {
+    width: 48px;
+    height: 36px;
+  }
+  .fx-gallery-thumb-strip {
+    min-height: 52px;
+    padding: 5px 6px;
+  }
+  .fx-flow-media-caption {
+    bottom: 64px;
+    font-size: 11px;
+    padding: 14px 10px 8px;
+  }
+}
+
+@media (max-width: 350px) {
+  .fx-flow-panel {
+    padding: 0.9rem;
+  }
+  .fx-flow-title {
+    font-size: 1.3rem;
+  }
+  .fx-flow-role-val {
+    font-size: 12px;
+  }
+  .fx-flow-media-wrapper {
+    min-height: 240px;
+  }
+  .fx-gallery-thumb {
+    width: 40px;
+    height: 30px;
+    border-radius: 5px;
+  }
+  .fx-gallery-arrow {
+    width: 26px;
+    height: 26px;
+    font-size: 15px;
   }
 }
 
