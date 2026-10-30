@@ -239,3 +239,31 @@ def test_api_asset_qr_and_identifier_endpoints(as_user, org_a, site_a1, make_ass
     )
     assert res_rev.status_code == status.HTTP_200_OK
     assert res_rev.data["is_active"] is False
+
+
+def test_def002_resolve_token_with_query_strings_and_urls(org_a, site_a1, make_asset, owner_a):
+    """Verify DEF-002: resolve_token accurately parses scan URLs carrying query strings, trailing slashes, and anchors."""
+    asset = make_asset(org_a, site_a1, "AST-DEF002-001")
+    active = id_selectors.active_for_asset(org_a, asset)
+    qr = active["QR"]
+    token = qr.token
+    mem_a = Membership.objects.get(organization=org_a, user=owner_a)
+
+    test_inputs = [
+        token,  # raw
+        f"https://fieldops.example.com/s/{token}",  # URL no slash
+        f"https://fieldops.example.com/s/{token}/",  # URL trailing slash
+        f"https://fieldops.example.com/s/{token}/?source=scanner&cam=back",  # URL with query and slash
+        f"https://fieldops.example.com/s/{token}?source=scanner",  # URL with query no slash
+        f"https://fieldops.example.com/s/{token}/#overview",  # URL with hash
+        f"https://fieldops.example.com/s/{token}/?source=scanner#target",  # URL with query and hash
+        f"/s/{token}/?action=scan",  # relative path
+        f"https://fieldops.example.com/app/scan/?token={token}",  # token query parameter
+        f"{token}?action=scan",  # raw token with query string
+    ]
+
+    for raw_input in test_inputs:
+        ident, resolved_asset, is_active = id_services.resolve_token(mem_a, raw_input, actor=owner_a)
+        assert ident == qr, f"Failed resolving for input: {raw_input}"
+        assert resolved_asset == asset, f"Wrong asset for input: {raw_input}"
+        assert is_active is True

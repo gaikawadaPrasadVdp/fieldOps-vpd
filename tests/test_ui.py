@@ -184,8 +184,8 @@ def test_home_dashboard_renders_enhanced_kpi_cards(client, owner_a):
     assert r.status_code == 200
     html = r.content.decode()
     assert "Active Users" in html
-    assert "Pending Invitations" in html
-    assert "RBAC Roles" in html
+    assert "Facility Sites" in html
+    assert "Master Assets" in html
     assert "Operational Shortcuts" in html
 
 

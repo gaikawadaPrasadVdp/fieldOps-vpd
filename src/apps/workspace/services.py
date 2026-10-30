@@ -118,10 +118,10 @@ def log_travel(
     if distance_km not in (None, ""):
         try:
             km = Decimal(str(distance_km))
-            if km < 0:
-                raise ValidationFailed("Distance cannot be negative.")
         except Exception as exc:
             raise ValidationFailed("Distance must be a valid number.") from exc
+        if km < 0:
+            raise ValidationFailed("Distance cannot be negative.")
 
     work_date = work_date or timezone.localdate()
     if work_date > timezone.localdate():

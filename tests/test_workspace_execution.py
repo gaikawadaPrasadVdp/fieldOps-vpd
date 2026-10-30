@@ -126,6 +126,15 @@ class WorkspaceExecutionTests(TestCase):
         with self.assertRaises(ValidationFailed):
             ws_services.log_travel(wo, membership=self.tech, actor=self.tech.user, duration_hours="1.5", work_date=future)
 
+        # DEF-003: Negative distance and invalid number messages
+        with self.assertRaises(ValidationFailed) as ctx_neg:
+            ws_services.log_travel(wo, membership=self.tech, actor=self.tech.user, duration_hours="1.0", distance_km="-12.5")
+        self.assertEqual(ctx_neg.exception.message, "Distance cannot be negative.")
+
+        with self.assertRaises(ValidationFailed) as ctx_inv:
+            ws_services.log_travel(wo, membership=self.tech, actor=self.tech.user, duration_hours="1.0", distance_km="not-a-number")
+        self.assertEqual(ctx_inv.exception.message, "Distance must be a valid number.")
+
         # Valid travel log
         travel = ws_services.log_travel(
             wo,
@@ -456,7 +465,7 @@ class WorkspaceExecutionTests(TestCase):
         self.assertIn("100 Main St", route["site_address"])
         self.assertIn("Boiler Room B", route["location_path"])
         self.assertEqual(len(route["contacts"]), 1)
-        self.assertEqual(route["contacts"][0].name, "Facility Manager")
+        self.assertEqual(route["contacts"][0]["name"], "Facility Manager")
 
         # Happy path: Asset context
         wo_asset = detail["work_order"].asset
@@ -530,6 +539,16 @@ class WorkspaceExecutionTests(TestCase):
         wo_services.record_labor(
             wo, technician=self.tech, work_date=timezone.localdate(), hours="1.0",
             description="Checklist work", actor=self.tech.user, membership=self.tech,
+        )
+
+        # Record labor so labor blocker passes
+        wo_services.record_labor(
+            wo,
+            membership=self.tech,
+            actor=self.tech.user,
+            work_date=timezone.localdate(),
+            hours="1.0",
+            description="Checklist verification labor",
         )
 
         # Now completion succeeds
@@ -756,6 +775,16 @@ class WorkspaceExecutionTests(TestCase):
         wo_services.record_labor(
             wo, technician=self.tech, work_date=timezone.localdate(), hours="1.0",
             description="Work logged", actor=self.tech.user, membership=self.tech,
+        )
+
+        # Record labor so only evidence check is under test
+        wo_services.record_labor(
+            wo,
+            membership=self.tech,
+            actor=self.tech.user,
+            work_date=timezone.localdate(),
+            hours="1.0",
+            description="Execution labor",
         )
 
         # Negative path: Corrective job without evidence fails closed

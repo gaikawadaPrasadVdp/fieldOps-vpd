@@ -35,7 +35,7 @@ dev = [
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-pythonpath = ["src"]
+pythonpath = ["src", "src/apps"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --reuse-db"
 markers = [

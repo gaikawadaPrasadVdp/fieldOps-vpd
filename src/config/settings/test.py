@@ -3,8 +3,10 @@ import os
 import secrets
 
 os.environ.setdefault("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))  # ephemeral, never persisted
-_pg_pass = os.environ.get("POSTGRES_PASSWORD") or "fieldops"
-os.environ.setdefault("DATABASE_URL", f"postgres://fieldops:{_pg_pass}@localhost:5432/fieldops")
+
+# ENV-001: Test settings use TEST_DATABASE_URL if explicitly provided, else local test PostgreSQL
+_test_db_url = os.environ.get("TEST_DATABASE_URL") or "postgres://fieldops:fieldops@localhost:5432/fieldops"
+os.environ["DATABASE_URL"] = _test_db_url
 
 from .base import *  # noqa: E402,F401,F403
 
