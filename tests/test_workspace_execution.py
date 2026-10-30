@@ -351,6 +351,10 @@ class WorkspaceExecutionTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"My Assigned Jobs", res.content)
         self.assertIn(wo.order_number.encode(), res.content)
+        self.assertNotIn(b"{% include", res.content)
+        self.assertIn(b"fx-kpi-card", res.content)
+        self.assertIn(b"Active Execution", res.content)
+        self.assertIn(b"Upcoming / Assigned", res.content)
 
         # Job detail view
         res_detail = client.get(f"/app/workspace/jobs/{wo.pk}/")
