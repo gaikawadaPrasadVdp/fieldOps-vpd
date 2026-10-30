@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 from django.utils import timezone
 
-from apps.core.exceptions import Conflict
+from apps.core.exceptions import Conflict, PermissionDenied
 from apps.workorders import services
 from apps.workorders.checklist_adapter import record_external_validation
 from apps.workorders.models import WorkOrder
@@ -293,3 +293,33 @@ def test_invalid_labor_recording_is_refused(org_a, site_a1, make_member):
             hours="1.00",
             description="Premature labor",
         )
+
+
+def test_def001_assert_can_execute_no_recursion(org_a, site_a1, make_member):
+    """Verify DEF-001: assert_can_execute and _assert_assignee_or_dispatcher do not recurse."""
+    planner = make_member(org_a, "planner.def001@test.com", "maintenance_planner")
+    tech = make_member(org_a, "tech.def001@test.com", "technician")
+    wo = _make_in_progress_order(org_a, site_a1, planner, tech)
+
+    # 1. Assignee can execute and record without recursion
+    services.assert_can_execute(wo, tech)
+    services._assert_assignee_or_dispatcher(wo, tech)
+
+    # 2. Dispatcher can execute and record
+    services.assert_can_execute(wo, planner)
+    services._assert_assignee_or_dispatcher(wo, planner)
+
+    # 3. Non-assignee without dispatch permission is denied with 'not_assignee'
+    from apps.accounts.models import User
+    from apps.tenancy.models import Membership
+    other_user = User.objects.create(email="other.def001@apexindustrial.com", is_active=True)
+    other_mem = Membership.objects.create(
+        organization=org_a, user=other_user, status=Membership.Status.ACTIVE
+    )
+    with pytest.raises(PermissionDenied) as exc_info:
+        services.assert_can_execute(wo, other_mem)
+    assert exc_info.value.code == "not_assignee"
+
+    with pytest.raises(PermissionDenied) as exc_info2:
+        services._assert_assignee_or_dispatcher(wo, other_mem)
+    assert exc_info2.value.code == "not_assignee"
