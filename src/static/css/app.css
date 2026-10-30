@@ -2323,6 +2323,11 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   z-index: 4;
 }
 
+.fx-password-toggle svg,
+.fx-password-toggle * {
+  pointer-events: none !important;
+}
+
 .fx-password-toggle:hover {
   background-color: #e2e8f0;
   color: #1e293b;

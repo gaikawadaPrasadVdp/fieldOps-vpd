@@ -16,7 +16,7 @@
             {{ job.get_work_type_display }}
           </span>
         </div>
-        <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+        <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'SUPERVISOR_REVIEW' %}bg-warning text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
           {{ job.get_status_display }}
         </span>
       </div>
@@ -105,6 +105,17 @@
               {% icon 'clock' 14 %} Resume Job
             </button>
           </form>
+          {% elif job.status == 'COMPLETED' %}
+          <form method="post" action="{% url 'workorders:action' job.pk 'submit_for_review' %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 fw-medium" style="min-height: 38px; padding-left: 0.85rem; padding-right: 0.85rem;" title="Submit for supervisor review">
+              {% icon 'check' 14 %} Submit Review
+            </button>
+          </form>
+          {% elif job.status == 'SUPERVISOR_REVIEW' %}
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle p-2 d-inline-flex align-items-center gap-1" style="min-height: 38px;">
+            {% icon 'clock' 14 %} In Supervisor Review
+          </span>
           {% endif %}
         </div>
       </div>

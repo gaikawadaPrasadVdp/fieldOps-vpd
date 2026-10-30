@@ -512,7 +512,7 @@ def home(request):
             WorkOrder.objects.for_organization(org)
             .filter(
                 assigned_to=request.membership,
-                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "ASSIGNED", "PLANNED"],
+                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "ASSIGNED", "PLANNED", "SUPERVISOR_REVIEW", "COMPLETED"],
             )
             .select_related("site", "asset")
             .order_by("-status", "-priority", "planned_start", "due_at")[:8]
@@ -547,7 +547,7 @@ def home(request):
         activity_link_label = "Technician Workspace →"
 
     elif persona_key == "supervisor":
-        pending_rev = WorkOrder.objects.for_organization(org).filter(status="COMPLETED").count()
+        pending_rev = WorkOrder.objects.for_organization(org).filter(status__in=[WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.COMPLETED]).count()
         active_orders = WorkOrder.objects.for_organization(org).filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
         breaches = SLABreach.objects.for_organization(org).count()
         inspections = Inspection.objects.for_organization(org).count()
@@ -558,7 +558,7 @@ def home(request):
             {"title": "Inspections Conducted", "value": inspections, "subtitle": "Quality & safety inspections", "tone": "gold", "icon": "shield"},
         ]
         shortcuts = [
-            {"label": "Work Order Review Board", "url": reverse("workorders:list"), "icon": "clipboard-check"},
+            {"label": "Work Order Review Board", "url": reverse("workorders:list") + "?status=SUPERVISOR_REVIEW", "icon": "clipboard-check"},
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock"},
             {"label": "Operational Dashboards", "url": reverse("dashboards:hub"), "icon": "grid"},

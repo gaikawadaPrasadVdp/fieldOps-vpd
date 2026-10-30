@@ -96,3 +96,20 @@ def test_form_field_password_toggle_rendering():
 
     assert "fx-password-toggle" in rendered
     assert "data-target=\"id_secret\"" in rendered
+    assert "fx-pw-show" in rendered
+    assert "fx-pw-hide" in rendered
+
+
+def test_login_and_platform_create_password_toggle():
+    from django.template.loader import render_to_string
+    login_html = render_to_string("accounts/login.html", {"form": {}})
+    assert "fx-password-toggle" in login_html
+    assert "data-target=\"id_password\"" in login_html
+    assert "fx-pw-show" in login_html
+    assert "fx-pw-hide" in login_html
+
+    create_html = render_to_string("tenancy/platform_organization_create.html", {"form": PlatformOrganizationCreateForm()})
+    assert "fx-password-toggle" in create_html
+    assert "data-target=\"id_owner_password\"" in create_html
+    assert "fx-pw-show" in create_html
+    assert "fx-pw-hide" in create_html

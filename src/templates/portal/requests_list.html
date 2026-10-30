@@ -148,28 +148,6 @@
 
     <!-- Pagination Controls -->
     {% include "components/_pagination.html" with page=page_obj %}
-
-          {% for p in page_obj.paginator.page_range %}
-            {% if p == page_obj.number %}
-            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-            {% elif p > page_obj.number|add:"-3" and p < page_obj.number|add:"3" %}
-            <li class="page-item"><a class="page-link" href="?page={{ p }}{% qs_without_page %}">{{ p }}</a></li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% qs_without_page %}" aria-label="Next">
-              Next &raquo;
-            </a>
-          </li>
-          {% else %}
-          <li class="page-item disabled"><span class="page-link">Next &raquo;</span></li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

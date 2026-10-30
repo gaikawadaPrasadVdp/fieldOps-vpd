@@ -467,32 +467,57 @@ document.addEventListener("click", function (e) {
   var toggleBtn = e.target.closest(".fx-password-toggle");
   if (!toggleBtn) return;
   e.preventDefault();
+  e.stopPropagation();
 
   var targetId = toggleBtn.getAttribute("data-target");
   var input = targetId ? document.getElementById(targetId) : null;
   if (!input) {
     var group = toggleBtn.closest(".input-group");
     if (group) {
-      input = group.querySelector("input");
+      input = group.querySelector("input[type='password'], input[type='text']");
+    }
+  }
+  if (!input) {
+    var prev = toggleBtn.previousElementSibling;
+    if (prev && prev.tagName && prev.tagName.toLowerCase() === "input") {
+      input = prev;
     }
   }
   if (!input) return;
 
-  var isPassword = input.type === "password";
+  var isPassword = (input.type === "password");
   input.type = isPassword ? "text" : "password";
 
-  var svg = toggleBtn.querySelector("svg");
-  if (svg) {
+  var showIcon = toggleBtn.querySelector(".fx-pw-show");
+  var hideIcon = toggleBtn.querySelector(".fx-pw-hide");
+  if (showIcon && hideIcon) {
     if (isPassword) {
-      svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      showIcon.classList.add("d-none");
+      hideIcon.classList.remove("d-none");
       toggleBtn.setAttribute("aria-label", "Hide password");
       toggleBtn.setAttribute("title", "Hide password");
     } else {
-      svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      showIcon.classList.remove("d-none");
+      hideIcon.classList.add("d-none");
       toggleBtn.setAttribute("aria-label", "Show password");
       toggleBtn.setAttribute("title", "Show password");
     }
+  } else {
+    var svg = toggleBtn.querySelector("svg");
+    if (svg) {
+      if (isPassword) {
+        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        toggleBtn.setAttribute("aria-label", "Hide password");
+        toggleBtn.setAttribute("title", "Hide password");
+      } else {
+        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        toggleBtn.setAttribute("aria-label", "Show password");
+        toggleBtn.setAttribute("title", "Show password");
+      }
+    }
   }
+
+  try { input.focus(); } catch (err) {}
 });
 
 /* ==========================================================================

@@ -65,8 +65,9 @@
             <label for="{{ form.owner_password.id_for_label }}" class="form-label fw-semibold">{{ form.owner_password.label }}</label>
             <div class="input-group">
               {{ form.owner_password }}
-              <button class="btn btn-outline-secondary fx-password-toggle" type="button" aria-label="Toggle password visibility" data-target="{{ form.owner_password.id_for_label }}" tabindex="-1">
-                {% icon 'eye' 16 %}
+              <button class="btn btn-outline-secondary fx-password-toggle" type="button" aria-label="Toggle password visibility" title="Show password" data-target="{{ form.owner_password.id_for_label }}" tabindex="-1">
+                <span class="fx-pw-show">{% icon 'eye' 16 %}</span>
+                <span class="fx-pw-hide d-none">{% icon 'eye-off' 16 %}</span>
               </button>
             </div>
             {% if form.owner_password.help_text %}<div class="form-text">{{ form.owner_password.help_text }}</div>{% endif %}
