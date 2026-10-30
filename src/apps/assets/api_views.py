@@ -88,6 +88,11 @@ class AssetWriteSerializer(serializers.Serializer):
     def validate(self, attrs):
         if "status" in getattr(self, "initial_data", {}):
             raise serializers.ValidationError({"status": "Status cannot be edited; use POST /assets/{id}/transition/."})
+        p = attrs.get("purchase_date")
+        if p:
+            from django.utils import timezone as _tz
+            if p > _tz.now().date():
+                raise serializers.ValidationError({"purchase_date": "Purchase date cannot be in the future."})
         return attrs
 
 

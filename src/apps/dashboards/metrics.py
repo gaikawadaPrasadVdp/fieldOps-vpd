@@ -126,10 +126,10 @@ def parse_date_window(
     if to_date_str:
         try:
             to_date = datetime.date.fromisoformat(str(to_date_str).strip())
-            # End of that day in UTC
             end_dt = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=datetime.timezone.utc)
         except ValueError:
-            end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.timezone.utc)
+            from apps.core.exceptions import ValidationFailed
+            raise ValidationFailed("Invalid to date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
         end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.timezone.utc)
 
@@ -138,7 +138,8 @@ def parse_date_window(
             from_date = datetime.date.fromisoformat(str(from_date_str).strip())
             start_dt = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=datetime.timezone.utc)
         except ValueError:
-            start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.timezone.utc)
+            from apps.core.exceptions import ValidationFailed
+            raise ValidationFailed("Invalid from date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
         start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.timezone.utc)
 

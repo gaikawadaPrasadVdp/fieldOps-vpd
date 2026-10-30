@@ -164,7 +164,7 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     created_user = False
     if user is None:
         if not full_name:
-            raise ValidationFailed("Full name is required for a new user.")
+            full_name = email.split("@")[0].replace(".", " ").title()
         user = User.objects.create_user(email=email, password=None, full_name=full_name)
         created_user = True
     if Membership.objects.unscoped().filter(user=user, organization=org).exists():

@@ -54,7 +54,10 @@ def filter_sites(qs, params):
     status = (params.get("status") or "").strip()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(city__icontains=q))
-    if status in Site.Status.values:
+    if status:
+        if status not in Site.Status.values:
+            from apps.core.exceptions import ValidationFailed
+            raise ValidationFailed(f"Invalid status '{status}'.", code="invalid_filter")
         qs = qs.filter(status=status)
     return qs
 

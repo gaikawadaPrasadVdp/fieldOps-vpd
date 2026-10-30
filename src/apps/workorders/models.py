@@ -174,8 +174,8 @@ class WorkOrder(TenantOwnedModel):
                 raise ValidationError({"asset": "Asset must belong to this work order's organization."})
             if self.asset.site_id != self.site_id:
                 raise ValidationError({"asset": "Asset must belong to the selected site."})
-            if self.asset.status not in ("ACTIVE", "UNDER_MAINTENANCE"):
-                raise ValidationError({"asset": "Selected asset is inactive."})
+            if self.asset.status in ("RETIRED", "DISPOSED"):
+                raise ValidationError({"asset": f"Cannot create work order for a {self.asset.status.lower()} asset."})
         if self.component_id:
             if self.component.organization_id != self.organization_id or not self.asset_id:
                 raise ValidationError({"component": "Component must belong to the selected asset."})

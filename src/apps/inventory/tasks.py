@@ -52,12 +52,16 @@ def check_reorder_alerts_for_org(self, organization_id: str) -> dict:
                 f"has available stock {bal.available} {bal.part.unit}, which is at or below minimum level "
                 f"{bal.effective_min}. Suggested reorder quantity: {reorder_qty} {bal.part.unit}."
             )
-            # Avoid duplicate unread notification in the last 24h
+            # Avoid duplicate notification within a rolling 24-hour window (or if unread)
+            from datetime import timedelta
+            from django.db import models
+            from django.utils import timezone
+
+            cutoff = timezone.now() - timedelta(hours=24)
             recent = Notification.objects.for_organization(org).filter(
                 title=title,
                 source="inventory.reorder",
-                read_at__isnull=True,
-            ).exists()
+            ).filter(models.Q(read_at__isnull=True) | models.Q(created_at__gte=cutoff)).exists()
             if not recent:
                 notifications.notify(
                     org,

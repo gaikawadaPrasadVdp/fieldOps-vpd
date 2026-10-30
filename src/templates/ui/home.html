@@ -25,6 +25,91 @@
   </div>
 </div>
 
+{% if is_technician and current_in_progress_job %}
+<!-- Clocked-in Active Job Highlight Banner -->
+<div class="alert alert-success border-2 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 p-3" style="border-radius:10px; background-color: #f0fdf4; border-color: #86efac;">
+  <div class="d-flex align-items-center gap-3">
+    <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+      {% icon 'activity' 22 %}
+    </div>
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-success text-white text-uppercase" style="letter-spacing:0.5px; font-size:0.7rem;">Currently Clocked In</span>
+        <span class="fw-bold text-dark">{{ current_in_progress_job.order_number }}</span>
+        {% if current_in_progress_job.priority %}
+          <span class="badge {% if current_in_progress_job.priority == 'CRITICAL' %}bg-danger{% elif current_in_progress_job.priority == 'HIGH' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+            {{ current_in_progress_job.get_priority_display }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="fw-semibold text-dark fs-6">{{ current_in_progress_job.title }}</div>
+      <div class="small text-secondary">
+        <span>{% icon 'pin' 13 %} {{ current_in_progress_job.site.name }}</span>
+        {% if current_in_progress_job.asset %}
+          <span class="ms-2">{% icon 'box' 13 %} {{ current_in_progress_job.asset.name }} [{{ current_in_progress_job.asset.asset_tag }}]</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <button class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+            hx-get="{% url 'workspace:drawer' current_in_progress_job.pk %}"
+            hx-target="#drawer-content"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#technicianExecutionDrawer">
+      {% icon 'sliders' 14 %} Execution Drawer
+    </button>
+    <a href="{% url 'workspace:job_detail' current_in_progress_job.pk %}" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
+      {% icon 'wrench' 14 %} Open Job &rarr;
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% if is_technician and capacity_summary %}
+<!-- Shift Capacity & Labor Utilization Gauge -->
+<div class="card mb-4 border-0 shadow-sm" style="border-radius:10px;">
+  <div class="card-body p-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-2">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle bg-light p-2 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+          {% icon 'clock' 20 %}
+        </div>
+        <div>
+          <div class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Today's Shift Capacity &bull; {{ capacity_summary.date_display }}</div>
+          <div class="small text-secondary">
+            Logged <strong>{{ capacity_summary.total_logged_hours|floatformat:1 }}h</strong> of {{ capacity_summary.standard_capacity_hours|floatformat:1 }}h shift
+            {% if capacity_summary.direct_wrench_hours or capacity_summary.travel_hours %}
+              (Wrench: {{ capacity_summary.direct_wrench_hours|floatformat:1 }}h &bull; Travel: {{ capacity_summary.travel_hours|floatformat:1 }}h)
+            {% endif %}
+            {% if capacity_summary.remaining_hours %}
+              &bull; Remaining: <span class="text-muted">{{ capacity_summary.remaining_hours|floatformat:1 }}h</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="text-end">
+          <span class="h5 mb-0 fw-bold {% if capacity_summary.is_overtime %}text-warning{% elif capacity_summary.utilization_pct >= 80 %}text-success{% else %}text-primary{% endif %}">
+            {{ capacity_summary.utilization_pct }}%
+          </span>
+          <div class="text-secondary text-uppercase fw-semibold" style="font-size: 0.7rem;">Shift Utilization</div>
+        </div>
+        <a href="{% url 'dashboards:my_work' %}" class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex align-items-center gap-1" title="View comprehensive metrics in My Work Cockpit">
+          {% icon 'activity' 14 %} Cockpit &rarr;
+        </a>
+      </div>
+    </div>
+    <div class="progress" style="height: 8px; background-color: #E2E8F0; border-radius: 4px;">
+      <div class="progress-bar" role="progressbar"
+           style="width: {{ capacity_summary.progress_pct }}%; background: {% if capacity_summary.is_overtime %}linear-gradient(90deg, #F59E0B 0%, #D97706 100%){% elif capacity_summary.utilization_pct >= 80 %}linear-gradient(90deg, #10B981 0%, #059669 100%){% else %}linear-gradient(90deg, #3B82F6 0%, #1D4ED8 100%){% endif %}; border-radius: 4px;"
+           aria-valuenow="{{ capacity_summary.utilization_pct }}" aria-valuemin="0" aria-valuemax="100">
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Reusable KPI Cards Grid -->
 <div class="row g-3 mb-4">
   {% for kpi in kpi_cards %}
@@ -58,8 +143,117 @@
 
 <!-- Operational Modules Quick Jump & Recent Activity -->
 <div class="row g-4">
-  <!-- Recent Activity Column -->
+  <!-- Main Work & Activity Column -->
   <div class="col-12 col-lg-8">
+    {% if is_technician %}
+    <!-- Technician Priority Work Order Queue -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'wrench' 16 %}
+          <span class="fw-bold text-dark">Assigned Work Order Queue</span>
+          <span class="badge bg-light text-dark border">{{ assigned_work_orders|length }} Active</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'workspace:my_jobs' %}">
+          All My Jobs &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if assigned_work_orders %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-secondary">
+              <tr>
+                <th class="ps-3 py-2">Order #</th>
+                <th class="py-2">Task Details</th>
+                <th class="py-2">Location / Asset</th>
+                <th class="py-2">Status</th>
+                <th class="pe-3 py-2 text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for job in assigned_work_orders %}
+              <tr>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'workspace:job_detail' job.pk %}" class="text-decoration-none">
+                    {{ job.order_number }}
+                  </a>
+                  <div>
+                    <span class="badge {% if job.priority == 'CRITICAL' %}bg-danger{% elif job.priority == 'HIGH' %}bg-warning text-dark{% elif job.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size:0.65rem;">
+                      {{ job.get_priority_display }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark small">{{ job.title }}</div>
+                  <div class="text-secondary small">{{ job.get_work_type_display }}</div>
+                </td>
+                <td class="small">
+                  <div class="d-flex align-items-center gap-1 text-secondary">
+                    {% icon 'pin' 12 %} {{ job.site.name }}
+                  </div>
+                  {% if job.asset %}
+                  <div class="d-flex align-items-center gap-1 text-muted">
+                    {% icon 'box' 12 %} {{ job.asset.name }} <code class="small">[{{ job.asset.asset_tag }}]</code>
+                  </div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+                    {{ job.get_status_display }}
+                  </span>
+                </td>
+                <td class="pe-3 text-end">
+                  <div class="d-inline-flex align-items-center gap-1">
+                    {% if job.status == 'DISPATCHED' %}
+                    <form method="post" action="{% url 'workspace:start' job.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 py-1 px-2" title="Start execution">
+                        {% icon 'check' 12 %} Start
+                      </button>
+                    </form>
+                    {% elif job.status == 'IN_PROGRESS' %}
+                    <button class="btn btn-sm btn-warning text-dark d-inline-flex align-items-center gap-1 py-1 px-2"
+                            hx-get="{% url 'workspace:drawer' job.pk %}"
+                            hx-target="#drawer-content"
+                            data-bs-toggle="offcanvas"
+                            data-bs-target="#technicianExecutionDrawer"
+                            title="Manage active job">
+                      {% icon 'sliders' 12 %} Manage
+                    </button>
+                    {% elif job.status == 'ON_HOLD' %}
+                    <form method="post" action="{% url 'workspace:resume' job.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 py-1 px-2" title="Resume execution">
+                        {% icon 'clock' 12 %} Resume
+                      </button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View details">
+                      {% icon 'arrow-up-right' 12 %}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center">
+          <div class="text-secondary mb-2">{% icon 'clipboard-check' 32 %}</div>
+          <h6 class="text-secondary mb-1">No active work orders assigned</h6>
+          <p class="small text-muted mb-3">You're all caught up! New dispatches will appear here automatically.</p>
+          <a href="{% url 'identification:scan' %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+            {% icon 'qr' 14 %} Scan Equipment Barcode
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Activity Timeline -->
     {% if recent %}
       <div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
         <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
@@ -111,4 +305,17 @@
     </div>
   </div>
 </div>
+
+{% if is_technician %}
+<!-- Reusable Offcanvas Execution Drawer Component -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="technicianExecutionDrawer" aria-labelledby="technicianExecutionDrawerLabel" style="width: 520px; max-width: 95vw;">
+  <div class="offcanvas-body p-0" id="drawer-content">
+    <div class="d-flex justify-content-center align-items-center h-100 p-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading drawer...</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

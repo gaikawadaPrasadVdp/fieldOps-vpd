@@ -6,8 +6,11 @@ from .models import WorkOrder
 
 
 def get_work_order(membership, organization, pk):
-    wo = WorkOrder.objects.for_organization(organization).select_related(
-        "site", "assigned_to__user", "created_by").filter(pk=pk).first()
+    try:
+        wo = WorkOrder.objects.for_organization(organization).select_related(
+            "site", "assigned_to__user", "created_by").filter(pk=pk).first()
+    except (ValueError, TypeError):
+        raise NotFound("Work order not found.")
     if wo is None:
         raise NotFound("Work order not found.")
     can_view = (
