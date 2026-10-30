@@ -52,13 +52,22 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         "close": "work_order.close", "return_for_rework": "work_order.review",
         "provisional_checklist": "work_order.update", "checklist_reference": "work_order.update", "labor": "work_order.record",
         "materials": "work_order.record", "evidence": "work_order.attach", "notes": "work_order.record",
+        "transition": "work_order.view_assigned",
+        "closure": "work_order.view_assigned",
     }
 
     def get_required_permission(self):
         action = getattr(self, "action", None)
         if action == "list":
             return "work_order.view_assigned"
-        if action in ("retrieve", "events", "checklist_status", "validate_checklist"):
+        if action == "transition":
+            sub = getattr(self.request, "data", {}).get("action")
+            return {"complete": "work_order.complete", "start": "work_order.start",
+                    "hold": "work_order.hold", "resume": "work_order.start",
+                    "plan": "work_order.plan", "assign": "work_order.assign",
+                    "dispatch": "work_order.dispatch", "submit_for_review": "work_order.complete",
+                    "close": "work_order.close", "return_for_rework": "work_order.review"}.get(sub, "work_order.view_assigned")
+        if (action in ("retrieve", "events", "checklist_status", "validate_checklist", "closure") or (action == "materials" and self.request.method == "GET")):
             m = getattr(self.request, "membership", None)
             if m and rbac.has_permission_anywhere(m, "work_order.view"):
                 return "work_order.view"
@@ -329,8 +338,18 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         responses={201: inline_serializer("WorkOrderMaterialRecordResponse", fields={"id": serializers.CharField(), "work_order": serializers.CharField()})},
         description="Record parts/materials used."
     )
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "post"])
     def materials(self, request, pk=None):
+        if request.method == "GET":
+            wo = self.get_object()
+            from .api_views import MaterialSerializer
+            qs = wo.material_entries.all().order_by("-created_at")
+            page = self.paginate_queryset(qs)
+            if page is not None:
+                serializer = MaterialSerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = MaterialSerializer(qs, many=True)
+            return Response(serializer.data)
         return self._action(pk, services.record_material, MaterialInputSerializer)
 
     @extend_schema(
@@ -347,3 +366,10 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def events(self, request, pk=None):
         wo = self.get_object()
         return Response(WorkOrderEventSerializer(wo.events.all(), many=True).data)
+
+    @action(detail=True, methods=["get"])
+    def closure(self, request, pk=None):
+        wo = self.get_object()
+        blockers = services.closure_blockers(wo)
+        return Response({"blockers": blockers})
+

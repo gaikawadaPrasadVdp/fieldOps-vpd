@@ -78,7 +78,7 @@
               {% if work_order.checklist_required and work_order.checklist_status != 'COMPLETED' %}
                 <div class="alert alert-warning py-1 px-2 small mb-2 d-flex align-items-center justify-content-between">
                   <span>⚠️ Checklist must be completed first</span>
-                  <a href="{% url 'checklists:inspections' %}?work_order={{ work_order.pk }}" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem;">Open Checklist</a>
+                  <a href="{% url 'workorders:checklist_execute' work_order.pk %}" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem;">Open Checklist</a>
                 </div>
               {% endif %}
               {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' and not work_order.completion_evidence.exists %}

@@ -370,6 +370,9 @@ def home(request):
         rbac.has_permission(request.membership, "work_order.view")
         or rbac.has_permission(request.membership, "work_order.view_assigned")
     )
+    capacity_summary = None
+    current_in_progress_job = None
+    assigned_work_orders = []
 
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
@@ -383,10 +386,10 @@ def home(request):
     # Build Role-Tailored KPIs, Shortcuts, Actions, and Recent Activity
     if persona_key in ("owner", "admin"):
         kpi_cards = [
-            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "gold", "icon": "building"},
-            {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating equipment assets", "tone": "accent", "icon": "box"},
-            {"title": "Active Work Orders", "value": stats["open_work_orders"], "subtitle": "Jobs in execution & planned", "tone": "warning", "icon": "clipboard"},
             {"title": "Active Users", "value": stats["active_members"], "subtitle": "Active tenant memberships", "tone": "accent", "icon": "people"},
+            {"title": "Pending Invitations", "value": stats["pending_invites"], "subtitle": "Pending activation links", "tone": "warning", "icon": "clock"},
+            {"title": "RBAC Roles", "value": stats["roles"], "subtitle": "Configured system & custom roles", "tone": "gold", "icon": "shield"},
+            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
         ]
         shortcuts = [
             {"label": "Operations Analytics", "url": reverse("dashboards:hub"), "icon": "activity"},
@@ -489,6 +492,23 @@ def home(request):
         activity_link_label = "All Incidents →"
 
     elif persona_key in ("technician", "field_technician"):
+        from apps.workspace import selectors as workspace_selectors
+        capacity_summary = workspace_selectors.daily_capacity_summary(request.membership)
+        current_in_progress_job = (
+            WorkOrder.objects.for_organization(org)
+            .filter(assigned_to=request.membership, status="IN_PROGRESS")
+            .select_related("site", "asset")
+            .first()
+        )
+        assigned_work_orders = list(
+            WorkOrder.objects.for_organization(org)
+            .filter(
+                assigned_to=request.membership,
+                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "PLANNED"],
+            )
+            .select_related("site", "asset")
+            .order_by("-status", "-priority", "planned_start", "due_at")[:8]
+        )
         my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
         my_active = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status="IN_PROGRESS").count()
         my_completed = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status__in=["COMPLETED", "CLOSED"]).count()
@@ -672,7 +692,7 @@ def home(request):
             continue
         if "/app/incidents" in u and not (rbac.has_permission(request.membership, "incident.view") or rbac.has_permission(request.membership, "incident.view_assigned")):
             continue
-        if "/app/dashboards" in u and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
         if "/app/sla" in u and not rbac.has_permission(request.membership, "sla.view"):
             continue
@@ -695,10 +715,11 @@ def home(request):
             continue
         if "/app/incidents" in u and not rbac.has_permission(request.membership, "incident.view"):
             continue
-        if "/app/dashboards" in u and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
         filtered_headers.append(h)
 
+    is_tech = persona_key in ("technician", "field_technician")
     return render(request, "ui/home.html", {
         "persona": persona,
         "kpi_cards": kpi_cards,
@@ -711,6 +732,10 @@ def home(request):
         "activity_link_label": activity_link_label,
         "can_view_users": can_view_users,
         "can_view_assets": can_view_assets,
+        "is_technician": is_tech,
+        "current_in_progress_job": current_in_progress_job if is_tech else None,
+        "assigned_work_orders": assigned_work_orders if is_tech else [],
+        "capacity_summary": capacity_summary if is_tech else None,
     })
 
 

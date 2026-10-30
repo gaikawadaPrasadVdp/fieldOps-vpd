@@ -105,7 +105,14 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="4">{% include "components/_empty_state.html" with title="No schedules" text="Add a time-based or meter-based schedule." %}</td>
+              <td colspan="4" class="text-center py-4">
+                <div class="text-body-secondary mb-2">No schedules configured yet. Add a time-based or meter-based schedule to start generating PM work orders.</div>
+                {% if can.create %}
+                  <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" href="{% url 'maintenance:schedule_new' plan.pk %}">
+                    {% icon 'plus' 14 %} Add Schedule Now
+                  </a>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
