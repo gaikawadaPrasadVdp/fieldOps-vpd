@@ -1815,8 +1815,7 @@ body.htmx-request .fx-global-loader {
    ========================================================================== */
 
 /* 1. Global Viewport Overflow Protections */
-html,
-body {
+html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   max-width: 100vw;
   overflow-x: hidden;
 }
@@ -2020,8 +2019,7 @@ body {
    ========================================================================== */
 
 /* 1. Global Box Sizing & Viewport Constraints */
-html,
-body {
+html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   width: 100% !important;
   max-width: 100vw !important;
   overflow-x: hidden !important;
