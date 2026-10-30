@@ -232,3 +232,38 @@ def test_csrf_is_enforced(ui):
     assert c.post(f"/app/maintenance/plans/{plan.pk}/active/", {"active": "0"}).status_code == 403
     plan.refresh_from_db()
     assert plan.is_active
+
+
+def test_schedule_form_validation_field_level_errors(ui):
+    c = ui["cl"]["planner"]
+    plan = make_plan(ui)
+    base = f"/app/maintenance/plans/{plan.pk}/schedules/new/"
+
+    # Time-based: missing frequency and start_date
+    r = c.post(base, {"trigger_type": "TIME", "frequency": "", "interval_count": "1", "start_date": "",
+                      "lead_days": "0", "window_start_time": "08:00", "window_hours": "8", "reminder_days": "0"})
+    assert r.status_code == 400
+    form = r.context["form"]
+    assert "frequency" in form.errors
+    assert "start_date" in form.errors
+
+    # Time-based: invalid interval count (0 or > 1000)
+    r = c.post(base, {"trigger_type": "TIME", "frequency": "MONTHLY", "interval_count": "0", "start_date": "2026-03-10",
+                      "lead_days": "0", "window_start_time": "08:00", "window_hours": "8", "reminder_days": "0"})
+    assert r.status_code == 400
+    assert "interval_count" in r.context["form"].errors
+
+    # Meter-based: missing meter and interval_value
+    r = c.post(base, {"trigger_type": "METER", "meter": "", "interval_value": "",
+                      "lead_days": "0", "window_start_time": "08:00", "window_hours": "8", "reminder_days": "0"})
+    assert r.status_code == 400
+    form = r.context["form"]
+    assert "meter" in form.errors
+    assert "interval_value" in form.errors
+
+    # Invalid window hours
+    r = c.post(base, {"trigger_type": "TIME", "frequency": "DAILY", "interval_count": "1", "start_date": "2026-03-10",
+                      "lead_days": "0", "window_start_time": "08:00", "window_hours": "99", "reminder_days": "0"})
+    assert r.status_code == 400
+    assert "window_hours" in r.context["form"].errors
+

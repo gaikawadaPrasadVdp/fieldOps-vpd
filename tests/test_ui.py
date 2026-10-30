@@ -216,3 +216,80 @@ def test_hub_dashboard_role_section_isolation(client, org_a, make_member):
     r_planner = client.get("/app/dashboards/?section=maintenance")
     assert r_planner.status_code == 200
     assert client.get("/app/dashboards/?section=inventory").status_code == 403
+
+
+def test_technician_dashboard_shortcuts_and_nav_enrichment(client, org_a, tech_a):
+    client.force_login(tech_a)
+    r = client.get("/app/")
+    assert r.status_code == 200
+    html = r.content.decode()
+
+    # 1. Shortcuts include My Work Cockpit and Technician Workspace
+    assert "My Work Cockpit" in html
+    assert "Technician Workspace" in html
+    assert "Scan Asset Label" in html
+
+    # 2. Sidebar includes Field Execution and Field Tools
+    assert "My Assigned Jobs" in html
+    assert "All Work Orders" in html
+    assert "/app/dashboards/my-work" in html
+    assert "Scan Asset Label" in html
+
+    # 3. Context contains technician data structures
+    assert r.context["is_technician"] is True
+    assert "capacity_summary" in r.context
+    assert r.context["capacity_summary"]["standard_capacity_hours"] == 8.0
+
+
+def test_technician_dashboard_active_clocked_in_banner_and_queue(client, org_a, tech_a):
+    from apps.sites.models import Site
+    from apps.assets.models import Asset, AssetCategory
+    from apps.workorders.models import WorkOrder
+
+    membership = Membership.objects.get(organization=org_a, user=tech_a)
+    site = Site.objects.create(organization=org_a, name="Beta Processing Unit", code="BPU-01")
+    cat = AssetCategory.objects.create(organization=org_a, name="Mechanical Pumps")
+    asset = Asset.objects.create(organization=org_a, site=site, category=cat, name="Centrifugal Pump A1", asset_tag="PUMP-001")
+
+    # In-progress job
+    wo_active = WorkOrder.objects.create(
+        organization=org_a,
+        site=site,
+        asset=asset,
+        order_number="WO-TECH-001",
+        title="Emergency Pump Seal Repair",
+        status=WorkOrder.Status.IN_PROGRESS,
+        priority=WorkOrder.Priority.CRITICAL,
+        assigned_to=membership,
+    )
+    # Dispatched job
+    wo_dispatched = WorkOrder.objects.create(
+        organization=org_a,
+        site=site,
+        asset=asset,
+        order_number="WO-TECH-002",
+        title="Routine Chiller Inspection",
+        status=WorkOrder.Status.DISPATCHED,
+        priority=WorkOrder.Priority.HIGH,
+        assigned_to=membership,
+    )
+
+    client.force_login(tech_a)
+    r = client.get("/app/")
+    assert r.status_code == 200
+    html = r.content.decode()
+
+    # 1. Prominent Clocked-In Banner
+    assert "Currently Clocked In" in html
+    assert "WO-TECH-001" in html
+    assert "Emergency Pump Seal Repair" in html
+
+    # 2. Assigned Work Order Queue Table
+    assert "Assigned Work Order Queue" in html
+    assert "WO-TECH-002" in html
+    assert "Routine Chiller Inspection" in html
+    assert "Start" in html
+
+    # 3. Capacity utilization gauge
+    assert "Today&#x27;s Shift Capacity" in html or "Today's Shift Capacity" in html
+    assert "Shift Utilization" in html

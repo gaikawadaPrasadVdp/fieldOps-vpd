@@ -394,7 +394,7 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     if source_asset.site_id != site.pk:
         raise ValidationFailed("Invalid asset for the selected site.", code="asset_site_mismatch")
     if component is not None:
-        if (component.organization_id != organization.pk or component.status != Asset.Status.ACTIVE or
+        if (component.organization_id != organization.pk or component.status not in (Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE) or
                 not AssetComponent.objects.filter(organization=organization, parent=source_asset,
                                                   child=component,
                                                   relationship_type=AssetComponent.Relationship.COMPONENT).exists()):
@@ -476,6 +476,8 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
             raise ValidationFailed("Site must remain linked to the approved source record.", code="source_site_locked")
         if wo.status != WorkOrder.Status.DRAFT and new_site.pk != wo.site_id:
             raise Conflict("The site cannot be changed after the work order is planned.", code="site_locked")
+        if new_site.pk != wo.site_id and getattr(wo, "part_lines", None) and wo.part_lines.exclude(status="RECONCILED").exclude(status="CANCELLED").exists():
+            raise Conflict("The site cannot be changed while active part requirements exist.", code="part_lines_locked")
         wo.site = new_site
     asset_value = values.pop("asset", None)
     component_not_submitted = object()

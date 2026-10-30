@@ -280,7 +280,29 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
-    permission_map = {"list": "maintenance.view", "retrieve": "maintenance.view"}
+    permission_map = {"list": "maintenance.view", "retrieve": "maintenance.view", "compliance": "maintenance.view"}
+
+    @extend_schema(
+        parameters=[
+            query_param("site", "site id", OpenApiTypes.UUID),
+            query_param("plan", "plan id", OpenApiTypes.UUID),
+            query_param("start_date", "YYYY-MM-DD", OpenApiTypes.DATE),
+            query_param("end_date", "YYYY-MM-DD", OpenApiTypes.DATE),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    @action(detail=False, methods=["get"])
+    def compliance(self, request):
+        """Calculates PM compliance ratio (scheduled vs on-time vs overdue vs skipped)."""
+        data = selectors.pm_compliance_ratio(
+            request.membership,
+            request.organization,
+            site_id=request.query_params.get("site"),
+            plan_id=request.query_params.get("plan"),
+            start_date=request.query_params.get("start_date") or request.query_params.get("from"),
+            end_date=request.query_params.get("end_date") or request.query_params.get("to"),
+        )
+        return Response(data)
 
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("schedule", "schedule id", OpenApiTypes.UUID),

@@ -254,11 +254,22 @@ class ItemMoveView(_Post):
 class InspectionListView(_View):
     required_permission = "inspection.view"
 
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        self.required_permission = (
+            "inspection.view"
+            if m and rbac.has_permission_anywhere(m, "inspection.view")
+            else "inspection.execute"
+        )
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request):
         m, org = request.membership, request.organization
         all_inspections = selectors.inspections_for(m, org)
         qs = selectors.filter_inspections(all_inspections, request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+        can_view = rbac.has_permission_anywhere(m, "inspection.view")
+        site_perm = "inspection.view" if can_view else "inspection.execute"
         return render(request, "checklists/inspections.html", {
             "page": page, "filters": request.GET,
             "kpis": {
@@ -267,7 +278,7 @@ class InspectionListView(_View):
                 "completed": all_inspections.filter(status="COMPLETED").count(),
                 "open_findings": Finding.objects.filter(organization=org, status="OPEN").count(),
             },
-            "sites": site_selectors.sites_for(m, org, "inspection.view").order_by("code")})
+            "sites": site_selectors.sites_for(m, org, site_perm).order_by("code")})
 
 
 class InspectionDetailView(_View):

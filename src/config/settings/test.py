@@ -8,6 +8,7 @@ os.environ.setdefault("DATABASE_URL", f"postgres://fieldops:{_pg_pass}@localhost
 
 from .base import *  # noqa: E402,F401,F403
 
+TIME_ZONE = "UTC"
 DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # speed only; tests only
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
