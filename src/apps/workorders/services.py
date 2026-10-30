@@ -854,6 +854,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     _need(membership, code, wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     notes = (notes or "").strip()
+    if approved and wo.status == WorkOrder.Status.CLOSED:
+        if wo.closure_approvals.filter(decision=ClosureApproval.Decision.APPROVED).exists():
+            return wo
     if wo.status != WorkOrder.Status.SUPERVISOR_REVIEW:
         raise InvalidTransition("Only work orders awaiting supervisor review can be reviewed.")
     if approved and require_comment and not notes:
