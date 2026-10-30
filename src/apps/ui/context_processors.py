@@ -318,4 +318,5 @@ def shell(request):
         "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
         "shell_tenant_error": getattr(request, "tenant_error", None),
         "is_client": is_client,
+        "is_org_owner": is_owner,
     }

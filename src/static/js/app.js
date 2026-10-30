@@ -690,7 +690,28 @@ document.addEventListener("click", function (e) {
       if (window.fxToast) {
         window.fxToast("Please complete all required fields correctly before submitting.", "warning");
       }
+    } else {
+      if (form.dataset.submitting === "true") {
+        e.preventDefault();
+        return;
+      }
+      form.dataset.submitting = "true";
+      setTimeout(function () {
+        var submitBtns = form.querySelectorAll("button[type='submit'], input[type='submit']");
+        submitBtns.forEach(function (btn) {
+          btn.disabled = true;
+        });
+      }, 50);
     }
+  });
+
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll("form").forEach(function (form) {
+      delete form.dataset.submitting;
+      form.querySelectorAll("button[type='submit'], input[type='submit']").forEach(function (btn) {
+        btn.disabled = false;
+      });
+    });
   });
 
   document.addEventListener("input", function (e) {

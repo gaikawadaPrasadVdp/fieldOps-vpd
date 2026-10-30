@@ -391,3 +391,41 @@ def test_technician_dashboard_shows_only_assigned_and_no_unassigned(client, org_
     owner_html = r_owner.content.decode()
     assert "WO-ASSIGNED-101" in owner_html
     assert "WO-UNASSIGNED-999" in owner_html
+
+
+def test_client_user_creation_creates_portal_account_and_grants(client, org_a, owner_a, site_a1, make_asset):
+    from apps.portal.models import PortalAccount, PortalAssetGrant
+    from apps.rbac.models import Role
+    from apps.tenancy import services as tenancy_services
+
+    asset = make_asset(org_a, site_a1, "CHILLER-PORTAL-TEST")
+    client_role = Role.objects.unscoped().get(organization=org_a, system_key="client_requester")
+
+    client.force_login(owner_a)
+    # Invite/create member via UI POST
+    post_data = {
+        "email": "new.portal.requester@acme.test",
+        "full_name": "New Requester",
+        "password": "FieldOps@2026!",
+        "roles": [str(client_role.pk)],
+        "sites": [],
+    }
+    from django.urls import reverse
+    r = client.post(reverse("tenancy:member_invite"), data=post_data, follow=True)
+    assert r.status_code == 200
+
+    # Verify membership is active and PortalAccount exists
+    from apps.accounts.models import User
+    new_user = User.objects.get(email="new.portal.requester@acme.test")
+    membership = new_user.memberships.get(organization=org_a)
+    assert membership.status == "ACTIVE"
+
+    account = PortalAccount.objects.filter(membership=membership).first()
+    assert account is not None
+    assert account.is_enabled is True
+    assert PortalAssetGrant.objects.filter(portal_account=account, asset=asset).exists()
+
+    # Client can log in and view /app/portal/ without 403
+    client.force_login(new_user)
+    r_portal = client.get("/app/portal/")
+    assert r_portal.status_code == 200
