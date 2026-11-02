@@ -7,8 +7,9 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import DomainError
+from apps.core.exceptions import DomainError, ValidationFailed
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 
@@ -185,6 +186,7 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "incident.view_assigned", "retrieve": "incident.view_assigned", "create": "incident.create",
         "partial_update": "incident.update", "transition": "incident.view_assigned",
@@ -215,7 +217,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
                     OpenApiTypes.UUID), query_param("status", "request status"), query_param("severity", "severity"),
                     query_param("kind", "INCIDENT | SERVICE_REQUEST"), query_param("q", "number / title / asset"),
                     query_param("ordering", "-created_at, number, severity, status")],
-        responses=ServiceRequestSerializer(many=True))
+        responses=ServiceRequestSerializer)
     def list(self, request):
         return paginate(request, selectors.filter_requests(self._qs(request), request.query_params),
                         ServiceRequestSerializer)
@@ -228,10 +230,14 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get", "post"], url_path="check-duplicate")
     def check_duplicate(self, request):
         """Checks for existing active duplicate incidents linked to the target asset."""
-        params = request.query_params if request.method == "GET" else request.data
-        asset_id = params.get("asset")
-        if not asset_id:
-            return Response({"duplicate_found": False, "duplicates": []})
+        if request.method == "POST":
+            params = _validated(CheckDuplicateSerializer, request)
+            asset_id = params["asset"]
+        else:
+            params = request.query_params
+            asset_id = params.get("asset")
+            if not asset_id:
+                raise ValidationFailed("asset parameter is required.", code="validation_failed")
         if selectors.is_owned_asset_reporter(request.membership):
             from apps.assets.models import Asset
 
@@ -310,7 +316,6 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         except services.DuplicateIncidentError as exc:
             from apps.core.api import _envelope
             data = _envelope(exc.code, exc.message, {"duplicates": exc.duplicates})
-            data.update({"error": exc.message, "code": exc.code, "duplicates": exc.duplicates})
             return Response(data, status=status.HTTP_409_CONFLICT)
         return Response(ServiceRequestSerializer(self._obj(request, sr.pk)).data, status=status.HTTP_201_CREATED)
 

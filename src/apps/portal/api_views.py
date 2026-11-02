@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.assets.models import Asset
+from apps.core.api import StandardPagination
 from apps.core.apiutils import paginate
 from apps.core.exceptions import Conflict, DomainError, NotFound, ValidationFailed
 from apps.incidents.models import ServiceRequest
@@ -177,12 +178,13 @@ class PortalAssetSerializer(serializers.ModelSerializer):
 class PortalAssetListView(TenantAPIMixin, APIView):
     """Client / Requester endpoint to list equipment assets explicitly granted to the client account."""
 
+    pagination_class = StandardPagination
     permission_map = {
         "get": "portal.request.view",
     }
 
     @extend_schema(
-        responses={200: PortalAssetSerializer(many=True)},
+        responses={200: PortalAssetSerializer},
         summary="List granted client assets",
         description="Returns a paginated list of non-terminal equipment assets explicitly granted to the authenticated client.",
     )
@@ -414,6 +416,7 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
     POST: Submits a new client service request.
     """
 
+    pagination_class = StandardPagination
     parser_classes = [parsers.JSONParser, parsers.FormParser, parsers.MultiPartParser]
     permission_map = {
         "get": "portal.request.view",
@@ -421,7 +424,7 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
     }
 
     @extend_schema(
-        responses={200: PortalServiceRequestSerializer(many=True)},
+        responses={200: PortalServiceRequestSerializer},
         summary="List client service requests",
         description="Returns a paginated list of service requests reported by the authenticated client.",
     )

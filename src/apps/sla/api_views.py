@@ -364,7 +364,7 @@ class SLAProfileViewSet(TenantAPIMixin, viewsets.ViewSet):
     def _out(self, request, pk):
         return Response(ProfileSerializer(self._profile(request, pk)).data)
 
-    @extend_schema(responses=ProfileSerializer(many=True))
+    @extend_schema(responses=ProfileSerializer)
     def list(self, request):
         return paginate(
             request,
@@ -477,7 +477,7 @@ class SLATrackingViewSet(TenantAPIMixin, viewsets.ViewSet):
             query_param("request", "request id", OpenApiTypes.UUID),
             query_param("work_order", "work order id", OpenApiTypes.UUID),
         ],
-        responses=TrackingSerializer(many=True),
+        responses=TrackingSerializer,
     )
     def list(self, request):
         qs = selectors.filter_trackings(
@@ -522,7 +522,7 @@ class SLABreachViewSet(TenantAPIMixin, viewsets.ViewSet):
             query_param("status", "OPEN | ACKNOWLEDGED | CLOSED"),
             query_param("target", "RESPONSE | RESOLUTION"),
         ],
-        responses=BreachSerializer(many=True),
+        responses=BreachSerializer,
     )
     def list(self, request):
         qs = selectors.filter_breaches(
