@@ -856,6 +856,10 @@ def _work_order_detail_context(request, wo, active_tab="overview"):
         "completed": code in status_events and code != wo.status,
         "next": code in next_statuses}
         for code, label in WORKFLOW_STEPS]
+    from django.apps import apps
+    if apps.is_installed("apps.sla"):
+        from apps.sla.selectors import tracking_for_work_order
+        context["sla"] = tracking_for_work_order(request.membership, wo.organization, wo)
     context.update(_work_order_tab_context(wo, request.membership, active_tab))
     return context
 
@@ -892,6 +896,11 @@ def _work_order_tab_context(wo, membership, tab):
        "is_closed": wo.status == WorkOrder.Status.CLOSED,
        "due_is_overdue": bool(wo.due_at and wo.due_at < timezone.now() and
                                wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}
+    if tab == "overview":
+        from django.apps import apps
+        if apps.is_installed("apps.sla"):
+            from apps.sla.selectors import tracking_for_work_order
+            context["sla"] = tracking_for_work_order(membership, wo.organization, wo)
     if tab in ("assignment", "timeline", "closure"):
         context["events"] = wo.events.select_related("actor", "assigned_to__user")
     if tab == "checklist":

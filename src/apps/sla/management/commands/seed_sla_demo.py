@@ -11,12 +11,10 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.core.tenant import tenant_context
 from apps.incidents.models import ServiceRequest
 from apps.rbac.models import Role
-from apps.tenancy.models import Membership, Organization
-from apps.workorders.models import WorkOrder
-
 from apps.sla import services
 from apps.sla.models import REQUEST, WORK_ORDER, EscalationRule, SLAProfile, SLATracking
-
+from apps.tenancy.models import Membership, Organization
+from apps.workorders.models import WorkOrder
 
 POLICIES = (
     {

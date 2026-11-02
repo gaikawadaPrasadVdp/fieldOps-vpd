@@ -5,7 +5,12 @@
 <div class="fx-page-header"><div>
   <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'workorders:list' %}">Work orders</a></li>
     <li class="breadcrumb-item active">{{ wo.number }}</li></ol></nav>
-  <h1>{{ wo.title }} {% status_badge wo.status %}</h1>
+  <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+    <h1 class="m-0">{{ wo.title }} {% status_badge wo.status %}</h1>
+    {% if sla %}
+      {% include "sla/_header_badge.html" %}
+    {% endif %}
+  </div>
   <div class="text-body-secondary">{{ wo.number }} Â· {{ wo.get_work_type_display }} Â· {% status_badge wo.priority %} Â· <a href="{% url 'assets:detail' wo.asset_id %}">{{ wo.asset.asset_tag }}</a> Â· <a href="{% url 'sites:detail' wo.site_id %}">{{ wo.site.code }}</a></div></div>
   <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'workorders:edit' wo.pk %}">Edit</a>{% endif %}
   {% if can.export_evidence %}<a class="btn btn-outline-secondary" id="evidence-package" href="{% url 'audit:evidence_package' wo.pk %}">Evidence package (ZIP)</a>{% endif %}</div></div>

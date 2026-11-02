@@ -151,6 +151,11 @@ def metrics(membership, org, *, since: datetime | None = None, until: datetime |
     by_priority = {}
     for r in open_breaches.values("target_kind", "priority").annotate(n=Count("id")):
         by_priority.setdefault(r["target_kind"].lower(), {})[r["priority"]] = r["n"]
+    from collections import defaultdict
+    breach_trend = defaultdict(int)
+    for b_dt in breaches.values_list("breached_at", flat=True):
+        if b_dt:
+            breach_trend[b_dt.date().isoformat()] += 1
     return {
         "trackings": qs.count(),
         "active": qs.filter(status="ACTIVE").count(),
@@ -163,5 +168,6 @@ def metrics(membership, org, *, since: datetime | None = None, until: datetime |
         "breaches_open": open_breaches.count(),
         "breaches_open_by_priority": by_priority,
         "breaches_escalated": breaches.filter(escalation_level__gt=0).count(),
+        "breach_trend": dict(breach_trend),
         "targets": [RESPONSE, RESOLUTION],
     }
