@@ -4,6 +4,8 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.api import StandardPagination
+
 from . import selectors, services
 from .api import PlatformAPIMixin, TenantAPIMixin
 from .models import Membership, Organization
@@ -155,6 +157,7 @@ class MemberUpdateSerializer(_AssignmentInput):
 
 @extend_schema(parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)])
 class MemberViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "user.view", "retrieve": "user.view", "create": "user.invite",
         "partial_update": "user.update", "deactivate": "user.deactivate",
@@ -164,14 +167,12 @@ class MemberViewSet(TenantAPIMixin, viewsets.ViewSet):
     def _qs(self, request):
         return selectors.organization_members(request.organization)
 
-    @extend_schema(responses=MemberSerializer(many=True))
+    @extend_schema(responses=MemberSerializer)
     def list(self, request):
         qs = self._qs(request).order_by("user__full_name")
         status_f = request.query_params.get("status")
         if status_f in Membership.Status.values:
             qs = qs.filter(status=status_f)
-        from apps.core.api import StandardPagination
-
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(MemberSerializer(page, many=True).data)

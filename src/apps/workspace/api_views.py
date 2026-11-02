@@ -217,7 +217,12 @@ class JobDetailAPIView(TenantAPIMixin, APIView):
         try:
             data = selectors.get_job_detail(request.membership, pk)
         except DomainError as exc:
-            http_status = status.HTTP_404_NOT_FOUND if exc.code == "not_found" else status.HTTP_400_BAD_REQUEST
+            if exc.code == "not_found":
+                http_status = status.HTTP_404_NOT_FOUND
+            elif exc.code == "permission_denied":
+                http_status = status.HTTP_403_FORBIDDEN
+            else:
+                http_status = status.HTTP_400_BAD_REQUEST
             return Response({"error": {"code": exc.code, "message": exc.message}}, status=http_status)
 
         wo = data["work_order"]

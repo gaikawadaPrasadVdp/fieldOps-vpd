@@ -215,7 +215,7 @@ def _move(asset: Asset, site, zone, *, actor, reason=""):
 @transaction.atomic
 def change_status(asset: Asset, *, action: str, reason: str, actor, request=None, source: str = "manual") -> Asset:
     reason = (reason or "").strip()
-    if len(reason) < 3:
+    if not reason:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     previous, new = ASSET_STATUS.apply(asset, action)
