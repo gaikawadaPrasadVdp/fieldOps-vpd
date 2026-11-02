@@ -20,7 +20,7 @@ from apps.sla.models import SLAProfile
 from apps.ui.mixins import TenantPermissionMixin
 from apps.workorders import selectors as wo_selectors
 
-from . import selectors, services
+from . import exports, selectors, services
 from .forms import AddAssetForm, AgreementForm, ProviderForm, ReasonForm, RenewForm
 from .models import CoverageAgreement
 
@@ -57,6 +57,8 @@ class AgreementListView(CBase):
         expired_agreements = sum(1 for a in base_agreements if a.state(today) == "EXPIRED")
         upcoming_agreements = sum(1 for a in base_agreements if a.state(today) == "UPCOMING")
         qs = selectors.filter_agreements(base_agreements, request.GET)
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
+            return exports.export_agreements_csv(qs, org)
         page = _paged(request, qs)
         for a in page:
             a.current_state = a.state(today)
@@ -70,6 +72,17 @@ class AgreementListView(CBase):
             "active_agreements": active_agreements,
             "expired_agreements": expired_agreements,
             "upcoming_agreements": upcoming_agreements})
+
+
+class AgreementExportView(CBase):
+    """Direct URL endpoint to download filtered agreements as CSV."""
+    def get(self, request):
+        m, org = request.membership, request.organization
+        base_agreements = selectors.agreements_for(m, org)
+        qs = selectors.filter_agreements(base_agreements, request.GET)
+        return exports.export_agreements_csv(qs, org)
+
+
 
 
 class AgreementCreateView(CBase):
@@ -123,9 +136,18 @@ class AgreementBase(CBase):
         return ag
 
 
+class AgreementDownloadView(AgreementBase):
+    """Direct URL endpoint to download a single agreement as CSV."""
+    def get(self, request, pk):
+        ag = self.ag(request, pk)
+        return exports.export_single_agreement_csv(ag)
+
+
 class AgreementDetailView(AgreementBase):
     def get(self, request, pk):
         ag = self.ag(request, pk)
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
+            return exports.export_single_agreement_csv(ag)
         m, org = request.membership, request.organization
         can_update = rbac.has_permission(m, "contract.update", ag.site_id)
         add_form = None
@@ -251,6 +273,8 @@ class ExpiryView(CBase):
             days = 90
         today = datetime.date.today()
         rows = list(selectors.expiring(m, org, days, today).prefetch_related("covered_assets"))
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
+            return exports.export_expiry_csv(rows, org, days)
         lapsed = list(selectors.agreements_for(m, org).filter(is_active=True, end_date__lt=today)
                       .order_by("-end_date")[:25])
         for a in rows:

@@ -258,6 +258,7 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
     reported_by_name = serializers.CharField(source="reported_by.user.full_name", read_only=True)
     reported_by_email = serializers.CharField(source="reported_by.user.email", read_only=True)
     attachments_count = serializers.SerializerMethodField()
+    sla_commitment = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceRequest
@@ -293,6 +294,7 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
             "updated_at",
             "resolved_at",
             "closed_at",
+            "sla_commitment",
         ]
         read_only_fields = fields
 
@@ -305,6 +307,25 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
     def get_attachments_count(self, obj) -> int:
         from apps.incidents.selectors import evidence_for
         return evidence_for(obj.organization, obj).count()
+
+    def get_sla_commitment(self, obj) -> dict | None:
+        indicator = selectors.get_client_sla_indicator(obj)
+        if not indicator:
+            return None
+        return {
+            "has_sla": indicator["has_sla"],
+            "is_within_sla": indicator["is_within_sla"],
+            "response_achieved": indicator["response_achieved"],
+            "resolution_achieved": indicator["resolution_achieved"],
+            "is_delayed": indicator["is_delayed"],
+            "is_paused": indicator["is_paused"],
+            "status": indicator["status"],
+            "status_label": indicator["status_label"],
+            "response_due_at": indicator["response_due_at"],
+            "response_met_at": indicator["response_met_at"],
+            "expected_resolution_at": indicator["expected_resolution_at"],
+            "resolution_met_at": indicator["resolution_met_at"],
+        }
 
 
 class PortalServiceRequestDetailSerializer(PortalServiceRequestSerializer):

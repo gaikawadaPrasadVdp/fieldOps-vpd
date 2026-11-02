@@ -104,6 +104,7 @@ router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
 router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
 router.register("breaches", SLABreachViewSet, basename="breach")
 router.register("escalations", EscalationViewSet, basename="escalation")
+router.register("sla-escalations", EscalationViewSet, basename="sla-escalation")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 
 api_v1 = [

@@ -83,7 +83,7 @@
             <i class="bi bi-stopwatch text-primary"></i>
             <span>2. SLA Targets by Priority</span>
           </div>
-          <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_target" onclick="addTargetRow()">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_target">
             <i class="bi bi-plus-circle me-1"></i>Add Priority Target
           </button>
         </div>
@@ -106,33 +106,33 @@
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=t_form.response_minutes %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.response_minutes.id_for_label }}', '15 minutes')">15m</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.response_minutes.id_for_label }}', '30 minutes')">30m</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.response_minutes.id_for_label }}', '1 hour')">1h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.response_minutes.id_for_label }}', '2 hours')">2h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.response_minutes.id_for_label }}" data-val="15 minutes">15m</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.response_minutes.id_for_label }}" data-val="30 minutes">30m</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.response_minutes.id_for_label }}" data-val="1 hour">1h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.response_minutes.id_for_label }}" data-val="2 hours">2h</button>
                   </div>
                 </div>
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=t_form.resolution_minutes %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.resolution_minutes.id_for_label }}', '2 hours')">2h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.resolution_minutes.id_for_label }}', '4 hours')">4h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.resolution_minutes.id_for_label }}', '8 hours')">8h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.resolution_minutes.id_for_label }}', '24 hours')">24h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.resolution_minutes.id_for_label }}" data-val="2 hours">2h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.resolution_minutes.id_for_label }}" data-val="4 hours">4h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.resolution_minutes.id_for_label }}" data-val="8 hours">8h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.resolution_minutes.id_for_label }}" data-val="24 hours">24h</button>
                   </div>
                 </div>
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=t_form.warning_percent %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.warning_percent.id_for_label }}', '70%')">70%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.warning_percent.id_for_label }}', '75%')">75%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.warning_percent.id_for_label }}', '80%')">80%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('{{ t_form.warning_percent.id_for_label }}', '90%')">90%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.warning_percent.id_for_label }}" data-val="70%">70%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.warning_percent.id_for_label }}" data-val="75%">75%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.warning_percent.id_for_label }}" data-val="80%">80%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="{{ t_form.warning_percent.id_for_label }}" data-val="90%">90%</button>
                   </div>
                 </div>
               </div>
               <div class="text-end border-top pt-2 mt-1">
-                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" onclick="removeTargetRow(this)" title="Remove target">
+                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" data-action="remove-target" title="Remove target">
                   <i class="bi bi-trash me-1"></i>Remove target
                 </button>
                 <div class="d-none">{{ t_form.DELETE }}</div>
@@ -148,7 +148,7 @@
             <i class="bi bi-bell text-primary"></i>
             <span>3. Escalation & Notification Rules</span>
           </div>
-          <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rule" onclick="addRuleRow()">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rule">
             <i class="bi bi-plus-circle me-1"></i>Add Escalation Rule
           </button>
         </div>
@@ -187,7 +187,7 @@
                   <label class="form-check-label fw-semibold" for="{{ r_form.notify_assignee.id_for_label }}">Notify the assignee</label>
                 </div>
                 <div>
-                  <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" onclick="removeRuleRow(this)">
+                  <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" data-action="remove-rule">
                     <i class="bi bi-trash me-1"></i>Remove rule
                   </button>
                   <div class="d-none">{{ r_form.DELETE }}</div>
@@ -208,7 +208,7 @@
           <div class="col-md-6">
             <div class="card h-100 border rounded-3 p-3 bg-light-subtle">
               <div class="form-check form-switch mb-1">
-                <input type="checkbox" name="use_business_hours" class="form-check-input" id="id_use_business_hours" role="switch" onchange="toggleCalendarField()" {% if form.initial.use_business_hours or form.data.use_business_hours or profile.use_business_hours %}checked{% endif %}>
+                <input type="checkbox" name="use_business_hours" class="form-check-input" id="id_use_business_hours" role="switch"  {% if form.initial.use_business_hours or form.data.use_business_hours or profile.use_business_hours %}checked{% endif %}>
                 <label class="form-check-label fw-semibold" for="id_use_business_hours">Calculate SLA targets using business hours</label>
               </div>
               <div class="small text-body-secondary mb-3">
@@ -268,33 +268,33 @@
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=target_formset.empty_form.response_minutes %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-response_minutes', '15 minutes')">15m</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-response_minutes', '30 minutes')">30m</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-response_minutes', '1 hour')">1h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-response_minutes', '2 hours')">2h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-response_minutes" data-val="15 minutes">15m</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-response_minutes" data-val="30 minutes">30m</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-response_minutes" data-val="1 hour">1h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-response_minutes" data-val="2 hours">2h</button>
                   </div>
                 </div>
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=target_formset.empty_form.resolution_minutes %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-resolution_minutes', '2 hours')">2h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-resolution_minutes', '4 hours')">4h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-resolution_minutes', '8 hours')">8h</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-resolution_minutes', '24 hours')">24h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-resolution_minutes" data-val="2 hours">2h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-resolution_minutes" data-val="4 hours">4h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-resolution_minutes" data-val="8 hours">8h</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-resolution_minutes" data-val="24 hours">24h</button>
                   </div>
                 </div>
                 <div class="col-12 col-md-3">
                   {% include "components/_form_field.html" with field=target_formset.empty_form.warning_percent %}
                   <div class="d-flex gap-1 flex-wrap" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-warning_percent', '70%')">70%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-warning_percent', '75%')">75%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-warning_percent', '80%')">80%</button>
-                    <button type="button" class="btn btn-outline-secondary quick-pill" onclick="setVal('id_targets-__prefix__-warning_percent', '90%')">90%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-warning_percent" data-val="70%">70%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-warning_percent" data-val="75%">75%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-warning_percent" data-val="80%">80%</button>
+                    <button type="button" class="btn btn-outline-secondary quick-pill" data-target="id_targets-__prefix__-warning_percent" data-val="90%">90%</button>
                   </div>
                 </div>
               </div>
               <div class="text-end border-top pt-2 mt-1">
-                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" onclick="removeTargetRow(this)" title="Remove target">
+                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" data-action="remove-target" title="Remove target">
                   <i class="bi bi-trash me-1"></i>Remove target
                 </button>
                 <div class="d-none">{{ target_formset.empty_form.DELETE }}</div>
@@ -331,7 +331,7 @@
                   <label class="form-check-label fw-semibold" for="{{ rule_formset.empty_form.notify_assignee.id_for_label }}">Notify the assignee</label>
                 </div>
                 <div>
-                  <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" onclick="removeRuleRow(this)">
+                  <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" data-action="remove-rule">
                     <i class="bi bi-trash me-1"></i>Remove rule
                   </button>
                   <div class="d-none">{{ rule_formset.empty_form.DELETE }}</div>
@@ -345,14 +345,17 @@
     </div>
   </div>
 </div>
+{% endblock content %}
 
-<script>
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
   function setVal(id, val) {
     var el = document.getElementById(id);
     if (el) {
       el.value = val;
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
+      el.focus();
     }
   }
 
@@ -371,7 +374,6 @@
 
   function removeTargetRow(btn) {
     var row = btn.closest(".target-row");
-    if (!row) return;
     var container = document.getElementById("target_rows_container");
     var visibleRows = Array.from(container.querySelectorAll(".target-row")).filter(function(r) {
       return r.style.display !== "none" && !r.classList.contains("d-none");
@@ -415,12 +417,12 @@
     templateRow.querySelectorAll("input, select").forEach(function(el) {
       var name = el.getAttribute("name");
       if (name) {
-        var newName = name.replace(/targets-\d+-/, "targets-" + count + "-");
+        var newName = name.replace(/targets-\d+-/, "targets-" + count + "-").replace(/targets-__prefix__-/, "targets-" + count + "-");
         el.setAttribute("name", newName);
       }
       var id = el.getAttribute("id");
       if (id) {
-        var newId = id.replace(/id_targets-\d+-/, "id_targets-" + count + "-");
+        var newId = id.replace(/id_targets-\d+-/, "id_targets-" + count + "-").replace(/id_targets-__prefix__-/, "id_targets-" + count + "-");
         el.setAttribute("id", newId);
       }
       if (el.type === "checkbox") {
@@ -444,14 +446,14 @@
     templateRow.querySelectorAll("label").forEach(function(lbl) {
       var f = lbl.getAttribute("for");
       if (f) {
-        lbl.setAttribute("for", f.replace(/id_targets-\d+-/, "id_targets-" + count + "-"));
+        lbl.setAttribute("for", f.replace(/id_targets-\d+-/, "id_targets-" + count + "-").replace(/id_targets-__prefix__-/, "id_targets-" + count + "-"));
       }
     });
 
     templateRow.querySelectorAll(".quick-pill").forEach(function(pill) {
-      var onclickStr = pill.getAttribute("onclick");
-      if (onclickStr) {
-        pill.setAttribute("onclick", onclickStr.replace(/id_targets-\d+-/, "id_targets-" + count + "-"));
+      var target = pill.getAttribute("data-target");
+      if (target) {
+        pill.setAttribute("data-target", target.replace(/id_targets-\d+-/, "id_targets-" + count + "-").replace(/id_targets-__prefix__-/, "id_targets-" + count + "-"));
       }
     });
 
@@ -497,12 +499,12 @@
     templateRow.querySelectorAll("input, select").forEach(function(el) {
       var name = el.getAttribute("name");
       if (name) {
-        var newName = name.replace(/rules-\d+-/, "rules-" + count + "-");
+        var newName = name.replace(/rules-\d+-/, "rules-" + count + "-").replace(/rules-__prefix__-/, "rules-" + count + "-");
         el.setAttribute("name", newName);
       }
       var id = el.getAttribute("id");
       if (id) {
-        var newId = id.replace(/id_rules-\d+-/, "id_rules-" + count + "-");
+        var newId = id.replace(/id_rules-\d+-/, "id_rules-" + count + "-").replace(/id_rules-__prefix__-/, "id_rules-" + count + "-");
         el.setAttribute("id", newId);
       }
       if (el.type === "checkbox") {
@@ -513,7 +515,7 @@
     templateRow.querySelectorAll("label").forEach(function(lbl) {
       var f = lbl.getAttribute("for");
       if (f) {
-        lbl.setAttribute("for", f.replace(/id_rules-\d+-/, "id_rules-" + count + "-"));
+        lbl.setAttribute("for", f.replace(/id_rules-\d+-/, "id_rules-" + count + "-").replace(/id_rules-__prefix__-/, "id_rules-" + count + "-"));
       }
     });
 
@@ -521,10 +523,57 @@
     totalEl.value = count + 1;
   }
 
+  // Delegated click handler compliant with Content Security Policy (no inline onclick)
+  document.addEventListener("click", function(evt) {
+    var pill = evt.target.closest(".quick-pill");
+    if (pill) {
+      evt.preventDefault();
+      var targetId = pill.getAttribute("data-target");
+      var val = pill.getAttribute("data-val");
+      if (targetId && val) {
+        setVal(targetId, val);
+      }
+      return;
+    }
+
+    var addTargetBtn = evt.target.closest("#btn_add_target");
+    if (addTargetBtn) {
+      evt.preventDefault();
+      addTargetRow();
+      return;
+    }
+
+    var addRuleBtn = evt.target.closest("#btn_add_rule");
+    if (addRuleBtn) {
+      evt.preventDefault();
+      addRuleRow();
+      return;
+    }
+
+    var removeTargetBtn = evt.target.closest('[data-action="remove-target"]');
+    if (removeTargetBtn) {
+      evt.preventDefault();
+      removeTargetRow(removeTargetBtn);
+      return;
+    }
+
+    var removeRuleBtn = evt.target.closest('[data-action="remove-rule"]');
+    if (removeRuleBtn) {
+      evt.preventDefault();
+      removeRuleRow(removeRuleBtn);
+      return;
+    }
+  });
+
   (function() {
     var appliesTo = document.getElementById("id_applies_to");
     var woTypeGroup = document.getElementById("work_order_type_group");
     var serviceType = document.getElementById("id_service_type");
+    var bizHoursChk = document.getElementById("id_use_business_hours");
+
+    if (bizHoursChk) {
+      bizHoursChk.addEventListener("change", toggleCalendarField);
+    }
 
     var woChoices = [
       ["", "All Work Order Types"],
@@ -576,4 +625,4 @@
     updateForm();
   })();
 </script>
-{% endblock %}
+{% endblock scripts %}

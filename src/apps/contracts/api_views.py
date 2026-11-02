@@ -240,7 +240,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         "list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
         "partial_update": "contract.update", "deactivate": "contract.update", "reactivate": "contract.update",
         "renew": "contract.update", "add_asset": "contract.update", "remove_asset": "contract.update",
-        "expiring": "contract.view",
+        "expiring": "contract.view", "export": "contract.view", "download": "contract.view",
     }
 
     def _ag(self, request, pk, code=None) -> CoverageAgreement:
@@ -264,11 +264,18 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
     def list(self, request):
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
+        if request.query_params.get("format") == "csv" or request.query_params.get("export") == "csv" or request.query_params.get("download") in ("1", "csv", "true"):
+            from . import exports
+            return exports.export_agreements_csv(qs, request.organization)
         return paginate(request, qs, AgreementSerializer)
 
     @extend_schema(responses=AgreementSerializer)
     def retrieve(self, request, pk=None):
-        return Response(AgreementSerializer(self._ag(request, pk)).data)
+        ag = self._ag(request, pk)
+        if request.query_params.get("format") == "csv" or request.query_params.get("export") == "csv" or request.query_params.get("download") in ("1", "csv", "true"):
+            from . import exports
+            return exports.export_single_agreement_csv(ag)
+        return Response(AgreementSerializer(ag).data)
 
     @extend_schema(request=AgreementWriteSerializer, responses={201: AgreementSerializer})
     def create(self, request):
@@ -343,6 +350,24 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
             raise ValidationFailed("days must be a whole number.", code="invalid_number") from exc
         return paginate(request, selectors.expiring(request.membership, request.organization, days),
                         AgreementSerializer)
+
+
+    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    @action(detail=False, methods=["get"])
+    def export(self, request):
+        """Download filtered coverage agreements as CSV."""
+        from . import exports
+        qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
+                                         request.query_params)
+        return exports.export_agreements_csv(qs, request.organization)
+
+    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        """Download a single coverage agreement with covered assets as CSV."""
+        from . import exports
+        ag = self._ag(request, pk)
+        return exports.export_single_agreement_csv(ag)
 
 
 @extend_schema(parameters=[query_param("asset", "asset id (required)", OpenApiTypes.UUID),

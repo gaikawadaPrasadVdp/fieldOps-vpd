@@ -278,7 +278,9 @@ class ProfileCreateView(SlaBase):
         target_formset = self._target_formset(request, applies_to, post_data if has_target_inputs else None, is_draft=is_draft)
         has_rule_inputs = any(k.startswith("rules-") and not k.endswith("TOTAL_FORMS") and not k.endswith("INITIAL_FORMS") and not k.endswith("MIN_NUM_FORMS") and not k.endswith("MAX_NUM_FORMS") for k in post_data)
         rule_formset = self._rule_formset(request, post_data if has_rule_inputs else None)
-        valid = target_formset.is_valid() and rule_formset.is_valid() and valid
+        target_valid = target_formset.is_valid() if has_target_inputs else is_draft
+        rule_valid = rule_formset.is_valid() if has_rule_inputs else True
+        valid = valid and target_valid and rule_valid
 
         if valid:
             d = dict(form.cleaned_data)
@@ -294,7 +296,7 @@ class ProfileCreateView(SlaBase):
                         pause_states=d["pause_states"], coverage_only=d.get("coverage_only", False),
                         is_active=d["is_active"], calendar=d.get("calendar"),
                         use_business_hours=d.get("use_business_hours", False))
-                    if target_formset:
+                    if target_formset and has_target_inputs:
                         for target_form in target_formset:
                             target_data = target_form.cleaned_data
                             if not target_data or target_data.get("DELETE") or not target_data.get("priority"):
@@ -302,7 +304,7 @@ class ProfileCreateView(SlaBase):
                             target_data = {k: v for k, v in target_data.items() if k != "DELETE" and v not in (None, "")}
                             services.set_target(profile, actor=request.user, request=request,
                                                 **target_data)
-                    if rule_formset:
+                    if rule_formset and has_rule_inputs:
                         for rule_form in rule_formset:
                             rule_data = rule_form.cleaned_data
                             if not rule_data or rule_data.get("DELETE") or not rule_data.get("target_kind"):
