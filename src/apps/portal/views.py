@@ -244,6 +244,10 @@ class RequestDetailView(LoginRequiredMixin, View):
             request.membership, sr
         )
 
+        pending_closure_conditions = []
+        if sr.status == ServiceRequest.Status.CONFIRMED:
+            pending_closure_conditions = services.get_request_closure_blockers(sr)
+
         return render(
             request,
             "portal/request_detail.html",
@@ -260,6 +264,7 @@ class RequestDetailView(LoginRequiredMixin, View):
                 "ineligibility_reason": ineligibility_reason,
                 "eligible_for_reopen": eligible_for_reopen,
                 "reopen_ineligibility_reason": reopen_ineligibility_reason,
+                "pending_closure_conditions": pending_closure_conditions,
                 "confirmation": confirmation,
                 "work_order": wo,
                 "technician_name": tech_name,
@@ -299,10 +304,16 @@ class RequestConfirmView(LoginRequiredMixin, View):
                 actor=request.user,
                 request=request,
             )
-            messages.success(
-                request,
-                f"Service request {confirmation.request.number} completion confirmed successfully. Thank you for your confirmation!",
-            )
+            if confirmation.request.status == ServiceRequest.Status.CLOSED:
+                messages.success(
+                    request,
+                    f"Service request {confirmation.request.number} completion confirmed and closed successfully. Thank you for your feedback!",
+                )
+            else:
+                messages.success(
+                    request,
+                    f"Service request {confirmation.request.number} completion confirmed successfully. Thank you for your feedback!",
+                )
         except DomainError as exc:
             messages.error(request, exc.message)
 

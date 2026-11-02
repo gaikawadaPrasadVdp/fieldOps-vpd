@@ -12,6 +12,12 @@ from apps.assets.api_views import (
     MeterViewSet,
 )
 from apps.audit.api_views import AuditLogViewSet
+from apps.contracts.api_views import (
+    AgreementViewSet,
+    CoverageCheckViewSet,
+    CoverageViewSet,
+    ProviderViewSet,
+)
 from apps.core import health
 from apps.identification.api_views import IdentifierViewSet
 from apps.incidents.api_views import ServiceRequestViewSet
@@ -67,6 +73,11 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
+router.register("contract-providers", ProviderViewSet, basename="contract-provider")
+router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
+router.register("warranties", AgreementViewSet, basename="warranty")
+router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
+router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 
 api_v1 = [
@@ -134,6 +145,14 @@ urlpatterns = [
     path("app/", include("apps.assets.urls")),
     path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
+    path("app/", include("apps.inventory.urls")),
+    path("app/", include("apps.workorders.urls_ui")),
+    path("app/", include("apps.maintenance.urls")),
+    path("app/", include("apps.sla.urls")),
+    path("app/", include("apps.contracts.urls")),
+    path("app/", include("apps.checklists.urls")),
+    path("app/", include("apps.workspace.urls")),
+    path("app/", include("apps.dashboards.urls")),
     # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]

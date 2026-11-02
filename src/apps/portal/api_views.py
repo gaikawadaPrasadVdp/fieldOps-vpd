@@ -315,6 +315,7 @@ class PortalServiceRequestDetailSerializer(PortalServiceRequestSerializer):
     attachments = serializers.SerializerMethodField()
     closure_confirmation = serializers.SerializerMethodField()
     is_eligible_for_confirmation = serializers.SerializerMethodField()
+    pending_closure_conditions = serializers.SerializerMethodField()
     work_order = serializers.SerializerMethodField()
 
     class Meta(PortalServiceRequestSerializer.Meta):
@@ -323,9 +324,21 @@ class PortalServiceRequestDetailSerializer(PortalServiceRequestSerializer):
             "attachments",
             "closure_confirmation",
             "is_eligible_for_confirmation",
+            "pending_closure_conditions",
             "work_order",
         ]
         read_only_fields = fields
+
+    def get_pending_closure_conditions(self, obj) -> list[str]:
+        if obj.status == ServiceRequest.Status.CONFIRMED:
+            return services.get_request_closure_blockers(obj)
+        return []
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if ret.get("work_order") is None:
+            ret.pop("work_order", None)
+        return ret
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_history(self, obj):

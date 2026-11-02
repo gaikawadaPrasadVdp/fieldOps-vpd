@@ -883,6 +883,7 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     if action == "review_rejected":
         _sync_incident_request(wo, "reworked", actor, request)
     elif approved:
+        _sync_incident_request(wo, "closed", actor, request)
         from apps.inventory import services as inventory_services
         inventory_services.on_work_order_closed(wo, actor=actor, request=request)
         if wo.asset_id:
