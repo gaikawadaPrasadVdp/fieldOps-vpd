@@ -10,7 +10,6 @@ from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
 from apps.assets.models import AssetMeter
-from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import NotFound
 from apps.sites.selectors import scoped_get
@@ -29,8 +28,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
     site = serializers.UUIDField(source="plan.site_id", read_only=True)
     description_text = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField(help_text="DISABLED | DUE | SCHEDULED")
-    frequency = serializers.CharField(allow_blank=True, read_only=True)
-    meter_name = serializers.CharField(source="meter.name", read_only=True, allow_null=True, default=None)
+    meter_name = serializers.CharField(source="meter.name", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = MaintenanceSchedule
@@ -136,7 +134,6 @@ def _resolve_meter(request, plan, value):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
-    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "create": "maintenance.create",
         "partial_update": "maintenance.update", "enable": "maintenance.update", "disable": "maintenance.update",
@@ -151,7 +148,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("q", "name / asset"), query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID), query_param("active", "1 / 0")],
-                   responses=PlanSerializer)
+                   responses=PlanSerializer(many=True))
     def list(self, request):
         qs = selectors.filter_plans(selectors.plans_for(request.membership, request.organization),
                                     request.query_params)
@@ -208,7 +205,6 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
-    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "partial_update": "maintenance.update",
         "enable": "maintenance.update", "disable": "maintenance.update", "generate": "maintenance.generate",
@@ -223,7 +219,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("state", "DISABLED | DUE | SCHEDULED")],
-                   responses=ScheduleSerializer)
+                   responses=ScheduleSerializer(many=True))
     def list(self, request):
         qs = selectors.schedules_for(request.membership, request.organization)
         plan = (request.query_params.get("plan") or "").strip()
@@ -284,7 +280,6 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
-    pagination_class = StandardPagination
     permission_map = {"list": "maintenance.view", "retrieve": "maintenance.view", "compliance": "maintenance.view"}
 
     @extend_schema(
@@ -312,7 +307,7 @@ class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("schedule", "schedule id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=CycleSerializer)
+                   responses=CycleSerializer(many=True))
     def list(self, request):
         qs = selectors.filter_cycles(selectors.cycles_for(request.membership, request.organization),
                                      request.query_params)

@@ -1,5 +1,5 @@
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
+from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -28,7 +28,6 @@ class NotificationViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
             return Notification.objects.none()
         return Notification.objects.for_organization(self.request.organization).filter(recipient=self.request.user)
 
-    @extend_schema(request=None, responses={200: NotificationSerializer})
     @action(detail=True, methods=["post"])
     def read(self, request, pk=None):
         try:
@@ -38,12 +37,8 @@ class NotificationViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         n.mark_read()
         return Response(NotificationSerializer(n).data)
 
-    @extend_schema(
-        request=None,
-        responses={200: inline_serializer("NotificationReadAllResponse", fields={"marked": serializers.IntegerField()})},
-    )
+    @extend_schema(request=None, responses={200: inline_serializer("NotificationReadAllResponse", fields={"marked": serializers.IntegerField()})})
     @action(detail=False, methods=["post"], url_path="read-all")
     def read_all(self, request):
         n = self.get_queryset().filter(read_at__isnull=True).update(read_at=timezone.now())
         return Response({"marked": n}, status=status.HTTP_200_OK)
-
