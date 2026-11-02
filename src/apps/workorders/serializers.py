@@ -25,8 +25,20 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default="")
     component_tag = serializers.CharField(source="component.asset_tag", read_only=True, default="")
     assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, allow_null=True, default=None)
+    asset_name = serializers.CharField(source="asset.name", read_only=True, default="")
+    expected_version = serializers.IntegerField(source="version", read_only=True, default=1)
+    reason = serializers.CharField(source="hold_reason", read_only=True, default="", allow_blank=True)
+    approved = serializers.SerializerMethodField()
+    checklist_key = serializers.CharField(source="checklist_template_ref", read_only=True, default="", allow_blank=True)
+    is_active = serializers.SerializerMethodField()
     closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
     checklist = serializers.SerializerMethodField()
+
+    def get_approved(self, obj) -> bool:
+        return obj.status == WorkOrder.Status.CLOSED
+
+    def get_is_active(self, obj) -> bool:
+        return obj.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED)
 
     def get_checklist(self, obj) -> dict:
         from .checklist_adapter import get_checklist_summary
@@ -38,13 +50,13 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                   "component", "component_tag", "component_reference", "source_request", "service_request_reference",
                   "source_type", "source_id", "source_reference", "title", "description", "work_type", "priority", "status",
                   "planned_start", "planned_end", "due_at",
-                  "estimated_hours", "assigned_to", "assignee_name", "created_by", "version", "started_at", "completed_at",
+                  "estimated_hours", "assigned_to", "assignee_name", "asset_name", "expected_version", "reason", "approved", "checklist_key", "is_active", "created_by", "version", "started_at", "completed_at",
                   "closed_at", "closed_by", "hold_reason", "resolution_notes", "checklist",
                   "checklist_required", "checklist_template_ref", "checklist_instance_ref",
                   "checklist_status", "checklist_validation_state", "provisional_checklist", "supervisor_notes",
                   "closure_approvals",
                   "created_at", "updated_at"]
-        read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "created_by",
+        read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "asset_name", "expected_version", "reason", "approved", "checklist_key", "is_active", "created_by",
                             "asset", "component", "source_request", "source_id", "asset_tag", "component_tag",
                             "started_at", "completed_at", "closed_at", "hold_reason", "resolution_notes",
                             "closed_by", "supervisor_notes", "version", "created_at", "updated_at", "checklist",
