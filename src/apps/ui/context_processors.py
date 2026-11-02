@@ -116,6 +116,7 @@ def shell(request):
         sections["Asset Lifecycle"] = [
             {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
             {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Hierarchy", "url": reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"},
         ]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
@@ -157,6 +158,7 @@ def shell(request):
         sections["Asset Lifecycle"] = [
             {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
             {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Hierarchy", "url": reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"},
         ]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
@@ -166,11 +168,16 @@ def shell(request):
         ]
 
     elif role_keys & {"technician", "field_technician"}:
-        sections["Field Execution"] = [
-            {"label": "My Assigned Jobs", "url": reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
-            {"label": "All Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
-            {"label": "My Work Cockpit", "url": reverse("dashboards:my_work"), "icon": "activity", "match_prefix": "/app/dashboards/my-work"},
-            {"label": "My Inspections", "url": reverse("checklists:inspections"), "icon": "list-check", "match_prefix": "/app/inspections"},
+        sections["Workspace"] = [
+            {"label": "Technician Workspace", "url": reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
+        ]
+        sections["Service"] = [
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
+        ]
+        sections["Assets"] = [
+            {"label": "Asset Register", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Scan QR", "url": reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Operations & Assets"] = [
             {"label": "Facility Sites", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
@@ -200,9 +207,14 @@ def shell(request):
             ]
 
     elif "asset_manager" in role_keys:
+        sections["Service"] = [
+            {"label": "Service Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+        ]
         sections["Asset Lifecycle"] = [
             {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
             {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Hierarchy", "url": reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"},
             {"label": "Scan Label", "url": reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Commercial"] = [
@@ -260,10 +272,19 @@ def shell(request):
             {"label": "Operations Overview", "url": reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
+        ]
+        sections["Assets"] = [
+            {"label": "Asset Register", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Scan QR", "url": reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
 
     elif "service_manager" in role_keys:
         sections["Service Assurance"] = [
@@ -300,6 +321,9 @@ def shell(request):
             sections.setdefault("Assets & Locations", []).append(
                 {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"}
             )
+            sections.setdefault("Assets & Locations", []).append(
+                {"label": "Hierarchy", "url": reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"}
+            )
         if rbac.has_permission_anywhere(membership, "sla.view"):
             sections["Service Level Agreements"] = [
                 {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
@@ -318,4 +342,5 @@ def shell(request):
         "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
         "shell_tenant_error": getattr(request, "tenant_error", None),
         "is_client": is_client,
+        "is_org_owner": is_owner,
     }

@@ -1,10 +1,12 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
 app_name = "assets"
 
 urlpatterns = [
+    path("assets/dashboard/", RedirectView.as_view(url="/app/", permanent=False), name="dashboard"),
     # UI endpoints
     path("assets/", views.AssetListView.as_view(), name="list"),
     path("assets/hierarchy/", views.AssetHierarchyHubView.as_view(), name="hierarchy_hub"),

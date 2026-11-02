@@ -61,6 +61,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     asset_category_name = serializers.CharField(
         source="asset_category.name", read_only=True, default=None, allow_null=True
     )
+    calendar_name = serializers.CharField(
+        source="calendar.name", read_only=True, default=None, allow_null=True
+    )
     targets = TargetSerializer(many=True, read_only=True)
     rules = RuleSerializer(many=True, read_only=True)
 
@@ -85,6 +88,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "pause_states",
             "is_active",
             "coverage_only",
+            "calendar",
+            "calendar_name",
+            "use_business_hours",
             "targets",
             "rules",
             "created_at",
@@ -105,6 +111,10 @@ class ProfileWriteSerializer(serializers.Serializer):
     service_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     work_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     coverage_only = serializers.BooleanField(required=False)
+    calendar = serializers.UUIDField(required=False, allow_null=True)
+    use_business_hours = serializers.BooleanField(required=False)
+    calendar = serializers.UUIDField(required=False, allow_null=True)
+    use_business_hours = serializers.BooleanField(required=False, default=False)
     pause_states = serializers.ListField(child=serializers.CharField(), required=False)
 
 
@@ -121,6 +131,8 @@ class ProfilePatchSerializer(serializers.Serializer):
     service_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     work_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     coverage_only = serializers.BooleanField(required=False)
+    calendar = serializers.UUIDField(required=False, allow_null=True)
+    use_business_hours = serializers.BooleanField(required=False)
 
 
 class TargetWriteSerializer(serializers.Serializer):
@@ -178,6 +190,7 @@ class TrackingSerializer(serializers.ModelSerializer):
     subject_title = serializers.SerializerMethodField()
     profile_name = serializers.CharField(source="profile.name", read_only=True, default=None, allow_null=True)
     site_code = serializers.CharField(source="site.code", read_only=True, default=None, allow_null=True)
+    calendar_name = serializers.CharField(source="calendar.name", read_only=True, default=None, allow_null=True)
     pause_history = serializers.SerializerMethodField()
 
     class Meta:
@@ -205,6 +218,9 @@ class TrackingSerializer(serializers.ModelSerializer):
             "resolution_state",
             "status",
             "selection_reason",
+            "use_business_hours",
+            "calendar",
+            "calendar_name",
             "paused_at",
             "paused_seconds",
             "last_checked_at",
@@ -291,7 +307,7 @@ def _resolve_profile_scope(request, values):
     from apps.assets.models import Asset, AssetCategory
     from apps.contracts.models import CoverageAgreement
     from apps.rbac.models import MembershipRole
-    from apps.sites.models import Site
+    from apps.sites.models import OperatingCalendar, Site
     from apps.tenancy.models import Membership
 
     lookups = {
@@ -300,6 +316,7 @@ def _resolve_profile_scope(request, values):
         "asset_category": AssetCategory.objects.for_organization(request.organization),
         "contract": CoverageAgreement.objects.for_organization(request.organization),
         "client": Membership.objects.for_organization(request.organization),
+        "calendar": OperatingCalendar.objects.for_organization(request.organization),
     }
     for field, queryset in lookups.items():
         if field not in values:

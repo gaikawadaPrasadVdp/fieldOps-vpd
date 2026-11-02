@@ -20,6 +20,7 @@ def main():
     root = Path(__file__).resolve().parent
     load_env(root / ".env")
     sys.path.insert(0, str(root / "src"))
+    sys.path.insert(0, str(root / "src" / "apps"))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
     from django.core.management import execute_from_command_line
 

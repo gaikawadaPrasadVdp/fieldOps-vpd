@@ -5,7 +5,7 @@
 <div class="fx-page-header"><div>
   <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'sla:trackings' %}">SLA tracking</a></li><li class="breadcrumb-item active">{% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}</li></ol></nav>
   <h1>SLA &middot; {% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %} {% status_badge t.status %}</h1>
-  <div class="text-body-secondary">{{ t.profile.name }} &middot; {{ t.selection_reason|default:"Organization policy" }} &middot; priority {{ t.priority|title }} &middot; site {{ t.site.code }}</div></div>
+  <div class="text-body-secondary">{{ t.profile.name }} &middot; {{ t.selection_reason|default:"Organization policy" }} &middot; priority {{ t.priority|title }} &middot; site {{ t.site.code }}{% if t.use_business_hours %} &middot; <span class="badge bg-info text-dark"><i class="bi bi-clock me-1"></i>Business Hours{% if t.calendar %} ({{ t.calendar.name }}){% endif %}</span>{% else %} &middot; <span class="badge bg-secondary">24/7 Clock</span>{% endif %}</div></div>
   <div>{% if t.request %}<a class="btn btn-outline-primary" href="{% url 'incidents:detail' t.request_id %}">Open request</a>{% else %}<a class="btn btn-outline-primary" href="{% url 'workorders:detail' t.work_order_id %}">Open work order</a>{% endif %}</div></div>
 <div class="row g-3 mb-3">
   <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Response {% status_badge t.response_state %}</div><div class="fx-card-body"><dl class="fx-kv">

@@ -42,14 +42,17 @@
             <a href="{% url 'ui:public_legal' 'privacy-policy' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'privacy-policy' or not selected_slug %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
               Privacy Policy &amp; Data Protection
             </a>
-            <a href="{% url 'ui:public_legal' 'terms-and-conditions' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'terms-and-conditions' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
-              Terms &amp; Conditions of Use
+            <a href="{% url 'ui:public_legal' 'terms-of-service' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'terms-of-service' or selected_slug == 'terms-and-conditions' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Terms of Service &amp; Agreement
             </a>
             <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'disclaimer' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
               Enterprise System Disclaimer
             </a>
             <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'cookie-policy' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
               Cookie &amp; Session Policy
+            </a>
+            <a href="{% url 'ui:public_sitemap' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'sitemap' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Platform Sitemap &amp; Directory
             </a>
           </div>
 

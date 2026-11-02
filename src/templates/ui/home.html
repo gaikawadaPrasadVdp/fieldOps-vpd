@@ -199,7 +199,7 @@
                   {% endif %}
                 </td>
                 <td>
-                  <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+                  <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'SUPERVISOR_REVIEW' %}bg-warning text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
                     {{ job.get_status_display }}
                   </span>
                 </td>
@@ -228,6 +228,17 @@
                         {% icon 'clock' 12 %} Resume
                       </button>
                     </form>
+                    {% elif job.status == 'COMPLETED' %}
+                    <form method="post" action="{% url 'workorders:action' job.pk 'submit_for_review' %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 py-1 px-2" title="Submit for supervisor review">
+                        {% icon 'check' 12 %} Submit Review
+                      </button>
+                    </form>
+                    {% elif job.status == 'SUPERVISOR_REVIEW' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-1 px-2 small" title="Under supervisor review">
+                      {% icon 'clock' 11 %} In Review
+                    </span>
                     {% endif %}
                     <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View details">
                       {% icon 'arrow-up-right' 12 %}

@@ -2,8 +2,8 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.2">
-  <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.2">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.2">
+<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.2">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
@@ -14,7 +14,8 @@
 <div class="nexus-scroll-flow-rail" aria-hidden="true">
   <div class="nexus-rail-track">
     <div class="nexus-rail-line" id="nexus-rail-line" style="transform: scaleY(0);"></div>
-    <div class="nexus-signal-head" id="nexus-signal-head" style="transform: translate(-50%, -50%) translateY(0px);"></div>
+    <div class="nexus-signal-head" id="nexus-signal-head" style="transform: translate(-50%, -50%) translateY(0px);">
+    </div>
   </div>
   <div class="nexus-rail-stage-tag" id="nexus-stage-tag">SIGNAL INITIATED</div>
 </div>
@@ -41,34 +42,42 @@
     <!-- Desktop Navigation Menu -->
     <nav class="fx-pub-nav-desktop" aria-label="Main Navigation">
       <!-- Product Dropdown Trigger -->
-      <button type="button" class="fx-pub-nav-link {% if active_page == 'product' %}active{% endif %}" data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
+      <button type="button" class="fx-pub-nav-link {% if active_page == 'product' %}active{% endif %}"
+        data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
         <span>Product</span>
-        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </button>
 
       <!-- Solutions Dropdown Trigger -->
-      <button type="button" class="fx-pub-nav-link {% if active_page == 'solutions' %}active{% endif %}" data-fx-mega-trigger="solutions" aria-expanded="false" aria-haspopup="dialog">
+      <button type="button" class="fx-pub-nav-link {% if active_page == 'solutions' %}active{% endif %}"
+        data-fx-mega-trigger="solutions" aria-expanded="false" aria-haspopup="dialog">
         <span>Solutions</span>
-        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </button>
 
       <!-- Modules Dropdown Trigger -->
-      <button type="button" class="fx-pub-nav-link {% if active_page == 'modules' %}active{% endif %}" data-fx-mega-trigger="modules" aria-expanded="false" aria-haspopup="dialog">
+      <button type="button" class="fx-pub-nav-link {% if active_page == 'modules' %}active{% endif %}"
+        data-fx-mega-trigger="modules" aria-expanded="false" aria-haspopup="dialog">
         <span>Modules</span>
-        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </button>
 
       <!-- Direct Navigation Links -->
-      <a href="{% url 'ui:public_features' %}" class="fx-pub-nav-link {% if active_page == 'features' %}active{% endif %}">
+      <a href="{% url 'ui:public_features' %}"
+        class="fx-pub-nav-link {% if active_page == 'features' %}active{% endif %}">
         Features
       </a>
-      <a href="{% url 'ui:public_resources' %}" class="fx-pub-nav-link {% if active_page == 'resources' %}active{% endif %}">
+      <a href="{% url 'ui:public_resources' %}"
+        class="fx-pub-nav-link {% if active_page == 'resources' %}active{% endif %}">
         Resources
       </a>
       <a href="{% url 'ui:public_about' %}" class="fx-pub-nav-link {% if active_page == 'about' %}active{% endif %}">
@@ -79,21 +88,22 @@
     <!-- Nav Actions -->
     <div class="fx-pub-nav-actions">
       {% if request.user.is_authenticated %}
-        <a href="{% url 'ui:home' %}" class="fx-pub-getstarted-btn">
-          {% icon 'grid' 15 %} Launch ERP
-        </a>
+      <a href="{% url 'ui:home' %}" class="fx-pub-getstarted-btn">
+        {% icon 'grid' 15 %} Launch ERP
+      </a>
       {% else %}
-        <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
-          Sign In
-        </a>
-        <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
-          <span>Get Started</span>
-          {% icon 'arrow-up-right' 15 class="arrow-icon" %}
-        </a>
+      <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
+        Sign In
+      </a>
+      <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
+        <span>Get Started</span>
+        {% icon 'arrow-up-right' 15 class="arrow-icon" %}
+      </a>
       {% endif %}
 
       <!-- Mobile Hamburger Toggle -->
-      <button class="fx-pub-mobile-toggle" type="button" aria-label="Toggle navigation menu" data-fx-pub-toggle aria-expanded="false">
+      <button class="fx-pub-mobile-toggle" type="button" aria-label="Toggle navigation menu" data-fx-pub-toggle
+        aria-expanded="false">
         {% icon 'menu' 24 %}
       </button>
     </div>
@@ -241,10 +251,64 @@
             </div>
           </div>
 
-          <a href="{% url 'ui:public_features' %}" class="fx-mega-cta-btn">
-            <span>Explore Platform</span>
-            {% icon 'arrow-right' 14 %}
-          </a>
+
+          <!-- Connected Icon Flow: Assets → Work Orders → Inventory -->
+          <div class="fx-mega-flow">
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5v-9z" />
+                  <path d="M3 7.5L12 12l9-4.5M12 12v9" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Assets</span>
+              <span class="fx-mega-flow-metric">2.8K+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <line x1="9" y1="12" x2="11" y2="12" />
+                  <line x1="14" y1="12" x2="15" y2="12" />
+                  <line x1="9" y1="16" x2="11" y2="16" />
+                  <line x1="14" y1="16" x2="15" y2="16" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Work Orders</span>
+              <span class="fx-mega-flow-metric">1.2K+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Inventory</span>
+              <span class="fx-mega-flow-metric">500+</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -389,10 +453,58 @@
             </div>
           </div>
 
-          <a href="{% url 'ui:public_solutions' %}" class="fx-mega-cta-btn">
-            <span>Explore Platform</span>
-            {% icon 'arrow-right' 14 %}
-          </a>
+
+          <!-- Connected Icon Flow: Sites → Teams → Assets -->
+          <div class="fx-mega-flow">
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Sites</span>
+              <span class="fx-mega-flow-metric">120+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9" cy="8" r="3.5" />
+                  <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.4.6 3.5 2.6 3.5 6" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Teams</span>
+              <span class="fx-mega-flow-metric">50+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Assets</span>
+              <span class="fx-mega-flow-metric">2.80+</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -547,10 +659,60 @@
             </div>
           </div>
 
-          <a href="{% url 'ui:public_modules' %}" class="fx-mega-cta-btn">
-            <span>Explore Platform</span>
-            {% icon 'arrow-right' 14 %}
-          </a>
+
+          <!-- Connected Icon Flow: Service → Maintenance → Analytics -->
+          <div class="fx-mega-flow">
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Service</span>
+              <span class="fx-mega-flow-metric">1.5K+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Maintenance</span>
+              <span class="fx-mega-flow-metric">800+</span>
+            </div>
+            <div class="fx-mega-flow-connector">
+              <svg class="fx-mega-flow-curve" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 12 Q15 4 30 12 Q45 20 60 12" stroke="#F5C451" stroke-width="1.5" stroke-dasharray="4 2"
+                  fill="none" />
+                <circle cx="30" cy="12" r="3" fill="#F5C451" opacity="0.9" />
+              </svg>
+            </div>
+            <div class="fx-mega-flow-node">
+              <div class="fx-mega-flow-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="20" x2="12" y2="10" />
+                  <line x1="18" y1="20" x2="18" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="16" />
+                </svg>
+              </div>
+              <span class="fx-mega-flow-label">Analytics</span>
+              <span class="fx-mega-flow-metric">200+</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -569,7 +731,8 @@
         <a href="{% url 'ui:public_product' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
         <a href="{% url 'ui:public_product' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
         <a href="{% url 'ui:public_product' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
-        <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
+        <a href="{% url 'ui:public_product' 'inventory-management' %}" class="fx-mobile-sublink">Inventory
+          Management</a>
       </div>
     </div>
 
@@ -580,10 +743,12 @@
         {% icon 'chevron-down' 16 %}
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-solutions">
-        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise Operations</a>
+        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise
+          Operations</a>
         <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="fx-mobile-sublink">Manufacturing</a>
         <a href="{% url 'ui:public_solution' 'facilities' %}" class="fx-mobile-sublink">Facilities Management</a>
-        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fx-mobile-sublink">Service &amp; Maintenance</a>
+        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fx-mobile-sublink">Service &amp;
+          Maintenance</a>
       </div>
     </div>
 
@@ -595,19 +760,24 @@
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-modules">
         <a href="{% url 'ui:public_modules' %}" class="fx-mobile-sublink">All Enterprise Modules</a>
-        <a href="{% url 'ui:public_module' 'organization-management' %}" class="fx-mobile-sublink">Organization Management</a>
+        <a href="{% url 'ui:public_module' 'organization-management' %}" class="fx-mobile-sublink">Organization
+          Management</a>
         <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
-        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Order Management</a>
-        <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mobile-sublink">Preventive Maintenance</a>
+        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Order
+          Management</a>
+        <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mobile-sublink">Preventive
+          Maintenance</a>
       </div>
     </div>
 
     <!-- Direct Links -->
     <div class="fx-mobile-nav-item">
-      <a href="{% url 'ui:public_features' %}" class="fx-mobile-accordion-trigger" style="text-decoration:none;">Features</a>
+      <a href="{% url 'ui:public_features' %}" class="fx-mobile-accordion-trigger"
+        style="text-decoration:none;">Features</a>
     </div>
     <div class="fx-mobile-nav-item">
-      <a href="{% url 'ui:public_resources' %}" class="fx-mobile-accordion-trigger" style="text-decoration:none;">Resources</a>
+      <a href="{% url 'ui:public_resources' %}" class="fx-mobile-accordion-trigger"
+        style="text-decoration:none;">Resources</a>
     </div>
     <div class="fx-mobile-nav-item">
       <a href="{% url 'ui:public_about' %}" class="fx-mobile-accordion-trigger" style="text-decoration:none;">About</a>
@@ -616,16 +786,16 @@
     <!-- Mobile Auth Actions -->
     <div class="fx-mobile-auth-row">
       {% if not request.user.is_authenticated %}
-        <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark flex-fill py-2 text-center text-decoration-none">
-          Sign In
-        </a>
-        <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
-          Get Started
-        </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark flex-fill py-2 text-center text-decoration-none">
+        Sign In
+      </a>
+      <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
+        Get Started
+      </a>
       {% else %}
-        <a href="{% url 'ui:home' %}" class="btn-fx-gold w-100 py-2 text-center text-decoration-none">
-          Launch ERP
-        </a>
+      <a href="{% url 'ui:home' %}" class="btn-fx-gold w-100 py-2 text-center text-decoration-none">
+        Launch ERP
+      </a>
       {% endif %}
     </div>
   </div>
@@ -641,25 +811,39 @@
   <div class="container-xl px-4">
     <div class="fx-footer-grid">
       <!-- Col 1: Brand & Specs -->
-      <div>
+      <div class="fx-footer-brand-col">
         <div class="d-flex align-items-center gap-2 mb-3">
-          <div class="fx-pub-brand-badge" style="width:34px; height:34px;">
-            {% icon 'activity' 18 %}
+          <div class="fx-footer-brand-badge">
+            {% icon 'activity' 20 %}
           </div>
-          <span class="text-white fw-bold fs-5">FieldOps <span style="color:#F5C451;">Nexus</span></span>
+          <span class="fx-footer-brand-title">FieldOps <span class="fx-footer-brand-accent">Nexus</span></span>
         </div>
-        <p class="small text-white-50 mb-3" style="max-width: 320px; line-height: 1.6;">
+        <p class="fx-footer-desc">
           The connected enterprise platform for assets, service, maintenance, and the people behind it all.
         </p>
-        <div class="d-flex align-items-center gap-2 mt-3">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
-          <span class="small text-white-50" style="font-size: 0.8rem;">Platform Status: All Systems Operational</span>
+        <div class="fx-footer-status">
+          <span class="fx-footer-status-dot"></span>
+          <span class="fx-footer-status-text">Platform Status: All Systems Operational</span>
+        </div>
+        <div class="fx-footer-social-row">
+          <a href="https://www.linkedin.com/company/fieldops-nexus" class="fx-footer-social-btn" target="_blank"
+            rel="noopener noreferrer" aria-label="LinkedIn">
+            {% icon 'linkedin' 16 %}
+          </a>
+          <a href="https://www.youtube.com/@fieldopsnexus" class="fx-footer-social-btn" target="_blank"
+            rel="noopener noreferrer" aria-label="YouTube">
+            {% icon 'youtube' 16 %}
+          </a>
+          <a href="https://www.instagram.com/fieldopsnexus" class="fx-footer-social-btn" target="_blank"
+            rel="noopener noreferrer" aria-label="Instagram">
+            {% icon 'instagram' 16 %}
+          </a>
         </div>
       </div>
 
       <!-- Col 2: Platform -->
       <div>
-        <div class="fx-footer-heading">Platform</div>
+        <div class="fx-footer-heading">PLATFORM</div>
         <ul class="fx-footer-links">
           <li><a href="{% url 'ui:public_features' %}">Features</a></li>
           <li><a href="{% url 'ui:public_module' 'asset-management' %}">Asset Management</a></li>
@@ -671,7 +855,7 @@
 
       <!-- Col 3: Solutions -->
       <div>
-        <div class="fx-footer-heading">Solutions</div>
+        <div class="fx-footer-heading">SOLUTIONS</div>
         <ul class="fx-footer-links">
           <li><a href="{% url 'ui:public_solution' 'enterprise-operations' %}">Enterprise Operations</a></li>
           <li><a href="{% url 'ui:public_solution' 'manufacturing' %}">Manufacturing</a></li>
@@ -682,46 +866,70 @@
 
       <!-- Col 4: Company -->
       <div>
-        <div class="fx-footer-heading">Company</div>
+        <div class="fx-footer-heading">COMPANY</div>
         <ul class="fx-footer-links">
           <li><a href="{% url 'ui:public_about' %}">About Us</a></li>
           <li><a href="{% url 'ui:public_resources' %}">Resources</a></li>
-          <li><a href="mailto:sales@fieldopsnexus.com">Contact Sales</a></li>
-          <li><a href="mailto:careers@fieldopsnexus.com">Careers</a></li>
+          <li><a href="{% url 'ui:public_contact' %}">Contact Sales</a></li>
+          <li><a href="{% url 'ui:public_careers' %}">Careers</a></li>
         </ul>
       </div>
 
-      <!-- Col 5: Contact & Support -->
+      <!-- Col 5: Get in Touch -->
       <div>
-        <div class="fx-footer-heading">Contact &amp; Support</div>
-        <ul class="fx-footer-links">
-          <li><a href="mailto:info@fieldopsnexus.com">Email our team</a></li>
-          <li><a href="mailto:support@fieldopsnexus.com">Enterprise Support</a></li>
-          <li><a href="mailto:compliance@fieldopsnexus.com">Compliance Inquiries</a></li>
-        </ul>
+        <div class="fx-footer-heading">GET IN TOUCH</div>
+        <div class="fx-footer-contact-list">
+          <div class="fx-footer-contact-row">
+            <div class="fx-footer-contact-icon">
+              {% icon 'mail' 17 %}
+            </div>
+            <div class="fx-footer-contact-info">
+              <span class="fx-footer-contact-label">Email</span>
+              <a href="mailto:support@fieldopsnexus.com" class="fx-footer-contact-link">support@fieldopsnexus.com</a>
+            </div>
+          </div>
+          <div class="fx-footer-contact-row">
+            <div class="fx-footer-contact-icon">
+              {% icon 'phone' 17 %}
+            </div>
+            <div class="fx-footer-contact-info">
+              <span class="fx-footer-contact-label">Phone</span>
+              <a href="tel:+919876543210" class="fx-footer-contact-link">+91 98765 43210</a>
+            </div>
+          </div>
+          <div class="fx-footer-contact-row">
+            <div class="fx-footer-contact-icon">
+              {% icon 'map-pin' 17 %}
+            </div>
+            <div class="fx-footer-contact-info">
+              <span class="fx-footer-contact-label">Location</span>
+              <span class="fx-footer-contact-text">Bangalore, Karnataka, India</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Legal Navigation Bar -->
-    <div class="fx-footer-legal-bar">
-      <div class="fx-footer-legal-links">
-        <a href="{% url 'ui:public_legal' 'privacy-policy' %}" class="{% if selected_slug == 'privacy-policy' %}active{% endif %}">Privacy Policy</a>
-        <a href="{% url 'ui:public_legal' 'terms-and-conditions' %}" class="{% if selected_slug == 'terms-and-conditions' %}active{% endif %}">Terms &amp; Conditions</a>
-        <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="{% if selected_slug == 'disclaimer' %}active{% endif %}">Disclaimer</a>
-        <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="{% if selected_slug == 'cookie-policy' %}active{% endif %}">Cookie Policy</a>
+    <!-- Bottom Footer Bar -->
+    <div class="fx-footer-bottom-bar">
+      <div class="fx-footer-copyright">
+        &copy; 2026 FieldOps Nexus. All rights reserved.
       </div>
-      <div class="small text-white-50">
-        Built for Professional Standards
-      </div>
-    </div>
-
-    <!-- Copyright -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 pt-4 small text-white-50">
-      <span>&copy; {% now "Y" %} FieldOps Nexus. All rights reserved.</span>
-      <span>Enterprise Operations Platform Architecture</span>
+      <nav class="fx-footer-legal-nav" aria-label="Legal Navigation">
+        <a href="{% url 'ui:public_legal' 'privacy-policy' %}" class="fx-footer-legal-link">Privacy Policy</a>
+        <span class="fx-footer-pipe" aria-hidden="true">|</span>
+        <a href="{% url 'ui:public_legal' 'terms-of-service' %}" class="fx-footer-legal-link">Terms of Service</a>
+        <span class="fx-footer-pipe" aria-hidden="true">|</span>
+        <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="fx-footer-legal-link">Disclaimer</a>
+        <span class="fx-footer-pipe" aria-hidden="true">|</span>
+        <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="fx-footer-legal-link">Cookie Policy</a>
+        <span class="fx-footer-pipe" aria-hidden="true">|</span>
+        <a href="{% url 'ui:public_sitemap' %}" class="fx-footer-legal-link">Sitemap</a>
+      </nav>
     </div>
   </div>
 </footer>
+
 
 {% endblock %}
 

@@ -59,6 +59,35 @@
     <main class="fx-content" id="main">
       {% block breadcrumbs %}{% endblock %}
       {% include "components/_messages.html" %}
+
+      {% if shell_org and shell_org.is_scheduled_for_deletion %}
+      <div class="alert alert-danger shadow-sm border-danger mb-4 p-3" role="alert" style="border-left: 5px solid #dc3545; background-color: #fdf2f2;">
+        <div class="d-flex align-items-start gap-3">
+          <div class="fs-2 text-danger lh-1">⚠️</div>
+          <div class="flex-grow-1">
+            <div class="fw-bold text-danger fs-6">
+              Organization Deletion Warning: This organization is scheduled for permanent deletion in {{ shell_org.days_until_deletion }} day{{ shell_org.days_until_deletion|pluralize }} (on {{ shell_org.deletion_scheduled_at|date:"M j, Y H:i" }} UTC)
+            </div>
+            {% if shell_org.deletion_reason %}
+              <div class="text-dark small mt-1">
+                <strong>Reason:</strong> {{ shell_org.deletion_reason }}
+              </div>
+            {% endif %}
+            {% if is_org_owner %}
+              <div class="mt-2 text-danger fw-semibold small p-2 rounded" style="background-color: #fee2e2; border: 1px solid #fca5a5;">
+                <span class="badge bg-danger text-white me-1">Organization Owner Notice</span>
+                As the Organization Owner, please export any necessary compliance and asset records before the scheduled deletion date. If this was scheduled in error, contact platform administration immediately to cancel.
+              </div>
+            {% else %}
+              <div class="mt-1 text-muted small">
+                Please contact your organization owner or platform administration if you have questions.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% block content %}{% endblock %}
     </main>
   </div>

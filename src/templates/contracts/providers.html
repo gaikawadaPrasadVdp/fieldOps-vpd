@@ -49,8 +49,7 @@ FieldOps Nexus{% endblock %} {% block content %}
           <td>{{ p.email|default:"—" }}</td>
           <td>{{ p.phone|default:"—" }}</td>
           <td>
-            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{%
-            status_badge "INACTIVE" %}{% endif %}
+            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
           </td>
           <td>
             {% if can_update %}
@@ -80,8 +79,7 @@ FieldOps Nexus{% endblock %} {% block content %}
         {% empty %}
         <tr>
           <td colspan="6">
-            {% include "components/_empty_state.html" with title="No providers"
-            text="Create a provider before adding an agreement." %}
+            {% include "components/_empty_state.html" with title="No providers" text="Create a provider before adding an agreement." %}
           </td>
         </tr>
         {% endfor %}

@@ -1,15 +1,15 @@
 from django import forms
 from django.forms import BaseFormSet, formset_factory
 
-from apps.rbac.models import Role
 from apps.assets.models import Asset, AssetCategory
 from apps.contracts.models import CoverageAgreement
-from apps.sites.models import Site
+from apps.rbac.models import Role
+from apps.sites.models import OperatingCalendar, Site
 from apps.tenancy.models import Membership
 from apps.ui.forms import BootstrapFormMixin
 
-from .models import EscalationRule, SLAProfile
-from .services import REQUEST_PRIORITIES, WORK_ORDER_PRIORITIES, priorities_for, valid_pause_tokens
+from .models import EscalationRule
+from .services import REQUEST_PRIORITIES, WORK_ORDER_PRIORITIES, valid_pause_tokens
 
 
 class _SiteChoice(forms.ModelChoiceField):
@@ -22,14 +22,36 @@ class _ClientChoice(forms.ModelChoiceField):
         return f"{obj.user.display_name} · {obj.user.email}"
 
 
-def _pause_choices(applies_to=None):
-    tokens = valid_pause_tokens("REQUEST")
-    labels = []
-    for token in sorted(tokens):
-        kind, state = token.split(":", 1)
-        subject = "Request" if kind == "REQUEST" else "Work Order"
-        labels.append((token, f"{subject} · {state.replace('_', ' ').title()}"))
-    return labels
+class _AssetChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        site_str = f" [{obj.site.code}]" if getattr(obj, "site", None) else ""
+        return f"{obj.asset_tag} · {obj.name}{site_str}"
+
+
+class _ContractChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        site_str = f" [{obj.site.code}]" if getattr(obj, "site", None) else ""
+        return f"{obj.reference} · {obj.title}{site_str}"
+
+
+class _CalendarChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        site_str = f" [{obj.site.code}]" if getattr(obj, "site", None) else ""
+        return f"{obj.name}{site_str}"
+
+
+def _pause_choices(applies_to=None, current_values=None):
+    primary = [
+        ("WORK_ORDER:ON_HOLD", "Work Order · On Hold (Recommended: waiting for parts, client, access, approval, weather)"),
+        ("REQUEST:ON_HOLD", "Incident / Service Request · On Hold"),
+    ]
+    seen = {k for k, _ in primary}
+    if current_values:
+        for val in current_values:
+            if val and val not in seen:
+                primary.append((val, val.replace("_", " ").title()))
+                seen.add(val)
+    return primary
 
 
 class AppliesToChoiceField(forms.ChoiceField):
@@ -45,25 +67,42 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(max_length=300, required=False, label="Description")
     applies_to = AppliesToChoiceField(
         choices=[
-            ("REQUEST", "Incident / Breakdown"),
             ("WORK_ORDER", "Work Order"),
+            ("REQUEST", "Incident / Breakdown"),
         ],
+        initial="WORK_ORDER",
         label="Applies to"
     )
     site = _SiteChoice(queryset=Site.objects.none(), required=False, label="Site (blank = whole organization)")
-    client = _ClientChoice(queryset=Membership.objects.none(), required=False, label="Client / requester")
-    contract = forms.ModelChoiceField(queryset=CoverageAgreement.objects.none(), required=False,
-                                      label="Contract / AMC")
-    asset = forms.ModelChoiceField(queryset=Asset.objects.none(), required=False, label="Asset")
+    client = _ClientChoice(queryset=Membership.objects.none(), required=False, label="Client / requester (Optional)")
+    contract = _ContractChoice(
+        queryset=CoverageAgreement.objects.none(),
+        required=False,
+        label="Maintenance Agreement (Optional)",
+        help_text="Optional. Only required if this SLA is specific to a vendor maintenance agreement or warranty."
+    )
+    asset = _AssetChoice(queryset=Asset.objects.none(), required=False, label="Asset (Optional)")
     asset_category = forms.ModelChoiceField(queryset=AssetCategory.objects.none(), required=False,
-                                            label="Asset category")
-    service_type = forms.ChoiceField(choices=[], required=False, label="Service type")
-    work_type = forms.CharField(max_length=20, required=False,
-                                label="Work type (work-order profiles, optional)")
+                                            label="Asset category (Optional)")
     coverage_only = forms.BooleanField(
-        required=False, label="Coverage-only profile",
-        help_text="Apply only to assets covered by a warranty / AMC / contract that names this profile; it is "
-                  "never picked by site or organization.")
+        required=False,
+        label="Coverage-only profile",
+        help_text="Apply only to assets covered by a warranty / AMC / contract that names this profile."
+    )
+    service_type = forms.ChoiceField(choices=[], required=False, label="Service type")
+    work_type = forms.CharField(max_length=20, required=False, widget=forms.HiddenInput())
+    use_business_hours = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Calculate SLA targets using business hours",
+        help_text="When enabled, target deadlines pause outside operating calendar hours and on holidays."
+    )
+    calendar = _CalendarChoice(
+        queryset=OperatingCalendar.objects.none(),
+        required=False,
+        label="Operating calendar (optional)",
+        help_text="Operating calendar schedule. If left blank, the site calendar or organization default calendar is used."
+    )
     is_active = forms.BooleanField(required=False, initial=True, label="Activate this profile when saved")
     pause_states = forms.MultipleChoiceField(
         required=False, choices=_pause_choices(), widget=forms.CheckboxSelectMultiple,
@@ -72,27 +111,52 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
         help_text="Leave empty to never pause (timers keep running).")
 
     def __init__(self, *args, sites=None, clients=None, contracts=None, assets=None, categories=None,
-                 applies_to="REQUEST", editing=False, **kwargs):
+                 calendars=None, applies_to="WORK_ORDER", editing=False, organization=None, instance=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.organization = organization
+        self.instance = instance
+        self.editing = editing
         if self.is_bound:
             raw_applies = self.data.get("applies_to") or applies_to
             applies_to = "WORK_ORDER" if str(raw_applies).strip().upper() in ("WORK_ORDER", "WORK ORDER") or "WORK" in str(raw_applies).upper() else "REQUEST"
-        self.fields["pause_states"].choices = _pause_choices(applies_to)
+        else:
+            raw_applies = self.initial.get("applies_to") or applies_to
+            applies_to = "WORK_ORDER" if str(raw_applies).strip().upper() in ("WORK_ORDER", "WORK ORDER") or "WORK" in str(raw_applies).upper() else "REQUEST"
+        cur_pauses = self.data.getlist("pause_states") if self.is_bound else self.initial.get("pause_states")
+        self.fields["pause_states"].choices = _pause_choices(applies_to, cur_pauses)
         self.fields["site"].queryset = sites if sites is not None else Site.objects.none()
         self.fields["client"].queryset = clients or Membership.objects.none()
         self.fields["client"].queryset = self.fields["client"].queryset.select_related("user")
-        self.fields["contract"].queryset = contracts or CoverageAgreement.objects.none()
+        self.fields["contract"].queryset = contracts if contracts is not None else CoverageAgreement.objects.none()
         self.fields["asset"].queryset = assets or Asset.objects.none()
         self.fields["asset_category"].queryset = categories or AssetCategory.objects.none()
+        self.fields["calendar"].queryset = calendars if calendars is not None else OperatingCalendar.objects.none()
         from apps.incidents.models import ServiceRequest
         from apps.workorders.models import WorkOrder
-        self.fields["service_type"].choices = [("", "Any service type")] + (
-            list(ServiceRequest.Kind.choices) if applies_to == "REQUEST" else list(WorkOrder.WorkType.choices))
-        self.fields["service_type"].help_text = (
-            "Incident / Breakdown or Service Request" if applies_to == "REQUEST" else
-            "Work Order type, for example Corrective or Emergency")
+        if applies_to == "WORK_ORDER":
+            self.fields["service_type"].label = "Work order type"
+            self.fields["service_type"].choices = [("", "All Work Order Types")] + list(WorkOrder.WorkType.choices)
+            self.fields["service_type"].help_text = (
+                "Optional filter. Matches specific work order types (e.g. Corrective, Emergency) or leave blank for all.")
+        else:
+            self.fields["service_type"].label = "Incident type"
+            self.fields["service_type"].choices = [("", "All Incident / Breakdown tickets")]
+            self.fields["service_type"].help_text = ""
         if editing:
             self.fields.pop("is_active")
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if len(name) < 3:
+            raise forms.ValidationError("Profile name must be at least 3 characters long.")
+        if self.organization:
+            from .models import SLAProfile
+            qs = SLAProfile.objects.for_organization(self.organization).filter(name__iexact=name)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f"An SLA Profile named '{name}' already exists in your organization. Choose a distinct name.")
+        return name
 
     def clean_applies_to(self):
         val = self.cleaned_data.get("applies_to")
@@ -105,6 +169,41 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
             return "WORK_ORDER"
         return "REQUEST"
 
+    def clean(self):
+        cleaned = super().clean()
+        applies_to = cleaned.get("applies_to") or "REQUEST"
+        if applies_to == "REQUEST":
+            cleaned["service_type"] = ""
+            cleaned["work_type"] = ""
+        else:
+            if not cleaned.get("work_type") and cleaned.get("service_type"):
+                cleaned["work_type"] = cleaned.get("service_type")
+        site = cleaned.get("site")
+        asset = cleaned.get("asset")
+        category = cleaned.get("asset_category")
+        contract = cleaned.get("contract")
+        calendar = cleaned.get("calendar")
+
+        if asset and not site and getattr(asset, "site", None):
+            cleaned["site"] = asset.site
+            site = asset.site
+        if contract and not site and getattr(contract, "site", None):
+            cleaned["site"] = contract.site
+            site = contract.site
+
+        if asset and site and asset.site_id != site.pk:
+            site_name = site.name or site.code
+            asset_site_name = asset.site.name if asset.site else "another site"
+            self.add_error(
+                "asset",
+                f"The selected asset '{asset.asset_tag}' belongs to '{asset_site_name}', but site '{site_name}' is selected. Choose an asset located at '{site_name}', or leave blank to apply to all equipment at this site."
+            )
+        if asset and category and asset.category_id != category.pk:
+            self.add_error("asset", f"The selected asset does not belong to the selected category '{category.name}'.")
+        if calendar and site and calendar.site_id and calendar.site_id != site.pk:
+            self.add_error("calendar", "The selected calendar must belong to the policy site.")
+        return cleaned
+
 
 class TargetForm(BootstrapFormMixin, forms.Form):
     priority = forms.CharField(required=False, label="Priority")
@@ -116,7 +215,7 @@ class TargetForm(BootstrapFormMixin, forms.Form):
         widget=forms.TextInput(attrs={"placeholder": "e.g. 4 hours"}))
     warning_percent = forms.CharField(
         required=False, initial=80, label="Warning Alert",
-        widget=forms.TextInput(attrs={"placeholder": "e.g. 75%"}))
+        widget=forms.TextInput(attrs={"placeholder": "80"}))
 
     def __init__(self, *args, applies_to="REQUEST", **kwargs):
         super().__init__(*args, **kwargs)
@@ -127,11 +226,13 @@ class TargetForm(BootstrapFormMixin, forms.Form):
             choices = [("", "Choose priority (optional)"), ("CRITICAL", "Critical"), ("HIGH", "High"), ("MEDIUM", "Medium"), ("LOW", "Low")]
         self.fields["priority"] = forms.CharField(
             required=False, label="Priority",
-            widget=forms.Select(choices=choices)
+            widget=forms.Select(choices=choices, attrs={"class": "form-select"})
         )
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
         pfx = f"{self.prefix}-" if self.prefix else ""
 
         priority_val = cleaned.get("priority")
@@ -226,7 +327,7 @@ class PriorityTargetFormSet(BaseFormSet):
             return
         active_priorities = []
         for form in self.forms:
-            if not form.cleaned_data:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
                 continue
             prio = form.cleaned_data.get("priority")
             if prio:
@@ -242,8 +343,8 @@ class PriorityTargetFormSet(BaseFormSet):
 
 
 PriorityTargetFormSetFactory = formset_factory(
-    TargetForm, formset=PriorityTargetFormSet, extra=0, min_num=1, validate_min=False,
-    max_num=4, validate_max=True,
+    TargetForm, formset=PriorityTargetFormSet, extra=0, min_num=0, validate_min=False,
+    max_num=4, validate_max=True, can_delete=True,
 )
 
 
@@ -265,6 +366,8 @@ class RuleForm(BootstrapFormMixin, forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
         target, trigger = cleaned.get("target_kind"), cleaned.get("trigger")
         role, assignee = cleaned.get("notify_role"), cleaned.get("notify_assignee")
         after = cleaned.get("after_minutes")
@@ -289,5 +392,5 @@ class EscalationRuleFormSet(BaseFormSet):
 
 
 EscalationRuleFormSetFactory = formset_factory(
-    RuleForm, formset=EscalationRuleFormSet, extra=1, can_delete=True, max_num=6, validate_max=True,
+    RuleForm, formset=EscalationRuleFormSet, extra=0, can_delete=True, max_num=6, validate_max=True,
 )

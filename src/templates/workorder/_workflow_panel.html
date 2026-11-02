@@ -11,7 +11,14 @@
         <div>{% hierarchy_trail wo.asset %}</div>
       {% endif %}
     </div>
-    <span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span>
+    <div class="d-flex flex-column align-items-end gap-2 text-end">
+      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span>
+        {% if sla %}
+          {% include "sla/_header_badge.html" %}
+        {% endif %}
+      </div>
+    </div>
   </header>
   <section class="wo-detail-card wo-workflow-card" id="workflow-actions">
     <div class="wo-workflow-intro"><div><p class="wo-eyebrow">STATUS</p><h2>Current status: {{ wo.get_status_display }}</h2></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></div>

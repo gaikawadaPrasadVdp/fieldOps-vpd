@@ -166,12 +166,6 @@ class ContactWriteSerializer(serializers.Serializer):
     escalation_order = serializers.IntegerField(min_value=1, max_value=MAX_ESCALATION_ORDER, required=False)
     notes = serializers.CharField(max_length=300, required=False, allow_blank=True)
 
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
-
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
-
 
 class ContactUpdateSerializer(ContactWriteSerializer):
     site = None

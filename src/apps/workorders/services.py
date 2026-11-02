@@ -756,14 +756,14 @@ def assert_can_execute(wo, membership) -> None:
     """Execution (start / hold / resume / complete) belongs to the assignee; dispatchers may act for them."""
     if wo.assigned_to_id == membership.pk:
         return
-    if rbac.has_permission(membership, "work_order.review", wo.site_id):
-        raise PermissionDenied("Only the assigned technician (or a dispatcher) can do this.", code="not_assignee")
     if rbac.has_permission(membership, "work_order.dispatch", wo.site_id):
         return
     raise PermissionDenied("Only the assigned technician (or a dispatcher) can do this.", code="not_assignee")
 
 
-_assert_assignee_or_dispatcher = assert_can_execute
+def _assert_assignee_or_dispatcher(wo, membership) -> None:
+    """Authorize execution / recording actions for the assignee or an authorized dispatcher."""
+    assert_can_execute(wo, membership)
 
 
 def _assert_assignee_or_authorized(wo, membership, permission):
@@ -854,6 +854,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     _need(membership, code, wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     notes = (notes or "").strip()
+    if approved and wo.status == WorkOrder.Status.CLOSED:
+        if wo.closure_approvals.filter(decision=ClosureApproval.Decision.APPROVED).exists():
+            return wo
     if wo.status != WorkOrder.Status.SUPERVISOR_REVIEW:
         raise InvalidTransition("Only work orders awaiting supervisor review can be reviewed.")
     if approved and require_comment and not notes:

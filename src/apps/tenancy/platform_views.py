@@ -24,6 +24,7 @@ def platform_admin_required(view):
 
 @platform_admin_required
 def organizations(request):
+    services.process_due_scheduled_deletions()
     qs = Organization.objects.order_by("name")
     q = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "").strip().upper()
@@ -53,11 +54,13 @@ def organization_create(request):
         form = PlatformOrganizationCreateForm(request.POST)
         if form.is_valid():
             try:
+                owner_pwd = form.cleaned_data.get("owner_password") or "FieldOps@2026!"
                 org, owner_m = services.create_organization(
                     name=form.cleaned_data["name"],
                     slug=form.cleaned_data.get("slug") or None,
                     owner_name=form.cleaned_data["owner_name"],
                     owner_email=form.cleaned_data["owner_email"],
+                    owner_password=owner_pwd,
                     timezone_name=form.cleaned_data["timezone"],
                     country=form.cleaned_data["country"],
                     actor=request.user,
@@ -103,14 +106,60 @@ def organization_delete(request, org_id):
         return redirect("platform_admin:organizations")
 
     org = get_object_or_404(Organization, pk=org_id)
+    reason = request.POST.get("reason", "").strip()
+    days_val = request.POST.get("days", "").strip()
+
     try:
-        hard, msg = services.delete_organization(org, actor=request.user, request=request)
-        if hard:
-            messages.success(request, msg)
-        else:
-            messages.warning(request, msg)
+        grace_days = int(days_val) if days_val else 7
+    except ValueError:
+        grace_days = 7
+
+    if grace_days < 1:
+        grace_days = 1
+
+    if not reason:
+        reason = "Deleted by platform administrator"
+
+    try:
+        services.schedule_organization_deletion(org, days=grace_days, reason=reason, actor=request.user, request=request)
+        messages.warning(
+            request,
+            f"Organization '{org.name}' scheduled for deletion in {grace_days} day(s). The organization owner will see a countdown notice.",
+        )
     except Exception as exc:
-        messages.error(request, f"Failed to delete organization: {exc}")
+        messages.error(request, f"Failed to schedule deletion for organization: {exc}")
+
+    return redirect("platform_admin:organizations")
+
+
+@platform_admin_required
+def organization_delete_now(request, org_id):
+    if request.method != "POST":
+        return redirect("platform_admin:organizations")
+
+    org = get_object_or_404(Organization, pk=org_id)
+    reason = request.POST.get("reason", "").strip() or org.deletion_reason or "Deleted immediately by platform administrator"
+
+    try:
+        hard, msg = services.permanently_delete_organization(org, actor=request.user, reason=reason, request=request)
+        messages.success(request, msg)
+    except Exception as exc:
+        messages.error(request, f"Failed to permanently delete organization: {exc}")
+
+    return redirect("platform_admin:organizations")
+
+
+@platform_admin_required
+def organization_cancel_deletion(request, org_id):
+    if request.method != "POST":
+        return redirect("platform_admin:organizations")
+
+    org = get_object_or_404(Organization, pk=org_id)
+    try:
+        services.cancel_organization_deletion(org, actor=request.user, request=request)
+        messages.success(request, f"Scheduled deletion for organization '{org.name}' has been cancelled.")
+    except Exception as exc:
+        messages.error(request, f"Failed to cancel scheduled deletion: {exc}")
 
     return redirect("platform_admin:organizations")
 
