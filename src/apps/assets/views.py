@@ -13,7 +13,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
-from apps.core.exceptions import DomainError, NotFound
+from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
 from apps.sites.views import need, or404
@@ -33,13 +33,7 @@ from .forms import (
     ReadingForm,
 )
 from .models import Asset, AssetComponent
-from .workflow import ASSET_STATUS, BUTTON_STYLES, TERMINAL_STATES
-from .api_views import (
-    AssetCategoryViewSet,
-    AssetViewSet,
-    ComponentViewSet as AssetComponentViewSet,
-    MeterViewSet as AssetMeterViewSet,
-)
+from .workflow import ACTIVE, ASSET_STATUS, BUTTON_STYLES, OUT_OF_SERVICE, TERMINAL_STATES, UNDER_MAINTENANCE
 
 TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters"), ("history", "History"),
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
@@ -92,7 +86,7 @@ class AssetHierarchyHubView(AssetBase):
     def get(self, request):
         m, org = request.membership, request.organization
         assets_qs = selectors.assets_for(m, org)
-        
+
         # Metrics & KPI Calculations
         total_assets = assets_qs.count()
         roots_with_children = assets_qs.filter(parent_link__isnull=True, child_links__isnull=False).distinct()
@@ -100,7 +94,15 @@ class AssetHierarchyHubView(AssetBase):
         total_components = AssetComponent.objects.for_organization(org).count()
         replaceable_parts = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART").count()
         parts_without_num = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART", part_number="").count()
-        
+
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        total_breakdowns = ServiceRequest.objects.filter(
+            organization=org,
+            asset_id__in=assets_qs.values_list("id", flat=True),
+            status__in=ACTIVE_INCIDENT_STATUSES,
+        ).values("asset_id").distinct().count()
+
         # Selected Root Asset for Tree View
         root_id = request.GET.get("root")
         selected_root = None
@@ -108,21 +110,30 @@ class AssetHierarchyHubView(AssetBase):
             selected_root = assets_qs.filter(pk=selectors._uuid_or_none(root_id)).first()
         if not selected_root:
             selected_root = roots_with_children.first()
-            
+
         tree = hierarchy.build_tree(selected_root) if selected_root else None
+        total_nodes = len(hierarchy.flatten(tree)) if tree else 0
+        if tree and total_nodes > 50 and request.GET.get("full") != "1":
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {selected_root.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
-        
+
         return render(request, "assets/hierarchy_hub.html", {
             "total_assets": total_assets,
             "total_assemblies": total_assemblies,
             "total_components": total_components,
             "replaceable_parts": replaceable_parts,
             "parts_without_num": parts_without_num,
+            "total_breakdowns": total_breakdowns,
             "roots": roots_with_children.select_related("site", "category"),
             "selected_root": selected_root,
             "tree": tree,
             "can_manage": can_manage,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
+            "total_nodes": total_nodes,
         })
 
 
@@ -131,14 +142,64 @@ class AssetListView(AssetBase):
 
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_assets(selectors.assets_for(m, org).select_related("parent_link__parent"), request.GET)
+        base_assets = selectors.assets_for(m, org)
+        qs = selectors.filter_assets(base_assets.select_related("parent_link__parent"), request.GET)
+        # CSV Export Handling
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv":
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+            response["Content-Disposition"] = f'attachment; filename="assets_export_{org.slug}_{timestamp}.csv"'
+
+            writer = csv.writer(response)
+            writer.writerow([
+                "Asset Tag",
+                "Name",
+                "Category",
+                "Site Code",
+                "Zone",
+                "Status",
+                "Manufacturer",
+                "Model",
+                "Serial Number",
+                "Purchase Date",
+                "Commission Date",
+                "Created At",
+            ])
+            for asset in qs.select_related("category", "site", "zone"):
+                writer.writerow([
+                    asset.asset_tag,
+                    asset.name,
+                    asset.category.name if asset.category else "",
+                    asset.site.code if asset.site else "",
+                    asset.zone.name if asset.zone else "",
+                    asset.get_status_display(),
+                    asset.manufacturer or "",
+                    asset.model or "",
+                    asset.serial_number or "",
+                    asset.purchase_date.strftime("%Y-%m-%d") if asset.purchase_date else "",
+                    asset.commission_date.strftime("%Y-%m-%d") if asset.commission_date else "",
+                    asset.created_at.strftime("%Y-%m-%d %H:%M:%S") if asset.created_at else "",
+                ])
+            return response
+
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+
+        total_count = base_assets.count()
+        active_count = base_assets.filter(status=ACTIVE).count()
+        maintenance_count = base_assets.filter(status=UNDER_MAINTENANCE).count()
+        out_of_service_count = base_assets.filter(status=OUT_OF_SERVICE).count()
+
         return render(request, "assets/list.html", {
             "page": page, "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
             "categories": selectors.categories_for(org), "statuses": Asset.Status.choices,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
-            "can_categories": rbac.has_permission(m, "asset.category.manage")})
+            "can_categories": rbac.has_permission(m, "asset.category.manage"),
+            "total_count": total_count,
+            "active_count": active_count,
+            "maintenance_count": maintenance_count,
+            "out_of_service_count": out_of_service_count,
+        })
 
 
 class ComponentListView(AssetBase):
@@ -199,7 +260,19 @@ class ComponentListView(AssetBase):
         total_replaceable = base_qs.filter(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART).count()
         missing_parts = base_qs.filter(Q(part_number__isnull=True) | Q(part_number="")).count()
 
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        from apps.assets.health import batch_annotate_assets_health
+
+        child_pks = base_qs.values_list("child_id", flat=True)
+        breakdown_count = ServiceRequest.objects.filter(
+            organization=org,
+            asset_id__in=child_pks,
+            status__in=ACTIVE_INCIDENT_STATUSES,
+        ).values("asset_id").distinct().count()
+
         page = Paginator(qs, 25).get_page(request.GET.get("page"))
+        batch_annotate_assets_health([comp.child for comp in page], organization=org)
 
         return render(request, "assets/component_list.html", {
             "page": page,
@@ -207,6 +280,7 @@ class ComponentListView(AssetBase):
             "total_items": total_items,
             "total_replaceable": total_replaceable,
             "missing_parts": missing_parts,
+            "breakdown_count": breakdown_count,
             "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
             "relationship_types": AssetComponent.Relationship.choices,
             "statuses": Asset.Status.choices,
@@ -226,6 +300,11 @@ class AssetCreateView(AssetBase):
         if not pid:
             return None
         parent = _asset(request, pid, "asset.hierarchy.manage")
+        if AssetComponent.objects.filter(child=parent).exists():
+            raise ValidationFailed(
+                f"Cannot create a child under {parent.asset_tag}: It is a child component of another machine. Multi-level nested parent assets are not permitted.",
+                code="child_cannot_be_parent",
+            )
         return parent
 
     def _page(self, request, form, parent, rel_form=None, status=200):
@@ -245,6 +324,11 @@ class AssetCreateView(AssetBase):
         initial.update(_prefill(request))
         form = AssetForm(initial=initial, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, initial))
+        if request.headers.get("HX-Request") and not parent:
+            return render(request, "assets/_asset_modal.html", {
+                "title": "Register asset", "form": form, "submit": "Register asset",
+                "action_url": request.path,
+            })
         return self._page(request, form, parent, NewChildForm() if parent else None)
 
     def post(self, request):
@@ -263,10 +347,26 @@ class AssetCreateView(AssetBase):
                         hierarchy.add_component(parent, asset, actor=request.user, request=request,
                                                 **rel_form.cleaned_data)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Asset {asset.asset_tag} registered.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeAssetModal": True, "assetSaved": True})
                 return redirect("assets:detail", pk=asset.pk)
+        if request.headers.get("HX-Request") and not parent:
+            return render(request, "assets/_asset_modal.html", {
+                "title": "Register asset", "form": form, "submit": "Register asset",
+                "action_url": request.path,
+            }, status=200)
         return self._page(request, form, parent, rel_form, status=400)
 
 
@@ -287,7 +387,7 @@ class AssetEditView(AssetBase):
         if reload:
             initial.update(_prefill(request))
         return AssetForm(data, initial=initial, sites=sites, org=request.organization, creating=False,
-                          category=category)
+                          category=category, asset_pk=asset.pk)
 
     def _page(self, request, asset, form, status=200):
         return render(request, "assets/form.html", {
@@ -308,7 +408,16 @@ class AssetEditView(AssetBase):
             try:
                 services.update_asset(asset, actor=request.user, request=request, **refs, **d)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, "Asset saved.")
                 return redirect("assets:detail", pk=asset.pk)
@@ -325,7 +434,18 @@ class AssetDetailView(AssetBase):
         asset = _asset(request, pk)
         m, org = request.membership, request.organization
         tab = request.GET.get("tab", "overview")
-        if tab not in dict(TABS):
+        available_tabs = [
+            ("overview", "Overview"),
+            ("documents", "Documents"),
+            ("meters", "Meters"),
+            ("history", "History"),
+            ("hierarchy", "Hierarchy"),
+        ]
+        if rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):
+            available_tabs.append(("coverage", "Coverage"))
+        available_tabs.append(("labels", "Labels"))
+
+        if tab not in dict(available_tabs):
             tab = "overview"
         can = {
             c.replace(".", "_"): (
@@ -349,7 +469,7 @@ class AssetDetailView(AssetBase):
                             "confirm": f"{t.label}: the asset will become {t.target.replace('_', ' ').title()}."
                             if t.target in TERMINAL_STATES else ""}
                            for t in ASSET_STATUS.available(asset.status)]
-        ctx = {"asset": asset, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
+        ctx = {"asset": asset, "tab": tab, "tabs": available_tabs, "can": can, "transitions": transitions,
                "custom_attributes": attributes.display(asset.category.attribute_definitions, asset.attributes),
                "terminal": asset.status in TERMINAL_STATES, "parent_link": getattr(asset, "parent_link", None)}
         if tab == "overview" and rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):
@@ -377,24 +497,43 @@ class AssetDetailView(AssetBase):
         ctx = {}
         above = hierarchy.ancestors(asset)
         ctx["ancestors"] = list(reversed(above))
+        is_child = getattr(asset, "parent_link", None) is not None
         if can["asset_hierarchy_manage"] and asset.status not in TERMINAL_STATES:
             exclude_ids = {asset.pk, *(a.pk for a in above)}
             base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage",
                                            site=asset.site)
-            ctx["add_form"] = ComponentAddForm(candidates=base.filter(parent_link__isnull=True).exclude(
-                pk__in=exclude_ids), initial={"relationship_type": "COMPONENT", "quantity": 1})
-            if getattr(asset, "parent_link", None) is not None:
+            parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+            if not is_child:
+                candidates = base.filter(parent_link__isnull=True).exclude(
+                    pk__in=exclude_ids
+                ).exclude(id__in=parent_ids)
+                ctx["add_form"] = ComponentAddForm(candidates=candidates, initial={"relationship_type": "COMPONENT", "quantity": 1})
+            else:
                 link = asset.parent_link
                 ctx["edit_link_form"] = ComponentEditForm(initial={
                     "relationship_type": link.relationship_type, "quantity": link.quantity,
                     "part_number": link.part_number, "notes": link.notes})
                 below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset))}
-                ctx["move_form"] = ComponentMoveForm(candidates=base.exclude(pk__in=below))
-                
+                # Only root assets can be candidates for new parent
+                ctx["move_form"] = ComponentMoveForm(candidates=base.filter(parent_link__isnull=True).exclude(pk__in=below))
+
                 parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, asset.pk} | below
-                replace_candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors)
+                replace_candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors).exclude(id__in=parent_ids)
                 ctx["replace_form"] = ComponentReplaceForm(candidates=replace_candidates)
         return ctx
+
+
+def _mark_lazy_nodes(node: dict, active_ids: set, threshold_depth: int = 2):
+    """Recursively marks sub-branches as lazy when their depth meets or exceeds threshold_depth,
+    unless the node is along the active traversal path of the focused asset."""
+    for child in node.get("children", []):
+        d = child.get("depth", 1)
+        if child.get("children"):
+            if d >= threshold_depth and child["asset"].pk not in active_ids:
+                child["is_lazy"] = True
+            else:
+                child["is_lazy"] = False
+                _mark_lazy_nodes(child, active_ids, threshold_depth=threshold_depth)
 
 
 class AssetTreeView(AssetBase):
@@ -402,10 +541,42 @@ class AssetTreeView(AssetBase):
 
     def get(self, request, pk):
         asset = _asset(request, pk)
+        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
+
+        # 1. On-demand HTMX branch expansion
+        if request.GET.get("branch") == "1":
+            current_pk = request.GET.get("current")
+            current = _asset(request, current_pk) if current_pk else asset
+            tree = hierarchy.build_tree(asset)
+            children = tree.get("children", [])
+            active_ids = {a.pk for a in hierarchy.ancestors(current)} | {current.pk}
+            for c in children:
+                if c.get("children") and c["asset"].pk not in active_ids:
+                    c["is_lazy"] = True
+            return render(request, "assets/_tree_branch.html", {
+                "children": children,
+                "current": current,
+                "can_manage": can,
+            })
+
+        # 2. Complete or progressive tree root view
         root = hierarchy.root_of(asset)
         tree = hierarchy.build_tree(root)
-        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
-        return render(request, "assets/_tree.html", {"node": tree, "current": asset, "can_manage": can})
+        total_nodes = len(hierarchy.flatten(tree))
+
+        force_full = request.GET.get("full") == "1"
+        if not force_full and total_nodes > 50:
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {a.pk for a in hierarchy.ancestors(asset)} | {asset.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
+        return render(request, "assets/_tree.html", {
+            "node": tree,
+            "current": asset,
+            "can_manage": can,
+            "total_nodes": total_nodes,
+        })
 
 
 # --- state-changing actions (POST only) -------------------------------------------------------------------------
@@ -520,8 +691,10 @@ class ComponentAddView(AssetBase):
 
     def post(self, request, pk):
         asset = _asset(request, pk, "asset.hierarchy.manage")
-        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage")
-        form = ComponentAddForm(request.POST, candidates=base)
+        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=asset.site)
+        parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids)
+        form = ComponentAddForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
                 raise DomainError("Choose an asset and a valid relationship.")
@@ -572,8 +745,9 @@ class ComponentMoveView(AssetBase):
     def post(self, request, pk):
         link = _link(request, pk)
         child = link.child
-        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage")
-        form = ComponentMoveForm(request.POST, candidates=base)
+        base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
+        candidates = base.filter(parent_link__isnull=True).exclude(pk=child.pk)
+        form = ComponentMoveForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
                 raise DomainError("Choose a valid new parent.")
@@ -598,7 +772,8 @@ class ComponentReplaceView(AssetBase):
         below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
         parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, child.pk} | below
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
-        candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors)
+        parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors).exclude(id__in=parent_ids)
         form = ComponentReplaceForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
@@ -634,6 +809,7 @@ class ComponentDetailModalView(AssetBase):
             "ancestors": ancestors,
             "parent_link": getattr(asset, "parent_link", None),
             "custom_attributes": attributes.display(asset.category.attribute_definitions, asset.attributes),
+            "health": getattr(asset, "_health_info", None),
         })
 
 

@@ -53,11 +53,20 @@ def normalize_definitions(raw) -> list[dict]:
         label = str(item.get("label", "")).strip()
         if not label or len(label) > 60:
             raise ValidationFailed("Each attribute needs a label of at most 60 characters.", code="invalid_attribute")
-        key = make_key(label)
-        if not key:
-            raise ValidationFailed(f"'{label}' is not a usable attribute name.", code="invalid_attribute")
-        if key in keys:
-            raise ValidationFailed(f"Attribute '{label}' is defined twice.", code="duplicate_attribute")
+        raw_key = item.get("key")
+        if raw_key is not None:
+            raw_key_clean = str(raw_key).strip().lower()
+            if not raw_key_clean:
+                raise ValidationFailed("Attribute key cannot be empty when provided.", code="invalid_attribute")
+            if raw_key_clean in keys:
+                raise ValidationFailed(f"Attribute key '{raw_key_clean}' is defined twice.", code="duplicate_attribute")
+            key = raw_key_clean
+        else:
+            key = make_key(label)
+            if not key:
+                raise ValidationFailed(f"'{label}' is not a usable attribute name.", code="invalid_attribute")
+            if key in keys:
+                raise ValidationFailed(f"Attribute '{label}' is defined twice.", code="duplicate_attribute")
         keys.add(key)
         type_ = str(item.get("type") or "text").strip().lower()
         if type_ not in TYPES:

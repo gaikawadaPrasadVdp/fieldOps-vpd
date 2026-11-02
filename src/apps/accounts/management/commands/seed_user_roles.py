@@ -1,11 +1,11 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.tenancy.models import Organization, Membership
-from apps.rbac.models import Role, MembershipRole
-from apps.rbac.services import seed_system_roles
 from apps.portal.models import PortalAccount
+from apps.rbac.models import MembershipRole, Role
+from apps.rbac.services import seed_system_roles
+from apps.tenancy.models import Membership, Organization
 
 
 class Command(BaseCommand):
@@ -14,8 +14,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--password",
-            default="FieldOps@2026!",
-            help="Default password for all seeded users (default: FieldOps@2026!)",
+            default="Password123!",
+            help="Default password for all seeded users (default: Password123!)",
         )
 
     @transaction.atomic
@@ -27,18 +27,17 @@ class Command(BaseCommand):
 
         # 1. Organization Setup
         org, _ = Organization.objects.get_or_create(
-            code="APEX-IND",
+            slug="apex-industrial-technologies",
             defaults={
                 "name": "Apex Industrial Technologies Ltd",
-                "slug": "apex-industrial-technologies",
                 "contact_email": "operations@apexindustrial.example.com",
                 "contact_phone": "+94 11 289 9000",
             },
         )
-        self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.code})"))
+        self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.slug})"))
 
         # 2. Seed System Roles for the Organization
-        roles_dict = seed_system_roles(org)
+        roles_dict = seed_system_roles(org, prune_extra=True)
         self.stdout.write(self.style.SUCCESS(f"[OK] Seeded {len(roles_dict)} system roles"))
 
         # 3. Define Standard User Personas
@@ -132,30 +131,18 @@ class Command(BaseCommand):
                 "is_staff": False,
                 "is_portal_client": True,
             },
+            {
+                "email": "client.new@apexindustrial.com",
+                "full_name": "Sarah Connor",
+                "job_title": "Client Facility Manager",
+                "role_key": "client_requester",
+                "is_platform_admin": False,
+                "is_staff": False,
+                "is_portal_client": True,
+            },
         ]
 
-        # 4. Create Platform Admin User
-        platform_admin_email = "platform.admin@fieldops.io"
-        p_user = User.objects.filter(email__iexact=platform_admin_email).first()
-        if not p_user:
-            p_user = User.objects.create_user(
-                email=platform_admin_email,
-                password=password,
-                full_name="Platform Super Administrator",
-                is_platform_admin=True,
-                is_staff=True,
-                is_superuser=True,
-            )
-        else:
-            p_user.set_password(password)
-            p_user.is_platform_admin = True
-            p_user.is_staff = True
-            p_user.is_superuser = True
-            p_user.save()
-
-        self.stdout.write(self.style.SUCCESS(f"[OK] Platform Admin: {platform_admin_email}"))
-
-        # 5. Create Persona Users, Memberships & Assign Roles
+        # 4. Create Persona Users, Memberships & Assign Roles
         created_users = []
         for p in personas:
             email = p["email"]
@@ -192,13 +179,23 @@ class Command(BaseCommand):
                     defaults={"site": None}
                 )
 
-            # If portal client, setup PortalAccount
+            # If portal client, setup PortalAccount & initial asset grant
             if p.get("is_portal_client"):
-                PortalAccount.objects.unscoped().get_or_create(
+                portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
                     organization=org,
                     membership=membership,
                     defaults={"company_name": "Acme Corporation", "is_enabled": True}
                 )
+                from apps.assets.models import Asset
+                from apps.portal.models import PortalAssetGrant
+                first_asset = Asset.objects.filter(organization=org).exclude(status__in=["RETIRED", "DISPOSED"]).first()
+                if first_asset:
+                    PortalAssetGrant.objects.unscoped().get_or_create(
+                        organization=org,
+                        portal_account=portal_acc,
+                        asset=first_asset,
+                    )
+
 
             created_users.append({
                 "role": role.name if role else p["role_key"],
@@ -206,5 +203,25 @@ class Command(BaseCommand):
                 "email": email,
                 "name": p["full_name"],
             })
+
+        # 5. Provision Platform Super Administrator (DEF-05)
+        platform_admin_email = "platform.admin@fieldops.io"
+        p_admin = User.objects.filter(email__iexact=platform_admin_email).first()
+        if not p_admin:
+            p_admin = User.objects.create_user(
+                email=platform_admin_email,
+                password=password,
+                full_name="Platform Super Administrator",
+                is_active=True,
+            )
+        else:
+            p_admin.set_password(password)
+            p_admin.full_name = "Platform Super Administrator"
+            p_admin.is_active = True
+        p_admin.is_staff = True
+        p_admin.is_superuser = True
+        p_admin.is_platform_admin = True
+        p_admin.save()
+        self.stdout.write(self.style.SUCCESS(f"[OK] Provisioned Platform Super Admin: {platform_admin_email}"))
 
         self.stdout.write(self.style.SUCCESS("\n[SUCCESS] Successfully seeded all user credentials and roles!"))

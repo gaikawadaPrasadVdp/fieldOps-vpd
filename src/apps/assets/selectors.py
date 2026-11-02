@@ -20,8 +20,8 @@ from .models import (
     AssetStatusHistory,
 )
 
-ORDERINGS = {"asset_tag": "asset_tag", "-asset_tag": "-asset_tag", "name": "name", "-name": "-name",
-             "status": "status", "-created_at": "-created_at", "created_at": "created_at"}
+ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "name": "name", "-name": "-name",
+             "asset_tag": "asset_tag", "-asset_tag": "-asset_tag", "status": "status"}
 
 
 def assets_for(membership, org, code: str = "asset.view"):
@@ -55,7 +55,7 @@ def filter_assets(qs, params):
     if q:
         qs = qs.filter(Q(asset_tag__icontains=q) | Q(name__icontains=q) | Q(serial_number__icontains=q)
                        | Q(model__icontains=q) | Q(manufacturer__icontains=q))
-    return qs.order_by(ORDERINGS.get(params.get("ordering") or "", "asset_tag"))
+    return qs.order_by(ORDERINGS.get(params.get("ordering") or "", "-created_at"))
 
 
 def categories_for(org):
@@ -128,6 +128,20 @@ def filter_components(qs, params):
     status = (params.get("status") or "").strip()
     if status and status in Asset.Status.values:
         qs = qs.filter(child__status=status)
+
+    health = (params.get("health") or "").strip().lower()
+    if health:
+        from apps.incidents.models import ServiceRequest
+        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
+        breakdown_asset_ids = ServiceRequest.objects.filter(
+            status__in=ACTIVE_INCIDENT_STATUSES
+        ).values_list("asset_id", flat=True)
+        if health in ("breakdown", "critical"):
+            qs = qs.filter(child_id__in=breakdown_asset_ids)
+        elif health == "healthy":
+            qs = qs.filter(child__status="ACTIVE").exclude(child_id__in=breakdown_asset_ids)
+        elif health == "degraded":
+            qs = qs.filter(Q(child__status="UNDER_MAINTENANCE") | Q(child_id__in=breakdown_asset_ids))
 
     q = (params.get("q") or "").strip()
     if q:

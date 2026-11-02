@@ -1,0 +1,89 @@
+{% load ui_tags %}
+{% if sla %}
+<div class="sla-header-container d-inline-flex align-items-center gap-1.5 flex-wrap" id="sla-header-indicators">
+  <!-- 1. Breach Warning Indicator -->
+  {% if sla.is_breached %}
+    <span class="badge bg-danger text-white d-inline-flex align-items-center gap-1 shadow-sm px-2.5 py-1" id="sla-breach-indicator" title="SLA Breach Recorded">
+      {% icon "alert-circle" size=14 %}
+      <strong>SLA BREACHED</strong>
+    </span>
+  {% elif sla.is_at_risk %}
+    <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1 shadow-sm px-2.5 py-1" id="sla-at-risk-indicator" title="SLA Target Approaching Deadline (>80% time elapsed)">
+      {% icon "alert-triangle" size=14 %}
+      <strong>SLA AT RISK</strong>
+    </span>
+  {% elif sla.is_paused %}
+    <span class="badge bg-secondary text-white d-inline-flex align-items-center gap-1 px-2.5 py-1" id="sla-paused-indicator" title="SLA Timers Paused">
+      {% icon "clock" size=14 %}
+      <strong>SLA PAUSED</strong>
+    </span>
+  {% elif sla.is_met %}
+    <span class="badge bg-success text-white d-inline-flex align-items-center gap-1 px-2.5 py-1" id="sla-met-indicator" title="SLA Targets Met">
+      {% icon "check" size=14 %}
+      <strong>SLA MET</strong>
+    </span>
+  {% endif %}
+
+  <!-- 2. Countdown Badge -->
+  {% if not sla.is_met and not sla.is_paused and sla.active_due_at %}
+    <a href="{% url 'sla:tracking' sla.pk %}"
+       class="badge border border-primary-subtle text-primary bg-primary-subtle d-inline-flex align-items-center gap-1 px-2.5 py-1 text-decoration-none sla-countdown-badge"
+       id="sla-countdown-badge"
+       data-due-iso="{{ sla.active_due_at|date:'c' }}"
+       data-target-kind="{{ sla.active_target_name }}"
+       title="SLA {{ sla.active_target_name }} Due: {{ sla.active_due_at|date:'d M H:i' }} (Policy: {{ sla.profile.name }})">
+      {% icon "clock" size=13 %}
+      <span>{{ sla.active_target_name }}:</span>
+      <strong class="sla-countdown-text">{{ sla.time_remaining_display }}</strong>
+    </a>
+  {% elif sla.is_paused %}
+    <a href="{% url 'sla:tracking' sla.pk %}" class="badge border border-secondary-subtle text-secondary bg-light d-inline-flex align-items-center gap-1 px-2.5 py-1 text-decoration-none" title="Policy: {{ sla.profile.name }}">
+      <span>SLA:</span>
+      <strong>Paused</strong>
+    </a>
+  {% elif sla.is_met %}
+    <a href="{% url 'sla:tracking' sla.pk %}" class="badge border border-success-subtle text-success bg-light d-inline-flex align-items-center gap-1 px-2.5 py-1 text-decoration-none" title="Policy: {{ sla.profile.name }}">
+      <span>SLA:</span>
+      <strong>Compliant</strong>
+    </a>
+  {% endif %}
+</div>
+<script>
+  (function() {
+    function tickSLACountdowns() {
+      var badges = document.querySelectorAll('.sla-countdown-badge');
+      badges.forEach(function(el) {
+        var dueIso = el.getAttribute('data-due-iso');
+        if (!dueIso) return;
+        var diff = Math.floor((new Date(dueIso) - new Date()) / 1000);
+        var textEl = el.querySelector('.sla-countdown-text');
+        if (!textEl) return;
+        if (diff < 0) {
+          var overdue = Math.abs(diff);
+          var h = Math.floor(overdue / 3600);
+          var m = Math.floor((overdue % 3600) / 60);
+          textEl.textContent = (h > 0 ? h + 'h ' : '') + m + 'm overdue';
+          el.classList.remove('text-primary', 'bg-primary-subtle', 'border-primary-subtle');
+          el.classList.add('text-danger', 'bg-danger-subtle', 'border-danger-subtle');
+        } else {
+          var h = Math.floor(diff / 3600);
+          var m = Math.floor((diff % 3600) / 60);
+          var s = diff % 60;
+          if (h > 0) {
+            textEl.textContent = h + 'h ' + m + 'm left';
+          } else {
+            textEl.textContent = m + 'm ' + s + 's left';
+          }
+        }
+      });
+    }
+    if (!window._slaCountdownInitialized) {
+      window._slaCountdownInitialized = true;
+      setInterval(tickSLACountdowns, 1000);
+      document.addEventListener('htmx:afterSwap', tickSLACountdowns);
+    }
+    tickSLACountdowns();
+  })();
+</script>
+{% endif %}
+

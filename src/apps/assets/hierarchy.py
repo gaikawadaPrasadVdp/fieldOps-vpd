@@ -16,6 +16,7 @@ from django.db import connection, transaction
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, ValidationFailed
 
+from .health import annotate_tree_health, batch_annotate_assets_health, get_asset_health
 from .models import Asset, AssetComponent
 from .workflow import TERMINAL_STATES
 
@@ -62,23 +63,37 @@ def subtree_height(asset: Asset) -> int:
 def check_link(parent: Asset, child: Asset, *, moving: bool = False):
     """Raises a DomainError when ``child`` may not be placed under ``parent`` (also used for dry-run checks)."""
     if parent.pk == child.pk:
-        raise ValidationFailed("An asset cannot be its own parent.", code="self_parent")
+        raise ValidationFailed(f"Cannot attach {parent.asset_tag}: An asset cannot be its own parent.", code="self_parent")
     if parent.organization_id != child.organization_id:
-        raise ValidationFailed("Assets belong to different organizations.", code="cross_tenant")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Assets belong to different organizations.", code="cross_tenant")
     if parent.site_id != child.site_id:
-        raise ValidationFailed("Parent and child must be at the same site.", code="site_mismatch")
-    if parent.status in TERMINAL_STATES or child.status in TERMINAL_STATES:
-        raise Conflict("Retired or disposed assets cannot take part in the hierarchy.", code="asset_terminal")
-    if not moving and AssetComponent.objects.filter(child=child).exists():
-        raise Conflict("This asset is already a component of another asset; move it instead.",
-                       code="already_has_parent")
+        parent_site = getattr(parent.site, "code", "Site A")
+        child_site = getattr(child.site, "code", "Site B")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Parent is at site '{parent_site}' while child is at site '{child_site}'.", code="site_mismatch")
+    if parent.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Parent {parent.asset_tag} is in terminal status ({parent.status}).", code="asset_terminal")
+    if child.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Child {child.asset_tag} is in terminal status ({child.status}).", code="asset_terminal")
     above = ancestors(parent)
     if any(a.pk == child.pk for a in above):
-        raise ValidationFailed("This would create a cycle: the child is an ancestor of the parent.",
+        raise ValidationFailed(f"Circular dependency detected: {child.asset_tag} is already an ancestor of {parent.asset_tag}.",
                                code="hierarchy_cycle")
+    if AssetComponent.objects.filter(child=parent).exists():
+        raise ValidationFailed(
+            f"Cannot attach component under {parent.asset_tag}: It is already a child component of another asset. Nested parent assets are not permitted.",
+            code="child_cannot_be_parent",
+        )
+    if AssetComponent.objects.filter(parent=child).exists():
+        raise ValidationFailed(
+            f"Cannot attach {child.asset_tag}: It is already a parent asset with child components. Nested parent assets are not permitted.",
+            code="parent_cannot_be_child",
+        )
+    if not moving and AssetComponent.objects.filter(child=child).exists():
+        raise Conflict(f"Cannot attach: {child.asset_tag} is already a component of another asset. Use 'Move / Re-parent' instead.",
+                       code="already_has_parent")
     levels = len(above) + 1 + 1 + subtree_height(child)  # ancestors + parent + child + below child
     if levels > MAX_DEPTH:
-        raise ValidationFailed(f"The hierarchy is limited to {MAX_DEPTH} levels.", code="hierarchy_too_deep")
+        raise ValidationFailed(f"Hierarchy depth limit exceeded: Linking {child.asset_tag} under {parent.asset_tag} would create a {levels}-level tree (maximum allowed is {MAX_DEPTH}).", code="hierarchy_too_deep")
 
 
 def _check_quantity(quantity):
@@ -107,7 +122,16 @@ def add_component(parent: Asset, child: Asset, *, relationship_type: str = "COMP
                           part_number=(part_number or "").strip(), notes=(notes or "").strip())
     link.save()
     audit.record("asset.component_added", actor=actor, organization=parent.organization, target=parent,
-                 after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -121,11 +145,23 @@ def move_component(link: AssetComponent, new_parent: Asset, *, actor, request=No
     if new_parent.pk == link.parent_id:
         raise Conflict("The component is already under that parent.", code="no_change")
     check_link(new_parent, child, moving=True)
+    before_parent = link.parent
     before = audit.snapshot(link, COMPONENT_FIELDS)
     link.parent = new_parent
     link.save()
     audit.record("asset.component_moved", actor=actor, organization=link.organization, target=child,
-                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "old_parent_id": str(before_parent.pk),
+                     "old_parent_tag": before_parent.asset_tag,
+                     "old_parent_name": before_parent.name,
+                     "new_parent_id": str(new_parent.pk),
+                     "new_parent_tag": new_parent.asset_tag,
+                     "new_parent_name": new_parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -150,7 +186,16 @@ def update_component(link: AssetComponent, *, actor, request=None, relationship_
     after = audit.snapshot(link, COMPONENT_FIELDS)
     if before != after:
         audit.record("asset.component_updated", actor=actor, organization=link.organization, target=link.parent,
-                     before=before, after=after, request=request)
+                     before=before, after=after,
+                     metadata={
+                         "child": link.child.asset_tag,
+                         "child_tag": link.child.asset_tag,
+                         "child_name": link.child.name,
+                         "child_id": str(link.child.pk),
+                         "parent_tag": link.parent.asset_tag,
+                         "parent_name": link.parent.name,
+                     },
+                     request=request)
     return link
 
 
@@ -161,7 +206,15 @@ def remove_component(link: AssetComponent, *, actor, request=None):
     snap, parent, child, org = audit.snapshot(link, COMPONENT_FIELDS), link.parent, link.child, link.organization
     link.delete()
     audit.record("asset.component_removed", actor=actor, organization=org, target=parent, before=snap,
-                 metadata={"child": child.asset_tag}, request=request)
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
 
 
 @transaction.atomic
@@ -193,7 +246,7 @@ def root_of(asset: Asset) -> Asset:
     return above[-1] if above else asset
 
 
-def build_tree(root: Asset) -> dict:
+def build_tree(root: Asset, *, annotate_health: bool = True) -> dict:
     """Nested subtree of ``root`` (one query per level, depth-bounded):
     {"asset", "link", "children": [...], "depth"}. All nodes share the root's site (enforced on write)."""
     node = {"asset": root, "link": None, "children": [], "depth": 0}
@@ -209,6 +262,11 @@ def build_tree(root: Asset) -> dict:
             level[link.parent_id]["children"].append(child_node)
             nxt[link.child_id] = child_node
         level = nxt
+    if annotate_health and root:
+        try:
+            annotate_tree_health(node, organization=root.organization)
+        except Exception:
+            pass
     return node
 
 

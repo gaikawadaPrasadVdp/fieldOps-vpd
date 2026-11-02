@@ -1,36 +1,30 @@
 {% extends "base.html" %}
 {% load ui_tags %}
-{% block body_class %}fx-app{% endblock %}
+{% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
-{% with is_platform=request.path|slice:":10" %}
 <div class="fx-layout" id="fx-layout">
-  <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">
-    <div class="fx-brand px-3 py-3"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
-    {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
+  <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
+    <div class="fx-sidebar-header">
+      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
+        <span class="fx-brand-mark">FX</span> FieldOps Nexus
+      </a>
+      {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
+    </div>
     <nav class="fx-nav">
-      {% if request.user.is_platform_admin and is_platform == "/platform/" %}
-        <div class="fx-nav-section">Platform</div>
-        <a class="fx-nav-link {% if '/platform/organizations' in request.path %}active{% endif %}" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Organizations</a>
-        <a class="fx-nav-link {% if request.path == '/platform/audit/' %}active{% endif %}" href="{% url 'platform_admin:audit' %}">{% icon 'clock' %} Platform Audit</a>
-      {% else %}
-        {% for section, items in shell_nav_sections.items %}
-          <div class="fx-nav-section">{{ section }}</div>
-          {% for item in items %}
-            <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
-          {% endfor %}
+      {% for section, items in shell_nav_sections.items %}
+        <div class="fx-nav-section">{{ section }}</div>
+        {% for item in items %}
+          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
         {% endfor %}
-        {% if request.user.is_platform_admin %}
-          <div class="fx-nav-section">Platform</div>
-          <a class="fx-nav-link" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Platform console</a>
-        {% endif %}
-      {% endif %}
+      {% endfor %}
     </nav>
   </aside>
+  <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
   <div class="fx-main">
-    <header class="fx-topbar">
+    <header class="fx-topbar d-print-none">
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
               data-fx-toggle-nav>{% icon 'menu' %}</button>
-      {% if shell_org %}
+      {% if shell_org and not is_client %}
       <form class="fx-search" role="search" autocomplete="off">
         {% icon 'search' 16 %}
         <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"
@@ -51,7 +45,7 @@
         </form>
         {% endif %}
         <div class="dropdown">
-          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-truncate" style="max-width: 140px;" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>
@@ -65,9 +59,37 @@
     <main class="fx-content" id="main">
       {% block breadcrumbs %}{% endblock %}
       {% include "components/_messages.html" %}
+
+      {% if shell_org and shell_org.is_scheduled_for_deletion %}
+      <div class="alert alert-danger shadow-sm border-danger mb-4 p-3" role="alert" style="border-left: 5px solid #dc3545; background-color: #fdf2f2;">
+        <div class="d-flex align-items-start gap-3">
+          <div class="fs-2 text-danger lh-1">⚠️</div>
+          <div class="flex-grow-1">
+            <div class="fw-bold text-danger fs-6">
+              Organization Deletion Warning: This organization is scheduled for permanent deletion in {{ shell_org.days_until_deletion }} day{{ shell_org.days_until_deletion|pluralize }} (on {{ shell_org.deletion_scheduled_at|date:"M j, Y H:i" }} UTC)
+            </div>
+            {% if shell_org.deletion_reason %}
+              <div class="text-dark small mt-1">
+                <strong>Reason:</strong> {{ shell_org.deletion_reason }}
+              </div>
+            {% endif %}
+            {% if is_org_owner %}
+              <div class="mt-2 text-danger fw-semibold small p-2 rounded" style="background-color: #fee2e2; border: 1px solid #fca5a5;">
+                <span class="badge bg-danger text-white me-1">Organization Owner Notice</span>
+                As the Organization Owner, please export any necessary compliance and asset records before the scheduled deletion date. If this was scheduled in error, contact platform administration immediately to cancel.
+              </div>
+            {% else %}
+              <div class="mt-1 text-muted small">
+                Please contact your organization owner or platform administration if you have questions.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% block content %}{% endblock %}
     </main>
   </div>
 </div>
-{% endwith %}
 {% endblock %}

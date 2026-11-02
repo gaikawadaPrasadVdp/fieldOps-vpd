@@ -8,6 +8,7 @@
       <div class="d-flex align-items-center gap-2">
         <h5 class="modal-title fw-bold mb-0">{{ asset.asset_tag }}</h5>
         {% status_badge asset.status %}
+        {% component_health_badge asset %}
       </div>
       <div class="text-body-secondary small">{{ asset.name }}</div>
     </div>
@@ -16,6 +17,41 @@
 </div>
 
 <div class="modal-body p-3 p-md-4">
+  <!-- Active Breakdown Tickets Alert Banner -->
+  {% if health.has_active_breakdown and health.tickets %}
+    <div class="alert alert-danger p-3 mb-3 border-danger-subtle d-flex flex-column gap-2">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 fw-bold text-danger">
+          {% icon 'alert-circle' 16 %} Active Breakdown Ticket{{ health.tickets|length|pluralize }} ({{ health.tickets|length }})
+        </div>
+        {% if health.highest_severity %}
+          <span class="badge text-bg-danger font-monospace small">Severity: {{ health.highest_severity }}</span>
+        {% endif %}
+      </div>
+      <div class="list-group list-group-flush rounded-2 border border-danger-subtle bg-white">
+        {% for ticket in health.tickets %}
+          <div class="list-group-item list-group-item-action d-flex align-items-center justify-content-between p-2">
+            <div>
+              <a href="{% url 'incidents:detail' ticket.id %}" class="fw-semibold text-danger text-decoration-none" target="_blank">
+                {{ ticket.number }}
+              </a>
+              <span class="text-dark small ms-2">{{ ticket.title }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              {% status_badge ticket.severity %}
+              {% status_badge ticket.status %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% elif health.subcomponent_alert %}
+    <div class="alert alert-warning p-2 px-3 mb-3 border-warning-subtle d-flex align-items-center gap-2 small">
+      {% icon 'alert-triangle' 15 %}
+      <span><strong>Sub-assembly Notice:</strong> {{ health.subcomponent_alert }}</span>
+    </div>
+  {% endif %}
+
   <!-- Ancestor Breadcrumb -->
   {% if ancestors %}
     <div class="mb-3 p-2 px-3 bg-light rounded-3 border">
@@ -78,7 +114,14 @@
             <span class="text-body-secondary">Quantity:</span> <span class="fw-semibold">{{ parent_link.quantity }}</span>
           </div>
           <div class="col-8">
-            <span class="text-body-secondary">Part #:</span> <span class="font-monospace fw-semibold">{{ parent_link.part_number|default:"None specified" }}</span>
+            <span class="text-body-secondary">Part #:</span>
+            {% if parent_link.part_number %}
+              <a href="{% url 'inventory:parts' %}?q={{ parent_link.part_number|urlencode }}" class="font-monospace fw-semibold text-decoration-none text-primary" title="Search in Parts Catalog">
+                {{ parent_link.part_number }} {% icon 'external-link' 11 %}
+              </a>
+            {% else %}
+              <span class="font-monospace text-muted">None specified</span>
+            {% endif %}
           </div>
           {% if parent_link.notes %}
             <div class="col-12 mt-1">
@@ -131,9 +174,12 @@
             </div>
             <div class="d-flex align-items-center gap-2">
               {% if child.link.part_number %}
-                <span class="badge text-bg-light border font-monospace small"># {{ child.link.part_number }}</span>
+                <a href="{% url 'inventory:parts' %}?q={{ child.link.part_number|urlencode }}" class="badge text-bg-light border font-monospace small text-decoration-none" title="Search in Parts Catalog">
+                  # {{ child.link.part_number }} {% icon 'external-link' 10 %}
+                </a>
               {% endif %}
               {% status_badge child.asset.status %}
+              {% component_health_badge child.asset %}
             </div>
           </div>
         {% endfor %}

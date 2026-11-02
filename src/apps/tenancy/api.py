@@ -9,7 +9,12 @@ An action with no mapping is DENIED (fail closed).
 """
 from django.conf import settings
 from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+from rest_framework.exceptions import (
+    MethodNotAllowed as DRFMethodNotAllowed,
+)
+from rest_framework.exceptions import (
+    PermissionDenied as DRFPermissionDenied,
+)
 
 from apps.core import tenant
 from apps.core.exceptions import PermissionDenied as DomainPermissionDenied
@@ -25,6 +30,12 @@ class TenantAPIMixin:
 
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
+
+    def initial(self, request, *args, **kwargs):
+        if getattr(self, "action_map", None) and request.method.lower() not in self.action_map:
+            if request.method.lower() != "options":
+                raise DRFMethodNotAllowed(request.method)
+        super().initial(request, *args, **kwargs)
 
     def get_permissions(self):
         return [permissions.IsAuthenticated(), HasOrgPermission()]
@@ -62,6 +73,8 @@ class HasOrgPermission(permissions.BasePermission):
     message = "You do not have permission to perform this action."
 
     def has_permission(self, request, view):
+        if request.method == "OPTIONS" or getattr(view, "action", None) == "metadata":
+            return True
         membership = getattr(request, "membership", None)
         if membership is None:
             self.message = "Select an organization (X-Organization header) with an active membership."
@@ -82,7 +95,7 @@ class PlatformAPIMixin:
 
     def perform_authentication(self, request):
         super().perform_authentication(request)
-        if request.user.is_authenticated and request.user.is_platform_admin:
+        if request.user.is_authenticated and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser):
             tenant.set_current(tenant.PLATFORM)
 
 
@@ -90,4 +103,8 @@ class IsPlatformAdmin(permissions.BasePermission):
     message = "Platform administrator access required."
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.is_platform_admin)
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser)
+        )

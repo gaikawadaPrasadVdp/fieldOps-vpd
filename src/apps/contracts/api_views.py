@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import ValidationFailed
 from apps.sites import selectors as site_selectors
@@ -36,7 +37,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 class ProviderWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     contact_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
-    email = serializers.CharField(max_length=254, required=False, allow_blank=True)
+    email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
@@ -51,7 +52,7 @@ class AgreementSerializer(serializers.ModelSerializer):
     state = serializers.SerializerMethodField(help_text="ACTIVE | UPCOMING | EXPIRED | INACTIVE")
     assets = serializers.SerializerMethodField()
     excluded_work_types = serializers.SerializerMethodField()
-    renewed_from_reference = serializers.CharField(source="renewed_from.reference", read_only=True, default=None)
+    renewed_from_reference = serializers.CharField(source="renewed_from.reference", read_only=True, allow_null=True, default=None)
 
     class Meta:
         model = CoverageAgreement
@@ -121,8 +122,8 @@ class AssetRefSerializer(serializers.Serializer):
 class CheckSerializer(serializers.ModelSerializer):
     work_order_number = serializers.CharField(source="work_order.number", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
-    agreement_reference = serializers.CharField(source="agreement.reference", read_only=True, default=None)
-    provider_name = serializers.CharField(source="agreement.provider.name", read_only=True, default=None)
+    agreement_reference = serializers.CharField(source="agreement.reference", read_only=True, allow_null=True, default=None)
+    provider_name = serializers.CharField(source="agreement.provider.name", read_only=True, allow_null=True, default=None)
 
     class Meta:
         model = CoverageCheck
@@ -183,12 +184,13 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
                       "partial_update": "contract.update", "enable": "contract.update",
                       "disable": "contract.update"}
 
     @extend_schema(parameters=[query_param("q", "name"), query_param("active", "1 / 0")],
-                   responses=ProviderSerializer(many=True))
+                   responses=ProviderSerializer)
     def list(self, request):
         qs = selectors.providers_for(request.organization)
         q = (request.query_params.get("q") or "").strip()
@@ -233,6 +235,7 @@ class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
         "partial_update": "contract.update", "deactivate": "contract.update", "reactivate": "contract.update",
@@ -257,7 +260,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("provider", "provider id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=AgreementSerializer(many=True))
+                   responses=AgreementSerializer)
     def list(self, request):
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
@@ -367,10 +370,11 @@ class CoverageViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class CoverageCheckViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.check"}
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID)],
-                   responses=CheckSerializer(many=True))
+                   responses=CheckSerializer)
     def list(self, request):
         qs = selectors.checks_for(request.membership, request.organization)
         wo = (request.query_params.get("work_order") or "").strip()

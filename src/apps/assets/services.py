@@ -7,10 +7,9 @@ transaction. Other modules change asset status ONLY through ``change_status`` (n
 from __future__ import annotations
 
 import re
-import uuid
-from typing import Dict, Any, List
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -29,7 +28,6 @@ from .models import (
     AssetMeter,
     AssetMeterReading,
     AssetStatusHistory,
-    AssetComponent,
 )
 from .workflow import ACTIVE, ASSET_STATUS, TERMINAL_STATES, UNDER_MAINTENANCE
 
@@ -93,6 +91,10 @@ def _tag(value: str) -> str:
 
 
 def _check_dates(purchase, commission):
+    from django.utils import timezone as _tz
+    today = _tz.now().date()
+    if purchase and purchase > today:
+        raise ValidationFailed("Purchase date cannot be in the future.", code="invalid_dates")
     if purchase and commission and commission < purchase:
         raise ValidationFailed("Commissioning date cannot be before the purchase date.", code="invalid_dates")
 
@@ -137,6 +139,11 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
     _location_row(asset, actor, from_site=None, from_zone=None, reason="Asset registered")
     audit.record("asset.created", actor=actor, organization=org, target=asset,
                  after=audit.snapshot(asset, ASSET_FIELDS + ["status"]), request=request)
+    try:
+        from apps.identification.services import generate_identifier
+        generate_identifier(asset, kind="QR", actor=actor, request=request)
+    except Exception:
+        pass
     return asset
 
 
@@ -208,7 +215,7 @@ def _move(asset: Asset, site, zone, *, actor, reason=""):
 @transaction.atomic
 def change_status(asset: Asset, *, action: str, reason: str, actor, request=None, source: str = "manual") -> Asset:
     reason = (reason or "").strip()
-    if len(reason) < 3:
+    if not reason:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     previous, new = ASSET_STATUS.apply(asset, action)
@@ -421,7 +428,7 @@ class AssetHierarchyService:
         return qs.select_related("category", "site", "zone")
 
     @staticmethod
-    def get_full_hierarchy_tree(asset: Asset) -> Dict[str, Any]:
+    def get_full_hierarchy_tree(asset: Asset) -> dict[str, Any]:
         from . import hierarchy
         return hierarchy.build_tree(asset)
 

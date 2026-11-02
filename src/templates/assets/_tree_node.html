@@ -2,7 +2,11 @@
 <li class="fx-tree-node-item" data-node-id="{{ node.asset.pk }}">
   <div class="fx-tree-node-card role-{{ node.link.relationship_type|default:'ROOT'|lower }} {% if node.asset.pk == current.pk %}is-active{% endif %}">
     <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
-      {% if node.children %}
+      {% if node.is_lazy %}
+        <span class="fx-tree-expander is-collapsed" aria-expanded="false" title="Click to expand {{ node.children|length }} sub-item{{ node.children|length|pluralize }}" hx-get="{% url 'assets:tree' node.asset.pk %}?branch=1&current={{ current.pk }}" hx-target="#branch-{{ node.asset.pk }}" hx-swap="innerHTML" hx-trigger="click once">
+          ▼
+        </span>
+      {% elif node.children %}
         <span class="fx-tree-expander" aria-expanded="true" title="Toggle children">
           ▼
         </span>
@@ -33,50 +37,65 @@
           <div class="small text-body-secondary mt-1">
             {% if node.asset.manufacturer %}{{ node.asset.manufacturer }}{% endif %}
             {% if node.asset.model %} {{ node.asset.model }}{% endif %}
-            {% if node.asset.serial_number %} · SN: <span class="font-monospace text-dark">{{ node.asset.serial_number }}</span>{% endif %}
+            {% if node.asset.serial_number %}<span class="text-nowrap"> · SN: <span class="font-monospace text-dark">{{ node.asset.serial_number }}</span></span>{% endif %}
           </div>
         {% endif %}
       </div>
     </div>
 
     <!-- Metadata & Badges -->
-    <div class="d-flex align-items-center gap-2 flex-wrap flex-shrink-0">
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
       {% if node.link %}
         {% if node.link.relationship_type == 'ASSEMBLY' %}
-          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
+          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% elif node.link.relationship_type == 'REPLACEABLE_PART' %}
-          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
+          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% else %}
-          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
-        {% endif %}
-
-        {% if node.link.quantity > 1 %}
-          <span class="badge text-bg-light border small">&times; {{ node.link.quantity }}</span>
+          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% endif %}
 
         {% if node.link.part_number %}
-          <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ node.link.part_number }}" title="Click to copy part number">
-            {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
-          </button>
+          <div class="fx-part-badge">
+            <button type="button" class="fx-part-copy-btn" data-copy="{{ node.link.part_number }}" title="Click to copy part number {{ node.link.part_number }}">
+              {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
+            </button>
+            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="fx-part-link-btn" title="View '{{ node.link.part_number }}' in Parts Catalog">
+              {% icon 'external-link' 11 %}
+            </a>
+          </div>
         {% endif %}
       {% else %}
         <span class="fx-role-badge fx-role-root">{% icon 'hard-drive' 12 %} Root Assembly</span>
       {% endif %}
 
       {% status_badge node.asset.status %}
+      {% component_health_badge node.asset %}
+      {% if node.child_breakdown_count and node.child_breakdown_count > 0 and not node.health.breakdown_count %}
+        <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle small ms-1" title="{{ node.child_breakdown_count }} sub-component{{ node.child_breakdown_count|pluralize }} with active breakdown tickets">
+          {% icon 'alert-triangle' 11 %} {{ node.child_breakdown_count }} child alert{{ node.child_breakdown_count|pluralize }}
+        </span>
+      {% endif %}
 
       <!-- Quick Inspect Button -->
-      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect {{ node.asset.asset_tag }}">
+      <button type="button" class="btn btn-sm btn-outline-secondary fx-tree-btn" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect {{ node.asset.asset_tag }}">
         {% icon 'info' 13 %}
       </button>
 
       <!-- Quick Actions Dropdown -->
       {% if can_manage and node.asset.status not in 'RETIRED,DISPOSED' %}
         <div class="dropdown fx-tree-actions">
-          <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
+          <button class="btn btn-sm btn-outline-secondary fx-tree-btn" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
             •••
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
+            {% if node.health.breakdown_count and node.health.breakdown_count > 0 %}
+              <li>
+                <a class="dropdown-item text-danger fw-semibold" href="{% url 'incidents:list' %}?asset={{ node.asset.pk }}">
+                  {% icon 'alert-circle' 13 %} Active Breakdown ({{ node.health.breakdown_count }})
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+            {% endif %}
             <li>
               <button type="button" class="dropdown-item" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal">
                 {% icon 'info' 13 %} Quick Inspection
@@ -87,18 +106,32 @@
                 {% icon 'eye' 13 %} Focus in Hierarchy
               </a>
             </li>
-            <li>
-              <a class="dropdown-item" href="{% url 'assets:create' %}?parent={{ node.asset.pk }}">
-                {% icon 'plus' 13 %} Register Child Under This
-              </a>
-            </li>
+            {% if not node.link %}
+              <li>
+                <a class="dropdown-item" href="{% url 'assets:create' %}?parent={{ node.asset.pk }}">
+                  {% icon 'plus' 13 %} Register Child Under This
+                </a>
+              </li>
+            {% endif %}
             {% if node.link %}
               <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-primary" href="{% url 'assets:detail' node.asset.pk %}?tab=hierarchy#parent-section">
+                  {% icon 'git-branch' 13 %} Move / Re-parent
+                </a>
+              </li>
               <li>
                 <a class="dropdown-item text-warning-emphasis" href="{% url 'assets:detail' node.asset.pk %}?tab=hierarchy#replace-section">
                   {% icon 'refresh-cw' 13 %} Replace Part / Swap
                 </a>
               </li>
+              {% if node.link.part_number %}
+                <li>
+                  <a class="dropdown-item" href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}">
+                    {% icon 'package' 13 %} View in Parts Catalog
+                  </a>
+                </li>
+              {% endif %}
               <li>
                 <form method="post" action="{% url 'assets:component_remove' node.link.pk %}" class="m-0">
                   {% csrf_token %}
@@ -115,9 +148,15 @@
     </div>
   </div>
 
-  <!-- Recursive Child Branch -->
-  {% if node.children %}
-    <ul class="fx-tree-branch">
+  <!-- Child Branch -->
+  {% if node.is_lazy %}
+    <ul class="fx-tree-branch" id="branch-{{ node.asset.pk }}" style="display: none;">
+      <li class="p-2 text-body-secondary small text-center list-unstyled">
+        <span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span> Loading {{ node.children|length }} sub-item{{ node.children|length|pluralize }}…
+      </li>
+    </ul>
+  {% elif node.children %}
+    <ul class="fx-tree-branch" id="branch-{{ node.asset.pk }}">
       {% for child in node.children %}
         {% include "assets/_tree_node.html" with node=child current=current can_manage=can_manage %}
       {% endfor %}

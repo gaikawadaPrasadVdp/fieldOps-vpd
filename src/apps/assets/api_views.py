@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.sites import selectors as site_selectors
@@ -88,6 +89,11 @@ class AssetWriteSerializer(serializers.Serializer):
     def validate(self, attrs):
         if "status" in getattr(self, "initial_data", {}):
             raise serializers.ValidationError({"status": "Status cannot be edited; use POST /assets/{id}/transition/."})
+        p = attrs.get("purchase_date")
+        if p:
+            from django.utils import timezone as _tz
+            if p > _tz.now().date():
+                raise serializers.ValidationError({"purchase_date": "Purchase date cannot be in the future."})
         return attrs
 
 
@@ -283,13 +289,14 @@ def resolve_refs(request, d: dict, *, code: str) -> dict:
 
 @extend_schema(parameters=[ID_PARAM])
 class AssetCategoryViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "create": "asset.category.manage",
                       "partial_update": "asset.category.manage"}
 
     def _cat(self, request, pk):
         return site_selectors.scoped_get(selectors.categories_for(request.organization), pk, "Category")
 
-    @extend_schema(responses=CategorySerializer(many=True))
+    @extend_schema(responses=CategorySerializer)
     def list(self, request):
         return paginate(request, selectors.categories_for(request.organization), CategorySerializer)
 
@@ -317,13 +324,14 @@ class AssetCategoryViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "asset.view", "retrieve": "asset.view", "create": "asset.create", "partial_update": "asset.update",
         "transition": "asset.change_status", "history": "asset.history.view",
         "location_history": "asset.history.view", "changes": "asset.history.view", "documents:get": "asset.view",
         "documents:post": "asset.document.manage", "remove_document": "asset.document.manage", "tree": "asset.view", "validate": "asset.view",
         "components:get": "asset.view", "components:post": "asset.hierarchy.manage",
-        "validate_link": "asset.hierarchy.manage",
+        "validate_link": "asset.hierarchy.manage", "qr": "asset.view",
     }
 
     def _qs(self, request):
@@ -341,7 +349,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
                     query_param("status", "asset status"), query_param("owner", "owner membership id",
                     OpenApiTypes.UUID), query_param("q", "tag / name / serial / model / manufacturer"),
                     query_param("ordering", "asset_tag, name, status, created_at (prefix - to reverse)")],
-        responses=AssetSerializer(many=True))
+        responses=AssetSerializer)
     def list(self, request):
         qs = selectors.filter_assets(self._qs(request), request.query_params)
         return paginate(request, qs, AssetSerializer)
@@ -473,9 +481,39 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         link = hierarchy.add_component(asset, child, actor=request.user, request=request, **d)
         return Response(ComponentSerializer(link).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=True, methods=["get"])
+    def qr(self, request, pk=None):
+        """Returns active QR and barcode identifiers and image URLs for this asset."""
+        asset = self._asset(request, pk)
+        from apps.identification import selectors as id_selectors
+        active = id_selectors.active_for_asset(request.organization, asset)
+        qr_ident = active.get("QR")
+        bc_ident = active.get("BARCODE")
+        return Response({
+            "asset_id": str(asset.pk),
+            "asset_tag": asset.asset_tag,
+            "qr": {
+                "id": str(qr_ident.pk),
+                "token": qr_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "qr", "svg"]),
+                "png_url": reverse("identification:image", args=[asset.pk, "qr", "png"]),
+                "is_active": qr_ident.is_active,
+                "created_at": qr_ident.created_at,
+            } if qr_ident else None,
+            "barcode": {
+                "id": str(bc_ident.pk),
+                "token": bc_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "barcode", "svg"]),
+                "is_active": bc_ident.is_active,
+                "created_at": bc_ident.created_at,
+            } if bc_ident else None,
+        })
+
 
 @extend_schema(parameters=[ID_PARAM])
 class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "partial_update": "asset.hierarchy.manage",
                       "move": "asset.hierarchy.manage", "replace": "asset.hierarchy.manage",
                       "destroy": "asset.hierarchy.manage"}
@@ -488,7 +526,7 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("parent", "parent asset id", OpenApiTypes.UUID),
                                query_param("child", "child asset id", OpenApiTypes.UUID)],
-                   responses=ComponentSerializer(many=True))
+                   responses=ComponentSerializer)
     def list(self, request):
         import uuid
 
@@ -579,6 +617,7 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MeterViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "create": "asset.update",
                       "activate": "asset.update", "deactivate": "asset.update",
                       "readings:get": "asset.view", "readings:post": "asset.meter.record"}
@@ -590,7 +629,7 @@ class MeterViewSet(TenantAPIMixin, viewsets.ViewSet):
         return meter
 
     @extend_schema(parameters=[query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=MeterSerializer(many=True))
+                   responses=MeterSerializer)
     def list(self, request):
         import uuid
 

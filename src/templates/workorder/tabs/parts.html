@@ -1,0 +1,97 @@
+{% load ui_tags %}
+<section class="wo-detail-card mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h2 class="h5 mb-0 fw-semibold">Warehouse Spare Parts (Inventory M09)</h2>
+      <div class="small text-body-secondary">Full transactional lifecycle: REQUESTED &rarr; RESERVED &rarr; ISSUED &rarr; CONSUMED / RETURNED &rarr; RECONCILED</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" href="{% url 'inventory:wo_parts' wo.pk %}">
+        {% icon 'box' 14 %} Manage Parts &amp; Requests
+      </a>
+      {% if can_record_work %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'workorders:action' wo.pk 'materials' %}">Record free-text material</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="wo-table">
+      <thead>
+        <tr>
+          <th>Part</th>
+          <th>Status</th>
+          <th>Requested</th>
+          <th>Issued</th>
+          <th>Consumed</th>
+          <th>Returned</th>
+          <th>Warehouse</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in part_lines %}
+          <tr>
+            <td>
+              <strong>{{ line.part.part_number }}</strong>
+              <div class="small text-body-secondary">{{ line.part.name }}</div>
+            </td>
+            <td>{% status_badge line.status %}</td>
+            <td>{{ line.quantity_requested|floatformat:"-3" }} {{ line.part.unit }}</td>
+            <td>{{ line.quantity_issued|floatformat:"-3" }}</td>
+            <td>{{ line.quantity_consumed|floatformat:"-3" }}</td>
+            <td>{{ line.quantity_returned|floatformat:"-3" }}</td>
+            <td>{{ line.warehouse.code|default:"—" }}</td>
+            <td>
+              <a href="{% url 'inventory:wo_parts' wo.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.8rem">
+                Open in Store
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="wo-empty py-4 text-center">
+              <div class="text-body-secondary mb-2">No spare parts requested from inventory for this work order.</div>
+              <a href="{% url 'inventory:wo_parts' wo.pk %}" class="btn btn-sm btn-outline-primary">
+                {% icon 'plus' 14 %} Request Spare Part from Warehouse
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if material_entries %}
+<section class="wo-detail-card">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="h6 mb-0 fw-semibold text-body-secondary">Free-Text / Direct Material Entries</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="wo-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Part reference</th>
+          <th>Quantity</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in material_entries %}
+          <tr>
+            <td>
+              {{ item.item_name }}
+              {% if item.part_line_id %}<span class="badge fx-badge fx-badge-info">stock-backed</span>{% endif %}
+            </td>
+            <td>{{ item.part_reference|default:"—" }}</td>
+            <td>{{ item.quantity }} {{ item.unit }}</td>
+            <td>{{ item.notes|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}

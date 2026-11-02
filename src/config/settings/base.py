@@ -1,10 +1,13 @@
 """Base settings shared by every environment. All secrets/config come from the environment."""
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # .../src
+if str(BASE_DIR / "apps") not in sys.path:
+    sys.path.insert(0, str(BASE_DIR / "apps"))
 
 
 def env(name: str, default: str | None = None, required: bool = False) -> str | None:
@@ -56,6 +59,7 @@ INSTALLED_APPS = [
     # third party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "django_filters",
     "corsheaders",
@@ -68,11 +72,19 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.notifications",
     "apps.files",
-    "apps.platform_admin",
     "apps.sites",
     "apps.assets",
+    "apps.identification",
     "apps.incidents",
+    "apps.workorders",
+    "apps.inventory",
+    "apps.maintenance",
+    "apps.sla",
     "apps.contracts",
+    "apps.checklists",
+    "apps.portal",
+    "apps.workspace",
+    "apps.dashboards",
     "apps.ui",
 ]
 
@@ -89,6 +101,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
+    "apps.core.middleware.TimezoneMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -163,17 +176,25 @@ CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 
 # --- Cache / Redis ----------------------------------------------------------------------------
-REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
-        "KEY_PREFIX": "fieldops",
+REDIS_URL = env("REDIS_URL", "").strip()
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "fieldops",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "KEY_PREFIX": "fieldops",
+        }
+    }
 
 # --- Celery -----------------------------------------------------------------------------------
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL or "memory://")
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_TIME_LIMIT = 60 * 10
@@ -183,6 +204,26 @@ CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
         "schedule": 60 * 60 * 24,
+    },
+    "generate-due-maintenance": {
+        "task": "apps.maintenance.tasks.fan_out_maintenance",
+        "schedule": 60 * 15,
+    },
+    "monitor-sla": {
+        "task": "apps.sla.tasks.fan_out_sla_monitor",
+        "schedule": 60,
+    },
+    "contract-renewal-alerts": {
+        "task": "apps.contracts.tasks.fan_out_renewal_alerts",
+        "schedule": 60 * 60 * 12,
+    },
+    "inventory-reorder-alerts": {
+        "task": "apps.inventory.tasks.fan_out_reorder_alerts",
+        "schedule": 60 * 60 * 6,
+    },
+    "process-scheduled-organization-deletions": {
+        "task": "apps.tenancy.tasks.process_scheduled_deletions",
+        "schedule": 60 * 60,
     },
 }
 
@@ -198,19 +239,19 @@ EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "20"))  # never let a blocked SMTP port
 
 # --- I18N -------------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = env("TIME_ZONE", "Asia/Kolkata")
 USE_I18N = True
 USE_TZ = True
 
 # --- Static / media ---------------------------------------------------------------------------
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR.parent / "staticfiles"
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR.parent / "media")))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 # Uploads (asset documents, work order / incident evidence, portal attachments). Local disk by default; set
 # AWS_STORAGE_BUCKET_NAME to store them in an S3-compatible bucket (Supabase Storage in production: Render's disk is
@@ -258,6 +299,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }

@@ -3,10 +3,14 @@ import os
 import secrets
 
 os.environ.setdefault("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))  # ephemeral, never persisted
-os.environ.setdefault("DATABASE_URL", "postgres://fieldops:fieldops@localhost:5432/fieldops")
+
+# ENV-001: Test settings use TEST_DATABASE_URL if explicitly provided, else local test PostgreSQL
+_test_db_url = os.environ.get("TEST_DATABASE_URL") or "postgres://fieldops:fieldops@localhost:5432/fieldops"
+os.environ["DATABASE_URL"] = _test_db_url
 
 from .base import *  # noqa: E402,F401,F403
 
+TIME_ZONE = "UTC"
 DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # speed only; tests only
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
@@ -26,3 +30,4 @@ REST_FRAMEWORK = {  # noqa: F405
 }
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405
+WORKORDER_PROVISIONAL_CHECKLIST_ENABLED = True

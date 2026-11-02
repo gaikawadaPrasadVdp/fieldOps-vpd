@@ -1,0 +1,287 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}Features &middot; FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<!-- =========================================================================
+     1. Dark Navy Features Hero Section (Vercel Reference Standard)
+     ========================================================================= -->
+<section class="fx-features-dark-hero" aria-label="FieldOps Nexus Features Overview">
+  <div class="fx-features-dark-grid-bg" aria-hidden="true"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <div class="fx-features-badge-pill mb-4">
+      {% icon 'sparkles' 14 %}
+      <span>FieldOps Nexus Features</span>
+    </div>
+
+    <h1 class="fx-features-dark-title mb-4">
+      Everything your field operations need.<br>
+      <span class="fx-features-dark-gold">Connected in one platform.</span>
+    </h1>
+
+    <p class="fx-features-dark-subtitle mx-auto mb-0">
+      Bridge the gap between assets, technicians, work orders, inventory, and analytics. FieldOps Nexus delivers connected operational execution with enterprise-grade traceability and zero workflow fragmentation.
+    </p>
+  </div>
+</section>
+
+<!-- =========================================================================
+     2. The 8-Stage Connected Service Flow Section
+     ========================================================================= -->
+<section class="fx-features-hero-section" id="fx-workflow-flow-section" aria-label="The 8-Stage Connected Service Flow">
+  <!-- 1. Centered Header & Introduction -->
+  <div class="container-xl px-4 text-center position-relative z-10 mb-4">
+    <div class="fx-features-eyebrow">
+      END-TO-END EXECUTION
+    </div>
+    <h2 class="fx-features-main-title">
+      The 8-Stage <span class="fx-features-gold-text">Connected</span> Service Flow
+    </h2>
+    <p class="fx-features-subtitle">
+      See how FieldOps Nexus tracks the service lifecycle across every role and handoff.
+    </p>
+  </div>
+
+  <!-- 2. Interactive Eight-Stage Timeline Navigation -->
+  <div class="container-xl px-4 position-relative z-10">
+    <div class="fx-flow-timeline-container" role="tablist" aria-label="8-Stage Service Flow Navigation">
+      <div class="fx-flow-timeline-track" aria-hidden="true"></div>
+      <div class="fx-flow-timeline-grid">
+        <!-- Stage 1 -->
+        <button type="button" class="fx-flow-stage-card is-active" data-stage="1" role="tab" aria-selected="true" aria-controls="fx-flow-panel" id="tab-stage-1">
+          <span class="fx-flow-stage-badge">01</span>
+          <div class="fx-flow-stage-icon">{% icon 'broadcast' 20 %}</div>
+          <div class="fx-flow-stage-num">01</div>
+          <div class="fx-flow-stage-title">Asset Monitored</div>
+          <div class="fx-flow-stage-sub">Step 1</div>
+        </button>
+
+        <!-- Stage 2 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="2" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-2">
+          <span class="fx-flow-stage-badge">02</span>
+          <div class="fx-flow-stage-icon">{% icon 'file-text' 19 %}</div>
+          <div class="fx-flow-stage-num">02</div>
+          <div class="fx-flow-stage-title">Service Request Logged</div>
+          <div class="fx-flow-stage-sub">Step 2</div>
+        </button>
+
+        <!-- Stage 3 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="3" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-3">
+          <span class="fx-flow-stage-badge">03</span>
+          <div class="fx-flow-stage-icon">{% icon 'clipboard-list' 19 %}</div>
+          <div class="fx-flow-stage-num">03</div>
+          <div class="fx-flow-stage-title">Work Order Formulated</div>
+          <div class="fx-flow-stage-sub">Step 3</div>
+        </button>
+
+        <!-- Stage 4 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="4" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-4">
+          <span class="fx-flow-stage-badge">04</span>
+          <div class="fx-flow-stage-icon">{% icon 'user' 19 %}</div>
+          <div class="fx-flow-stage-num">04</div>
+          <div class="fx-flow-stage-title">Technician Dispatched</div>
+          <div class="fx-flow-stage-sub">Step 4</div>
+        </button>
+
+        <!-- Stage 5 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="5" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-5">
+          <span class="fx-flow-stage-badge">05</span>
+          <div class="fx-flow-stage-icon">{% icon 'boxes' 19 %}</div>
+          <div class="fx-flow-stage-num">05</div>
+          <div class="fx-flow-stage-title">Spare Parts Allocated</div>
+          <div class="fx-flow-stage-sub">Step 5</div>
+        </button>
+
+        <!-- Stage 6 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="6" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-6">
+          <span class="fx-flow-stage-badge">06</span>
+          <div class="fx-flow-stage-icon">{% icon 'shield' 19 %}</div>
+          <div class="fx-flow-stage-num">06</div>
+          <div class="fx-flow-stage-title">Supervisor Verification</div>
+          <div class="fx-flow-stage-sub">Step 6</div>
+        </button>
+
+        <!-- Stage 7 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="7" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-7">
+          <span class="fx-flow-stage-badge">07</span>
+          <div class="fx-flow-stage-icon">{% icon 'people' 19 %}</div>
+          <div class="fx-flow-stage-num">07</div>
+          <div class="fx-flow-stage-title">Client Confirmation</div>
+          <div class="fx-flow-stage-sub">Step 7</div>
+        </button>
+
+        <!-- Stage 8 -->
+        <button type="button" class="fx-flow-stage-card" data-stage="8" role="tab" aria-selected="false" aria-controls="fx-flow-panel" id="tab-stage-8">
+          <span class="fx-flow-stage-badge">08</span>
+          <div class="fx-flow-stage-icon">{% icon 'bar-chart' 19 %}</div>
+          <div class="fx-flow-stage-num">08</div>
+          <div class="fx-flow-stage-title">Closure &amp; Audit Trace</div>
+          <div class="fx-flow-stage-sub">Step 8</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Workflow Stage Explanation Detail Panel (3 Columns) -->
+  <div class="container-xl px-4 position-relative z-10">
+    <div class="fx-flow-panel" id="fx-flow-panel" role="tabpanel" aria-labelledby="tab-stage-1">
+      <div class="row g-4 align-items-stretch">
+        <!-- Column 1: Stage Overview & Narrative -->
+        <div class="col-lg-4 d-flex flex-column justify-content-between">
+          <div>
+            <div class="fx-flow-pill" id="fx-flow-pill">
+              Stage 01 &bull; Telemetry / Sensor
+            </div>
+            <h2 class="fx-flow-title" id="fx-flow-title">
+              Asset Monitored
+            </h2>
+            <div class="fx-flow-role-box">
+              <span class="fx-flow-role-label">RESPONSIBLE ROLE</span>
+              <div class="fx-flow-role-val" id="fx-flow-role-val">Telemetry Sensors &amp; Asset Operators</div>
+            </div>
+            <p class="fx-flow-desc" id="fx-flow-desc">
+              Continuous real-time monitoring tracks operational vibration, temperature, pressure, and cycle counts to detect early deviations from normal operating baselines before failure occurs.
+            </p>
+          </div>
+
+          <div class="fx-flow-actions">
+            <button type="button" class="btn fx-flow-btn-prev" id="fx-flow-btn-prev" disabled>Previous Step</button>
+            <button type="button" class="btn fx-flow-btn-next" id="fx-flow-btn-next">Next Workflow Step &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Column 2: Key Actions Performed & Expected Outcome -->
+        <div class="col-lg-4 d-flex flex-column gap-3 justify-content-between">
+          <!-- Key Actions Card -->
+          <div class="fx-flow-card flex-grow-1">
+            <div class="fx-flow-card-head">
+              <span class="fx-flow-card-title">Key Actions Performed</span>
+              <span class="fx-flow-section-badge">Stage Execution</span>
+            </div>
+            <div class="fx-flow-actions-list" id="fx-flow-actions-list">
+              <div class="fx-flow-action-item">
+                <span class="fx-flow-action-num">1</span>
+                <span>Capture automated telemetry feeds from IoT sensors and plant SCADA.</span>
+              </div>
+              <div class="fx-flow-action-item">
+                <span class="fx-flow-action-num">2</span>
+                <span>Run edge threshold checks and continuous anomaly detection algorithms.</span>
+              </div>
+              <div class="fx-flow-action-item">
+                <span class="fx-flow-action-num">3</span>
+                <span>Validate abnormal operational variances against historical baselines.</span>
+              </div>
+              <div class="fx-flow-action-item">
+                <span class="fx-flow-action-num">4</span>
+                <span>Trigger condition-based maintenance alert when safety tolerances exceed limits.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Expected Outcome & Handoff Card -->
+          <div class="fx-flow-handoff-card">
+            <div class="fx-flow-handoff-head">
+              <span class="fx-flow-handoff-badge">EXPECTED OUTCOME &amp; HANDOFF</span>
+            </div>
+            <div class="fx-flow-handoff-body">
+              <p class="fx-flow-handoff-outcome" id="fx-flow-outcome-text">
+                Operational anomaly verified and logged with complete diagnostic telemetry payload.
+              </p>
+              <div class="fx-flow-handoff-next" id="fx-flow-handoff-next">
+                <span>Handoff &rarr; Stage 02: Service Request Logged</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Industrial Context Visual -->
+        <div class="col-lg-4 d-flex flex-column">
+          <div class="fx-flow-media-wrapper" id="fx-flow-media-wrapper">
+            <!-- Main image -->
+            <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Workflow stage visual" class="fx-flow-main-img" id="fx-flow-main-img">
+
+            <!-- Stage tag (top-left) -->
+            <div class="fx-flow-media-tag">
+              <span class="fx-flow-media-step" id="fx-flow-media-step">STAGE 01</span>
+              <span class="fx-flow-media-title" id="fx-flow-media-title">Operational Context</span>
+            </div>
+
+            <!-- Left / Right gallery nav arrows -->
+            <button type="button" class="fx-gallery-arrow fx-gallery-arrow-prev" id="fx-gallery-prev" aria-label="Previous image">&#8249;</button>
+            <button type="button" class="fx-gallery-arrow fx-gallery-arrow-next" id="fx-gallery-next" aria-label="Next image">&#8250;</button>
+
+            <!-- Caption (bottom gradient) -->
+            <div class="fx-flow-media-caption" id="fx-flow-media-caption">
+              Real-time asset telemetry &amp; sensor telemetry capture
+            </div>
+
+            <!-- Thumbnail strip -->
+            <div class="fx-gallery-thumb-strip" id="fx-gallery-thumb-strip">
+              <!-- Thumbnails are injected by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Four Aligned Benefit Cards -->
+  <div class="container-xl px-4 position-relative z-10">
+    <div class="fx-flow-benefits-grid">
+      <div class="fx-flow-benefit-card">
+        <div class="fx-flow-benefit-icon">{% icon 'eye' 22 %}</div>
+        <div>
+          <div class="fx-flow-benefit-title">Real-Time Visibility</div>
+          <p class="fx-flow-benefit-desc">Live asset and service insights</p>
+        </div>
+      </div>
+
+      <div class="fx-flow-benefit-card">
+        <div class="fx-flow-benefit-icon">{% icon 'settings' 22 %}</div>
+        <div>
+          <div class="fx-flow-benefit-title">Operational Efficiency</div>
+          <p class="fx-flow-benefit-desc">Faster issue resolution</p>
+        </div>
+      </div>
+
+      <div class="fx-flow-benefit-card">
+        <div class="fx-flow-benefit-icon">{% icon 'clock' 22 %}</div>
+        <div>
+          <div class="fx-flow-benefit-title">Reduced Downtime</div>
+          <p class="fx-flow-benefit-desc">Proactive maintenance actions</p>
+        </div>
+      </div>
+
+      <div class="fx-flow-benefit-card">
+        <div class="fx-flow-benefit-icon">{% icon 'people' 22 %}</div>
+        <div>
+          <div class="fx-flow-benefit-title">Better Resource Utilization</div>
+          <p class="fx-flow-benefit-desc">Optimized workforce and inventory</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-0" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+  </div>
+</section>
+{% endblock %}
