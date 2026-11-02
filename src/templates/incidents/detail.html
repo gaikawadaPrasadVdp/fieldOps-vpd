@@ -5,7 +5,12 @@
 <div class="fx-page-header"><div>
   <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'incidents:list' %}">Incidents &amp; requests</a></li>
     <li class="breadcrumb-item active">{{ sr.number }}</li></ol></nav>
-  <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
+  <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+    <h1 class="m-0">{{ sr.title }} {% status_badge sr.status %}</h1>
+    {% if sla %}
+      {% include "sla/_header_badge.html" %}
+    {% endif %}
+  </div>
   <div class="text-body-secondary">{{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity %} · <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a> · {% if can.view_site %}<a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>{% else %}{{ sr.site.code }}{% endif %}</div>
   {% hierarchy_trail sr.asset %}
 </div>
@@ -122,6 +127,7 @@
 {% if transitions %}<div class="mb-3">{% include "components/_workflow_bar.html" %}</div>{% endif %}
 
 {% if tab == "overview" %}
+{% include "sla/_panel.html" %}
 <div class="row g-3"><div class="col-lg-7">
   <div class="fx-card mb-3"><div class="fx-card-header">What happened</div><div class="fx-card-body"><dl class="fx-kv">
     <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>

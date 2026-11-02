@@ -24,6 +24,11 @@ from django.utils import timezone
 
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, ValidationFailed
+from apps.sla.calendar import (
+    add_business_minutes,
+    business_minutes_between,
+    resolve_calendar,
+)
 
 from .models import (
     REQUEST,
@@ -47,8 +52,8 @@ WORK_ORDER_PRIORITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL", "URGENT")
 DEFAULT_PAUSE_STATES = ("WORK_ORDER:ON_HOLD",)
 SEVERITY = {"LOW": "MINOR", "MEDIUM": "MINOR", "HIGH": "MAJOR", "CRITICAL": "CRITICAL", "URGENT": "CRITICAL"}
 MAX_RULES_PER_PROFILE = 6
-PROFILE_FIELDS = ["name", "description", "applies_to", "site", "work_type", "pause_states", "is_active",
-                  "coverage_only", "client", "contract", "asset", "asset_category", "service_type"]
+PROFILE_FIELDS = ["name", "description", "applies_to", "site", "work_type", "pause_states", "is_active", "coverage_only", "client", "contract", "asset", "asset_category", "service_type", "calendar", "use_business_hours"]
+
 
 
 def priorities_for(applies_to: str) -> tuple:
@@ -166,7 +171,8 @@ def _ensure_scope_available(org, scope, *, current=None, coverage_only=False):
 @transaction.atomic
 def create_profile(org, *, name, applies_to, actor, description="", site=None, work_type="", pause_states=None,
                    coverage_only=False, client=None, contract=None, asset=None, asset_category=None,
-                   service_type="", is_active=True, request=None) -> SLAProfile:
+                   service_type="", is_active=True, request=None, calendar=None,
+                   use_business_hours=False) -> SLAProfile:
     from apps.workorders.models import WorkOrder
 
     name = (name or "").strip()
@@ -212,6 +218,10 @@ def create_profile(org, *, name, applies_to, actor, description="", site=None, w
             choices = WorkOrder.WorkType.values
         if service_type not in choices:
             raise ValidationFailed("Choose a valid service type for this policy.", code="invalid_service_type")
+    if calendar is not None and calendar.organization_id != org.pk:
+        raise ValidationFailed("Operating calendar not found in this organization.", code="cross_tenant_calendar")
+    if calendar is not None and site is not None and calendar.site_id is not None and calendar.site_id != site.pk:
+        raise ValidationFailed("The selected calendar must belong to the policy site.", code="scope_calendar_mismatch")
     if SLAProfile.objects.for_organization(org).filter(name__iexact=name).exists():
         raise Conflict("A profile with this name already exists.", code="profile_name_taken")
     if is_active:
@@ -222,7 +232,8 @@ def create_profile(org, *, name, applies_to, actor, description="", site=None, w
                          applies_to=applies_to, site=site, client=client, contract=contract, asset=asset,
                          asset_category=asset_category, service_type=service_type, work_type=work_type,
                          coverage_only=bool(coverage_only), is_active=bool(is_active),
-                         pause_states=_pause_states(applies_to, pause_states))
+                         pause_states=_pause_states(applies_to, pause_states),
+                         calendar=calendar, use_business_hours=bool(use_business_hours))
     try:
         with transaction.atomic():
             profile.save()
@@ -240,7 +251,7 @@ def update_profile(profile: SLAProfile, *, actor, request=None, **changes) -> SL
     from apps.tenancy.models import Organization
     Organization.objects.select_for_update().get(pk=profile.organization_id)
     unknown = set(changes) - {"name", "description", "pause_states", "applies_to", "site", "client", "contract",
-                              "asset", "asset_category", "service_type", "work_type", "coverage_only"}
+                              "asset", "asset_category", "service_type", "work_type", "coverage_only", "calendar", "use_business_hours"}
     if unknown:
         raise ValidationFailed(f"Fields cannot be edited: {', '.join(sorted(unknown))}.", code="field_not_editable")
     before = audit.snapshot(profile, PROFILE_FIELDS)
@@ -294,6 +305,13 @@ def update_profile(profile: SLAProfile, *, actor, request=None, **changes) -> SL
         profile.work_type = value
     if "coverage_only" in changes:
         profile.coverage_only = bool(changes["coverage_only"])
+    if "calendar" in changes:
+        cal_val = changes["calendar"]
+        if cal_val is not None and cal_val.organization_id != profile.organization_id:
+            raise ValidationFailed("Operating calendar not found in this organization.", code="cross_tenant_calendar")
+        profile.calendar = cal_val
+    if "use_business_hours" in changes:
+        profile.use_business_hours = bool(changes["use_business_hours"])
     if "site" in changes and profile.asset_id and profile.asset.site_id != profile.site_id:
         raise ValidationFailed("The selected asset must belong to the policy site.", code="scope_site_mismatch")
     if profile.asset_id and profile.asset_category_id and profile.asset.category_id != profile.asset_category_id:
@@ -303,6 +321,8 @@ def update_profile(profile: SLAProfile, *, actor, request=None, **changes) -> SL
         raise ValidationFailed("The selected contract must belong to the policy site.", code="scope_contract_mismatch")
     if profile.contract_id and profile.contract.organization_id != profile.organization_id:
         raise ValidationFailed("Choose a contract from this organization.", code="cross_tenant_scope")
+    if profile.calendar_id and profile.calendar.site_id and profile.site_id and profile.calendar.site_id != profile.site_id:
+        raise ValidationFailed("The selected calendar must belong to the policy site.", code="scope_calendar_mismatch")
     _ensure_scope_available(profile.organization, _scope_values(applies_to=profile.applies_to, site=profile.site,
         client=profile.client, contract=profile.contract, asset=profile.asset,
         asset_category=profile.asset_category, service_type=profile.service_type,
@@ -526,12 +546,27 @@ def _start(subject_kwargs, *, org, site, applies_to, priority, work_type, starte
             break
     if profile is None:
         return None
+    cal = None
+    use_business_hours = False
+    if profile.use_business_hours:
+        cal = resolve_calendar(profile, site)
+        if cal is not None:
+            use_business_hours = True
+    if use_business_hours and cal is not None:
+        resp_due = add_business_minutes(started_at, target.response_minutes, cal)
+        reso_due = add_business_minutes(started_at, target.resolution_minutes, cal)
+    else:
+        resp_due = started_at + timedelta(minutes=target.response_minutes)
+        reso_due = started_at + timedelta(minutes=target.resolution_minutes)
     tracking = SLATracking(
         organization=org, site=site, profile=profile, selection_reason=reason, priority=priority,
         response_minutes=target.response_minutes,
         resolution_minutes=target.resolution_minutes, warning_percent=target.warning_percent, started_at=started_at,
-        response_due_at=started_at + timedelta(minutes=target.response_minutes),
-        resolution_due_at=started_at + timedelta(minutes=target.resolution_minutes), **subject_kwargs)
+        response_due_at=resp_due,
+        resolution_due_at=reso_due,
+        calendar=cal,
+        use_business_hours=use_business_hours,
+        **subject_kwargs)
     tracking.save()
     _event(tracking, "STARTED", at=started_at,
            detail=f"{profile.name}: response {target.response_minutes} min, resolution {target.resolution_minutes} min")
@@ -548,9 +583,7 @@ def on_request_created(sr) -> SLATracking | None:
 
 
 def on_work_order_created(wo) -> SLATracking | None:
-    """M06 hook: work orders that come from a request are covered by the REQUEST's SLA (no duplicate clock)."""
-    if wo.source_request_id:
-        return None
+    """M06 hook: creates tracking if an applicable WORK_ORDER SLA profile exists."""
     return _start({"work_order": wo}, org=wo.organization, site=wo.site, applies_to=WORK_ORDER,
                   priority=wo.priority, work_type=wo.work_type, started_at=wo.created_at, asset=wo.asset,
                   client=wo.source_request.reported_by if wo.source_request_id else None)
@@ -610,6 +643,8 @@ def _sync_pause(t: SLATracking, now: datetime, *, actor=None) -> None:
         SLAPauseEvent.objects.create(organization=t.organization, tracking=t, reason=reason[:300],
                                      workflow_state=workflow_state, started_at=now, paused_by=actor or state_actor)
         _event(t, "PAUSED", at=now, detail=f"{workflow_state}: {reason}"[:300], actor=actor or state_actor)
+        audit.record("sla.tracking_paused", actor=actor or state_actor, organization=t.organization, target=t,
+                     after={"reason": reason, "workflow_state": workflow_state, "at": now})
     elif not want and t.status == Status.PAUSED:
         delta = (now - t.paused_at) if t.paused_at else timedelta()
         if t.response_due_at is not None and t.response_met_at is None:
@@ -628,6 +663,8 @@ def _sync_pause(t: SLATracking, now: datetime, *, actor=None) -> None:
             pause.duration_seconds = int(delta.total_seconds())
             pause.save(update_fields=["ended_at", "duration_seconds", "updated_at"])
         _event(t, "RESUMED", at=now, detail=f"Timers resumed after {int(delta.total_seconds())} s")
+        audit.record("sla.tracking_resumed", actor=actor, organization=t.organization, target=t,
+                     after={"paused_seconds": int(delta.total_seconds()), "at": now})
 
 
 def _record_breach(t: SLATracking, kind: str, due: datetime, now: datetime) -> tuple[SLABreach, bool]:
@@ -689,6 +726,8 @@ def _reopen(t: SLATracking, now: datetime) -> None:
     SLABreach.objects.for_organization(t.organization).filter(tracking=t, target_kind=RESOLUTION).update(
         status=SLABreach.Status.OPEN, closed_at=None, closed_reason="")
     _event(t, "REOPENED", at=now, kind=RESOLUTION, detail="Work resumed after resolution")
+    audit.record("sla.tracking_reopened", organization=t.organization, target=t,
+                 after={"status": Status.ACTIVE, "at": now})
 
 
 def _cancel(t: SLATracking, now: datetime, why: str) -> None:
@@ -705,6 +744,8 @@ def _cancel(t: SLATracking, now: datetime, why: str) -> None:
         tracking=t, status__in=("OPEN", "ACKNOWLEDGED")).update(
         status=SLABreach.Status.CLOSED, closed_at=now, closed_reason=why[:60])
     _event(t, "CANCELLED", at=now, detail=why)
+    audit.record("sla.tracking_cancelled", organization=t.organization, target=t,
+                 after={"status": Status.CANCELLED, "reason": why, "at": now})
 
 
 @transaction.atomic
@@ -773,9 +814,11 @@ def on_request_updated(sr, *, actor=None, request=None) -> None:
 @transaction.atomic
 def on_work_order_updated(wo, previous_priority: str | None, *, actor=None, request=None) -> None:
     """Recalculate outstanding Work Order targets after a permitted planning priority change."""
-    if wo.source_request_id or previous_priority == wo.priority or not wo.priority:
+    if previous_priority == wo.priority or not wo.priority:
         return
     t = _locked(work_order=wo)
+    if t is None and wo.source_request_id:
+        t = _locked(request_id=wo.source_request_id)
     if t is None or t.status in (Status.COMPLETED, Status.UNDER_REVIEW, Status.CLOSED, Status.CANCELLED):
         return
     target = SLATarget.objects.for_organization(t.organization).filter(profile=t.profile,
@@ -806,56 +849,68 @@ def on_work_order_updated(wo, previous_priority: str | None, *, actor=None, requ
 def on_work_order_changed(wo, previous: str, new: str, *, actor=None) -> None:
     """M06 hook after every work-order transition."""
     now = timezone.now()
-    if wo.source_request_id:  # the request's SLA only reacts to pause states of its live work order
-        t = _locked(request_id=wo.source_request_id)
-        if t is not None:
-            if actor and f"WORK_ORDER:{new}" in set(t.profile.pause_states or []):
+
+    # 1. Direct Work Order SLA tracking
+    t_wo = _locked(work_order=wo)
+    if t_wo is not None:
+        if actor and f"WORK_ORDER:{new}" in set(t_wo.profile.pause_states or []):
+            from apps.workorders.models import WorkOrderEvent
+            last = WorkOrderEvent.objects.for_organization(t_wo.organization).filter(
+                work_order=wo, to_status=new).order_by("-created_at").first()
+            if last and len((last.reason or wo.hold_reason or "").strip()) < 3:
+                raise ValidationFailed("Add a Pause Reason before moving this Work Order into a configured pause state.",
+                                       code="pause_reason_required")
+        _sync_pause(t_wo, now, actor=actor)
+        if new in ("ASSIGNED", "DISPATCHED", "IN_PROGRESS") and t_wo.response_met_at is None and t_wo.status in (
+                Status.ACTIVE, Status.AT_RISK, Status.BREACHED, Status.PAUSED):
+            _meet(t_wo, RESPONSE, now, actor=actor)
+        if new == "CANCELLED":
+            _cancel(t_wo, now, "work order cancelled")
+        elif new == "CLOSED":
+            t_wo.status = Status.CLOSED
+            t_wo.save(update_fields=["status", "updated_at"])
+            _event(t_wo, "CLOSED", at=now, detail="Work Order closed after Supervisor Review", actor=actor)
+            audit.record("sla.tracking_closed", actor=actor, organization=t_wo.organization, target=t_wo,
+                         after={"status": Status.CLOSED, "at": now})
+        elif new in ("COMPLETED", "SUPERVISOR_REVIEW"):
+            if t_wo.resolution_met_at is None and t_wo.status in (Status.ACTIVE, Status.AT_RISK, Status.BREACHED, Status.PAUSED):
+                if t_wo.response_met_at is None:
+                    _meet(t_wo, RESPONSE, now, actor=actor)
+                _meet(t_wo, RESOLUTION, now, actor=actor)
+            if new == "SUPERVISOR_REVIEW":
+                t_wo.status = Status.UNDER_REVIEW
+                t_wo.save(update_fields=["status", "updated_at"])
+                _event(t_wo, "SUPERVISOR_REVIEW", at=now, detail="Work Order submitted for Supervisor Review", actor=actor)
+        elif previous in ("COMPLETED", "SUPERVISOR_REVIEW") and new == "IN_PROGRESS":
+            _reopen(t_wo, now)
+
+    # 2. Linked Request SLA tracking
+    if wo.source_request_id:
+        t_req = _locked(request_id=wo.source_request_id)
+        if t_req is not None:
+            if actor and f"WORK_ORDER:{new}" in set(t_req.profile.pause_states or []):
                 from apps.workorders.models import WorkOrderEvent
-                last = WorkOrderEvent.objects.for_organization(t.organization).filter(
+                last = WorkOrderEvent.objects.for_organization(t_req.organization).filter(
                     work_order=wo, to_status=new).order_by("-created_at").first()
                 if last and len((last.reason or wo.hold_reason or "").strip()) < 3:
                     raise ValidationFailed("Add a Pause Reason before moving this item into a configured pause state.",
                                            code="pause_reason_required")
-            _sync_pause(t, now, actor=actor)
-            if new == "SUPERVISOR_REVIEW" and t.resolution_met_at is not None:
-                t.status = Status.UNDER_REVIEW
-                t.save(update_fields=["status", "updated_at"])
-                _event(t, "SUPERVISOR_REVIEW", at=now,
-                       detail="Work Order submitted for Supervisor Review", actor=actor)
-            elif new == "CLOSED" and t.status != Status.CANCELLED:
-                t.status = Status.CLOSED
-                t.save(update_fields=["status", "updated_at"])
-                _event(t, "CLOSED", at=now, detail="Work Order closed after Supervisor Review", actor=actor)
-            elif previous == "SUPERVISOR_REVIEW" and new == "IN_PROGRESS":
-                _reopen(t, now)
-        return
-    t = _locked(work_order=wo)
-    if t is None:
-        return
-    if actor and f"WORK_ORDER:{new}" in set(t.profile.pause_states or []):
-        from apps.workorders.models import WorkOrderEvent
-        last = WorkOrderEvent.objects.for_organization(t.organization).filter(
-            work_order=wo, to_status=new).order_by("-created_at").first()
-        if last and len((last.reason or wo.hold_reason or "").strip()) < 3:
-            raise ValidationFailed("Add a Pause Reason before moving this Work Order into a configured pause state.",
-                                   code="pause_reason_required")
-    _sync_pause(t, now, actor=actor)  # first: a resume shifts due times before judging a target
-    if new in ("ASSIGNED", "DISPATCHED", "IN_PROGRESS") and t.response_met_at is None and t.status in (
-            Status.ACTIVE, Status.AT_RISK, Status.BREACHED, Status.PAUSED):
-        _meet(t, RESPONSE, now)  # work orders: the first assignment is the response (D-044)
-    if new == "CANCELLED":
-        _cancel(t, now, "work order cancelled")
-    elif new == "CLOSED":
-        t.status = Status.CLOSED
-        t.save(update_fields=["status", "updated_at"])
-        _event(t, "CLOSED", at=now, detail="Work Order closed after Supervisor Review", actor=actor)
-    elif new in ("COMPLETED", "SUPERVISOR_REVIEW", "CLOSED"):
-        if t.resolution_met_at is None and t.status in (Status.ACTIVE, Status.AT_RISK, Status.BREACHED, Status.PAUSED):
-            if t.response_met_at is None:
-                _meet(t, RESPONSE, now)
-            _meet(t, RESOLUTION, now)
-    elif previous in ("COMPLETED", "SUPERVISOR_REVIEW") and new == "IN_PROGRESS":
-        _reopen(t, now)
+            _sync_pause(t_req, now, actor=actor)
+            if new in ("COMPLETED", "SUPERVISOR_REVIEW"):
+                if t_req.resolution_met_at is None and t_req.status in (Status.ACTIVE, Status.AT_RISK, Status.BREACHED, Status.PAUSED):
+                    _meet(t_req, RESOLUTION, now, actor=actor)
+                if new == "SUPERVISOR_REVIEW":
+                    t_req.status = Status.UNDER_REVIEW
+                    t_req.save(update_fields=["status", "updated_at"])
+                    _event(t_req, "SUPERVISOR_REVIEW", at=now, detail="Work Order submitted for Supervisor Review", actor=actor)
+            elif new == "CLOSED" and t_req.status != Status.CANCELLED:
+                t_req.status = Status.CLOSED
+                t_req.save(update_fields=["status", "updated_at"])
+                _event(t_req, "CLOSED", at=now, detail="Work Order closed after Supervisor Review", actor=actor)
+                audit.record("sla.tracking_closed", actor=actor, organization=t_req.organization, target=t_req,
+                             after={"status": Status.CLOSED, "at": now})
+            elif previous in ("COMPLETED", "SUPERVISOR_REVIEW") and new == "IN_PROGRESS":
+                _reopen(t_req, now)
 
 
 # --- the monitor ------------------------------------------------------------------------------------------------------
@@ -956,6 +1011,8 @@ def _check_target(t: SLATracking, kind: str, now: datetime, result: dict) -> Non
                  title=f"{label} SLA warning", level=Notification.Level.WARNING,
                  detail=f"{label} target is {pct}% elapsed; due {due.isoformat(timespec='minutes')}.",
                  result=result):
+            audit.record("sla.warning_issued", organization=t.organization, target=t,
+                         after={"target": kind, "warning_percent": pct, "due": due, "at": now})
             result["warnings"] += 1
         if t.status == Status.ACTIVE:
             t.status = Status.AT_RISK

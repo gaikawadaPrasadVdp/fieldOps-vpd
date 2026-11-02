@@ -63,7 +63,7 @@
             <td><a href="{% url 'sla:tracking' t.pk %}">{% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}</a><div class="small text-body-secondary">{% if t.request %}{{ t.request.title|truncatechars:40 }}{% else %}{{ t.work_order.title|truncatechars:40 }}{% endif %}</div></td>
             <td class="text-nowrap">{{ t.site.code }}</td>
             <td>{% status_badge t.priority %}</td>
-            <td class="small">{{ t.profile.name }}<div class="text-body-secondary">{{ t.selection_reason|default:"Organization policy" }}</div></td>
+            <td class="small">{{ t.profile.name }}{% if t.use_business_hours %} <span class="badge bg-light text-primary border" title="Operating business hours"><i class="bi bi-clock"></i> Biz Hrs</span>{% endif %}<div class="text-body-secondary">{{ t.selection_reason|default:"Organization policy" }}</div></td>
             <td>{% status_badge t.response_state %}<div class="small text-body-secondary">due {{ t.response_due_at|date:"d M H:i" }}</div></td>
             <td>{% status_badge t.resolution_state %}<div class="small text-body-secondary">due {{ t.resolution_due_at|date:"d M H:i" }}</div></td>
             <td>{% status_badge t.status %}</td>
