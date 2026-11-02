@@ -2,8 +2,22 @@
 {% load ui_tags %}
 {% block title %}Warranties & contracts · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Warranties, AMCs &amp; contracts</h1><div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div></div>
-  <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New agreement</a>{% endif %}</div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>Warranties, AMCs &amp; contracts</h1>
+    <div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a class="btn btn-outline-secondary" href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" title="Download filtered agreements as CSV">
+      {% icon 'download' 14 %} Export CSV
+    </a>
+    {% if can_create %}
+      <a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">
+        {% icon 'plus' 16 %} New agreement
+      </a>
+    {% endif %}
+  </div>
+</div>
 {% include "components/_section_tabs.html" with section="Coverage" %}
 
 <!-- Standardized KPI Cards Row -->
@@ -47,7 +61,11 @@
       <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
       <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
     </select>
-    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
+    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">
+      {% icon 'download' 12 %} Export
+    </a>
+    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+  </form>
   <div class="table-responsive"><table class="table fx-table" id="agreements-table"><thead><tr><th>Reference</th><th>Type</th><th>Provider</th><th>Site</th><th>Valid</th><th>Created</th><th>State</th></tr></thead><tbody>
   {% for a in page %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a><div class="small text-body-secondary">{{ a.title }}</div></td><td>{{ a.get_kind_display }}</td><td>{{ a.provider.name }}</td><td class="text-nowrap">{{ a.site.code }}</td>
     <td class="small text-nowrap">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td><td class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td><td>{% status_badge a.current_state %}</td></tr>

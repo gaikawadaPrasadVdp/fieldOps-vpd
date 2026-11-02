@@ -225,6 +225,24 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
     audit.record("asset.status_changed", actor=actor, organization=asset.organization, target=asset,
                  before={"status": previous}, after={"status": new},
                  metadata={"action": action, "reason": reason, "source": source}, request=request)
+    try:
+        from apps.core.outbox import publish_integration_event
+        publish_integration_event(
+            asset.organization,
+            event_type="asset.status_changed",
+            aggregate_type="asset",
+            aggregate_id=str(asset.pk),
+            payload={
+                "asset_tag": asset.asset_tag,
+                "from_status": previous,
+                "to_status": new,
+                "action": action,
+                "reason": reason,
+                "source": source,
+            },
+        )
+    except Exception:
+        pass
     return asset
 
 

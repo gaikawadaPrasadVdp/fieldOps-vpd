@@ -24,10 +24,28 @@ def playwright_instance():
 
 @pytest.fixture(scope="session")
 def browser(playwright_instance):
-    browser = playwright_instance.chromium.launch(
-        headless=True,
-        args=["--no-sandbox", "--disable-dev-shm-usage"]
-    )
+    browser_type_name = os.environ.get("PW_BROWSER", "chromium").lower()
+    if browser_type_name == "firefox":
+        browser = playwright_instance.firefox.launch(headless=True)
+    elif browser_type_name in ("chrome", "google-chrome"):
+        browser = playwright_instance.chromium.launch(
+            channel="chrome",
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
+    elif browser_type_name in ("edge", "msedge"):
+        browser = playwright_instance.chromium.launch(
+            channel="msedge",
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
+    elif browser_type_name == "webkit":
+        browser = playwright_instance.webkit.launch(headless=True)
+    else:
+        browser = playwright_instance.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
     yield browser
     browser.close()
 

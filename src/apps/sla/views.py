@@ -189,7 +189,7 @@ class ProfileCreateView(SlaBase):
         prefix = "targets"
         if data is not None and "targets-TOTAL_FORMS" not in data and "form-TOTAL_FORMS" in data:
             prefix = "form"
-        if initial is None and data is None:
+        if initial is None and (data is None or "targets-TOTAL_FORMS" not in data):
             default_p = "URGENT" if applies_to == "WORK_ORDER" else "CRITICAL"
             initial = [{"priority": default_p, "response_minutes": "15 minutes", "resolution_minutes": "4 hours", "warning_percent": "80"}]
         return PriorityTargetFormSetFactory(data, initial=initial, applies_to=applies_to, prefix=prefix,
@@ -198,7 +198,7 @@ class ProfileCreateView(SlaBase):
     def _rule_formset(self, request, data=None, initial=None):
         prefix = "rules"
         roles = Role.objects.for_organization(request.organization).order_by("name")
-        if initial is None and data is None:
+        if initial is None and (data is None or "rules-TOTAL_FORMS" not in data):
             sup_role = Role.objects.for_organization(request.organization).filter(
                 system_key__in=["supervisor", "maintenance_supervisor"]
             ).first() or Role.objects.for_organization(request.organization).filter(name__icontains="supervisor").first()
@@ -218,6 +218,11 @@ class ProfileCreateView(SlaBase):
         return EscalationRuleFormSetFactory(data, initial=initial, roles=roles, prefix=prefix)
 
     def _render(self, request, form, status=200, target_formset=None, rule_formset=None):
+        applies_to = getattr(form, "applies_to", None) or (form.initial.get("applies_to") if hasattr(form, "initial") else None) or "WORK_ORDER"
+        if target_formset is None or len(target_formset.forms) == 0:
+            target_formset = self._target_formset(request, applies_to)
+        if rule_formset is None or len(rule_formset.forms) == 0:
+            rule_formset = self._rule_formset(request)
         return _profile_form_page(
             request, title="New SLA Profile", form=form, submit="Create profile",
             cancel_url="/app/sla/profiles/", crumbs=self.crumbs,
@@ -269,13 +274,13 @@ class ProfileCreateView(SlaBase):
 
         form = self._form(request, post_data)
         valid = form.is_valid()
-        target_formset = None
-        rule_formset = None
 
-        if has_target_inputs:
-            target_formset = self._target_formset(request, applies_to, post_data, is_draft=is_draft)
-            rule_formset = self._rule_formset(request, post_data)
-            valid = target_formset.is_valid() and rule_formset.is_valid() and valid
+        target_formset = self._target_formset(request, applies_to, post_data if has_target_inputs else None, is_draft=is_draft)
+        has_rule_inputs = any(k.startswith("rules-") and not k.endswith("TOTAL_FORMS") and not k.endswith("INITIAL_FORMS") and not k.endswith("MIN_NUM_FORMS") and not k.endswith("MAX_NUM_FORMS") for k in post_data)
+        rule_formset = self._rule_formset(request, post_data if has_rule_inputs else None)
+        target_valid = target_formset.is_valid() if has_target_inputs else is_draft
+        rule_valid = rule_formset.is_valid() if has_rule_inputs else True
+        valid = valid and target_valid and rule_valid
 
         if valid:
             d = dict(form.cleaned_data)
@@ -291,7 +296,7 @@ class ProfileCreateView(SlaBase):
                         pause_states=d["pause_states"], coverage_only=d.get("coverage_only", False),
                         is_active=d["is_active"], calendar=d.get("calendar"),
                         use_business_hours=d.get("use_business_hours", False))
-                    if target_formset:
+                    if target_formset and has_target_inputs:
                         for target_form in target_formset:
                             target_data = target_form.cleaned_data
                             if not target_data or target_data.get("DELETE") or not target_data.get("priority"):
@@ -299,7 +304,7 @@ class ProfileCreateView(SlaBase):
                             target_data = {k: v for k, v in target_data.items() if k != "DELETE" and v not in (None, "")}
                             services.set_target(profile, actor=request.user, request=request,
                                                 **target_data)
-                    if rule_formset:
+                    if rule_formset and has_rule_inputs:
                         for rule_form in rule_formset:
                             rule_data = rule_form.cleaned_data
                             if not rule_data or rule_data.get("DELETE") or not rule_data.get("target_kind"):
@@ -471,6 +476,32 @@ class ProfileEditView(ProfileBase):
             target_formset = PriorityTargetFormSetFactory(post_data, applies_to=applies_to, prefix="targets")
             rule_formset = EscalationRuleFormSetFactory(post_data, roles=roles, prefix="rules")
             valid = valid and target_formset.is_valid() and rule_formset.is_valid()
+        else:
+            target_initial = [
+                {
+                    "priority": t.priority,
+                    "response_minutes": f"{t.response_minutes} minutes",
+                    "resolution_minutes": f"{t.resolution_minutes} minutes",
+                    "warning_percent": f"{t.warning_percent}%",
+                }
+                for t in p.targets.order_by("priority")
+            ]
+            if not target_initial:
+                default_p = "URGENT" if p.applies_to == "WORK_ORDER" else "CRITICAL"
+                target_initial = [{"priority": default_p, "response_minutes": "15 minutes", "resolution_minutes": "4 hours", "warning_percent": "80"}]
+            target_formset = PriorityTargetFormSetFactory(initial=target_initial, applies_to=p.applies_to, prefix="targets")
+            rule_initial = [
+                {
+                    "target_kind": r.target_kind,
+                    "trigger": r.trigger,
+                    "after_minutes": r.after_minutes if r.trigger == "ESCALATION" else None,
+                    "level": r.level,
+                    "notify_role": r.notify_role_id,
+                    "notify_assignee": r.notify_assignee,
+                }
+                for r in p.rules.order_by("level", "trigger")
+            ]
+            rule_formset = EscalationRuleFormSetFactory(initial=rule_initial, roles=roles, prefix="rules")
 
         if valid:
             try:

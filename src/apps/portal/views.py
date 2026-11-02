@@ -263,6 +263,7 @@ class RequestDetailView(LoginRequiredMixin, View):
                 "confirmation": confirmation,
                 "work_order": wo,
                 "technician_name": tech_name,
+                "sla_commitment": selectors.get_client_sla_indicator(sr),
             },
         )
 

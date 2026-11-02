@@ -5,8 +5,8 @@ tolerated (``style-src 'unsafe-inline'``) because they cannot execute script."""
 import secrets
 
 POLICY = (
-    "default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+    "default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; "
     "form-action 'self'; frame-ancestors 'none'"
 )
 
