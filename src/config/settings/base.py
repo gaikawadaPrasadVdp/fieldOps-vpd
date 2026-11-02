@@ -225,6 +225,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.tenancy.tasks.process_scheduled_deletions",
         "schedule": 60 * 60,
     },
+    "process-integration-outbox": {
+        "task": "apps.core.tasks.process_integration_events",
+        "schedule": 30,
+    },
 }
 
 # --- Email ------------------------------------------------------------------------------------

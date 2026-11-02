@@ -52,3 +52,43 @@ class DocumentSequence(TenantOwnedModel):
 
     def __str__(self):
         return f"{self.key}: {self.last_value}"
+
+
+class IntegrationEvent(TenantOwnedModel):
+    """Transactional Outbox event for external enterprise integrations (PRD §5.1).
+    Events are committed atomically in the same database transaction as business operations.
+    A reliable asynchronous processor (Celery) picks up pending events, delivers them to registered
+    sinks or external endpoints, tracks retry counts and failures, and guarantees no event loss.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSING = "PROCESSING", "Processing"
+        PUBLISHED = "PUBLISHED", "Published"
+        FAILED = "FAILED", "Failed"
+
+    event_type = models.CharField(max_length=100, db_index=True)
+    aggregate_type = models.CharField(max_length=80, db_index=True)
+    aggregate_id = models.CharField(max_length=64, db_index=True)
+    payload = models.JSONField(default=dict)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    retry_count = models.PositiveIntegerField(default=0)
+    max_retries = models.PositiveIntegerField(default=5)
+    error_message = models.TextField(blank=True, default="")
+    published_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["status", "created_at"], name="idx_integ_evt_stat_created"),
+            models.Index(fields=["aggregate_type", "aggregate_id"], name="idx_integ_evt_agg"),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} ({self.aggregate_type}:{self.aggregate_id}) - {self.status}"

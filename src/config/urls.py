@@ -50,6 +50,7 @@ from apps.sites.api_views import (
     ZoneViewSet,
 )
 from apps.sla.api_views import (
+    EscalationViewSet,
     SLABreachViewSet,
     SLAMetricsView,
     SLAProfileViewSet,
@@ -98,8 +99,11 @@ router.register("coverage-agreements", AgreementViewSet, basename="coverage-agre
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
+router.register("slas", SLAProfileViewSet, basename="sla")
 router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
 router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
+router.register("breaches", SLABreachViewSet, basename="breach")
+router.register("escalations", EscalationViewSet, basename="escalation")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 
 api_v1 = [

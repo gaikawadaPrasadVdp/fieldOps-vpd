@@ -32,6 +32,43 @@ class TargetSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class EscalationRuleSerializer(serializers.ModelSerializer):
+    profile_id = serializers.UUIDField(source="profile.id", read_only=True)
+    profile_name = serializers.CharField(source="profile.name", read_only=True)
+    notify_role_name = serializers.CharField(
+        source="notify_role.name", read_only=True, default=None, allow_null=True
+    )
+
+    class Meta:
+        model = EscalationRule
+        fields = [
+            "id",
+            "profile",
+            "profile_id",
+            "profile_name",
+            "target_kind",
+            "trigger",
+            "after_minutes",
+            "level",
+            "notify_role",
+            "notify_role_name",
+            "notify_assignee",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "profile_id", "profile_name", "notify_role_name", "created_at", "updated_at"]
+
+
+class EscalationRuleCreateSerializer(serializers.Serializer):
+    profile = serializers.UUIDField()
+    target_kind = serializers.ChoiceField(choices=[("RESPONSE", "Response"), ("RESOLUTION", "Resolution")])
+    trigger = serializers.ChoiceField(choices=EscalationRule.Trigger.choices)
+    after_minutes = serializers.IntegerField(required=False, default=0)
+    level = serializers.IntegerField(required=False, default=1)
+    notify_role = serializers.UUIDField(required=False, allow_null=True)
+    notify_assignee = serializers.BooleanField(required=False, default=False)
+
+
 class RuleSerializer(serializers.ModelSerializer):
     notify_role_name = serializers.CharField(
         source="notify_role.name", read_only=True, default=None, allow_null=True
@@ -541,6 +578,86 @@ class SLABreachViewSet(TenantAPIMixin, viewsets.ViewSet):
         services.acknowledge_breach(breach, actor=request.user, request=request)
         return Response(BreachSerializer(self._breach(request, pk)).data)
 
+
+@extend_schema(parameters=[ID_PARAM])
+class EscalationViewSet(TenantAPIMixin, viewsets.ViewSet):
+    """PRD Mandatory API Group: /api/v1/escalations/
+    Provides access and management for SLA escalation rules with tenant scoping."""
+
+    pagination_class = StandardPagination
+    permission_map = {
+        "list": "sla.view",
+        "retrieve": "sla.view",
+        "create": "sla.manage",
+        "destroy": "sla.manage",
+    }
+
+    def _queryset(self, request):
+        return EscalationRule.objects.for_organization(request.organization).select_related(
+            "profile", "notify_role"
+        )
+
+    @extend_schema(
+        parameters=[
+            query_param("profile", "Filter by SLA profile UUID", OpenApiTypes.UUID),
+            query_param("target_kind", "RESPONSE | RESOLUTION"),
+            query_param("trigger", "WARNING | BREACH | ESCALATION"),
+            query_param("level", "Escalation level (1, 2, 3)", OpenApiTypes.INT),
+        ],
+        responses=EscalationRuleSerializer,
+    )
+    def list(self, request):
+        qs = self._queryset(request)
+        profile_param = (request.query_params.get("profile") or "").strip()
+        if profile_param:
+            qs = qs.filter(profile_id=profile_param)
+        target_kind = (request.query_params.get("target_kind") or "").strip().upper()
+        if target_kind:
+            qs = qs.filter(target_kind=target_kind)
+        trigger = (request.query_params.get("trigger") or "").strip().upper()
+        if trigger:
+            qs = qs.filter(trigger=trigger)
+        level = (request.query_params.get("level") or "").strip()
+        if level and level.isdigit():
+            qs = qs.filter(level=int(level))
+        return paginate(request, qs.order_by("profile__name", "level", "after_minutes"), EscalationRuleSerializer)
+
+    @extend_schema(responses=EscalationRuleSerializer)
+    def retrieve(self, request, pk=None):
+        rule = self._queryset(request).filter(pk=pk).first()
+        if not rule:
+            raise NotFound("Escalation rule not found.")
+        return Response(EscalationRuleSerializer(rule).data)
+
+    @extend_schema(request=EscalationRuleCreateSerializer, responses={201: EscalationRuleSerializer})
+    def create(self, request):
+        ser = EscalationRuleCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        data = dict(ser.validated_data)
+        profile_pk = data.pop("profile")
+        profile = selectors.get_profile(request.organization, profile_pk)
+        role = None
+        if data.get("notify_role"):
+            role = Role.objects.for_organization(request.organization).filter(pk=data.pop("notify_role")).first()
+            if not role:
+                raise NotFound("Role not found.")
+        data.pop("notify_role", None)
+        rule = services.create_rule(
+            profile,
+            notify_role=role,
+            actor=request.user,
+            request=request,
+            **data,
+        )
+        return Response(EscalationRuleSerializer(rule).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request, pk=None):
+        rule = self._queryset(request).filter(pk=pk).first()
+        if not rule:
+            raise NotFound("Escalation rule not found.")
+        services.delete_rule(rule, actor=request.user, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class SLAMetricsView(TenantAPIMixin, APIView):
     """Aggregated SLA data for the future M14 dashboards (real counts over the caller's visible trackings)."""

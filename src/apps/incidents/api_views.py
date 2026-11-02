@@ -316,6 +316,9 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         except services.DuplicateIncidentError as exc:
             from apps.core.api import _envelope
             data = _envelope(exc.code, exc.message, {"duplicates": exc.duplicates})
+            data["code"] = exc.code
+            data["message"] = exc.message
+            data["duplicates"] = exc.duplicates
             return Response(data, status=status.HTTP_409_CONFLICT)
         return Response(ServiceRequestSerializer(self._obj(request, sr.pk)).data, status=status.HTTP_201_CREATED)
 

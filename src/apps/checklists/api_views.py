@@ -286,8 +286,8 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     # reads are self-scoping: the selector returns only inspections the caller may see (404 otherwise)
     permission_map = {
         "list": MEMBER_ONLY, "retrieve": MEMBER_ONLY, "create": "inspection.execute",
-        "responses": "inspection.execute", "complete": "inspection.execute", "findings:get": MEMBER_ONLY,
-        "findings:post": "inspection.execute", "evidence:get": MEMBER_ONLY, "evidence:post": "inspection.execute",
+        "responses": MEMBER_ONLY, "complete": MEMBER_ONLY, "findings:get": MEMBER_ONLY,
+        "findings:post": MEMBER_ONLY, "evidence:get": MEMBER_ONLY, "evidence:post": MEMBER_ONLY,
         "requirements": MEMBER_ONLY,
     }
 

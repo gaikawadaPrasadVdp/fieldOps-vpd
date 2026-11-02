@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.api import StandardPagination
+from apps.core.exceptions import ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites.models import Site
 from apps.tenancy.api import TenantAPIMixin
@@ -25,6 +26,7 @@ from .serializers import (
     LaborInputSerializer,
     MaterialInputSerializer,
     PlanSerializer,
+    ReassignSerializer,
     ProvisionalChecklistSerializer,
     ReviewSerializer,
     UpdateWorkOrderSerializer,
@@ -44,7 +46,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         "events": "work_order.view_assigned",
         "checklist_status": "work_order.view_assigned",
         "create": "work_order.create", "partial_update": "work_order.update",
-        "plan": "work_order.plan", "assign": "work_order.assign",
+        "plan": "work_order.plan", "assign": "work_order.assign", "reassign": "work_order.assign", "reassign": "work_order.assign",
         "dispatch_order": "work_order.dispatch", "start": "work_order.start", "hold": "work_order.hold",
         "resume": "work_order.start", "complete": "work_order.complete",
         "validate_checklist": "work_order.complete",
@@ -97,6 +99,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             return PlanSerializer
         if self.action == "assign":
             return AssignSerializer
+        if self.action == "reassign":
+            return ReassignSerializer
         if self.action == "hold":
             return WorkOrderReasonSerializer
         if self.action in ("close", "return_for_rework"):
@@ -232,6 +236,19 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         return self._action(pk, lambda wo, **kw: services.assign_work_order(
             wo, assignee_id=kw.pop("assigned_to"), **kw), AssignSerializer)
 
+    @extend_schema(request=ReassignSerializer, responses={200: WorkOrderSerializer})
+    @action(detail=True, methods=["post"])
+    def reassign(self, request, pk=None):
+        return self._action(
+            pk,
+            lambda wo, **kw: services.reassign_work_order(
+                wo,
+                assignee_id=kw.pop("assigned_to", None) or kw.pop("technician", None),
+                **kw,
+            ),
+            ReassignSerializer,
+        )
+
     @extend_schema(request=ExpectedVersionSerializer, responses={200: WorkOrderSerializer})
     @action(detail=True, methods=["post"], url_path="dispatch")
     def dispatch_order(self, request, pk=None):
@@ -263,7 +280,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             "hold": self.hold,
             "resume": self.resume,
             "plan": self.plan,
-            "assign": self.assign,
+            "assign": self.assign, "reassign": self.reassign,
             "dispatch": self.dispatch_order,
             "submit_for_review": self.submit_for_review,
             "close": self.close,
@@ -364,7 +381,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def materials(self, request, pk=None):
         if request.method == "GET":
             wo = self.get_object()
-            from .api_views import MaterialSerializer
+            from .serializers import MaterialSerializer
             qs = wo.material_entries.all().order_by("-created_at")
             page = self.paginate_queryset(qs)
             if page is not None:
