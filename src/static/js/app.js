@@ -53,8 +53,8 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
-/* Asset form: choosing another category reloads the page with the typed values so the category's custom attributes
-   appear (the server builds and validates those fields). */
+/* Asset form: choosing another category reloads the form with the typed values so the category's custom attributes
+   appear (the server builds and validates those fields) without reloading the host page. */
 document.addEventListener("change", function (e) {
   var sel = e.target.closest("select[data-category-reload]");
   if (!sel || !sel.form) return;
@@ -419,6 +419,9 @@ document.body.addEventListener("htmx:afterSwap", function (evt) {
       var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
       modal.show();
     }
+    if (typeof filterAssetZonesBySite === "function") {
+      filterAssetZonesBySite(evt.detail.target);
+    }
   }
 });
 
@@ -731,6 +734,710 @@ document.addEventListener("click", function (e) {
     var field = e.target;
     if (field && (field.tagName.toLowerCase() === "select" || field.type === "checkbox" || field.type === "radio")) {
       validateField(field);
+    }
+  });
+})();
+
+/* ==========================================================================
+   Site Form Dynamic Geo-Cascading & Real-Time Validation
+   ========================================================================== */
+(function () {
+  var geoStates = {
+    "IN": [
+      "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+      "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+      "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+      "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+      "Uttar Pradesh", "Uttarakhand", "West Bengal",
+      "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi (NCT)", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+    ],
+    "US": [
+      "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+      "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+      "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+      "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+      "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+      "New Hampshire", "New Jersey", "New Mexico", "New York",
+      "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+      "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+      "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+      "West Virginia", "Wisconsin", "Wyoming", "District of Columbia"
+    ],
+    "GB": ["England", "Scotland", "Wales", "Northern Ireland"],
+    "AE": ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al-Quwain"],
+    "CA": ["Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan"],
+    "AU": ["New South Wales", "Victoria", "Queensland", "Western Australia", "South Australia", "Tasmania", "Australian Capital Territory", "Northern Territory"],
+    "DE": ["Baden-Württemberg", "Bavaria", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hesse", "Lower Saxony", "Mecklenburg-Vorpommern", "North Rhine-Westphalia", "Rhineland-Palatinate", "Saarland", "Saxony", "Saxony-Anhalt", "Schleswig-Holstein", "Thuringia"],
+    "FR": ["Île-de-France", "Auvergne-Rhône-Alpes", "Nouvelle-Aquitaine", "Occitanie", "Hauts-de-France", "Provence-Alpes-Côte d'Azur", "Grand Est", "Pays de la Loire", "Normandy", "Brittany"],
+    "SG": ["Central", "East", "North", "North-East", "West"]
+  };
+
+  var geoCities = {
+    "Kerala": ["Kochi", "Thiruvananthapuram", "Kozhikode", "Thrissur", "Kollam", "Kannur", "Alappuzha", "Palakkad", "Kottayam", "Malappuram", "Kasaragod", "Pathanamthitta", "Idukki", "Wayanad"],
+    "Karnataka": ["Bengaluru", "Mysuru", "Hubballi-Dharwad", "Mangaluru", "Belagavi", "Kalaburagi", "Ballari", "Davanagere", "Shivamogga", "Tumakuru", "Udupi", "Bidar", "Hosapete"],
+    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik", "Kalyan-Dombivli", "Vasai-Virar", "Aurangabad", "Navi Mumbai", "Solapur", "Kolhapur", "Amravati", "Nanded"],
+    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tiruppur", "Erode", "Tirunelveli", "Vellore", "Thoothukudi", "Dindigul", "Thanjavur"],
+    "Delhi": ["New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "Dwarka", "Rohini", "Connaught Place"],
+    "Delhi (NCT)": ["New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "Dwarka", "Rohini", "Connaught Place"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Ramagundam", "Khammam", "Mahbubnagar", "Nalgonda"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Gandhinagar", "Junagadh", "Anand", "Navsari", "Morbi"],
+    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri", "Bardhaman", "Malda", "Kharagpur", "Haldia"],
+    "Uttar Pradesh": ["Noida", "Greater Noida", "Lucknow", "Kanpur", "Ghaziabad", "Agra", "Varanasi", "Meerut", "Prayagraj", "Bareilly", "Aligarh", "Moradabad", "Gorakhpur"],
+    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool", "Kakinada", "Rajahmundry", "Tirupati", "Kadapa", "Anantapur"],
+    "Rajasthan": ["Jaipur", "Jodhpur", "Kota", "Bikaner", "Ajmer", "Udaipur", "Bhilwara", "Alwar", "Bharatpur", "Sikar"],
+    "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Yamunanagar", "Rohtak", "Hisar", "Karnal", "Sonipat", "Panchkula"],
+    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Mohali", "Hoshiarpur", "Pathankot"],
+    "Madhya Pradesh": ["Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain", "Sagar", "Dewas", "Satna", "Ratlam"],
+    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai"],
+    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Bhadrak"],
+    "Assam": ["Guwahati", "Silchar", "Dibrugarh", "Jorhat", "Nagaon", "Tinsukia", "Tezpur"],
+    "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda"],
+    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro Steel City", "Deoghar", "Hazaribagh"],
+    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg", "Rajnandgaon"],
+    "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani", "Rishikesh", "Nainital"],
+    "Himachal Pradesh": ["Shimla", "Dharamshala", "Solan", "Mandi", "Baddi", "Kullu"],
+    "Chandigarh": ["Chandigarh"],
+    "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla"],
+    "Ladakh": ["Leh", "Kargil"],
+    "Puducherry": ["Puducherry", "Karaikal", "Oulgaret"],
+    "California": ["Los Angeles", "San Francisco", "San Diego", "San Jose", "Sacramento", "Fresno"],
+    "Texas": ["Houston", "Dallas", "Austin", "San Antonio", "Fort Worth", "El Paso"],
+    "New York": ["New York City", "Buffalo", "Rochester", "Yonkers", "Syracuse", "Albany"],
+    "Florida": ["Miami", "Orlando", "Tampa", "Jacksonville", "Fort Lauderdale"],
+    "Illinois": ["Chicago", "Aurora", "Naperville", "Joliet", "Rockford"],
+    "Washington": ["Seattle", "Spokane", "Tacoma", "Vancouver", "Bellevue"],
+    "Dubai": ["Dubai", "Jebel Ali", "Deira", "Bur Dubai", "Business Bay"],
+    "Abu Dhabi": ["Abu Dhabi", "Al Ain", "Al Dhafra", "Mussafah"],
+    "England": ["London", "Manchester", "Birmingham", "Leeds", "Liverpool", "Bristol"],
+    "Scotland": ["Edinburgh", "Glasgow", "Aberdeen", "Dundee"],
+    "Ontario": ["Toronto", "Ottawa", "Mississauga", "Brampton", "Hamilton"],
+    "Quebec": ["Montreal", "Quebec City", "Laval", "Gatineau"],
+    "New South Wales": ["Sydney", "Newcastle", "Central Coast", "Wollongong"],
+    "Victoria": ["Melbourne", "Geelong", "Ballarat", "Bendigo"],
+    "Bavaria": ["Munich", "Nuremberg", "Augsburg", "Regensburg"],
+    "Berlin": ["Berlin"]
+  };
+
+  var indiaStatePin = {
+    "Delhi": { prefixes: ["11"], sample: "110001" },
+    "Delhi (NCT)": { prefixes: ["11"], sample: "110001" },
+    "Haryana": { prefixes: ["12", "13"], sample: "122001" },
+    "Punjab": { prefixes: ["14", "15"], sample: "141001" },
+    "Chandigarh": { prefixes: ["16"], sample: "160017" },
+    "Himachal Pradesh": { prefixes: ["17"], sample: "171001" },
+    "Jammu and Kashmir": { prefixes: ["18", "19"], sample: "190001" },
+    "Ladakh": { prefixes: ["19"], sample: "194101" },
+    "Uttar Pradesh": { prefixes: ["20", "21", "22", "23", "24", "25", "26", "27", "28"], sample: "201301" },
+    "Uttarakhand": { prefixes: ["24", "26"], sample: "248001" },
+    "Rajasthan": { prefixes: ["30", "31", "32", "33", "34"], sample: "302001" },
+    "Gujarat": { prefixes: ["36", "37", "38", "39"], sample: "380001" },
+    "Dadra and Nagar Haveli and Daman and Diu": { prefixes: ["39"], sample: "396210" },
+    "Maharashtra": { prefixes: ["40", "41", "42", "43", "44"], sample: "400001" },
+    "Goa": { prefixes: ["40"], sample: "403001" },
+    "Madhya Pradesh": { prefixes: ["45", "46", "47", "48"], sample: "452001" },
+    "Chhattisgarh": { prefixes: ["49"], sample: "492001" },
+    "Telangana": { prefixes: ["50"], sample: "500001" },
+    "Andhra Pradesh": { prefixes: ["51", "52", "53"], sample: "530001" },
+    "Karnataka": { prefixes: ["56", "57", "58", "59"], sample: "560001" },
+    "Tamil Nadu": { prefixes: ["60", "61", "62", "63", "64"], sample: "600001" },
+    "Puducherry": { prefixes: ["60"], sample: "605001" },
+    "Kerala": { prefixes: ["67", "68", "69"], sample: "682001" },
+    "Lakshadweep": { prefixes: ["68"], sample: "682555" },
+    "West Bengal": { prefixes: ["70", "71", "72", "73", "74"], sample: "700001" },
+    "Andaman and Nicobar Islands": { prefixes: ["74"], sample: "744101" },
+    "Sikkim": { prefixes: ["73"], sample: "737101" },
+    "Odisha": { prefixes: ["75", "76", "77"], sample: "751001" },
+    "Assam": { prefixes: ["78"], sample: "781001" },
+    "Arunachal Pradesh": { prefixes: ["79"], sample: "791111" },
+    "Manipur": { prefixes: ["79"], sample: "795001" },
+    "Meghalaya": { prefixes: ["79"], sample: "793001" },
+    "Mizoram": { prefixes: ["79"], sample: "796001" },
+    "Nagaland": { prefixes: ["79"], sample: "797001" },
+    "Tripura": { prefixes: ["79"], sample: "799001" },
+    "Bihar": { prefixes: ["80", "81", "82", "83", "84", "85"], sample: "800001" },
+    "Jharkhand": { prefixes: ["81", "82", "83"], sample: "834001" }
+  };
+
+  var cityPincodes = {
+    "Bengaluru": "560001", "Mysuru": "570001", "Hubballi-Dharwad": "580001", "Mangaluru": "575001", "Belagavi": "590001",
+    "Mumbai": "400001", "Pune": "411001", "Nagpur": "440001", "Thane": "400601", "Nashik": "422001",
+    "Chennai": "600001", "Coimbatore": "641001", "Madurai": "625001", "Salem": "636001",
+    "New Delhi": "110001", "Central Delhi": "110001", "North Delhi": "110007", "South Delhi": "110017", "Dwarka": "110075",
+    "Hyderabad": "500001", "Warangal": "506001", "Visakhapatnam": "530001", "Vijayawada": "520001",
+    "Ahmedabad": "380001", "Surat": "395001", "Vadodara": "390001",
+    "Kolkata": "700001", "Howrah": "711101", "Durgapur": "713201",
+    "Noida": "201301", "Greater Noida": "201310", "Lucknow": "226001", "Kanpur": "208001",
+    "Gurugram": "122001", "Faridabad": "121001", "Jaipur": "302001",
+    "Kochi": "682001", "Thiruvananthapuram": "695001", "Kozhikode": "673001", "Thrissur": "680001",
+    "Chandigarh": "160017", "Indore": "452001", "Patna": "800001", "Bhubaneswar": "751001",
+    "Guwahati": "781001", "Panaji": "403001", "Dehradun": "248001", "Shimla": "171001"
+  };
+
+  var geoTimezones = {
+    "IN": "Asia/Kolkata", "US": "America/New_York", "GB": "Europe/London",
+    "AE": "Asia/Dubai", "SG": "Asia/Singapore", "AU": "Australia/Sydney",
+    "CA": "America/Toronto", "DE": "Europe/Berlin", "FR": "Europe/Paris"
+  };
+
+  var geoPrefixes = {
+    "IN": "+91", "US": "+1", "GB": "+44", "AE": "+971", "SG": "+65",
+    "AU": "+61", "CA": "+1", "DE": "+49", "FR": "+33"
+  };
+
+  function setFieldError(field, msg) {
+    if (!field) return;
+    field.classList.add("is-invalid");
+    var parent = field.closest(".mb-3") || field.parentElement;
+    var errEl = parent.querySelector(".js-field-error");
+    if (!errEl) {
+      errEl = document.createElement("div");
+      errEl.className = "text-danger small mt-1 fw-medium js-field-error";
+      parent.appendChild(errEl);
+    }
+    errEl.textContent = msg;
+    errEl.style.display = "block";
+  }
+
+  function clearFieldError(field) {
+    if (!field) return;
+    field.classList.remove("is-invalid");
+    var parent = field.closest(".mb-3") || field.parentElement;
+    var errEl = parent.querySelector(".js-field-error");
+    if (errEl) {
+      errEl.textContent = "";
+      errEl.style.display = "none";
+    }
+  }
+
+  function initSiteForm(root) {
+    var form = (root && root.id === "site-modal-form") ? root : (root ? root.querySelector("#site-modal-form") : null);
+    if (!form || form.dataset.siteValidationInitialized === "true") return;
+    form.dataset.siteValidationInitialized = "true";
+
+    var countryEl = form.querySelector("#id_country");
+    var stateEl = form.querySelector("#id_state_region");
+    var cityEl = form.querySelector("#id_city");
+    var tzEl = form.querySelector("#id_timezone");
+    var phoneEl = form.querySelector("#id_contact_phone");
+    var postalEl = form.querySelector("#id_postal_code");
+    var codeEl = form.querySelector("input[name='code']");
+    var nameEl = form.querySelector("input[name='name']");
+
+    if (!countryEl || !stateEl || !cityEl) return;
+
+    // Code input auto-uppercase
+    if (codeEl) {
+      codeEl.addEventListener("input", function () {
+        var start = this.selectionStart;
+        var end = this.selectionEnd;
+        this.value = this.value.toUpperCase();
+        this.setSelectionRange(start, end);
+        if (this.value.trim()) clearFieldError(this);
+      });
+    }
+
+    if (nameEl) {
+      nameEl.addEventListener("input", function () {
+        if (this.value.trim().length >= 2) clearFieldError(this);
+      });
+    }
+
+    function updateStates(country, selectedState) {
+      var states = geoStates[country] || [];
+      var currentVal = selectedState || stateEl.value;
+      stateEl.innerHTML = "";
+
+      var defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = "Select State / Region...";
+      stateEl.appendChild(defaultOpt);
+
+      var matched = false;
+      states.forEach(function (s) {
+        var opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        if (s === currentVal) {
+          opt.selected = true;
+          matched = true;
+        }
+        stateEl.appendChild(opt);
+      });
+
+      if (currentVal && !matched) {
+        var customOpt = document.createElement("option");
+        customOpt.value = currentVal;
+        customOpt.textContent = currentVal;
+        customOpt.selected = true;
+        stateEl.appendChild(customOpt);
+      }
+    }
+
+    function updateCities(state, selectedCity) {
+      var cities = geoCities[state] || [];
+      var currentVal = selectedCity || cityEl.value;
+      cityEl.innerHTML = "";
+
+      var defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = "Select City...";
+      cityEl.appendChild(defaultOpt);
+
+      var matched = false;
+      cities.forEach(function (c) {
+        var opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        if (c === currentVal) {
+          opt.selected = true;
+          matched = true;
+        }
+        cityEl.appendChild(opt);
+      });
+
+      if (currentVal && !matched) {
+        var customOpt = document.createElement("option");
+        customOpt.value = currentVal;
+        customOpt.textContent = currentVal;
+        customOpt.selected = true;
+        cityEl.appendChild(customOpt);
+      }
+    }
+
+    function getFieldWrapper(el) {
+      if (!el) return null;
+      if (el.id === "id_country") return form.querySelector("#field-wrapper-country") || el.closest(".col-md-6");
+      if (el.id === "id_state_region") return form.querySelector("#field-wrapper-state") || el.closest(".col-md-6");
+      if (el.id === "id_city") return form.querySelector("#field-wrapper-city") || el.closest(".col-md-6");
+      return el.closest(".col-md-6");
+    }
+
+    function updateHierarchyVisibility() {
+      var countryVal = (countryEl.value || "").trim().toUpperCase();
+      var stateVal = (stateEl.value || "").trim();
+
+      var stateWrapper = getFieldWrapper(stateEl);
+      var cityWrapper = getFieldWrapper(cityEl);
+
+      if (stateWrapper) {
+        if (countryVal) {
+          stateWrapper.classList.remove("d-none");
+          stateWrapper.style.display = "";
+        } else {
+          stateWrapper.classList.add("d-none");
+          stateWrapper.style.display = "none";
+        }
+      }
+
+      if (cityWrapper) {
+        if (countryVal && stateVal) {
+          cityWrapper.classList.remove("d-none");
+          cityWrapper.style.display = "";
+        } else {
+          cityWrapper.classList.add("d-none");
+          cityWrapper.style.display = "none";
+        }
+      }
+    }
+
+    function onCountryChange(isInitial) {
+      var country = (countryEl.value || "").trim().toUpperCase();
+      var currentState = isInitial ? stateEl.value : "";
+      var currentCity = isInitial ? cityEl.value : "";
+
+      updateStates(country, currentState);
+      if (!country) {
+        stateEl.value = "";
+      }
+
+      var stateVal = (stateEl.value || currentState || "").trim();
+      updateCities(stateVal, currentCity);
+      if (!stateVal) {
+        cityEl.value = "";
+      }
+
+      updateHierarchyVisibility();
+
+      if (!isInitial && geoTimezones[country] && tzEl) {
+        tzEl.value = geoTimezones[country];
+        clearFieldError(tzEl);
+      }
+
+      if (phoneEl) {
+        var prefix = geoPrefixes[country] || "+1";
+        phoneEl.placeholder = "e.g. " + prefix + " 98765 43210";
+      }
+
+      if (postalEl) {
+        if (country === "IN") {
+          postalEl.placeholder = "e.g. 560001 (6-digit PIN code)";
+        } else if (country === "US") {
+          postalEl.placeholder = "e.g. 90210 (5-digit ZIP code)";
+        } else {
+          postalEl.placeholder = "Postal / ZIP code";
+        }
+      }
+    }
+
+    countryEl.addEventListener("change", function () {
+      clearFieldError(this);
+      onCountryChange(false);
+    });
+
+    stateEl.addEventListener("change", function () {
+      clearFieldError(this);
+      var state = (this.value || "").trim();
+      updateCities(state, "");
+      cityEl.value = "";
+      clearFieldError(cityEl);
+      updateHierarchyVisibility();
+
+      // Update PIN code placeholder based on state's postal circle
+      if (countryEl.value === "IN" && postalEl) {
+        var info = indiaStatePin[state];
+        if (info) {
+          postalEl.placeholder = "e.g. " + info.sample + " (" + info.prefixes.join(", ") + "xxxx)";
+        }
+        if (postalEl.value.trim().length === 6) {
+          validatePincode(false);
+        }
+      }
+    });
+
+    cityEl.addEventListener("change", function () {
+      clearFieldError(this);
+      var city = this.value;
+      if (!city) return;
+
+      // Auto-suggest or set related PIN code if empty
+      if (cityPincodes[city] && postalEl && !postalEl.value.trim()) {
+        postalEl.value = cityPincodes[city];
+        clearFieldError(postalEl);
+      }
+    });
+
+    if (postalEl) {
+      postalEl.addEventListener("input", function () {
+        var val = this.value.trim();
+        var country = (countryEl.value || "").toUpperCase();
+        if (country === "IN") {
+          this.value = val.replace(/\D/g, "").substring(0, 6);
+          val = this.value;
+          if (val.length === 6) {
+            validatePincode(false);
+          } else if (val.length > 0 && val.startsWith("0")) {
+            setFieldError(this, "Indian PIN code cannot start with 0.");
+          } else {
+            clearFieldError(this);
+          }
+        } else {
+          if (val) clearFieldError(this);
+        }
+      });
+
+      postalEl.addEventListener("blur", function () {
+        validatePincode(true);
+      });
+    }
+
+    function validatePincode(showEmptyError) {
+      if (!postalEl) return true;
+      var postal = (postalEl.value || "").trim();
+      var country = (countryEl.value || "").toUpperCase();
+
+      if (!postal) {
+        if (showEmptyError) {
+          setFieldError(postalEl, "Postal / PIN code is required.");
+          return false;
+        }
+        return true;
+      }
+
+      if (country === "IN") {
+        if (!/^[1-9][0-9]{5}$/.test(postal)) {
+          setFieldError(postalEl, "PIN code must be exactly 6 digits starting with 1-9 (e.g. 560001).");
+          return false;
+        }
+        var state = stateEl.value;
+        var info = indiaStatePin[state];
+        if (info) {
+          var prefix = postal.substring(0, 2);
+          if (info.prefixes.indexOf(prefix) === -1) {
+            var validList = info.prefixes.join(", ");
+            setFieldError(postalEl, "PIN code " + postal + " does not match " + state + ". Must start with " + validList + " (e.g. " + info.sample + ").");
+            return false;
+          }
+        }
+      } else if (country === "US") {
+        if (!/^\d{5}(-\d{4})?$/.test(postal)) {
+          setFieldError(postalEl, "US ZIP code must be 5 digits (e.g. 90210).");
+          return false;
+        }
+      }
+
+      clearFieldError(postalEl);
+      return true;
+    }
+
+    // Strict Form Validation on Submit
+    form.addEventListener("submit", function (e) {
+      var isValid = true;
+      var firstInvalid = null;
+
+      // Validate Code
+      if (codeEl) {
+        var code = (codeEl.value || "").trim();
+        if (!code) {
+          setFieldError(codeEl, "Site code is required.");
+          isValid = false;
+          firstInvalid = firstInvalid || codeEl;
+        } else if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,29}$/.test(code)) {
+          setFieldError(codeEl, "Start with letter/digit. Allowed: uppercase letters, numbers, ., _, -");
+          isValid = false;
+          firstInvalid = firstInvalid || codeEl;
+        } else {
+          clearFieldError(codeEl);
+        }
+      }
+
+      // Validate Name
+      if (nameEl) {
+        var name = (nameEl.value || "").trim();
+        if (!name) {
+          setFieldError(nameEl, "Site name is required.");
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else if (name.length < 2) {
+          setFieldError(nameEl, "Site name must be at least 2 characters.");
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else if (/^\d+$/.test(name)) {
+          setFieldError(nameEl, "Site name cannot be purely numbers.");
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else {
+          clearFieldError(nameEl);
+        }
+      }
+
+      // Validate Country
+      if (!countryEl.value) {
+        setFieldError(countryEl, "Please select a Country.");
+        isValid = false;
+        firstInvalid = firstInvalid || countryEl;
+      } else {
+        clearFieldError(countryEl);
+      }
+
+      // Validate Timezone
+      if (tzEl && !tzEl.value) {
+        setFieldError(tzEl, "Please select a Timezone.");
+        isValid = false;
+        firstInvalid = firstInvalid || tzEl;
+      } else if (tzEl) {
+        clearFieldError(tzEl);
+      }
+
+      // Validate State
+      if (!stateEl.value) {
+        setFieldError(stateEl, "Please select a State / Region.");
+        isValid = false;
+        firstInvalid = firstInvalid || stateEl;
+      } else {
+        clearFieldError(stateEl);
+      }
+
+      // Validate City
+      if (!cityEl.value) {
+        setFieldError(cityEl, "Please select a City.");
+        isValid = false;
+        firstInvalid = firstInvalid || cityEl;
+      } else {
+        clearFieldError(cityEl);
+      }
+
+      // Validate PIN code
+      if (!validatePincode(true)) {
+        isValid = false;
+        firstInvalid = firstInvalid || postalEl;
+      }
+
+      if (!isValid) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (firstInvalid) {
+          firstInvalid.focus();
+          firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        return false;
+      }
+    });
+
+    // Initial setup on render
+    var initialState = stateEl.value;
+    var initialCity = cityEl.value;
+    onCountryChange(true);
+    if (initialState) {
+      stateEl.value = initialState;
+      updateCities(initialState, initialCity);
+    }
+    updateHierarchyVisibility();
+  }
+
+  // Hook into lifecycle events
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      initSiteForm(document);
+    });
+  } else {
+    initSiteForm(document);
+  }
+
+  // Hook into HTMX swaps
+  document.body.addEventListener("htmx:afterSwap", function (evt) {
+    if (evt.detail && evt.detail.target) {
+      initSiteForm(evt.detail.target);
+    }
+  });
+
+  // Hook into Bootstrap modal open
+  document.addEventListener("shown.bs.modal", function (evt) {
+    if (evt.target && (evt.target.id === "siteModal" || evt.target.querySelector("#site-modal-form"))) {
+      initSiteForm(evt.target);
+    }
+  });
+
+  // Global Delegated Country-to-State & State-to-City Cascading & Visibility Guard
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "id_country") {
+      var form = e.target.closest("form");
+      if (form) {
+        var stateEl = form.querySelector("#id_state_region");
+        var cityEl = form.querySelector("#id_city");
+        var stateWrapper = form.querySelector("#field-wrapper-state") || (stateEl ? stateEl.closest(".col-md-6") : null);
+        var cityWrapper = form.querySelector("#field-wrapper-city") || (cityEl ? cityEl.closest(".col-md-6") : null);
+        var country = (e.target.value || "").trim().toUpperCase();
+
+        if (stateEl) {
+          var states = geoStates[country] || [];
+          stateEl.innerHTML = "";
+          var defStateOpt = document.createElement("option");
+          defStateOpt.value = "";
+          defStateOpt.textContent = "Select State / Region...";
+          stateEl.appendChild(defStateOpt);
+          states.forEach(function (s) {
+            var opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            stateEl.appendChild(opt);
+          });
+          stateEl.value = "";
+        }
+
+        if (cityEl) {
+          cityEl.innerHTML = '<option value="">Select City...</option>';
+          cityEl.value = "";
+        }
+
+        if (stateWrapper) {
+          if (country) {
+            stateWrapper.classList.remove("d-none");
+            stateWrapper.style.display = "";
+          } else {
+            stateWrapper.classList.add("d-none");
+            stateWrapper.style.display = "none";
+          }
+        }
+
+        if (cityWrapper) {
+          cityWrapper.classList.add("d-none");
+          cityWrapper.style.display = "none";
+        }
+      }
+    } else if (e.target && e.target.id === "id_state_region") {
+      var form = e.target.closest("form");
+      if (form) {
+        var cityEl = form.querySelector("#id_city");
+        var cityWrapper = form.querySelector("#field-wrapper-city") || (cityEl ? cityEl.closest(".col-md-6") : null);
+        var state = (e.target.value || "").trim();
+
+        if (cityEl) {
+          var cities = geoCities[state] || [];
+          cityEl.innerHTML = "";
+          var defaultOpt = document.createElement("option");
+          defaultOpt.value = "";
+          defaultOpt.textContent = "Select City...";
+          cityEl.appendChild(defaultOpt);
+          cities.forEach(function (c) {
+            var opt = document.createElement("option");
+            opt.value = c;
+            opt.textContent = c;
+            cityEl.appendChild(opt);
+          });
+          cityEl.value = "";
+        }
+
+        if (cityWrapper) {
+          if (state) {
+            cityWrapper.classList.remove("d-none");
+            cityWrapper.style.display = "";
+          } else {
+            cityWrapper.classList.add("d-none");
+            cityWrapper.style.display = "none";
+          }
+        }
+      }
+    }
+  });
+
+  document.addEventListener("mousedown", function (e) {
+    if (e.target && e.target.id === "id_city") {
+      var form = e.target.closest("form");
+      if (form) {
+        var stateEl = form.querySelector("#id_state_region");
+        if (stateEl && stateEl.value) {
+          var state = stateEl.value;
+          var cities = geoCities[state] || [];
+          if (cities.length > 0) {
+            var existing = Array.from(e.target.options).map(function (o) { return o.value; });
+            var isMissing = cities.some(function (c) { return existing.indexOf(c) === -1; });
+            if (isMissing) {
+              var cur = e.target.value;
+              e.target.innerHTML = "";
+              var defOpt = document.createElement("option");
+              defOpt.value = "";
+              defOpt.textContent = "Select City...";
+              e.target.appendChild(defOpt);
+              cities.forEach(function (c) {
+                var opt = document.createElement("option");
+                opt.value = c;
+                opt.textContent = c;
+                if (c === cur) opt.selected = true;
+                e.target.appendChild(opt);
+              });
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Enterprise Login Password Visibility Toggle
+  document.addEventListener("click", function (e) {
+    var toggle = e.target.closest("#fx-pw-toggle");
+    if (!toggle) return;
+    e.preventDefault();
+    var pwInput = document.getElementById("id_password");
+    var eyeIcon = document.getElementById("fx-pw-icon-eye");
+    var eyeOffIcon = document.getElementById("fx-pw-icon-eye-off");
+    if (pwInput) {
+      var isPassword = pwInput.getAttribute("type") === "password";
+      pwInput.setAttribute("type", isPassword ? "text" : "password");
+      if (eyeIcon) eyeIcon.style.display = isPassword ? "none" : "block";
+      if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? "block" : "none";
+      toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
     }
   });
 })();

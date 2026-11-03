@@ -544,6 +544,16 @@ def on_work_order_cancelled(sr: ServiceRequest, *, actor, request=None):
                request=request)
 
 
+def on_work_order_closed(sr: ServiceRequest, *, actor, request=None):
+    """Called when an associated work order is closed. If client has confirmed, closes request."""
+    if sr.status == "CONFIRMED":
+        from apps.portal import services as portal_services
+        blockers = portal_services.get_request_closure_blockers(sr)
+        if not blockers:
+            _apply(sr, "close", reason="Linked work order closed and client confirmation present", actor=actor, source="work_order", request=request)
+            _notify_reporter(sr, "close", "")
+
+
 # --- downtime ------------------------------------------------------------------------------------------------
 
 
