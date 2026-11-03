@@ -13,6 +13,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
+from apps.core.apiutils import htmx_success
 from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors

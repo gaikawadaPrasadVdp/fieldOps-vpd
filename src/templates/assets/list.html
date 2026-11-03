@@ -14,7 +14,7 @@
     <a class="btn btn-outline-secondary" href="{% url 'assets:component_list' %}">{% icon 'package' 14 %} Component Catalog</a>
     {% if can_categories %}<a class="btn btn-outline-secondary" href="{% url 'assets:categories' %}">{% icon 'layers' 14 %} Categories</a>{% endif %}
     {% if can_create %}
-      <button type="button" class="btn btn-primary" id="btn-new-asset" hx-get="{% url 'assets:create' %}" hx-target="#assetModalContent" hx-swap="innerHTML">
+      <button type="button" class="btn btn-primary" id="btn-new-asset" hx-get="{% url 'assets:create' %}" hx-target="#assetModalContent" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#assetModal">
         {% icon 'plus' 14 %} Register asset
       </button>
       <noscript><a class="btn btn-primary" href="{% url 'assets:create' %}">{% icon 'plus' 14 %} Register asset</a></noscript>
@@ -176,4 +176,39 @@
     <div class="modal-content" id="assetModalContent"></div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+  function initAssetModal() {
+    var modalEl = document.getElementById('assetModal');
+    var contentEl = document.getElementById('assetModalContent');
+    if (!modalEl || !contentEl) return;
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+      if (evt.detail && evt.detail.target && evt.detail.target.id === 'assetModalContent') {
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+    });
+    document.body.addEventListener('closeAssetModal', function() {
+      var modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) { modal.hide(); }
+    });
+    modalEl.addEventListener('hidden.bs.modal', function() {
+      contentEl.innerHTML = '';
+      document.querySelectorAll('.modal-backdrop').forEach(function(b) { b.remove(); });
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('padding-right');
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAssetModal);
+  } else {
+    initAssetModal();
+  }
+})();
+</script>
 {% endblock %}
