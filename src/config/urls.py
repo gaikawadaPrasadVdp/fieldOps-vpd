@@ -79,6 +79,7 @@ router.register("coverage-agreements", AgreementViewSet, basename="coverage-agre
 router.register("warranties", AgreementViewSet, basename="warranty")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
+router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
 router.register("slas", SLAProfileViewSet, basename="sla")
 router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
@@ -90,7 +91,6 @@ router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenan
 router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
 router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
-router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),

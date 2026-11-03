@@ -128,7 +128,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         data = self.data or self.initial
-        country = "IN"
+        country = ""
         if data:
             c = (data.get("country") or "").strip().upper()
             if c:
@@ -140,8 +140,11 @@ class SiteForm(BootstrapFormMixin, forms.Form):
                 self.fields["timezone"].choices = list(self.fields["timezone"].choices) + [(tz, tz)]
 
         # Dynamically build State choices
-        states = STATES_BY_COUNTRY.get(country, [])
-        state_choices = [("", "Select State / Region...")] + [(s, s) for s in states]
+        if country:
+            states = STATES_BY_COUNTRY.get(country, [])
+            state_choices = [("", "Select State / Region...")] + [(s, s) for s in states]
+        else:
+            state_choices = [("", "Select State / Region...")]
         curr_state = (data.get("state_region") or "").strip() if data else ""
         if curr_state and curr_state not in [s for s, _ in state_choices]:
             state_choices.append((curr_state, curr_state))
@@ -151,10 +154,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         city_choices = [("", "Select City...")]
         if curr_state and curr_state in CITIES_BY_STATE:
             city_choices += [(c, c) for c in CITIES_BY_STATE[curr_state]]
-        elif country == "IN":
-            # Provide sample major cities if no state selected yet
-            top_cities = ["Bengaluru", "Mumbai", "New Delhi", "Chennai", "Hyderabad", "Kolkata", "Pune", "Ahmedabad"]
-            city_choices += [(c, c) for c in top_cities]
+        
         curr_city = (data.get("city") or "").strip() if data else ""
         if curr_city and curr_city not in [c for c, _ in city_choices]:
             city_choices.append((curr_city, curr_city))
@@ -260,6 +260,12 @@ class SiteForm(BootstrapFormMixin, forms.Form):
                 is_valid, err_msg = validate_india_pincode(state, postal)
                 if not is_valid:
                     self.add_error("postal_code", err_msg)
+
+            # Validate city belongs to selected state
+            if state and city and state in CITIES_BY_STATE:
+                valid_cities = CITIES_BY_STATE[state]
+                if city not in valid_cities:
+                    self.add_error("city", f"'{city}' is not a recognized city in {state}.")
 
             # Check if city belongs to the selected state
             if city and state:

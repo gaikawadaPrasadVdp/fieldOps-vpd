@@ -5,37 +5,50 @@
 <div class="fx-page-header">
   <div>
     <h1>Warranties, AMCs &amp; contracts</h1>
-    <div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div>
+    <div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend
+      from these records.</div>
   </div>
   <div class="d-flex gap-2 align-items-center">
     <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" id="warrantyExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Export all matching warranty records across all pages">
-        <span id="export-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+      <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button"
+        id="warrantyExportDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+        title="Export all matching warranty records across all pages">
+        <span id="export-spinner" class="spinner-border spinner-border-sm d-none" role="status"
+          aria-hidden="true"></span>
         <span id="export-icon">{% icon 'download' 16 %}</span>
         <span id="export-btn-text">Download / Export</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="warrantyExportDropdown">
-        <li><h6 class="dropdown-header">Export Filtered Warranties</h6></li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'csv')">
+          <h6 class="dropdown-header">Export Filtered Warranties</h6>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
+            onclick="handleWarrantyExport(event, 'csv')">
             {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'xlsx')">
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
+            onclick="handleWarrantyExport(event, 'xlsx')">
             {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'pdf')">
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
+            onclick="handleWarrantyExport(event, 'pdf')">
             {% icon 'file' 16 %} PDF Summary Report (.pdf)
           </a>
         </li>
-        <li><hr class="dropdown-divider"></li>
-        <li><span class="dropdown-item-text small text-body-secondary">Exports all matching records across all pages</span></li>
+        <li>
+          <hr class="dropdown-divider">
+        </li>
+        <li><span class="dropdown-item-text small text-body-secondary">Exports all matching records across all
+            pages</span></li>
       </ul>
     </div>
-    {% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New agreement</a>{% endif %}
+    {% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New
+      agreement</a>{% endif %}
   </div>
 </div>
 {% include "components/_section_tabs.html" with section="Coverage" %}
@@ -43,45 +56,65 @@
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Total Agreements" value=total_agreements|default:0 tone="primary" icon="clipboard" %}
+    {% include "components/_kpi_card.html" with title="Total Agreements" value=total_agreements|default:0 tone="primary"
+    icon="clipboard" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Active Coverage" value=active_agreements|default:0 tone="success" icon="check" %}
+    {% include "components/_kpi_card.html" with title="Active Coverage" value=active_agreements|default:0 tone="success"
+    icon="check" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Upcoming" value=upcoming_agreements|default:0 tone="info" icon="clock" %}
+    {% include "components/_kpi_card.html" with title="Upcoming" value=upcoming_agreements|default:0 tone="info"
+    icon="clock" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Expired Contracts" value=expired_agreements|default:0 tone="warning" icon="alert-circle" %}
+    {% include "components/_kpi_card.html" with title="Expired Contracts" value=expired_agreements|default:0
+    tone="warning" icon="alert-circle" %}
   </div>
 </div>
-<div class="fx-card" id="agreements-list-card"
-     hx-get="{% url 'contracts:agreements' %}" hx-trigger="agreementSaved from:body" hx-target="#agreements-list-card" hx-select="#agreements-list-card" hx-swap="outerHTML" hx-include="#agreements-filter-form" hx-disinherit="*">
+<div class="fx-card" id="agreements-list-card" hx-get="{% url 'contracts:agreements' %}"
+  hx-trigger="agreementSaved from:body" hx-target="#agreements-list-card" hx-select="#agreements-list-card"
+  hx-swap="outerHTML" hx-include="#agreements-filter-form" hx-disinherit="*">
   <form method="get" id="agreements-filter-form" class="d-flex flex-wrap gap-2 p-3 border-bottom"
-        hx-get="{% url 'contracts:agreements' %}"
-        hx-trigger="input changed delay:300ms, change"
-        hx-target="#agreements-list-card"
-        hx-select="#agreements-list-card"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-indicator="#global-loading-indicator">
-    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Reference, title, provider, asset tag" aria-label="Search agreements">
-    <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type"><option value="">All types</option>
-      {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="state" aria-label="State"><option value="">Any state</option>
-      {% for v in states %}<option value="{{ v }}" {% if filters.state == v %}selected{% endif %}>{{ v|title }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>
-      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:190px" name="provider" aria-label="Provider"><option value="">All providers</option>
-      {% for p in providers %}<option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
-      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
-      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
-      <option value="reference" {% if filters.ordering == "reference" %}selected{% endif %}>Reference (A–Z)</option>
-      <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
-      <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
+    hx-get="{% url 'contracts:agreements' %}" hx-trigger="input changed delay:300ms, change"
+    hx-target="#agreements-list-card" hx-select="#agreements-list-card" hx-swap="outerHTML" hx-push-url="true"
+    hx-indicator="#global-loading-indicator">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}"
+      placeholder="Reference, title, provider, asset tag" aria-label="Search agreements">
+    <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type">
+      <option value="">All types</option>
+      {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind==v %}selected{% endif %}>{{ l }}</option>{%
+      endfor %}
     </select>
-    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
+    <select class="form-select form-select-sm" style="max-width:150px" name="state" aria-label="State">
+      <option value="">Any state</option>
+      {% for v in states %}<option value="{{ v }}" {% if filters.state==v %}selected{% endif %}>{{ v|title }}</option>{%
+      endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site">
+      <option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:"s" %}selected{% endif %}>{{
+        s.code }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:190px" name="provider" aria-label="Provider">
+      <option value="">All providers</option>
+      {% for p in providers %}<option value="{{ p.pk }}" {% if filters.provider==p.pk|stringformat:"s" %}selected{%
+        endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
+      <option value="-created_at" {% if filters.ordering=="-created_at" or not filters.ordering %}selected{% endif %}>
+        Newest First</option>
+      <option value="created_at" {% if filters.ordering=="created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="reference" {% if filters.ordering=="reference" %}selected{% endif %}>Reference (A–Z)</option>
+      <option value="-reference" {% if filters.ordering=="-reference" %}selected{% endif %}>Reference (Z–A)</option>
+      <option value="end_date" {% if filters.ordering=="end_date" %}selected{% endif %}>Expiry Date</option>
+    </select>
+    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv"
+      class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">
+      {% icon 'download' 12 %} Export CSV
+    </a>
+    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+  </form>
   <div class="table-responsive">
     <table class="table fx-table align-middle" id="agreements-table">
       <thead>
@@ -110,7 +143,9 @@
           <td class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td>
           <td>{% status_badge a.current_state %}</td>
           <td class="text-end">
-            <a href="{% url 'contracts:agreement_download' a.pk %}" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1" title="Download individual warranty PDF report" download>
+            <a href="{% url 'contracts:agreement_download' a.pk %}"
+              class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
+              title="Download individual warranty PDF report" download>
               {% icon 'download' 14 %} PDF
             </a>
           </td>
@@ -118,7 +153,8 @@
         {% empty %}
         <tr>
           <td colspan="8">
-            {% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or create an agreement." %}
+            {% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or
+            create an agreement." %}
           </td>
         </tr>
         {% endfor %}
@@ -129,82 +165,82 @@
 </div>
 
 <script>
-function handleWarrantyExport(event, format) {
-  event.preventDefault();
-  const filterForm = document.getElementById('agreements-filter-form');
-  const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
-  params.set('format', format);
-  // remove empty parameters
-  for (const [key, value] of Array.from(params.entries())) {
-    if (!value || value.trim() === '') {
-      params.delete(key);
+  function handleWarrantyExport(event, format) {
+    event.preventDefault();
+    const filterForm = document.getElementById('agreements-filter-form');
+    const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
+    params.set('format', format);
+    // remove empty parameters
+    for (const [key, value] of Array.from(params.entries())) {
+      if (!value || value.trim() === '') {
+        params.delete(key);
+      }
     }
-  }
 
-  const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
+    const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
 
-  const btn = document.getElementById('warrantyExportDropdown');
-  const spinner = document.getElementById('export-spinner');
-  const icon = document.getElementById('export-icon');
-  const text = document.getElementById('export-btn-text');
+    const btn = document.getElementById('warrantyExportDropdown');
+    const spinner = document.getElementById('export-spinner');
+    const icon = document.getElementById('export-icon');
+    const text = document.getElementById('export-btn-text');
 
-  if (btn) btn.classList.add('disabled');
-  if (spinner) spinner.classList.remove('d-none');
-  if (icon) icon.classList.add('d-none');
-  if (text) text.textContent = 'Exporting...';
-
-  if (window.fxToast) {
-    window.fxToast('Preparing ' + format.toUpperCase() + ' export...', 'info');
-  }
-
-  fetch(exportUrl, {
-    method: 'GET',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest'
-    }
-  })
-  .then(function(response) {
-    if (!response.ok) {
-      throw new Error('Export request failed (HTTP ' + response.status + ')');
-    }
-    const disposition = response.headers.get('Content-Disposition') || '';
-    let filename = 'warranties_export.' + format;
-    const match = disposition.match(/filename="?([^";]+)"?/);
-    if (match && match[1]) {
-      filename = match[1];
-    }
-    return response.blob().then(function(blob) {
-      return { blob: blob, filename: filename };
-    });
-  })
-  .then(function(data) {
-    const blobUrl = window.URL.createObjectURL(data.blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = blobUrl;
-    downloadLink.download = data.filename;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-    setTimeout(function() { window.URL.revokeObjectURL(blobUrl); }, 1000);
+    if (btn) btn.classList.add('disabled');
+    if (spinner) spinner.classList.remove('d-none');
+    if (icon) icon.classList.add('d-none');
+    if (text) text.textContent = 'Exporting...';
 
     if (window.fxToast) {
-      window.fxToast('Warranty export downloaded successfully (' + data.filename + ')', 'success');
+      window.fxToast('Preparing ' + format.toUpperCase() + ' export...', 'info');
     }
-  })
-  .catch(function(err) {
-    console.error('Export error:', err);
-    if (window.fxToast) {
-      window.fxToast('Export failed: ' + (err.message || 'Network or server error'), 'danger');
-    } else {
-      alert('Export failed. Please check your network and try again.');
-    }
-  })
-  .finally(function() {
-    if (btn) btn.classList.remove('disabled');
-    if (spinner) spinner.classList.add('d-none');
-    if (icon) icon.classList.remove('d-none');
-    if (text) text.textContent = 'Download / Export';
-  });
-}
+
+    fetch(exportUrl, {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('Export request failed (HTTP ' + response.status + ')');
+        }
+        const disposition = response.headers.get('Content-Disposition') || '';
+        let filename = 'warranties_export.' + format;
+        const match = disposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+        return response.blob().then(function (blob) {
+          return { blob: blob, filename: filename };
+        });
+      })
+      .then(function (data) {
+        const blobUrl = window.URL.createObjectURL(data.blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = data.filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 1000);
+
+        if (window.fxToast) {
+          window.fxToast('Warranty export downloaded successfully (' + data.filename + ')', 'success');
+        }
+      })
+      .catch(function (err) {
+        console.error('Export error:', err);
+        if (window.fxToast) {
+          window.fxToast('Export failed: ' + (err.message || 'Network or server error'), 'danger');
+        } else {
+          alert('Export failed. Please check your network and try again.');
+        }
+      })
+      .finally(function () {
+        if (btn) btn.classList.remove('disabled');
+        if (spinner) spinner.classList.add('d-none');
+        if (icon) icon.classList.remove('d-none');
+        if (text) text.textContent = 'Download / Export';
+      });
+  }
 </script>
 {% endblock %}
