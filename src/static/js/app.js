@@ -1294,4 +1294,61 @@ document.addEventListener("click", function (e) {
       initSiteForm(evt.target);
     }
   });
+
+  // Global Delegated State-to-City Cascading & Pre-Opening Guard
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "id_state_region") {
+      var form = e.target.closest("form");
+      if (form) {
+        var cityEl = form.querySelector("#id_city");
+        if (cityEl) {
+          var state = e.target.value;
+          var cities = geoCities[state] || [];
+          cityEl.innerHTML = "";
+          var defaultOpt = document.createElement("option");
+          defaultOpt.value = "";
+          defaultOpt.textContent = "Select City...";
+          cityEl.appendChild(defaultOpt);
+          cities.forEach(function (c) {
+            var opt = document.createElement("option");
+            opt.value = c;
+            opt.textContent = c;
+            cityEl.appendChild(opt);
+          });
+        }
+      }
+    }
+  });
+
+  document.addEventListener("mousedown", function (e) {
+    if (e.target && e.target.id === "id_city") {
+      var form = e.target.closest("form");
+      if (form) {
+        var stateEl = form.querySelector("#id_state_region");
+        if (stateEl && stateEl.value) {
+          var state = stateEl.value;
+          var cities = geoCities[state] || [];
+          if (cities.length > 0) {
+            var existing = Array.from(e.target.options).map(function (o) { return o.value; });
+            var isMissing = cities.some(function (c) { return existing.indexOf(c) === -1; });
+            if (isMissing) {
+              var cur = e.target.value;
+              e.target.innerHTML = "";
+              var defOpt = document.createElement("option");
+              defOpt.value = "";
+              defOpt.textContent = "Select City...";
+              e.target.appendChild(defOpt);
+              cities.forEach(function (c) {
+                var opt = document.createElement("option");
+                opt.value = c;
+                opt.textContent = c;
+                if (c === cur) opt.selected = true;
+                e.target.appendChild(opt);
+              });
+            }
+          }
+        }
+      }
+    }
+  });
 })();
