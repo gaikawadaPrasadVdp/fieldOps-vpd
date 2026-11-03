@@ -69,55 +69,73 @@
             {% if current_stage == "PENDING" and sr.status == "NEW" %}style="width: 10%;"
             {% elif current_stage == "PENDING" %}style="width: 30%;"
             {% elif current_stage == "IN_PROGRESS" %}style="width: 55%;"
-            {% elif current_stage == "RESOLVED" %}style="width: 80%;"
-            {% elif current_stage == "CLOSED" %}style="width: 100%;"
+            {% elif current_stage == "RESOLVED" %}style="width: 75%;"
+            {% elif current_stage == "CONFIRMED" or sr.status == "CONFIRMED" %}style="width: 90%;"
+            {% elif current_stage == "CLOSED" or sr.status == "CLOSED" %}style="width: 100%;"
             {% else %}style="width: 15%;"{% endif %}>
           </div>
         </div>
         <div class="d-flex justify-content-between position-absolute top-50 start-0 w-100 translate-middle-y">
           <!-- Step 1: Submitted -->
-          <div class="text-center" style="width: 80px;">
+          <div class="text-center flex-fill" style="min-width: 55px; max-width: 95px;">
             <div class="btn btn-sm btn-primary rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
               {% icon 'check' 14 %}
             </div>
-            <div class="small fw-semibold">Submitted</div>
+            <div class="small fw-semibold" style="font-size: clamp(0.7rem, 2vw, 0.85rem);">Submitted</div>
           </div>
           <!-- Step 2: Triaged & Approved -->
-          <div class="text-center" style="width: 80px;">
+          <div class="text-center flex-fill" style="min-width: 55px; max-width: 95px;">
             <div class="btn btn-sm {% if sr.status != 'NEW' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
               {% if sr.status != 'NEW' %}{% icon 'check' 14 %}{% else %}2{% endif %}
             </div>
-            <div class="small fw-semibold">Approved</div>
+            <div class="small fw-semibold" style="font-size: clamp(0.7rem, 2vw, 0.85rem);">Approved</div>
           </div>
           <!-- Step 3: In Progress -->
-          <div class="text-center" style="width: 80px;">
-            <div class="btn btn-sm {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
-              {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}3{% endif %}
+          <div class="text-center flex-fill" style="min-width: 55px; max-width: 95px;">
+            <div class="btn btn-sm {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CONFIRMED' or current_stage == 'CLOSED' or sr.status == 'CLOSED' or sr.status == 'CONFIRMED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CONFIRMED' or current_stage == 'CLOSED' or sr.status == 'CLOSED' or sr.status == 'CONFIRMED' %}{% icon 'check' 14 %}{% else %}3{% endif %}
             </div>
-            <div class="small fw-semibold">In Progress</div>
+            <div class="small fw-semibold" style="font-size: clamp(0.7rem, 2vw, 0.85rem);">In Progress</div>
           </div>
           <!-- Step 4: Resolved -->
-          <div class="text-center" style="width: 80px;">
-            <div class="btn btn-sm {% if current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
-              {% if current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}4{% endif %}
+          <div class="text-center flex-fill" style="min-width: 55px; max-width: 95px;">
+            <div class="btn btn-sm {% if current_stage == 'RESOLVED' or current_stage == 'CONFIRMED' or current_stage == 'CLOSED' or sr.status == 'CLOSED' or sr.status == 'CONFIRMED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'RESOLVED' or current_stage == 'CONFIRMED' or current_stage == 'CLOSED' or sr.status == 'CLOSED' or sr.status == 'CONFIRMED' %}{% icon 'check' 14 %}{% else %}4{% endif %}
             </div>
-            <div class="small fw-semibold">Resolved</div>
+            <div class="small fw-semibold" style="font-size: clamp(0.7rem, 2vw, 0.85rem);">Resolved</div>
           </div>
           <!-- Step 5: Closed -->
-          <div class="text-center" style="width: 80px;">
-            <div class="btn btn-sm {% if current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
-              {% if current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}5{% endif %}
+          <div class="text-center flex-fill" style="min-width: 55px; max-width: 95px;">
+            <div class="btn btn-sm {% if current_stage == 'CLOSED' or sr.status == 'CLOSED' %}btn-primary{% elif current_stage == 'CONFIRMED' or sr.status == 'CONFIRMED' %}btn-warning text-dark{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'CLOSED' or sr.status == 'CLOSED' %}{% icon 'check' 14 %}{% elif current_stage == 'CONFIRMED' or sr.status == 'CONFIRMED' %}{% icon 'clock' 14 %}{% else %}5{% endif %}
             </div>
-            <div class="small fw-semibold">Closed</div>
+            <div class="small fw-semibold {% if current_stage == 'CLOSED' or sr.status == 'CLOSED' %}text-primary{% elif current_stage == 'CONFIRMED' or sr.status == 'CONFIRMED' %}text-warning-emphasis{% else %}text-body-secondary{% endif %}" style="font-size: clamp(0.7rem, 2vw, 0.85rem);">
+              {% if current_stage == 'CONFIRMED' or sr.status == 'CONFIRMED' %}Pending Close{% else %}Closed{% endif %}
+            </div>
           </div>
         </div>
       </div>
       <div class="mt-4 pt-3 text-center small text-body-secondary">
-        Stage: <strong>{{ current_stage }}</strong> · Real-time tracking updated from operations system
+        Stage: <strong>{{ current_stage }}</strong> · {% if current_stage == 'CLOSED' or sr.status == 'CLOSED' %}Service completed and fully closed{% elif current_stage == 'CONFIRMED' or sr.status == 'CONFIRMED' %}Client confirmation recorded · Awaiting final closure sign-off{% else %}Real-time tracking updated from operations system{% endif %}
       </div>
       {% endif %}
     </div>
   </div>
+
+  <!-- Pending Closure Conditions Alert (if any) -->
+  {% if pending_closure_conditions %}
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 shadow-sm" role="alert" style="border-radius: var(--fx-radius);">
+    {% icon 'clock' 20 %}
+    <div>
+      <strong>Pending Verification Before Final Closure:</strong>
+      <ul class="mb-0 mt-1 ps-3">
+        {% for condition in pending_closure_conditions %}
+        <li>{{ condition }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Closure Confirmation Banner (if already confirmed) -->
   {% if confirmation %}
@@ -125,9 +143,14 @@
     <div class="d-flex align-items-center gap-3">
       {% icon 'check-circle' 28 %}
       <div>
-        <strong class="fs-6 text-success">Service Completion Confirmed!</strong>
+        <strong class="fs-6 text-success">
+          {% if sr.status == 'CLOSED' %}Service Request Completed &amp; Closed!{% else %}Service Completion Confirmed!{% endif %}
+        </strong>
         <div class="text-body small mt-1">
           Confirmed on <strong>{{ confirmation.confirmed_at|date:"F d, Y · H:i" }}</strong> by {{ confirmation.confirmed_by.email }}.
+          {% if sr.closed_at %}
+          <span class="ms-1">· Closed on <strong>{{ sr.closed_at|date:"F d, Y · H:i" }}</strong>.</span>
+          {% endif %}
           {% if confirmation.rating %}
           <span class="ms-2 badge bg-success text-white">Rating: {{ confirmation.rating }}/5 ★</span>
           {% endif %}
@@ -137,8 +160,8 @@
         {% endif %}
       </div>
     </div>
-    <span class="badge bg-success text-white px-3 py-2 fw-semibold">
-      Status: CONFIRMED
+    <span class="badge {% if sr.status == 'CLOSED' %}bg-success{% else %}bg-primary{% endif %} text-white px-3 py-2 fw-semibold">
+      Status: {{ status_label|upper }}
     </span>
   </div>
   {% endif %}

@@ -8,14 +8,34 @@
     <div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <a class="btn btn-outline-secondary" href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" title="Download filtered agreements as CSV">
-      {% icon 'download' 14 %} Export CSV
-    </a>
-    {% if can_create %}
-      <a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">
-        {% icon 'plus' 16 %} New agreement
-      </a>
-    {% endif %}
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" id="warrantyExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Export all matching warranty records across all pages">
+        <span id="export-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        <span id="export-icon">{% icon 'download' 16 %}</span>
+        <span id="export-btn-text">Download / Export</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="warrantyExportDropdown">
+        <li><h6 class="dropdown-header">Export Filtered Warranties</h6></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'csv')">
+            {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'xlsx')">
+            {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2" href="#" onclick="handleWarrantyExport(event, 'pdf')">
+            {% icon 'file' 16 %} PDF Summary Report (.pdf)
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><span class="dropdown-item-text small text-body-secondary">Exports all matching records across all pages</span></li>
+      </ul>
+    </div>
+    {% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New agreement</a>{% endif %}
   </div>
 </div>
 {% include "components/_section_tabs.html" with section="Coverage" %}
@@ -61,15 +81,130 @@
       <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
       <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
     </select>
-    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">
-      {% icon 'download' 12 %} Export
-    </a>
-    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-  </form>
-  <div class="table-responsive"><table class="table fx-table" id="agreements-table"><thead><tr><th>Reference</th><th>Type</th><th>Provider</th><th>Site</th><th>Valid</th><th>Created</th><th>State</th></tr></thead><tbody>
-  {% for a in page %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a><div class="small text-body-secondary">{{ a.title }}</div></td><td>{{ a.get_kind_display }}</td><td>{{ a.provider.name }}</td><td class="text-nowrap">{{ a.site.code }}</td>
-    <td class="small text-nowrap">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td><td class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td><td>{% status_badge a.current_state %}</td></tr>
-  {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or create an agreement." %}</td></tr>{% endfor %}</tbody></table></div>
+    <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
+  <div class="table-responsive">
+    <table class="table fx-table align-middle" id="agreements-table">
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Type</th>
+          <th>Provider</th>
+          <th>Site</th>
+          <th>Valid</th>
+          <th>Created</th>
+          <th>State</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in page %}
+        <tr>
+          <td>
+            <a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a>
+            <div class="small text-body-secondary">{{ a.title }}</div>
+          </td>
+          <td>{{ a.get_kind_display }}</td>
+          <td>{{ a.provider.name }}</td>
+          <td class="text-nowrap">{{ a.site.code }}</td>
+          <td class="small text-nowrap">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td>
+          <td class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td>
+          <td>{% status_badge a.current_state %}</td>
+          <td class="text-end">
+            <a href="{% url 'contracts:agreement_download' a.pk %}" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1" title="Download individual warranty PDF report" download>
+              {% icon 'download' 14 %} PDF
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            {% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or create an agreement." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include "components/_pagination.html" %}
 </div>
+
+<script>
+function handleWarrantyExport(event, format) {
+  event.preventDefault();
+  const filterForm = document.getElementById('agreements-filter-form');
+  const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
+  params.set('format', format);
+  // remove empty parameters
+  for (const [key, value] of Array.from(params.entries())) {
+    if (!value || value.trim() === '') {
+      params.delete(key);
+    }
+  }
+
+  const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
+
+  const btn = document.getElementById('warrantyExportDropdown');
+  const spinner = document.getElementById('export-spinner');
+  const icon = document.getElementById('export-icon');
+  const text = document.getElementById('export-btn-text');
+
+  if (btn) btn.classList.add('disabled');
+  if (spinner) spinner.classList.remove('d-none');
+  if (icon) icon.classList.add('d-none');
+  if (text) text.textContent = 'Exporting...';
+
+  if (window.fxToast) {
+    window.fxToast('Preparing ' + format.toUpperCase() + ' export...', 'info');
+  }
+
+  fetch(exportUrl, {
+    method: 'GET',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(function(response) {
+    if (!response.ok) {
+      throw new Error('Export request failed (HTTP ' + response.status + ')');
+    }
+    const disposition = response.headers.get('Content-Disposition') || '';
+    let filename = 'warranties_export.' + format;
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+    return response.blob().then(function(blob) {
+      return { blob: blob, filename: filename };
+    });
+  })
+  .then(function(data) {
+    const blobUrl = window.URL.createObjectURL(data.blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = blobUrl;
+    downloadLink.download = data.filename;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    setTimeout(function() { window.URL.revokeObjectURL(blobUrl); }, 1000);
+
+    if (window.fxToast) {
+      window.fxToast('Warranty export downloaded successfully (' + data.filename + ')', 'success');
+    }
+  })
+  .catch(function(err) {
+    console.error('Export error:', err);
+    if (window.fxToast) {
+      window.fxToast('Export failed: ' + (err.message || 'Network or server error'), 'danger');
+    } else {
+      alert('Export failed. Please check your network and try again.');
+    }
+  })
+  .finally(function() {
+    if (btn) btn.classList.remove('disabled');
+    if (spinner) spinner.classList.add('d-none');
+    if (icon) icon.classList.remove('d-none');
+    if (text) text.textContent = 'Download / Export';
+  });
+}
+</script>
 {% endblock %}

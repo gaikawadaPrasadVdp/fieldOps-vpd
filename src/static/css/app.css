@@ -556,7 +556,6 @@ body.fx-app {
   border: 1px solid #E2C968;
 }
 
-<<<<<<< Updated upstream=======
 
 /* Component Health Status Badges reflecting active breakdown tickets */
 .fx-health-badge {
@@ -623,7 +622,6 @@ body.fx-app {
   animation: fx-health-beacon 1.8s infinite ease-out;
 }
 
->>>>>>>Stashed changes
 
 /* question builder / checklist execution items */
 .fx-question-card {

@@ -12,11 +12,6 @@ from apps.assets.api_views import (
     MeterViewSet,
 )
 from apps.audit.api_views import AuditLogViewSet
-from apps.checklists.api_views import (
-    ChecklistTemplateViewSet,
-    FindingViewSet,
-    InspectionViewSet,
-)
 from apps.contracts.api_views import (
     AgreementViewSet,
     CoverageCheckViewSet,
@@ -79,23 +74,9 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
-router.register("requests", ServiceRequestViewSet, basename="request")
-router.register("work-orders", WorkOrderViewSet, basename="work-order")
-router.register("workorders", WorkOrderViewSet, basename="workorder")
-router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
-router.register("inspections", InspectionViewSet, basename="inspection")
-router.register("findings", FindingViewSet, basename="finding")
-router.register("parts", PartViewSet, basename="part")
-router.register("warehouses", WarehouseViewSet, basename="warehouse")
-router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
-router.register("stock-movements", StockMovementViewSet, basename="stock-movement")
-router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
-router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
-router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenance-plan")
-router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
-router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
+router.register("warranties", AgreementViewSet, basename="warranty")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
@@ -106,6 +87,7 @@ router.register("breaches", SLABreachViewSet, basename="breach")
 router.register("escalations", EscalationViewSet, basename="escalation")
 router.register("sla-escalations", EscalationViewSet, basename="sla-escalation")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
+router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
@@ -180,6 +162,7 @@ urlpatterns = [
     path("app/", include("apps.checklists.urls")),
     path("app/", include("apps.workspace.urls")),
     path("app/", include("apps.dashboards.urls")),
+    # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]
 

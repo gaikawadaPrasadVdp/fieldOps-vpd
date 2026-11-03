@@ -20,6 +20,7 @@ from apps.sla.models import SLAProfile
 from apps.ui.mixins import TenantPermissionMixin
 from apps.workorders import selectors as wo_selectors
 
+from apps.audit import services as audit
 from . import exports, selectors, services
 from .forms import AddAssetForm, AgreementForm, ProviderForm, ReasonForm, RenewForm
 from .models import CoverageAgreement
@@ -49,6 +50,8 @@ def _redirect_next(request, default):
 
 class AgreementListView(CBase):
     def get(self, request):
+        if request.GET.get("export") or (request.GET.get("format") and request.GET.get("format").lower() in exports.FORMATS):
+            return AgreementExportView().get(request)
         m, org = request.membership, request.organization
         base_agreements = selectors.agreements_for(m, org)
         today = datetime.date.today()
@@ -57,8 +60,6 @@ class AgreementListView(CBase):
         expired_agreements = sum(1 for a in base_agreements if a.state(today) == "EXPIRED")
         upcoming_agreements = sum(1 for a in base_agreements if a.state(today) == "UPCOMING")
         qs = selectors.filter_agreements(base_agreements, request.GET)
-        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
-            return exports.export_agreements_csv(qs, org)
         page = _paged(request, qs)
         for a in page:
             a.current_state = a.state(today)
@@ -72,17 +73,6 @@ class AgreementListView(CBase):
             "active_agreements": active_agreements,
             "expired_agreements": expired_agreements,
             "upcoming_agreements": upcoming_agreements})
-
-
-class AgreementExportView(CBase):
-    """Direct URL endpoint to download filtered agreements as CSV."""
-    def get(self, request):
-        m, org = request.membership, request.organization
-        base_agreements = selectors.agreements_for(m, org)
-        qs = selectors.filter_agreements(base_agreements, request.GET)
-        return exports.export_agreements_csv(qs, org)
-
-
 
 
 class AgreementCreateView(CBase):
@@ -136,18 +126,9 @@ class AgreementBase(CBase):
         return ag
 
 
-class AgreementDownloadView(AgreementBase):
-    """Direct URL endpoint to download a single agreement as CSV."""
-    def get(self, request, pk):
-        ag = self.ag(request, pk)
-        return exports.export_single_agreement_csv(ag)
-
-
 class AgreementDetailView(AgreementBase):
     def get(self, request, pk):
         ag = self.ag(request, pk)
-        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
-            return exports.export_single_agreement_csv(ag)
         m, org = request.membership, request.organization
         can_update = rbac.has_permission(m, "contract.update", ag.site_id)
         add_form = None
@@ -273,8 +254,6 @@ class ExpiryView(CBase):
             days = 90
         today = datetime.date.today()
         rows = list(selectors.expiring(m, org, days, today).prefetch_related("covered_assets"))
-        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
-            return exports.export_expiry_csv(rows, org, days)
         lapsed = list(selectors.agreements_for(m, org).filter(is_active=True, end_date__lt=today)
                       .order_by("-end_date")[:25])
         for a in rows:
@@ -414,3 +393,54 @@ class WorkOrderCoveragePanelView(CBase):
         except DomainError as exc:
             return HttpResponse(exc.message, status=400)
         return self._render(request, wo)
+
+
+
+class AgreementExportView(CBase):
+    required_permission = "contract.view"
+
+    def get(self, request):
+        m, org = request.membership, request.organization
+        fmt = (request.GET.get("format") or request.GET.get("export") or "csv").lower()
+        if fmt not in exports.FORMATS:
+            return HttpResponse("Unknown export format (supported: csv, xlsx, pdf).", status=400)
+        base_agreements = selectors.agreements_for(m, org)
+        qs = selectors.filter_agreements(base_agreements, request.GET)
+        params = {k: v for k, v in request.GET.items() if k not in ("format", "export", "page") and v}
+        filters_text = ", ".join(f"{k}={v}" for k, v in params.items())
+        result = exports.build_bulk_export(fmt, qs, org, actor=request.user, filters_text=filters_text)
+        audit.record(
+            "contract.exported",
+            actor=request.user,
+            organization=org,
+            request=request,
+            metadata={"format": fmt, "rows": result.rows, "filters": params},
+        )
+        resp = HttpResponse(result.body, content_type=result.content_type)
+        resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+        resp["Cache-Control"] = "private, no-store"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
+
+
+class AgreementDownloadView(AgreementBase):
+    required_permission = "contract.view"
+
+    def get(self, request, pk):
+        ag = self.ag(request, pk, "contract.view")
+        org = request.organization
+        pdf_bytes = exports.build_single_warranty_pdf(ag, org, actor=request.user)
+        filename = exports.clean_ref_filename(ag.reference, "pdf")
+        audit.record(
+            "contract.downloaded",
+            actor=request.user,
+            organization=org,
+            target=ag,
+            request=request,
+            metadata={"format": "pdf", "reference": ag.reference},
+        )
+        resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        resp["Cache-Control"] = "private, no-store"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
