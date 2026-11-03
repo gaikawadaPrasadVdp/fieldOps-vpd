@@ -6,7 +6,9 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
+from apps.core.exceptions import ValidationFailed
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
@@ -195,6 +197,7 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ChecklistTemplateViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "checklist.view", "retrieve": "checklist.view", "create": "checklist.manage",
         "partial_update": "checklist.manage", "items": "checklist.manage", "item_detail": "checklist.manage",
@@ -206,7 +209,7 @@ class ChecklistTemplateViewSet(TenantAPIMixin, viewsets.ViewSet):
         return selectors.get_template(request.organization, pk)
 
     @extend_schema(parameters=[query_param("status", "DRAFT / ACTIVE / INACTIVE"), query_param("q", "name")],
-                   responses=TemplateSerializer(many=True))
+                   responses=TemplateSerializer)
     def list(self, request):
         qs = selectors.filter_templates(selectors.templates_for(request.organization), request.query_params)
         return paginate(request, qs, TemplateSerializer)
@@ -279,11 +282,12 @@ class ChecklistTemplateViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     # reads are self-scoping: the selector returns only inspections the caller may see (404 otherwise)
     permission_map = {
         "list": MEMBER_ONLY, "retrieve": MEMBER_ONLY, "create": "inspection.execute",
-        "responses": "inspection.execute", "complete": "inspection.execute", "findings:get": MEMBER_ONLY,
-        "findings:post": "inspection.execute", "evidence:get": MEMBER_ONLY, "evidence:post": "inspection.execute",
+        "responses": MEMBER_ONLY, "complete": MEMBER_ONLY, "findings:get": MEMBER_ONLY,
+        "findings:post": MEMBER_ONLY, "evidence:get": MEMBER_ONLY, "evidence:post": MEMBER_ONLY,
         "requirements": MEMBER_ONLY,
     }
 
@@ -304,7 +308,7 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("work_order", "work order id", OpenApiTypes.UUID),
                                query_param("template", "template id", OpenApiTypes.UUID),
                                query_param("status", "IN_PROGRESS / COMPLETED")],
-                   responses=InspectionSerializer(many=True))
+                   responses=InspectionSerializer)
     def list(self, request):
         return paginate(request, selectors.filter_inspections(self._qs(request), request.query_params),
                         InspectionSerializer)
@@ -394,6 +398,10 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
+        from apps.portal.services import is_portal_client
+        if is_portal_client(request.membership):
+            raise PermissionDenied("Portal clients cannot access inspection requirements.")
+
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
         if not wo_param:
@@ -412,6 +420,7 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class FindingViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": MEMBER_ONLY, "retrieve": MEMBER_ONLY, "resolve": "inspection.review"}
 
     def _obj(self, request, pk) -> Finding:
@@ -422,7 +431,7 @@ class FindingViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("work_order", "work order id", OpenApiTypes.UUID),
                                query_param("inspection", "inspection id", OpenApiTypes.UUID),
                                query_param("status", "OPEN / RESOLVED"), query_param("severity", "severity")],
-                   responses=FindingSerializer(many=True))
+                   responses=FindingSerializer)
     def list(self, request):
         qs = selectors.filter_findings(selectors.findings_for(request.membership, request.organization),
                                        request.query_params)

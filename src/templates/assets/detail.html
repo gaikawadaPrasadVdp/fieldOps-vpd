@@ -19,6 +19,7 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
+    {% if can.inspection_execute and not terminal %}<a class="btn btn-outline-success" id="start-inspection" href="{% url 'assets:start_inspection' asset.pk %}">{% icon 'check-square' 14 %} Start inspection</a>{% endif %}
     {% if can.incident_create and not terminal %}<a class="btn btn-outline-danger" id="report-problem" href="{% url 'incidents:create' %}?asset={{ asset.pk }}">Report a problem</a>{% endif %}
     {% if can.asset_update and not terminal %}<a class="btn btn-outline-primary" href="{% url 'assets:edit' asset.pk %}">{% icon 'edit-2' 14 %} Edit</a>{% endif %}
     {% if transitions %}{% include "components/_workflow_bar.html" %}{% elif terminal %}<div class="alert alert-secondary py-1 px-2 m-0">This asset is {{ asset.status|lower }}: its lifecycle is complete and it is read-only.</div>{% endif %}
@@ -128,6 +129,60 @@
   </div>
 </div>
 
+{% elif tab == "inspections" %}
+  <div class="fx-card">
+    <div class="fx-card-header d-flex justify-content-between align-items-center">
+      <span>Inspection History</span>
+      {% if can.inspection_execute and not terminal %}
+        <a class="btn btn-primary btn-sm" href="{% url 'assets:start_inspection' asset.pk %}">
+          {% icon 'plus' 14 %} New Inspection
+        </a>
+      {% endif %}
+    </div>
+    <div class="fx-card-body p-0">
+      {% if inspections %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Checklist</th>
+                <th>Status</th>
+                <th>Inspector</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for insp in inspections %}
+                <tr>
+                  <td class="fw-medium">{{ insp.template.name }} <span class="badge fx-badge fx-badge-secondary">v{{ insp.template.version }}</span></td>
+                  <td>{% status_badge insp.status %}</td>
+                  <td>{{ insp.started_by.user.display_name }}</td>
+                  <td class="text-secondary small">{{ insp.started_at|date:"d M Y, H:i" }}</td>
+                  <td class="text-secondary small">{{ insp.completed_at|date:"d M Y, H:i"|default:"In Progress" }}</td>
+                  <td class="text-end">
+                    {% if insp.status == "IN_PROGRESS" and can.inspection_execute %}
+                      <a href="{% url 'checklists:inspection_run' insp.pk %}" class="btn btn-sm btn-primary">Resume</a>
+                    {% else %}
+                      <a href="{% url 'checklists:inspection' insp.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <p class="mb-2">No inspections recorded for this asset yet.</p>
+          {% if can.inspection_execute and not terminal %}
+            <a class="btn btn-outline-primary btn-sm" href="{% url 'assets:start_inspection' asset.pk %}">Start First Inspection</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
 {% elif tab == "hierarchy" %}
 <div class="row g-4">
   <div class="col-lg-8">

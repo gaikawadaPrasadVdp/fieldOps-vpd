@@ -90,6 +90,21 @@ class JobExecutionDrawerAPIView(TenantAPIMixin, APIView):
         })
 
 
+def _workspace_error_response(exc: DomainError) -> Response:
+    if exc.code == "permission_denied":
+        http_status = status.HTTP_403_FORBIDDEN
+    elif exc.code == "not_found":
+        http_status = status.HTTP_404_NOT_FOUND
+    elif exc.code in ("conflict", "invalid_transition"):
+        http_status = status.HTTP_409_CONFLICT
+    else:
+        http_status = getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST)
+    return Response(
+        {"error": {"code": exc.code, "message": exc.message, "details": getattr(exc, "details", {})}},
+        status=http_status,
+    )
+
+
 class JobStartAPIView(TenantAPIMixin, APIView):
     """Starts the assigned work order (DISPATCHED -> IN_PROGRESS)."""
 
@@ -101,7 +116,7 @@ class JobStartAPIView(TenantAPIMixin, APIView):
         try:
             order = services.start_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} started.",
@@ -124,7 +139,7 @@ class JobPauseAPIView(TenantAPIMixin, APIView):
         try:
             order = services.pause_job(wo, reason=reason, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} paused.",
@@ -143,7 +158,7 @@ class JobResumeAPIView(TenantAPIMixin, APIView):
         try:
             order = services.resume_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} resumed.",
@@ -179,7 +194,7 @@ class JobTravelLogAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Travel logged successfully.",
@@ -217,7 +232,12 @@ class JobDetailAPIView(TenantAPIMixin, APIView):
         try:
             data = selectors.get_job_detail(request.membership, pk)
         except DomainError as exc:
-            http_status = status.HTTP_404_NOT_FOUND if exc.code == "not_found" else status.HTTP_400_BAD_REQUEST
+            if exc.code == "not_found":
+                http_status = status.HTTP_404_NOT_FOUND
+            elif exc.code == "permission_denied":
+                http_status = status.HTTP_403_FORBIDDEN
+            else:
+                http_status = status.HTTP_400_BAD_REQUEST
             return Response({"error": {"code": exc.code, "message": exc.message}}, status=http_status)
 
         wo = data["work_order"]
@@ -269,7 +289,7 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(WorkNoteSerializer(note_entry).data, status=status.HTTP_201_CREATED)
 
@@ -297,7 +317,7 @@ class JobLaborAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Labor time recorded successfully.",
@@ -337,7 +357,7 @@ class JobMaterialAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobMaterialSerializer(mat).data, status=status.HTTP_201_CREATED)
 
@@ -376,7 +396,7 @@ class JobEvidenceAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         from apps.workorders.models import WorkOrderEvidence
 
@@ -418,7 +438,7 @@ class JobPartConsumeAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -446,7 +466,7 @@ class JobPartReturnAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -494,39 +514,67 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
 
-        serializer = JobCompleteWithSignoffSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        d = serializer.validated_data
+        signer_name = request.data.get("signer_name")
+        if signer_name:
+            serializer = JobCompleteWithSignoffSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            d = serializer.validated_data
 
-        final_photo = request.FILES.get("final_photo") or d.get("final_photo")
-        sig_file = request.FILES.get("signature_file") or d.get("signature_file")
+            final_photo = request.FILES.get("final_photo") or d.get("final_photo")
+            sig_file = request.FILES.get("signature_file") or d.get("signature_file")
 
-        try:
-            order, signoff = services.complete_job_with_signoff(
-                wo,
-                resolution_notes=d["resolution_notes"],
-                signer_name=d["signer_name"],
-                signer_title=d.get("signer_title", ""),
-                signature_data_base64=d.get("signature_data") or None,
-                signature_file=sig_file,
-                final_photo_file=final_photo,
-                customer_notes=d.get("customer_notes", ""),
-                technician_notes=d.get("technician_notes", ""),
-                membership=request.membership,
-                actor=request.user,
-                request=request,
+            try:
+                order, signoff = services.complete_job_with_signoff(
+                    wo,
+                    resolution_notes=d["resolution_notes"],
+                    signer_name=d["signer_name"],
+                    signer_title=d.get("signer_title", ""),
+                    signature_data_base64=d.get("signature_data") or None,
+                    signature_file=sig_file,
+                    final_photo_file=final_photo,
+                    customer_notes=d.get("customer_notes", ""),
+                    technician_notes=d.get("technician_notes", ""),
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+            except DomainError as exc:
+                return _workspace_error_response(exc)
+
+            return Response(
+                {
+                    "status": order.status,
+                    "order_number": order.order_number,
+                    "signoff": WorkOrderSignoffSerializer(signoff).data,
+                },
+                status=status.HTTP_200_OK,
             )
-        except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            resolution_notes = (request.data.get("resolution_notes") or "").strip()
+            if len(resolution_notes) < 10:
+                return Response(
+                    {"error": {"code": "resolution_notes_required", "message": "Resolution notes must contain at least 10 characters."}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                order = services.complete_job(
+                    wo,
+                    resolution_notes=resolution_notes,
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+            except DomainError as exc:
+                return _workspace_error_response(exc)
 
-        return Response(
-            {
-                "status": order.status,
-                "order_number": order.order_number,
-                "signoff": WorkOrderSignoffSerializer(signoff).data,
-            },
-            status=status.HTTP_200_OK,
-        )
+            return Response(
+                {
+                    "status": order.status,
+                    "order_number": order.order_number,
+                    "signoff": None,
+                },
+                status=status.HTTP_200_OK,
+            )
 
 
 class JobMeterReadingAPIView(TenantAPIMixin, APIView):

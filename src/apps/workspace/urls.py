@@ -1,10 +1,12 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
 app_name = "workspace"
 
 urlpatterns = [
+    path("technician/dashboard/", RedirectView.as_view(url="/app/workspace/", permanent=False), name="technician_dashboard"),
     path("workspace/", views.MyJobsView.as_view(), name="my_jobs"),
     path("workspace/my-jobs/", views.MyJobsView.as_view()),
     path("workspace/jobs/<uuid:pk>/", views.JobDetailView.as_view(), name="job_detail"),

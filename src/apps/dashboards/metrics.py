@@ -10,13 +10,13 @@ import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Avg, Count, F, Q, Sum
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.assets.models import Asset
 from apps.incidents.models import Downtime, ServiceRequest
-from apps.inventory.models import Part, StockBalance, StockMovement
+from apps.inventory.models import StockBalance, StockMovement
 from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole, Role
 from apps.sites.models import Site
@@ -126,22 +126,22 @@ def parse_date_window(
     if to_date_str:
         try:
             to_date = datetime.date.fromisoformat(str(to_date_str).strip())
-            end_dt = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=datetime.timezone.utc)
+            end_dt = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=datetime.UTC)
         except ValueError:
             from apps.core.exceptions import ValidationFailed
             raise ValidationFailed("Invalid to date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
-        end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.timezone.utc)
+        end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.UTC)
 
     if from_date_str:
         try:
             from_date = datetime.date.fromisoformat(str(from_date_str).strip())
-            start_dt = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=datetime.timezone.utc)
+            start_dt = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=datetime.UTC)
         except ValueError:
             from apps.core.exceptions import ValidationFailed
             raise ValidationFailed("Invalid from date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
-        start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.timezone.utc)
+        start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.UTC)
 
     if start_dt > end_dt:
         start_dt, end_dt = end_dt - datetime.timedelta(days=default_days), end_dt
@@ -161,7 +161,7 @@ def resolve_permitted_sites(
     requested_site_id: str | None = None,
 ) -> list[Site]:
     """Resolves sites accessible to the membership for the dashboard section.
-    
+
     Enforces intersection of `report.view` and section data permissions (D-052).
     """
     if not membership or not membership.is_active:
@@ -453,6 +453,88 @@ def compute_work_order_snapshots(organization: Organization, sites: list[Site]) 
     }
 
 
+def compute_sla_compliance(
+    organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime
+) -> dict[str, Any]:
+    """Calculates comprehensive SLA compliance rates and statistics across the date window."""
+    site_ids = [s.pk for s in sites]
+    trackings = SLATracking.objects.filter(
+        organization=organization,
+        site_id__in=site_ids,
+        started_at__gte=start_dt,
+        started_at__lte=end_dt,
+    )
+
+    def _calc_bucket(qs, field: str):
+        counts = {r[field]: r["n"] for r in qs.values(field).annotate(n=Count("id"))}
+        met = counts.get("MET", 0)
+        late = counts.get("MET_LATE", 0)
+        breached = counts.get("BREACHED", 0)
+        pending = counts.get("PENDING", 0)
+        not_app = counts.get("NOT_APPLICABLE", 0)
+        finished = met + late + breached
+        pct = round(100.0 * met / finished, 1) if finished else None
+        return {
+            "met": met,
+            "met_late": late,
+            "breached": breached,
+            "pending": pending,
+            "not_applicable": not_app,
+            "finished": finished,
+            "compliance_percent": pct,
+        }
+
+    resp_b = _calc_bucket(trackings, "response_state")
+    reso_b = _calc_bucket(trackings, "resolution_state")
+
+    total_met = resp_b["met"] + reso_b["met"]
+    total_finished = resp_b["finished"] + reso_b["finished"]
+    overall_pct = round(100.0 * total_met / total_finished, 1) if total_finished else None
+
+    priority_compliance = {}
+    for prio in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "URGENT"):
+        p_qs = trackings.filter(priority=prio)
+        if p_qs.exists():
+            p_resp = _calc_bucket(p_qs, "response_state")
+            p_reso = _calc_bucket(p_qs, "resolution_state")
+            p_fin = p_resp["finished"] + p_reso["finished"]
+            p_met = p_resp["met"] + p_reso["met"]
+            priority_compliance[prio] = {
+                "compliance_percent": round(100.0 * p_met / p_fin, 1) if p_fin else None,
+                "response_compliance": p_resp["compliance_percent"],
+                "resolution_compliance": p_reso["compliance_percent"],
+                "total_trackings": p_qs.count(),
+            }
+
+    site_compliance = {}
+    for s in sites:
+        s_qs = trackings.filter(site=s)
+        if s_qs.exists():
+            s_resp = _calc_bucket(s_qs, "response_state")
+            s_reso = _calc_bucket(s_qs, "resolution_state")
+            s_fin = s_resp["finished"] + s_reso["finished"]
+            s_met = s_resp["met"] + s_reso["met"]
+            site_compliance[str(s.pk)] = {
+                "site_name": s.name,
+                "site_code": s.code,
+                "compliance_percent": round(100.0 * s_met / s_fin, 1) if s_fin else None,
+                "response_compliance": s_resp["compliance_percent"],
+                "resolution_compliance": s_reso["compliance_percent"],
+                "total_trackings": s_qs.count(),
+            }
+
+    return {
+        "overall_compliance": overall_pct,
+        "response_compliance": resp_b["compliance_percent"],
+        "resolution_compliance": reso_b["compliance_percent"],
+        "response_bucket": resp_b,
+        "resolution_bucket": reso_b,
+        "priority_compliance": priority_compliance,
+        "site_compliance": site_compliance,
+        "total_trackings": trackings.count(),
+    }
+
+
 def compute_sla_breaches(organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime) -> dict[str, Any]:
     """Calculates SLA breaches recorded within the window."""
     site_ids = [s.pk for s in sites]
@@ -467,12 +549,40 @@ def compute_sla_breaches(organization: Organization, sites: list[Site], start_dt
     response_breaches = breaches.filter(target_kind="RESPONSE").count()
     resolution_breaches = breaches.filter(target_kind="RESOLUTION").count()
 
+    from collections import defaultdict
+    day_counts = defaultdict(int)
+    for b_dt in breaches.values_list("breached_at", flat=True):
+        if b_dt:
+            day_counts[b_dt.date().isoformat()] += 1
+    trend = []
+    curr = start_dt.date()
+    end_date = end_dt.date()
+    while curr <= end_date:
+        d_str = curr.isoformat()
+        trend.append({"date": d_str, "count": day_counts.get(d_str, 0)})
+        curr += datetime.timedelta(days=1)
+
+    by_priority = {r["priority"]: r["n"] for r in breaches.values("priority").annotate(n=Count("id"))}
+    compliance = compute_sla_compliance(organization, sites, start_dt, end_dt)
+    by_site = {str(r["site_id"]): r["n"] for r in breaches.values("site_id").annotate(n=Count("id"))}
+
     return {
         "value": str(total_breaches),
         "numeric": total_breaches,
         "open_breaches": open_breaches,
         "response_breaches": response_breaches,
         "resolution_breaches": resolution_breaches,
+        "trend": trend,
+        "by_priority": by_priority,
+        "by_site": by_site,
+        "overall_compliance": compliance["overall_compliance"],
+        "response_compliance": compliance["response_compliance"],
+        "resolution_compliance": compliance["resolution_compliance"],
+        "response_bucket": compliance["response_bucket"],
+        "resolution_bucket": compliance["resolution_bucket"],
+        "priority_compliance": compliance["priority_compliance"],
+        "site_compliance": compliance["site_compliance"],
+        "total_trackings": compliance["total_trackings"],
         "unit": "count",
     }
 
@@ -489,6 +599,10 @@ def get_operations_dashboard(organization: Organization, sites: list[Site], star
     pm_res = compute_pm_compliance(organization, sites, start_dt, end_dt)
     sla_res = compute_sla_breaches(organization, sites, start_dt, end_dt)
 
+    overall_comp_str = f"{sla_res['overall_compliance']}%" if sla_res['overall_compliance'] is not None else "100.0%"
+    resp_comp_str = f"{sla_res['response_compliance']}%" if sla_res['response_compliance'] is not None else "100.0%"
+    reso_comp_str = f"{sla_res['resolution_compliance']}%" if sla_res['resolution_compliance'] is not None else "100.0%"
+
     return {
         "section": "operations",
         "date_range": {"from": start_dt.date().isoformat(), "to": end_dt.date().isoformat()},
@@ -501,6 +615,9 @@ def get_operations_dashboard(organization: Organization, sites: list[Site], star
             "technician_utilization": util_res["value"],
             "pm_compliance": pm_res["value"],
             "sla_breaches": sla_res["value"],
+            "sla_compliance": overall_comp_str,
+            "response_compliance": resp_comp_str,
+            "resolution_compliance": reso_comp_str,
         },
         "details": {
             "mttr_data": mttr_res,
@@ -602,6 +719,10 @@ def get_service_dashboard(organization: Organization, sites: list[Site], start_d
     total_new = requests_qs.filter(created_at__gte=start_dt, created_at__lte=end_dt).count()
     sla_res = compute_sla_breaches(organization, sites, start_dt, end_dt)
 
+    overall_comp_str = f"{sla_res['overall_compliance']}%" if sla_res['overall_compliance'] is not None else "100.0%"
+    resp_comp_str = f"{sla_res['response_compliance']}%" if sla_res['response_compliance'] is not None else "100.0%"
+    reso_comp_str = f"{sla_res['resolution_compliance']}%" if sla_res['resolution_compliance'] is not None else "100.0%"
+
     return {
         "section": "service",
         "date_range": {"from": start_dt.date().isoformat(), "to": end_dt.date().isoformat()},
@@ -609,6 +730,12 @@ def get_service_dashboard(organization: Organization, sites: list[Site], start_d
             "open_requests": open_requests,
             "new_requests_in_window": total_new,
             "sla_breaches": sla_res["value"],
+            "sla_compliance": overall_comp_str,
+            "response_compliance": resp_comp_str,
+            "resolution_compliance": reso_comp_str,
+            "open_sla_breaches": sla_res["open_breaches"],
+            "response_breaches": sla_res["response_breaches"],
+            "resolution_breaches": sla_res["resolution_breaches"],
         },
         "details": {
             "sla_data": sla_res,

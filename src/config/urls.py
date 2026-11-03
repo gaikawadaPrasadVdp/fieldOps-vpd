@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
@@ -50,17 +50,19 @@ from apps.sites.api_views import (
     ZoneViewSet,
 )
 from apps.sla.api_views import (
+    EscalationViewSet,
     SLABreachViewSet,
     SLAMetricsView,
     SLAProfileViewSet,
     SLATrackingViewSet,
 )
-from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet
+from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet, PlatformUserViewSet
 from apps.workorders.views import WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
 router = SimpleRouter()
 router.register("members", MemberViewSet, basename="member")
+router.register("users", MemberViewSet, basename="user")
 router.register("roles", RoleViewSet, basename="role")
 router.register("permissions", PermissionViewSet, basename="permission")
 router.register("audit-logs", AuditLogViewSet, basename="auditlog")
@@ -70,6 +72,7 @@ router.register("zones", ZoneViewSet, basename="zone")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
+router.register("contacts", ContactViewSet, basename="contact")
 router.register("assets", AssetViewSet, basename="asset")
 router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
 router.register("asset-components", ComponentViewSet, basename="asset-component")
@@ -96,8 +99,12 @@ router.register("coverage-agreements", AgreementViewSet, basename="coverage-agre
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
+router.register("slas", SLAProfileViewSet, basename="sla")
 router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
 router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
+router.register("breaches", SLABreachViewSet, basename="breach")
+router.register("escalations", EscalationViewSet, basename="escalation")
+router.register("sla-escalations", EscalationViewSet, basename="sla-escalation")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 
 api_v1 = [
@@ -110,6 +117,10 @@ api_v1 = [
          name="platform-organizations-detail"),
     path("platform/organizations/<uuid:pk>/status/", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
          name="platform-organizations-status"),
+    path("platform/organizations/<uuid:pk>/users/", PlatformOrganizationViewSet.as_view({"post": "create_user"}),
+         name="platform-organizations-users"),
+    path("platform/users/", PlatformUserViewSet.as_view({"post": "create"}),
+         name="platform-users-create"),
     path("portal/", include("apps.portal.api_urls")),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
@@ -119,9 +130,33 @@ api_v1 = [
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 
+
+from django.views import View
+from django.shortcuts import redirect
+
+class AdminLandingRedirectView(View):
+    """Graceful landing for /admin/ preventing dead-ends or login loops."""
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(f"/accounts/login/?next={request.path}")
+        if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
+            return redirect("platform_admin:organizations")
+        return redirect("ui:home")
+
 urlpatterns = [
+    path("admin/", AdminLandingRedirectView.as_view(), name="admin_landing"),
+    path("admin", RedirectView.as_view(url="/admin/", permanent=False)),
     path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
     path("swagger/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("assets/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("planner/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("inventory/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("service-manager/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("audit/view/", RedirectView.as_view(url="/app/audit/", permanent=False)),
+    path("technician/dashboard/", RedirectView.as_view(url="/app/workspace/", permanent=False)),
+    path("dispatcher/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("supervisor/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
+    path("portal/view/", RedirectView.as_view(url="/app/portal/", permanent=False)),
     path("health/live/", health.live, name="health_live"),
     path("health/ready/", health.ready, name="health_ready"),
     path("platform/", include("apps.tenancy.platform_urls")),
@@ -148,8 +183,10 @@ urlpatterns = [
     path("", include("apps.ui.urls")),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
+from django.views.static import serve
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+]
 
 handler400 = "apps.ui.views.bad_request"
 handler400 = "apps.ui.views.bad_request"

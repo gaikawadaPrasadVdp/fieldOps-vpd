@@ -268,7 +268,7 @@ def owner_memberships(org, *, exclude=None):
 
     qs = Membership.objects.unscoped().filter(
         organization=org,
-        status__in=[Membership.Status.ACTIVE, Membership.Status.INVITED],
+        status=Membership.Status.ACTIVE,
         membership_roles__role__is_owner=True,
     )
     if exclude is not None:

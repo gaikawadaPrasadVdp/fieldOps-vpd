@@ -126,7 +126,12 @@ class JobEvidenceSerializer(serializers.ModelSerializer):
     size = serializers.IntegerField(source="attachment.size", read_only=True)
     mime_type = serializers.CharField(source="attachment.mime_type", read_only=True)
     description = serializers.CharField(source="attachment.description", read_only=True)
-    file_url = serializers.FileField(source="attachment.file", read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj) -> str:
+        if obj.attachment_id:
+            return f"/app/files/{obj.attachment_id}/download/"
+        return ""
     uploader_name = serializers.CharField(source="attachment.uploaded_by.display_name", read_only=True)
 
     class Meta:
@@ -197,16 +202,16 @@ class WorkOrderSignoffSerializer(serializers.Serializer):
 
 class JobCompleteWithSignoffSerializer(serializers.Serializer):
     resolution_notes = serializers.CharField(min_length=10, max_length=2000)
-    signer_name = serializers.CharField(max_length=150)
-    signer_title = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    signature_data = serializers.CharField(required=False, allow_blank=True)
-    signature_file = serializers.FileField(required=False, allow_null=True)
-    final_photo = serializers.FileField(required=False, allow_null=True)
-    customer_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
-    technician_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    signer_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    signer_title = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    signature_data = serializers.CharField(required=False, allow_blank=True, default="")
+    signature_file = serializers.FileField(required=False, allow_null=True, default=None)
+    final_photo = serializers.FileField(required=False, allow_null=True, default=None)
+    customer_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
+    technician_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
-        if not attrs.get("signature_data") and not attrs.get("signature_file"):
+        if attrs.get("signer_name") and not attrs.get("signature_data") and not attrs.get("signature_file"):
             raise serializers.ValidationError({"signature_data": "A customer digital signature is required."})
         return attrs
 

@@ -53,10 +53,12 @@ def _site_zone(site):
 
 
 def _orders(request):
-    m = request.membership
+    m = getattr(request, "membership", None)
+    if not m:
+        return WorkOrder.objects.none()
     qs = WorkOrder.objects.for_organization(m.organization).select_related("site", "assigned_to__user", "created_by")
     if not rbac.has_permission_anywhere(m, "work_order.view"):
-        qs = qs.filter(Q(assigned_to=m) | Q(assigned_to__isnull=True))
+        qs = qs.filter(assigned_to=m)
     from apps.sites.models import Site
     visible = [s.pk for s in Site.objects.for_organization(m.organization)
                if rbac.has_permission(m, "work_order.view", s) or
@@ -198,6 +200,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
         )
         return render(request, self.template_name, {
             "page_obj": page_obj, "work_orders": page_obj.object_list, "status_cards": status_cards,
+            "can_assign": rbac.has_permission_anywhere(request.membership, "work_order.assign"),
             "statuses": card_statuses, "priorities": WorkOrder.Priority.choices,
             "work_types": WorkOrder.WorkType.choices, "sites": sites, "assignees": assignees,
             "selected_status": state, "selected_priority": priority, "selected_work_type": work_type,
@@ -244,6 +247,7 @@ class ScheduleBoardView(TenantPermissionMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
+        can_assign_anywhere = rbac.has_permission_anywhere(request.membership, "work_order.assign")
         permitted_orders = _orders(request)
         from apps.sites.models import Site
         visible_site_list = [site for site in Site.objects.for_organization(request.organization)
@@ -308,7 +312,7 @@ class ScheduleBoardView(TenantPermissionMixin, View):
         if overdue == "1":
             qs = qs.filter(due_at__lt=timezone.now())
         orders = list(qs)
-        unassigned_orders = list(qs.filter(status=WorkOrder.Status.PLANNED, assigned_to__isnull=True))
+        unassigned_orders = list(qs.filter(status=WorkOrder.Status.PLANNED, assigned_to__isnull=True)) if can_assign_anywhere else []
         conflicts = set()
         assigned_ids = {order.assigned_to_id for order in orders if order.assigned_to_id}
         conflict_orders = list(permitted_orders.filter(
@@ -526,6 +530,7 @@ class ScheduleBoardView(TenantPermissionMixin, View):
                    "status_choices": [(code, label) for code, label in WorkOrder.Status.choices if code in board_statuses],
                    "priority_choices": WorkOrder.Priority.choices,
                    "status_cards": status_cards,
+                   "can_assign": can_assign_anywhere,
                    "schedule_htmx_update": bool(request.headers.get("HX-Request")),
                    "schedule_error": request.GET.get("error", ""),
                    "schedule_success": ("Technician assigned and schedule refreshed." if request.GET.get("assigned") == "1"
@@ -851,6 +856,10 @@ def _work_order_detail_context(request, wo, active_tab="overview"):
         "completed": code in status_events and code != wo.status,
         "next": code in next_statuses}
         for code, label in WORKFLOW_STEPS]
+    from django.apps import apps
+    if apps.is_installed("apps.sla"):
+        from apps.sla.selectors import tracking_for_work_order
+        context["sla"] = tracking_for_work_order(request.membership, wo.organization, wo)
     context.update(_work_order_tab_context(wo, request.membership, active_tab))
     return context
 
@@ -887,6 +896,11 @@ def _work_order_tab_context(wo, membership, tab):
        "is_closed": wo.status == WorkOrder.Status.CLOSED,
        "due_is_overdue": bool(wo.due_at and wo.due_at < timezone.now() and
                                wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}
+    if tab == "overview":
+        from django.apps import apps
+        if apps.is_installed("apps.sla"):
+            from apps.sla.selectors import tracking_for_work_order
+            context["sla"] = tracking_for_work_order(membership, wo.organization, wo)
     if tab in ("assignment", "timeline", "closure"):
         context["events"] = wo.events.select_related("actor", "assigned_to__user")
     if tab == "checklist":
@@ -1087,7 +1101,7 @@ class WorkOrderTabView(TenantPermissionMixin, View):
 
 
 ACTION_PERMISSION = {
-    "plan": "work_order.plan", "assign": "work_order.assign", "dispatch": "work_order.dispatch",
+    "plan": "work_order.plan", "assign": "work_order.assign", "reassign": "work_order.assign", "dispatch": "work_order.dispatch",
     "start": "work_order.start", "hold": "work_order.hold", "resume": "work_order.start",
     "complete": "work_order.complete", "submit_for_review": "work_order.complete",
     "review": "work_order.review",
@@ -1096,7 +1110,7 @@ ACTION_PERMISSION = {
     "labor": "work_order.record", "materials": "work_order.record",
     "evidence": "work_order.attach",
 }
-ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "hold": ReasonForm,
+ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "reassign": AssignForm, "hold": ReasonForm,
                 "complete": CompleteForm, "review": ReviewForm, "checklist": ChecklistForm,
                 "close": ClosureCommentForm, "return_for_rework": ClosureCommentForm,
                 "work_update": WorkUpdateForm, "labor": LaborForm, "materials": MaterialForm, "evidence": EvidenceForm}
@@ -1130,7 +1144,7 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if not form_type:
             raise Http404
         kwargs = {}
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             kwargs = {"membership": request.membership, "site": wo.site,
                       "work_order": wo,
                       "initial": {"expected_version": wo.version}}
@@ -1167,8 +1181,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                        "operation": self.operation.replace("_", " ").title(),
                        "expected_version": wo.version,
                        "is_close_action": self.operation == "close",
-                       "scheduled_start": wo.planned_start if self.operation == "assign" else None,
-                       "scheduled_end": wo.planned_end if self.operation == "assign" else None,
+                       "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
+                       "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
                        "labor_entries": wo.labor_entries.all(), "material_entries": wo.material_entries.all(),
                        "evidence_count": wo.evidence_links.count()})
 
@@ -1186,14 +1200,14 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if self.operation == "plan" and wo.status != WorkOrder.Status.DRAFT:
             raise PermissionDenied("Only a Draft work order can be planned.")
         form_type = ACTION_FORMS.get(self.operation)
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo}
         elif self.operation == "plan":
             form_kwargs = {"work_order": wo}
         else:
             form_kwargs = {}
         action_data = request.POST
-        if (self.operation == "assign" and "scheduled_start" not in request.POST and
+        if (self.operation in ("assign", "reassign") and "scheduled_start" not in request.POST and
                 wo.planned_start and wo.planned_end):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
@@ -1233,6 +1247,11 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 result = services.assign_work_order(wo, membership=request.membership, actor=request.user,
                     assignee_id=data["assigned_to"].pk, scheduled_start=data["scheduled_start"],
                     scheduled_end=data["scheduled_end"], expected_version=expected_version, request=request)
+            elif self.operation == "reassign":
+                result = services.reassign_work_order(wo, membership=request.membership, actor=request.user,
+                    assignee_id=data["assigned_to"].pk, scheduled_start=data.get("scheduled_start"),
+                    scheduled_end=data.get("scheduled_end"), reason=data.get("reason", ""),
+                    expected_version=expected_version, request=request)
             elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)

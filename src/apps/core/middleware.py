@@ -24,28 +24,46 @@ class RequestIdMiddleware:
         rid = incoming if _VALID_ID.match(incoming) else uuid.uuid4().hex
         request.request_id = rid
 
+        for k, v in request.GET.items():
+            if "\x00" in k or "\x00" in v:
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {
+                        "error": {
+                            "code": "validation_failed",
+                            "message": "Null characters (0x00) are not permitted in query parameters.",
+                            "details": {},
+                            "request_id": rid,
+                        }
+                    },
+                    status=400,
+                )
+
         path = request.path_info or request.path or ""
-        if path.startswith("/api/"):
+        content_type = request.META.get("CONTENT_TYPE", "")
+        if path.startswith("/api/") or "application/json" in content_type:
             content_length = request.META.get("CONTENT_LENGTH")
             if content_length:
                 try:
                     cl_int = int(content_length)
-                    content_type = request.META.get("CONTENT_TYPE", "")
                     max_allowed = 10 * 1024 * 1024 if "multipart/form-data" in content_type else 5 * 1024 * 1024
                     if cl_int > max_allowed:
                         from django.http import JsonResponse
-                        return JsonResponse(
+                        resp = JsonResponse(
                             {
-                                "success": False,
                                 "error": {
                                     "code": "request_entity_too_large",
                                     "message": f"Request body exceeds maximum allowed size ({max_allowed // (1024 * 1024)}MB).",
                                     "details": {},
+                                    "request_id": rid,
                                 },
+                                "success": False,
                                 "meta": {"request_id": rid},
                             },
                             status=413,
                         )
+                        resp["Connection"] = "close"
+                        return resp
                 except (ValueError, TypeError):
                     pass
 
@@ -54,21 +72,24 @@ class RequestIdMiddleware:
         try:
             response = self.get_response(request)
         except Exception as exc:
-            if exc.__class__.__name__ == "RequestDataTooBig":
+            if exc.__class__.__name__ in ("RequestDataTooBig", "SuspiciousOperation"):
                 from django.http import JsonResponse
                 flogging.request_id_var.reset(token)
-                return JsonResponse(
+                resp = JsonResponse(
                     {
-                        "success": False,
                         "error": {
                             "code": "request_entity_too_large",
                             "message": "Request body exceeds maximum allowed size.",
                             "details": {},
+                            "request_id": rid,
                         },
+                        "success": False,
                         "meta": {"request_id": rid},
                     },
                     status=413,
                 )
+                resp["Connection"] = "close"
+                return resp
             raise
         finally:
             elapsed = int((time.monotonic() - started) * 1000)

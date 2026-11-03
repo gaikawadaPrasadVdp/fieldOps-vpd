@@ -5,8 +5,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import NotFound, ValidationFailed
 from apps.tenancy.api import TenantAPIMixin
 
 from . import selectors, services
@@ -55,6 +56,7 @@ class ScanEventSerializer(serializers.ModelSerializer):
 
 @extend_schema(parameters=[ID_PARAM])
 class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "asset.view",
         "retrieve": "asset.view",
@@ -76,7 +78,7 @@ class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
             query_param("kind", "QR or BARCODE"),
             query_param("active", "true/false"),
         ],
-        responses=IdentifierSerializer(many=True),
+        responses=IdentifierSerializer,
     )
     def list(self, request):
         import uuid
@@ -146,6 +148,8 @@ class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
         ident, asset, is_active = services.resolve_token(
             request.membership, token, actor=request.user, request=request
         )
+        if not is_active:
+            raise NotFound("Label has been revoked or replaced.", code="label_revoked")
 
         work_order_id = request.query_params.get("work_order")
         matching_job = None

@@ -14,8 +14,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--password",
-            default="FieldOps@2026!",
-            help="Default password for all seeded users (default: FieldOps@2026!)",
+            default="Password123!",
+            help="Default password for all seeded users (default: Password123!)",
         )
 
     @transaction.atomic

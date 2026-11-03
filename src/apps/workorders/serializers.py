@@ -25,8 +25,20 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default="")
     component_tag = serializers.CharField(source="component.asset_tag", read_only=True, default="")
     assignee_name = serializers.CharField(source="assigned_to.user.full_name", read_only=True, allow_null=True, default=None)
+    asset_name = serializers.CharField(source="asset.name", read_only=True, default="")
+    expected_version = serializers.IntegerField(source="version", read_only=True, default=1)
+    reason = serializers.CharField(source="hold_reason", read_only=True, default="", allow_blank=True)
+    approved = serializers.SerializerMethodField()
+    checklist_key = serializers.CharField(source="checklist_template_ref", read_only=True, default="", allow_blank=True)
+    is_active = serializers.SerializerMethodField()
     closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
     checklist = serializers.SerializerMethodField()
+
+    def get_approved(self, obj) -> bool:
+        return obj.status == WorkOrder.Status.CLOSED
+
+    def get_is_active(self, obj) -> bool:
+        return obj.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED)
 
     def get_checklist(self, obj) -> dict:
         from .checklist_adapter import get_checklist_summary
@@ -38,13 +50,13 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                   "component", "component_tag", "component_reference", "source_request", "service_request_reference",
                   "source_type", "source_id", "source_reference", "title", "description", "work_type", "priority", "status",
                   "planned_start", "planned_end", "due_at",
-                  "estimated_hours", "assigned_to", "assignee_name", "created_by", "version", "started_at", "completed_at",
+                  "estimated_hours", "assigned_to", "assignee_name", "asset_name", "expected_version", "reason", "approved", "checklist_key", "is_active", "created_by", "version", "started_at", "completed_at",
                   "closed_at", "closed_by", "hold_reason", "resolution_notes", "checklist",
                   "checklist_required", "checklist_template_ref", "checklist_instance_ref",
                   "checklist_status", "checklist_validation_state", "provisional_checklist", "supervisor_notes",
                   "closure_approvals",
                   "created_at", "updated_at"]
-        read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "created_by",
+        read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "asset_name", "expected_version", "reason", "approved", "checklist_key", "is_active", "created_by",
                             "asset", "component", "source_request", "source_id", "asset_tag", "component_tag",
                             "started_at", "completed_at", "closed_at", "hold_reason", "resolution_notes",
                             "closed_by", "supervisor_notes", "version", "created_at", "updated_at", "checklist",
@@ -123,10 +135,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         allowed_sites = [site.pk for site in sites if rbac.has_permission(membership, "work_order.create", site)]
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
-        allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
-        assets = Asset.objects.for_organization(organization).filter(
-            site_id__in=allowed_sites, status__in=allowed_asset_statuses).select_related("site")
-        self.fields["asset"].queryset = assets
+        self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
+            site_id__in=allowed_sites).select_related("site")
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
             status__in=allowed_asset_statuses, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
@@ -158,8 +168,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if asset.site_id != site.pk:
             raise serializers.ValidationError({"asset": "Invalid asset for the selected site."})
-        if asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
-            raise serializers.ValidationError({"asset": f"Cannot create work order for a {asset.status.lower()} asset."})
+        if asset.status != Asset.Status.ACTIVE:
+            raise serializers.ValidationError({"asset": f"Cannot create work order for an asset in {asset.status} status."})
         if component and not AssetComponent.objects.filter(organization=site.organization,
                 parent=asset, child=component,
                 relationship_type=AssetComponent.Relationship.COMPONENT).exists():
@@ -270,6 +280,23 @@ class PlanSerializer(serializers.Serializer):
         return attrs
 
 
+
+class ReassignSerializer(serializers.Serializer):
+    assigned_to = serializers.UUIDField(required=False)
+    technician = serializers.UUIDField(required=False)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    scheduled_start = serializers.DateTimeField(required=False, allow_null=True)
+    scheduled_end = serializers.DateTimeField(required=False, allow_null=True)
+    expected_version = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if not attrs.get("assigned_to") and not attrs.get("technician"):
+            raise serializers.ValidationError({"assigned_to": ["Technician is required for reassignment."]})
+        start, end = attrs.get("scheduled_start"), attrs.get("scheduled_end")
+        if start and end and end <= start:
+            raise serializers.ValidationError({"scheduled_end": ["Scheduled end must be later than scheduled start."]})
+        return attrs
+
 class AssignSerializer(serializers.Serializer):
     assigned_to = serializers.UUIDField()
     scheduled_start = serializers.DateTimeField(required=False)
@@ -291,8 +318,16 @@ class WorkOrderReasonSerializer(serializers.Serializer):
 
 
 class WorkOrderCompleteSerializer(StrictInputSerializer):
-    resolution_notes = serializers.CharField(min_length=10)
+    resolution_notes = serializers.CharField(min_length=10, required=False)
+    summary = serializers.CharField(required=False, allow_blank=True)
     expected_version = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if not attrs.get("resolution_notes") and attrs.get("summary"):
+            attrs["resolution_notes"] = attrs["summary"]
+        if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
+            raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
+        return attrs
 
 
 class ChecklistReferenceSerializer(StrictInputSerializer):

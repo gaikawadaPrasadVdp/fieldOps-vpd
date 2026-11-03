@@ -9,6 +9,7 @@ per tracking and target), so a monitor that runs twice cannot duplicate anything
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from apps.core.models import TenantOwnedModel
 
@@ -43,6 +44,11 @@ class SLAProfile(TenantOwnedModel):
     work_type = models.CharField(max_length=20, blank=True, help_text="Work-order profiles: only this work type")
     # tokens such as WORK_ORDER:ON_HOLD or REQUEST:RESOLVED; empty = the timers never pause (D-044)
     pause_states = models.JSONField(default=default_pause_states, blank=True)
+    calendar = models.ForeignKey("sites.OperatingCalendar", null=True, blank=True, on_delete=models.PROTECT,
+                                 related_name="+", help_text="Operating calendar for business hours. Blank = site default calendar or 24/7.")
+    use_business_hours = models.BooleanField(
+        default=False,
+        help_text="When true, SLA targets run only during calendar working days and business hours.")
     is_active = models.BooleanField(default=True)
     coverage_only = models.BooleanField(
         default=False,
@@ -156,6 +162,11 @@ class SLATracking(TenantOwnedModel):
     paused_at = models.DateTimeField(null=True, blank=True)
     paused_seconds = models.PositiveIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
+    calendar = models.ForeignKey("sites.OperatingCalendar", null=True, blank=True, on_delete=models.PROTECT,
+                                 related_name="+", help_text="Operating calendar applied to this tracking.")
+    use_business_hours = models.BooleanField(
+        default=False,
+        help_text="Whether this tracking uses business hours.")
 
     class Meta:
         ordering = ["-started_at"]
@@ -181,6 +192,68 @@ class SLATracking(TenantOwnedModel):
     @property
     def subject_type(self) -> str:
         return REQUEST if self.request_id else WORK_ORDER
+
+    @property
+    def active_target_name(self) -> str:
+        """Name of the currently active SLA target ('Response' or 'Resolution')."""
+        if self.response_state == self.TargetState.PENDING:
+            return "Response"
+        return "Resolution"
+
+    @property
+    def active_due_at(self):
+        """The due timestamp of the currently active SLA target."""
+        if self.response_state == self.TargetState.PENDING:
+            return self.response_due_at
+        return self.resolution_due_at
+
+    @property
+    def is_breached(self) -> bool:
+        """True if tracking or either target is in BREACHED state."""
+        return (
+            self.status == self.Status.BREACHED
+            or self.response_state == self.TargetState.BREACHED
+            or self.resolution_state == self.TargetState.BREACHED
+        )
+
+    @property
+    def is_at_risk(self) -> bool:
+        """True if warning threshold has been reached."""
+        return self.status == self.Status.AT_RISK
+
+    @property
+    def is_paused(self) -> bool:
+        """True if tracking is paused."""
+        return self.status == self.Status.PAUSED
+
+    @property
+    def is_met(self) -> bool:
+        """True if resolution has been achieved."""
+        return self.resolution_state in (self.TargetState.MET, self.TargetState.MET_LATE)
+
+    @property
+    def time_remaining_display(self) -> str:
+        """Human-readable countdown/overdue display string."""
+        if self.is_paused:
+            return "Paused"
+        if self.is_met:
+            return "Achieved"
+        target_due = self.active_due_at
+        if not target_due:
+            return ""
+        now = timezone.now()
+        diff = target_due - now
+        total_seconds = int(diff.total_seconds())
+        if total_seconds < 0:
+            overdue = abs(total_seconds)
+            h = overdue // 3600
+            m = (overdue % 3600) // 60
+            return f"{f'{h}h ' if h > 0 else ''}{m}m overdue"
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        if h > 0:
+            return f"{h}h {m}m left"
+        return f"{m}m left"
 
     def __str__(self):
         return f"SLA {self.subject}"

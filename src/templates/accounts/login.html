@@ -6,18 +6,19 @@
 {% block auth_right %}
 <main class="fx-login-wrap" role="main">
   <!-- Soft Background with Subtle Gold Curves -->
-  <svg class="fx-login-bg-curves" viewBox="0 0 1000 1000" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <svg class="fx-login-bg-curves" viewBox="0 0 1000 1000" preserveAspectRatio="none" fill="none"
+    xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <!-- Top-Right Curves -->
-    <path d="M620 0 C 700 110, 830 170, 1000 210" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.45"/>
-    <path d="M670 0 C 740 130, 860 200, 1000 250" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.32"/>
-    <path d="M720 0 C 780 150, 890 230, 1000 290" stroke="#F5C451" stroke-width="1.6" stroke-opacity="0.5"/>
-    <path d="M790 0 C 840 170, 920 260, 1000 340" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.28"/>
-    <path d="M850 0 C 890 180, 940 280, 1000 380" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.38"/>
+    <path d="M620 0 C 700 110, 830 170, 1000 210" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.45" />
+    <path d="M670 0 C 740 130, 860 200, 1000 250" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.32" />
+    <path d="M720 0 C 780 150, 890 230, 1000 290" stroke="#F5C451" stroke-width="1.6" stroke-opacity="0.5" />
+    <path d="M790 0 C 840 170, 920 260, 1000 340" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.28" />
+    <path d="M850 0 C 890 180, 940 280, 1000 380" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.38" />
 
     <!-- Bottom-Left Curves -->
-    <path d="M0 720 C 120 780, 230 870, 310 1000" stroke="#F5C451" stroke-width="1.5" stroke-opacity="0.38"/>
-    <path d="M0 770 C 140 820, 260 900, 350 1000" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.3"/>
-    <path d="M0 820 C 160 860, 280 930, 390 1000" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.35"/>
+    <path d="M0 720 C 120 780, 230 870, 310 1000" stroke="#F5C451" stroke-width="1.5" stroke-opacity="0.38" />
+    <path d="M0 770 C 140 820, 260 900, 350 1000" stroke="#F5C451" stroke-width="1.2" stroke-opacity="0.3" />
+    <path d="M0 820 C 160 860, 280 930, 390 1000" stroke="#F5C451" stroke-width="1.4" stroke-opacity="0.35" />
   </svg>
 
   <div class="fx-login-container">
@@ -34,22 +35,23 @@
     <!-- Centered White Login Card -->
     <div class="fx-login-card">
       <!-- Top-Right Curved Gold Accent -->
-      <svg class="fx-card-gold-accent" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg class="fx-card-gold-accent" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true">
         <path d="M35 0 C 45 25, 75 60, 130 75 V 0 H 35 Z" fill="url(#goldGradSoft)" />
         <path d="M55 0 C 65 22, 90 50, 130 60 V 0 H 55 Z" fill="url(#goldGradRich)" />
         <path d="M80 0 C 88 18, 105 35, 130 40 V 0 H 80 Z" fill="url(#goldGradBright)" />
         <defs>
           <linearGradient id="goldGradSoft" x1="35" y1="0" x2="130" y2="75" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#F5C451" stop-opacity="0.35"/>
-            <stop offset="1" stop-color="#F5C451" stop-opacity="0.12"/>
+            <stop stop-color="#F5C451" stop-opacity="0.35" />
+            <stop offset="1" stop-color="#F5C451" stop-opacity="0.12" />
           </linearGradient>
           <linearGradient id="goldGradRich" x1="55" y1="0" x2="130" y2="60" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#F5C451" stop-opacity="0.8"/>
-            <stop offset="1" stop-color="#E5A825" stop-opacity="0.45"/>
+            <stop stop-color="#F5C451" stop-opacity="0.8" />
+            <stop offset="1" stop-color="#E5A825" stop-opacity="0.45" />
           </linearGradient>
           <linearGradient id="goldGradBright" x1="80" y1="0" x2="130" y2="40" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#FDE68A"/>
-            <stop offset="1" stop-color="#F5C451"/>
+            <stop stop-color="#FDE68A" />
+            <stop offset="1" stop-color="#F5C451" />
           </linearGradient>
         </defs>
       </svg>
@@ -64,9 +66,9 @@
       <!-- Login Form -->
       <form method="post" novalidate>{% csrf_token %}
         {% if form.non_field_errors %}
-          <div class="alert alert-danger py-2 px-3 small mb-3" style="border-radius: 8px;">
-            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
-          </div>
+        <div class="alert alert-danger py-2 px-3 small mb-3" style="border-radius: 8px;">
+          {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+        </div>
         {% endif %}
 
         <!-- Email Address -->
@@ -76,18 +78,19 @@
           </label>
           <div class="fx-input-wrapper">
             <span class="fx-input-icon-left" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="20" height="16" x="2" y="4" rx="2"/>
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7"/>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7" />
               </svg>
             </span>
             <input type="email" name="username" id="id_username"
-                   class="fx-login-input {% if form.username.errors %}is-invalid{% endif %}"
-                   value="{{ form.username.value|default:'' }}"
-                   required autocomplete="email" autofocus placeholder="name@organization.com">
+              class="fx-login-input {% if form.username.errors %}is-invalid{% endif %}"
+              value="{{ form.username.value|default:'' }}" required autocomplete="email" autofocus
+              placeholder="name@organization.com">
           </div>
           {% if form.username.errors %}
-            <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.username.errors.0 }}</div>
+          <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.username.errors.0 }}</div>
           {% endif %}
         </div>
 
@@ -98,29 +101,32 @@
           </label>
           <div class="fx-input-wrapper">
             <span class="fx-input-icon-left" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </span>
             <input type="password" name="password" id="id_password"
-                   class="fx-login-input {% if form.password.errors %}is-invalid{% endif %}"
-                   required autocomplete="current-password" placeholder="Enter your password">
+              class="fx-login-input {% if form.password.errors %}is-invalid{% endif %}" required
+              autocomplete="current-password" placeholder="Enter your password">
             <button type="button" class="fx-pw-toggle-btn" id="fx-pw-toggle" aria-label="Toggle password visibility">
-              <svg id="fx-pw-icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                <circle cx="12" cy="12" r="3"/>
+              <svg id="fx-pw-icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-              <svg id="fx-pw-icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-                <line x1="2" x2="22" y1="2" y2="22"/>
+              <svg id="fx-pw-icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                <line x1="2" x2="22" y1="2" y2="22" />
               </svg>
             </button>
           </div>
           {% if form.password.errors %}
-            <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.password.errors.0 }}</div>
+          <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.password.errors.0 }}</div>
           {% endif %}
         </div>
 
@@ -141,8 +147,10 @@
         <button type="submit" class="fx-login-submit-btn">
           <span>Sign In to FieldOps Nexus</span>
           <span class="fx-btn-gold-arrow" aria-hidden="true">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
             </svg>
           </span>
         </button>
@@ -157,11 +165,12 @@
 
       <!-- Client Onboarding / Requester Access Button -->
       <a href="{% url 'ui:client_register' %}" class="fx-onboarding-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
         <span>Client Onboarding / Requester Access</span>
       </a>
@@ -169,8 +178,10 @@
 
     <!-- Return Link -->
     <a href="{% url 'ui:root' %}" class="fx-return-link">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m12 19-7-7 7-7" />
+        <path d="M19 12H5" />
       </svg>
       <span>Return to FieldOps Nexus Overview</span>
     </a>
@@ -178,13 +189,13 @@
 </main>
 
 <script>
-  (function() {
+  (function () {
     var pwToggle = document.getElementById('fx-pw-toggle');
     var pwInput = document.getElementById('id_password');
     var eyeIcon = document.getElementById('fx-pw-icon-eye');
     var eyeOffIcon = document.getElementById('fx-pw-icon-eye-off');
     if (pwToggle && pwInput && eyeIcon && eyeOffIcon) {
-      pwToggle.addEventListener('click', function(e) {
+      pwToggle.addEventListener('click', function (e) {
         e.preventDefault();
         var isPassword = pwInput.getAttribute('type') === 'password';
         pwInput.setAttribute('type', isPassword ? 'text' : 'password');

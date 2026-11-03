@@ -292,6 +292,58 @@
 
     <!-- Right Column: Asset / Site Information & Status Progression History -->
     <div class="col-12 col-lg-5">
+      <!-- SLA Service Level Commitment Card -->
+      {% if sla_commitment %}
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+          <div class="fw-semibold d-flex align-items-center gap-2">
+            {% icon 'clock' 16 %} Service Level Commitment (SLA)
+          </div>
+          <span class="badge bg-{{ sla_commitment.badge_class }}-subtle text-{{ sla_commitment.badge_class }} border border-{{ sla_commitment.badge_class }}-subtle">
+            {{ sla_commitment.status_label }}
+          </span>
+        </div>
+        <div class="card-body p-3">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="text-body-secondary small fw-medium">Initial Response</div>
+              {% if sla_commitment.response_achieved %}
+              <div class="small fw-semibold text-success d-flex align-items-center gap-1 mt-1">
+                {% icon 'check-circle' 14 %} Completed
+              </div>
+              {% if sla_commitment.response_met_at %}
+              <div class="small text-body-secondary">{{ sla_commitment.response_met_datetime|date:"M d, H:i"|default:sla_commitment.response_due_datetime|date:"M d, H:i" }}</div>
+              {% endif %}
+              {% else %}
+              <div class="small fw-semibold mt-1">Due by:</div>
+              <div class="small text-body-secondary">{{ sla_commitment.response_due_datetime|date:"M d, H:i"|default:"Pending" }}</div>
+              {% endif %}
+            </div>
+            <div class="col-6">
+              <div class="text-body-secondary small fw-medium">Target Resolution</div>
+              {% if sla_commitment.resolution_achieved %}
+              <div class="small fw-semibold text-success d-flex align-items-center gap-1 mt-1">
+                {% icon 'check-circle' 14 %} Resolved
+              </div>
+              {% else %}
+              <div class="small fw-semibold mt-1">Target Date:</div>
+              <div class="small text-body-secondary">{{ sla_commitment.expected_resolution_datetime|date:"M d, Y · H:i"|default:"In Progress" }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% if sla_commitment.is_delayed %}
+          <div class="alert alert-danger-subtle text-danger small mt-3 mb-0 p-2 border border-danger-subtle rounded">
+            {% icon 'alert-circle' 14 %} Resolution is experiencing a delay. Operations has escalated attention to this ticket.
+          </div>
+          {% elif sla_commitment.is_paused %}
+          <div class="alert alert-secondary small mt-3 mb-0 p-2 border rounded">
+            {% icon 'pause-circle' 14 %} SLA timer is paused while awaiting customer action or parts delivery.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Asset & Site Card -->
       <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
         <div class="card-header bg-transparent py-3 border-bottom">
@@ -329,8 +381,18 @@
         <div class="card-body p-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <span class="text-body-secondary small fw-medium">Work Order Status</span>
-            <span class="badge bg-info-subtle text-info fw-semibold">{{ work_order.get_status_display }}</span>
+            <span class="badge {% if work_order.status == 'SUPERVISOR_REVIEW' %}bg-warning text-dark border border-warning{% elif work_order.status == 'CLOSED' %}bg-success text-white border border-success{% elif work_order.status == 'COMPLETED' %}bg-info text-dark border border-info{% else %}bg-info-subtle text-info{% endif %} fw-semibold">
+              {% if work_order.status == 'SUPERVISOR_REVIEW' %}{% icon 'clock' 12 %} Under Supervisor Review{% else %}{{ work_order.get_status_display }}{% endif %}
+            </span>
           </div>
+          {% if work_order.status == 'SUPERVISOR_REVIEW' %}
+          <div class="alert alert-warning d-flex align-items-center gap-2 small p-2 mb-3 shadow-none border-warning-subtle" style="background-color: #fffbeb;">
+            {% icon 'clock' 16 %}
+            <div>
+              <strong>Under Quality Review:</strong> Field work completed. Supervisor review is in progress before client confirmation.
+            </div>
+          </div>
+          {% endif %}
 
           {% if work_order.planned_start or work_order.planned_end %}
           <div class="mb-3 p-3 bg-light rounded border">

@@ -425,6 +425,9 @@ class RequestDetailView(IncidentBase):
         ctx = {"sr": sr, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
                "downtime": selectors.downtime_for(org, sr), "editable": sr.status in ("NEW", "TRIAGED"),
                "linked_work_order": linked_work_order, "workflow_guide": workflow_guide}
+        if apps.is_installed("apps.sla"):
+            from apps.sla.selectors import tracking_for_request
+            ctx["sla"] = tracking_for_request(m, org, sr)
         if tab == "evidence":
             ctx["evidence"] = selectors.evidence_for(org, sr)
             ctx["evidence_form"] = EvidenceForm()

@@ -40,6 +40,32 @@
   </div>
 </div>
 
+{% if shell_org.is_scheduled_for_deletion %}
+<div class="alert alert-danger shadow-sm border-danger mb-4 p-4" role="alert" style="border-left: 6px solid #dc3545; background-color: #fff5f5;">
+  <div class="d-flex align-items-start gap-3">
+    <div class="fs-1 text-danger lh-1">⚠️</div>
+    <div class="flex-grow-1">
+      <h4 class="alert-heading text-danger fw-bold mb-2">
+        Scheduled Deletion Notice: {{ shell_org.days_until_deletion }} day{{ shell_org.days_until_deletion|pluralize }} remaining
+      </h4>
+      <p class="mb-2 text-dark">
+        This organization is queued for permanent deletion/decommissioning on <strong>{{ shell_org.deletion_scheduled_at|date:"F j, Y, H:i" }} UTC</strong>.
+      </p>
+      {% if shell_org.deletion_reason %}
+        <div class="p-2 rounded mb-2" style="background-color: #ffeaea; border: 1px solid #fecaca;">
+          <strong>Deletion Reason:</strong> {{ shell_org.deletion_reason }}
+        </div>
+      {% endif %}
+      {% if is_org_owner %}
+        <div class="alert alert-warning border-warning mb-0 small mt-2">
+          <strong>Notice for Organization Owner:</strong> All operational asset records, maintenance schedules, work orders, telemetry, and user access will be permanently terminated upon deletion. If this request was initiated in error or you need an extension, please contact your platform administrator immediately to cancel or reschedule.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="row">
   <div class="col-12 col-xl-9">
     <div class="fx-card shadow-sm border">

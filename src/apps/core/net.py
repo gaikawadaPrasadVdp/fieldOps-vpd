@@ -35,10 +35,23 @@ def axes_username(request, credentials=None) -> str | None:
     (key ``username``, even though our USERNAME_FIELD is ``email``), normalised so that case/whitespace
     variants cannot dodge the failure counter."""
     value = None
-    if credentials:
+    if credentials and isinstance(credentials, dict):
         value = credentials.get("username") or credentials.get("email")
-    if value is None:
+    if value is None and request:
         data = getattr(request, "data", None) or getattr(request, "POST", None)
         if data and hasattr(data, "get"):
             value = data.get("username") or data.get("email")
+        if value is None:
+            # For JSON API requests (like /api/v1/auth/token/) where DRF hasn't yet parsed request.data
+            try:
+                body = getattr(request, "_body", None)
+                if body is None and hasattr(request, "body"):
+                    body = request.body
+                if body:
+                    import json
+                    payload = json.loads(body.decode("utf-8", errors="replace"))
+                    if isinstance(payload, dict):
+                        value = payload.get("username") or payload.get("email")
+            except Exception:
+                pass
     return value.strip().lower() if isinstance(value, str) and value.strip() else None
