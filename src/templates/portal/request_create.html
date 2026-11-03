@@ -107,10 +107,7 @@
               </div>
               {% endif %}
               {{ form.asset }}
-              <div id="portal-no-site-assets-msg" class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mt-2" hidden>
-                {% icon 'info' 16 %}
-                <span>No granted assets found for the selected site / location.</span>
-              </div>
+              
               {% if form.asset.help_text %}
               <div class="form-text text-body-secondary">{{ form.asset.help_text }}</div>
               {% endif %}
