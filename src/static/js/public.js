@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const railLine = document.getElementById('nexus-rail-line');
   const signalHead = document.getElementById('nexus-signal-head');
   const stageTag = document.getElementById('nexus-stage-tag');
+  const pubHeader = document.querySelector('.fx-pub-header');
 
    const GLOBAL_STAGES = [
      { p: 0.00, label: "SIGNAL INITIATED" },
@@ -31,7 +32,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxScroll = scrollHeight - clientHeight;
     const progress = maxScroll > 0 ? Math.min(Math.max(scrollY / maxScroll, 0), 1) : 0;
 
-    // Top navbar indicator
+    // Top navbar indicator & scroll class toggle
+    if (pubHeader) {
+      if (scrollY > 50) {
+        pubHeader.classList.add('is-scrolled');
+      } else {
+        pubHeader.classList.remove('is-scrolled');
+      }
+    }
     if (navScrollSignal) {
       navScrollSignal.style.transform = `scaleX(${progress})`;
     }
@@ -77,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const openMega = (menuId) => {
     cancelClose();
     activeMenu = menuId;
+    if (pubHeader) pubHeader.classList.add('has-mega-open');
     megaPanels.forEach(panel => {
       if (panel.id === `mega-${menuId}`) {
         panel.classList.add('is-active');
@@ -105,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeMega = () => {
     cancelClose();
     activeMenu = null;
+    if (pubHeader) pubHeader.classList.remove('has-mega-open');
     megaPanels.forEach(panel => panel.classList.remove('is-active'));
     megaTriggers.forEach(btn => {
       btn.classList.remove('is-open');

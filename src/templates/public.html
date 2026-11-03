@@ -2,7 +2,7 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.5">
 {% endblock %}
 
 {% block body_class %}fx-auth-split-body{% endblock %}
@@ -19,6 +19,14 @@
     <div class="position-absolute bottom-0 start-0 end-0 pointer-events-none"
          style="height: 50%; background: linear-gradient(to top, #071426, transparent);"></div>
 
+    <!-- Flowing Gold Accent Lines on Left Panel -->
+    <svg class="position-absolute bottom-0 end-0 pointer-events-none" style="width: 100%; height: 75%; opacity: 0.35; z-index: 0;" viewBox="0 0 600 800" fill="none" preserveAspectRatio="none">
+      <path d="M0 680 C 180 720, 360 670, 600 520" stroke="#F5C451" stroke-width="1.6" />
+      <path d="M0 720 C 200 760, 400 710, 600 580" stroke="#F5C451" stroke-width="1.2" />
+      <path d="M0 760 C 230 800, 440 760, 600 640" stroke="#F5C451" stroke-width="1.8" />
+      <path d="M0 640 C 160 670, 320 620, 600 460" stroke="#F5C451" stroke-width="1.2" />
+    </svg>
+
     <!-- Top Brand Badge -->
     <div class="position-relative z-1">
       <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white">
@@ -26,7 +34,7 @@
           {% icon 'activity' 19 %}
         </div>
         <div>
-          <div class="fw-bold fs-5 text-white lh-1">FieldOps <span style="color:#F5C451;">Nexus</span></div>
+          <div class="fw-bold fs-5 text-white lh-1">FieldOps Nexus</div>
           <div class="small text-uppercase fw-semibold" style="color:#F5C451; letter-spacing:0.12em; font-size:0.68rem;">Enterprise Platform</div>
         </div>
       </a>

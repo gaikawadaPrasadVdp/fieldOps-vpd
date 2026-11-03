@@ -34,22 +34,22 @@
 
     <!-- Centered White Login Card -->
     <div class="fx-login-card">
-      <!-- Top-Right Curved Gold Accent -->
-      <svg class="fx-card-gold-accent" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg"
+      <!-- Top-Right Curved Gold Accent (Matches Reference Mockup) -->
+      <svg class="fx-card-gold-accent" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true">
-        <path d="M35 0 C 45 25, 75 60, 130 75 V 0 H 35 Z" fill="url(#goldGradSoft)" />
-        <path d="M55 0 C 65 22, 90 50, 130 60 V 0 H 55 Z" fill="url(#goldGradRich)" />
-        <path d="M80 0 C 88 18, 105 35, 130 40 V 0 H 80 Z" fill="url(#goldGradBright)" />
+        <path d="M20 0 C 35 45, 85 95, 160 115 V 0 H 20 Z" fill="url(#goldGradSoft)" />
+        <path d="M55 0 C 70 38, 110 80, 160 92 V 0 H 55 Z" fill="url(#goldGradRich)" />
+        <path d="M90 0 C 102 28, 130 55, 160 62 V 0 H 90 Z" fill="url(#goldGradBright)" />
         <defs>
-          <linearGradient id="goldGradSoft" x1="35" y1="0" x2="130" y2="75" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#F5C451" stop-opacity="0.35" />
-            <stop offset="1" stop-color="#F5C451" stop-opacity="0.12" />
+          <linearGradient id="goldGradSoft" x1="20" y1="0" x2="160" y2="115" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#F5C451" stop-opacity="0.4" />
+            <stop offset="1" stop-color="#F5C451" stop-opacity="0.1" />
           </linearGradient>
-          <linearGradient id="goldGradRich" x1="55" y1="0" x2="130" y2="60" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#F5C451" stop-opacity="0.8" />
-            <stop offset="1" stop-color="#E5A825" stop-opacity="0.45" />
+          <linearGradient id="goldGradRich" x1="55" y1="0" x2="160" y2="92" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#F5C451" stop-opacity="0.85" />
+            <stop offset="1" stop-color="#E5A825" stop-opacity="0.5" />
           </linearGradient>
-          <linearGradient id="goldGradBright" x1="80" y1="0" x2="130" y2="40" gradientUnits="userSpaceOnUse">
+          <linearGradient id="goldGradBright" x1="90" y1="0" x2="160" y2="62" gradientUnits="userSpaceOnUse">
             <stop stop-color="#FDE68A" />
             <stop offset="1" stop-color="#F5C451" />
           </linearGradient>
@@ -188,22 +188,4 @@
   </div>
 </main>
 
-<script>
-  (function () {
-    var pwToggle = document.getElementById('fx-pw-toggle');
-    var pwInput = document.getElementById('id_password');
-    var eyeIcon = document.getElementById('fx-pw-icon-eye');
-    var eyeOffIcon = document.getElementById('fx-pw-icon-eye-off');
-    if (pwToggle && pwInput && eyeIcon && eyeOffIcon) {
-      pwToggle.addEventListener('click', function (e) {
-        e.preventDefault();
-        var isPassword = pwInput.getAttribute('type') === 'password';
-        pwInput.setAttribute('type', isPassword ? 'text' : 'password');
-        eyeIcon.style.display = isPassword ? 'none' : 'block';
-        eyeOffIcon.style.display = isPassword ? 'block' : 'none';
-        pwToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
-      });
-    }
-  })();
-</script>
 {% endblock %}
