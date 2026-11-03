@@ -13,14 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const signalHead = document.getElementById('nexus-signal-head');
   const stageTag = document.getElementById('nexus-stage-tag');
 
-  const GLOBAL_STAGES = [
-    { p: 0.00, label: "SIGNAL INITIATED" },
-    { p: 0.20, label: "CONNECTED OPERATIONS" },
-    { p: 0.45, label: "MODULE ECOSYSTEM" },
-    { p: 0.70, label: "INTELLIGENCE & CONTROL" },
-    { p: 0.92, label: "NETWORK SYNCHRONIZED" }
-  ];
-
+   const GLOBAL_STAGES = [
+     { p: 0.00, label: "SIGNAL INITIATED" },
+    { p: 0.20, label: "CONNECTED ARCHITECTURE" },
+     { p: 0.45, label: "MODULE ECOSYSTEM" },
+     { p: 0.70, label: "INTELLIGENCE & CONTROL" },
+     { p: 0.92, label: "NETWORK SYNCHRONIZED" }
+   ];
   const updateScrollSignals = () => {
     const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
     const scrollHeight = Math.max(
@@ -811,17 +810,18 @@ document.addEventListener('DOMContentLoaded', () => {
         title: 'Asset Monitored',
         category: 'Telemetry / Sensor',
         role: 'Telemetry Sensors & Asset Operators',
-        desc: 'Continuous real-time monitoring tracks operational vibration, temperature, pressure, and cycle counts to detect early deviations from normal operating baselines before failure occurs.',
+        desc: 'Constant real-time tracking of operational vibrations, temperature, pressure, and cycle counts to identify abnormal variances in baseline operating levels prior to failure.',
         actions: [
-          'Capture automated telemetry feeds from IoT sensors and plant SCADA systems.',
-          'Run edge threshold checks and continuous anomaly detection algorithms.',
-          'Validate abnormal operational variances against historical performance baselines.',
-          'Trigger condition-based maintenance alert when safety tolerances exceed thresholds.'
+          'Gather automated telemetry streams from IoT sensors and plant SCADA systems.',
+          'Conduct edge threshold analysis and continuous anomalous operations detection.',
+          'Verify abnormal operational variance against historical baselines.',
+          'Generate condition-based maintenance notification for any tolerance exceeding threshold.'
         ],
-        outcome: 'Operational anomaly verified and logged with complete diagnostic telemetry payload.',
+        outcome: 'Abnormal operation identified and logged with full diagnostic telemetry data.',
         handoff: 'Handoff \u2192 Stage 02: Service Request Logged',
+        visualTitle: 'Operational Environment',
         images: [
-          { src: '/static/images/workflow-field-operations.jpg', caption: 'Real-time asset telemetry & condition monitoring capture' },
+          { src: '/static/images/workflow-field-operations.jpg', caption: 'Real-time asset telemetry and condition monitoring.' },
           { src: '/static/images/workflow-asset-management.jpg', caption: 'Asset lifecycle & health status tracking' },
           { src: '/static/images/operational-visibility.jpg', caption: 'Operational visibility across field assets' }
         ]
@@ -982,6 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handoffNextEl = document.getElementById('fx-flow-handoff-next');
     const mainImgEl = document.getElementById('fx-flow-main-img');
     const mediaStepEl = document.getElementById('fx-flow-media-step');
+    const mediaTitleEl = document.getElementById('fx-flow-media-title');
     const mediaCaptionEl = document.getElementById('fx-flow-media-caption');
     const prevBtn = document.getElementById('fx-flow-btn-prev');
     const nextBtn = document.getElementById('fx-flow-btn-next');
@@ -1112,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Column 3: Stage tag
       if (mediaStepEl) mediaStepEl.textContent = `STAGE ${stage.step}`;
+      if (mediaTitleEl) mediaTitleEl.textContent = stage.visualTitle || (stage.step === '01' ? 'Operational Environment' : 'Operational Context');
 
       // Rebuild thumbnails and show first image (no cross-fade on stage switch)
       buildThumbStrip(currentStageIndex);
