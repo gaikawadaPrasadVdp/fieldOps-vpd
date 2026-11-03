@@ -37,14 +37,14 @@
         {% with field=form.address %}{% include "components/_form_field.html" %}{% endwith %}
       </div>
 
-      <div class="col-md-6">
+      <div class="col-md-6" id="field-wrapper-country">
         {% with field=form.country %}{% include "components/_form_field.html" %}{% endwith %}
       </div>
-      <div class="col-md-6">
+      <div class="col-md-6{% if not form.country.value %} d-none{% endif %}" id="field-wrapper-state">
         {% with field=form.state_region %}{% include "components/_form_field.html" %}{% endwith %}
       </div>
 
-      <div class="col-md-6">
+      <div class="col-md-6{% if not form.state_region.value %} d-none{% endif %}" id="field-wrapper-city">
         {% with field=form.city %}{% include "components/_form_field.html" %}{% endwith %}
       </div>
       <div class="col-md-6">

@@ -1058,13 +1058,59 @@ document.addEventListener("click", function (e) {
       }
     }
 
+    function getFieldWrapper(el) {
+      if (!el) return null;
+      if (el.id === "id_country") return form.querySelector("#field-wrapper-country") || el.closest(".col-md-6");
+      if (el.id === "id_state_region") return form.querySelector("#field-wrapper-state") || el.closest(".col-md-6");
+      if (el.id === "id_city") return form.querySelector("#field-wrapper-city") || el.closest(".col-md-6");
+      return el.closest(".col-md-6");
+    }
+
+    function updateHierarchyVisibility() {
+      var countryVal = (countryEl.value || "").trim().toUpperCase();
+      var stateVal = (stateEl.value || "").trim();
+
+      var stateWrapper = getFieldWrapper(stateEl);
+      var cityWrapper = getFieldWrapper(cityEl);
+
+      if (stateWrapper) {
+        if (countryVal) {
+          stateWrapper.classList.remove("d-none");
+          stateWrapper.style.display = "";
+        } else {
+          stateWrapper.classList.add("d-none");
+          stateWrapper.style.display = "none";
+        }
+      }
+
+      if (cityWrapper) {
+        if (countryVal && stateVal) {
+          cityWrapper.classList.remove("d-none");
+          cityWrapper.style.display = "";
+        } else {
+          cityWrapper.classList.add("d-none");
+          cityWrapper.style.display = "none";
+        }
+      }
+    }
+
     function onCountryChange(isInitial) {
-      var country = (countryEl.value || "").toUpperCase();
+      var country = (countryEl.value || "").trim().toUpperCase();
       var currentState = isInitial ? stateEl.value : "";
       var currentCity = isInitial ? cityEl.value : "";
 
       updateStates(country, currentState);
-      updateCities(currentState || stateEl.value, currentCity);
+      if (!country) {
+        stateEl.value = "";
+      }
+
+      var stateVal = (stateEl.value || currentState || "").trim();
+      updateCities(stateVal, currentCity);
+      if (!stateVal) {
+        cityEl.value = "";
+      }
+
+      updateHierarchyVisibility();
 
       if (!isInitial && geoTimezones[country] && tzEl) {
         tzEl.value = geoTimezones[country];
@@ -1094,9 +1140,11 @@ document.addEventListener("click", function (e) {
 
     stateEl.addEventListener("change", function () {
       clearFieldError(this);
-      var state = this.value;
+      var state = (this.value || "").trim();
       updateCities(state, "");
+      cityEl.value = "";
       clearFieldError(cityEl);
+      updateHierarchyVisibility();
 
       // Update PIN code placeholder based on state's postal circle
       if (countryEl.value === "IN" && postalEl) {
@@ -1287,6 +1335,7 @@ document.addEventListener("click", function (e) {
       stateEl.value = initialState;
       updateCities(initialState, initialCity);
     }
+    updateHierarchyVisibility();
   }
 
   // Hook into lifecycle events
@@ -1312,14 +1361,61 @@ document.addEventListener("click", function (e) {
     }
   });
 
-  // Global Delegated State-to-City Cascading & Pre-Opening Guard
+  // Global Delegated Country-to-State & State-to-City Cascading & Visibility Guard
   document.addEventListener("change", function (e) {
-    if (e.target && e.target.id === "id_state_region") {
+    if (e.target && e.target.id === "id_country") {
+      var form = e.target.closest("form");
+      if (form) {
+        var stateEl = form.querySelector("#id_state_region");
+        var cityEl = form.querySelector("#id_city");
+        var stateWrapper = form.querySelector("#field-wrapper-state") || (stateEl ? stateEl.closest(".col-md-6") : null);
+        var cityWrapper = form.querySelector("#field-wrapper-city") || (cityEl ? cityEl.closest(".col-md-6") : null);
+        var country = (e.target.value || "").trim().toUpperCase();
+
+        if (stateEl) {
+          var states = geoStates[country] || [];
+          stateEl.innerHTML = "";
+          var defStateOpt = document.createElement("option");
+          defStateOpt.value = "";
+          defStateOpt.textContent = "Select State / Region...";
+          stateEl.appendChild(defStateOpt);
+          states.forEach(function (s) {
+            var opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            stateEl.appendChild(opt);
+          });
+          stateEl.value = "";
+        }
+
+        if (cityEl) {
+          cityEl.innerHTML = '<option value="">Select City...</option>';
+          cityEl.value = "";
+        }
+
+        if (stateWrapper) {
+          if (country) {
+            stateWrapper.classList.remove("d-none");
+            stateWrapper.style.display = "";
+          } else {
+            stateWrapper.classList.add("d-none");
+            stateWrapper.style.display = "none";
+          }
+        }
+
+        if (cityWrapper) {
+          cityWrapper.classList.add("d-none");
+          cityWrapper.style.display = "none";
+        }
+      }
+    } else if (e.target && e.target.id === "id_state_region") {
       var form = e.target.closest("form");
       if (form) {
         var cityEl = form.querySelector("#id_city");
+        var cityWrapper = form.querySelector("#field-wrapper-city") || (cityEl ? cityEl.closest(".col-md-6") : null);
+        var state = (e.target.value || "").trim();
+
         if (cityEl) {
-          var state = e.target.value;
           var cities = geoCities[state] || [];
           cityEl.innerHTML = "";
           var defaultOpt = document.createElement("option");
@@ -1332,6 +1428,17 @@ document.addEventListener("click", function (e) {
             opt.textContent = c;
             cityEl.appendChild(opt);
           });
+          cityEl.value = "";
+        }
+
+        if (cityWrapper) {
+          if (state) {
+            cityWrapper.classList.remove("d-none");
+            cityWrapper.style.display = "";
+          } else {
+            cityWrapper.classList.add("d-none");
+            cityWrapper.style.display = "none";
+          }
         }
       }
     }

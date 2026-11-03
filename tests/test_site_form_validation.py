@@ -83,3 +83,74 @@ def test_dynamic_choices_population():
     city_choices = [c[0] for c in form.fields["city"].widget.choices]
     assert "Kochi" in city_choices
     assert "Thiruvananthapuram" in city_choices
+
+def test_empty_country_initial_choices():
+    """Verify that with no country selected, states and cities choices are both empty (only default prompts)."""
+    form = SiteForm()
+    state_choices = [c[0] for c in form.fields["state_region"].widget.choices]
+    city_choices = [c[0] for c in form.fields["city"].widget.choices]
+    assert state_choices == [""]
+    assert city_choices == [""]
+
+
+def test_country_selected_no_state_choices():
+    """Verify that when Country is India but no State is selected, city choices is only the default prompt."""
+    form = SiteForm(initial={"country": "IN"})
+    state_choices = [c[0] for c in form.fields["state_region"].widget.choices]
+    city_choices = [c[0] for c in form.fields["city"].widget.choices]
+    assert "Andhra Pradesh" in state_choices
+    assert "Karnataka" in state_choices
+    assert city_choices == [""]  # No fallback cities!
+
+
+def test_andhra_pradesh_cities_only():
+    """Verify that selecting Andhra Pradesh provides ONLY Andhra Pradesh cities, not cities of other states."""
+    form = SiteForm(initial={"country": "IN", "state_region": "Andhra Pradesh"})
+    city_choices = [c[0] for c in form.fields["city"].widget.choices]
+    # Check that Andhra Pradesh cities are present
+    assert "Visakhapatnam" in city_choices
+    assert "Vijayawada" in city_choices
+    assert "Guntur" in city_choices
+    assert "Nellore" in city_choices
+    assert "Tirupati" in city_choices
+    # Check that other states' cities are NOT present
+    assert "Bengaluru" not in city_choices
+    assert "Mumbai" not in city_choices
+    assert "New Delhi" not in city_choices
+    assert "Chennai" not in city_choices
+
+
+def test_andhra_pradesh_city_mismatch_rejected():
+    """Verify that selecting Andhra Pradesh as State but Bengaluru (Karnataka) as City fails validation."""
+    data = {
+        "code": "SITE-AP-01",
+        "name": "Vizag Hub",
+        "country": "IN",
+        "state_region": "Andhra Pradesh",
+        "city": "Bengaluru",
+        "postal_code": "530001",
+        "timezone": "Asia/Kolkata",
+    }
+    form = SiteForm(data=data)
+    assert not form.is_valid()
+    assert "city" in form.errors
+    err = " ".join(form.errors["city"])
+    assert "Bengaluru" in err
+
+
+def test_andhra_pradesh_valid_site_accepted():
+    """Verify that Andhra Pradesh with Visakhapatnam and matching PIN 530001 passes validation."""
+    data = {
+        "code": "SITE-AP-02",
+        "name": "Vizag Logistics Center",
+        "country": "IN",
+        "state_region": "Andhra Pradesh",
+        "city": "Visakhapatnam",
+        "postal_code": "530001",
+        "timezone": "Asia/Kolkata",
+    }
+    form = SiteForm(data=data)
+    assert form.is_valid(), f"Form errors: {form.errors}"
+    assert form.cleaned_data["city"] == "Visakhapatnam"
+    assert form.cleaned_data["state_region"] == "Andhra Pradesh"
+
