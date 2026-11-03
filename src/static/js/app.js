@@ -1423,4 +1423,21 @@ document.addEventListener("click", function (e) {
       }
     }
   });
+
+  // Enterprise Login Password Visibility Toggle
+  document.addEventListener("click", function (e) {
+    var toggle = e.target.closest("#fx-pw-toggle");
+    if (!toggle) return;
+    e.preventDefault();
+    var pwInput = document.getElementById("id_password");
+    var eyeIcon = document.getElementById("fx-pw-icon-eye");
+    var eyeOffIcon = document.getElementById("fx-pw-icon-eye-off");
+    if (pwInput) {
+      var isPassword = pwInput.getAttribute("type") === "password";
+      pwInput.setAttribute("type", isPassword ? "text" : "password");
+      if (eyeIcon) eyeIcon.style.display = isPassword ? "none" : "block";
+      if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? "block" : "none";
+      toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+    }
+  });
 })();
