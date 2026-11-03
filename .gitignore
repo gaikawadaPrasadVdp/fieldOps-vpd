@@ -21,3 +21,6 @@ uv.lock
 # Test artifacts, screenshots, and visual media
 qa/artifacts/
 *.png
+*.xlsx
+*.xls
+LICENSE
