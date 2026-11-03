@@ -1,13 +1,262 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Roles · FieldOps Nexus{% endblock %}
+
+{% block title %}Roles &amp; Permissions · FieldOps Nexus{% endblock %}
+
 {% block content %}
-<div class="fx-page-header"><div><h1>Roles &amp; permissions</h1><div class="text-body-secondary">Seeded roles are defaults; you can customise them or create your own.</div></div>
-  {% if can_manage %}<a class="btn btn-primary" href="{% url 'rbac:role_create' %}">{% icon 'plus' 16 %} New role</a>{% endif %}</div>
-<div class="fx-card"><div class="table-responsive"><table class="table fx-table">
-  <thead><tr><th>Role</th><th>Description</th><th>Permissions</th><th>Type</th></tr></thead>
-  <tbody>{% for r in roles %}<tr><td><a href="{% url 'rbac:role_detail' r.pk %}">{{ r.name }}</a></td><td>{{ r.description }}</td>
-    <td>{% if r.is_owner %}All{% else %}{{ r.role_permissions.all|length }}{% endif %}</td>
-    <td>{% if r.is_owner %}<span class="badge text-bg-dark">Owner</span>{% elif r.is_system %}<span class="badge text-bg-secondary">System default</span>{% else %}<span class="badge text-bg-light">Custom</span>{% endif %}</td></tr>{% endfor %}
-  </tbody></table></div></div>
+<div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Roles &amp; Permissions</h1>
+    <div class="text-body-secondary small">
+      Manage member access roles and operating permissions across <strong>{{ request.organization.name }}</strong>.
+    </div>
+  </div>
+  <div>
+    {% if is_owner %}
+      <span class="badge text-bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-7 d-inline-flex align-items-center gap-2">
+        {% icon 'shield' 16 %} Owner Mode: Authorized to edit permissions
+      </span>
+    {% else %}
+      <span class="badge text-bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-2 fs-7 d-inline-flex align-items-center gap-2">
+        {% icon 'lock' 16 %} Read Only: Only Organization Owners can edit permissions
+      </span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="fx-card mb-4">
+  <!-- Search & Filter Bar -->
+  <form method="get" class="d-flex flex-wrap align-items-center gap-2 p-3 border-bottom bg-body-tertiary">
+    <div class="input-group input-group-sm" style="max-width: 320px;">
+      <span class="input-group-text bg-white border-end-0">{% icon 'search' 14 %}</span>
+      <input type="search" name="q" value="{{ q }}" class="form-control border-start-0" placeholder="Search by name, email, or title...">
+    </div>
+    
+    <select name="role" class="form-select form-select-sm" style="max-width: 220px;" onchange="this.form.submit()">
+      <option value="">All Roles</option>
+      {% for r in roles %}
+        <option value="{{ r.pk }}" {% if role_filter == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+    {% if q or role_filter %}
+      <a href="{% url 'rbac:roles' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+    {% endif %}
+    
+    <div class="ms-auto text-body-secondary small">
+      Showing {{ page.start_index|default:0 }}–{{ page.end_index|default:0 }} of {{ page.paginator.count }} members
+    </div>
+  </form>
+
+  <!-- Users Table -->
+  <div class="table-responsive">
+    <table class="table fx-table align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="min-width: 240px;">Member</th>
+          <th>Job Title</th>
+          <th style="min-width: 260px;">Assigned Roles</th>
+          <th>Status</th>
+          <th class="text-end" style="min-width: 170px;">Permissions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in page %}
+        <tr>
+          <!-- User info -->
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-initials rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0"
+                   style="width: 38px; height: 38px; font-size: 13px; {% if m.is_owner_member %}background: #0B1F3B; border: 2px solid #F5C451; color: #F5C451;{% else %}background: #162A4B; color: #FFFFFF;{% endif %}">
+                {{ m.user.display_name|slice:":1"|upper }}
+              </div>
+              <div class="text-truncate">
+                <div class="fw-semibold text-dark text-truncate">{{ m.user.display_name }}</div>
+                <div class="text-body-secondary small text-truncate">{{ m.user.email }}</div>
+              </div>
+            </div>
+          </td>
+
+          <!-- Job title -->
+          <td>
+            <span class="text-secondary small">{{ m.job_title|default:"—" }}</span>
+          </td>
+
+          <!-- Assigned roles -->
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% for mr in m.membership_roles.all %}
+                {% if mr.role.is_owner %}
+                  <span class="badge text-bg-dark d-inline-flex align-items-center gap-1 py-1 px-2">
+                    {% icon 'shield' 12 %} {{ mr.role.name }}
+                  </span>
+                {% elif mr.role.is_system %}
+                  <span class="badge text-bg-light border text-dark d-inline-flex align-items-center gap-1 py-1 px-2">
+                    {{ mr.role.name }}{% if mr.site %} <span class="badge text-bg-info text-white ms-1">@ {{ mr.site.code }}</span>{% endif %}
+                  </span>
+                {% else %}
+                  <span class="badge text-bg-light border text-secondary d-inline-flex align-items-center gap-1 py-1 px-2">
+                    {{ mr.role.name }}{% if mr.site %} <span class="badge text-bg-info text-white ms-1">@ {{ mr.site.code }}</span>{% endif %}
+                  </span>
+                {% endif %}
+              {% empty %}
+                <span class="badge text-bg-warning-subtle text-warning border border-warning-subtle">No Role Assigned</span>
+              {% endfor %}
+            </div>
+          </td>
+
+          <!-- Status badge -->
+          <td>
+            {% status_badge m.status %}
+          </td>
+
+          <!-- Action column -->
+          <td class="text-end">
+            {% if is_owner %}
+              <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                      data-bs-toggle="modal" data-bs-target="#editUserModal-{{ m.pk }}">
+                {% icon 'edit' 13 %} Edit Permissions
+              </button>
+            {% else %}
+              <span class="text-muted small d-inline-flex align-items-center gap-1" title="Only Organization Owners can edit member permissions">
+                {% icon 'lock' 12 %} <span class="badge text-bg-light border text-muted">Owner only</span>
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="py-4 text-center">
+            {% include "components/_empty_state.html" with title="No members found" text="Try adjusting your search criteria." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "components/_pagination.html" %}
+</div>
+
+<!-- Modals for Editing Permissions (Rendered when viewer is Owner) -->
+{% if is_owner %}
+  {% for m in page %}
+  <div class="modal fade" id="editUserModal-{{ m.pk }}" tabindex="-1" aria-labelledby="modalLabel-{{ m.pk }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow">
+        <form method="post" action="{% url 'rbac:roles' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_member_permissions">
+          <input type="hidden" name="membership_id" value="{{ m.pk }}">
+
+          <div class="modal-header bg-light border-bottom">
+            <div>
+              <h5 class="modal-title h6 fw-bold mb-0" id="modalLabel-{{ m.pk }}">
+                Edit Permissions &middot; {{ m.user.display_name }}
+              </h5>
+              <div class="text-body-secondary small">{{ m.user.email }}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body p-4">
+            <!-- Member Status & Quick Preset Bar -->
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 rounded bg-body-tertiary border mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <label for="rolePresetSelect-{{ m.pk }}" class="form-label small fw-bold mb-0 text-nowrap">Apply Role Preset:</label>
+                <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 220px;" onchange="applyRolePreset('{{ m.pk }}', this)">
+                  <option value="">-- Select Role Preset --</option>
+                  {% for rp in role_presets %}
+                    <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}">{{ rp.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <label for="siteSelect-{{ m.pk }}" class="form-label small fw-bold mb-0 text-nowrap">Site Scope:</label>
+                <select id="siteSelect-{{ m.pk }}" name="site_id" class="form-select form-select-sm" style="min-width: 200px;">
+                  <option value="">Organization-wide (All sites)</option>
+                  {% for s in sites %}
+                    <option value="{{ s.pk }}" {% if m.primary_site_id == s.pk %}selected{% endif %}>
+                      Site: {{ s.name }} ({{ s.code }})
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="d-flex align-items-center gap-1 ms-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="toggleAllPerms('{{ m.pk }}', true)">
+                  Select All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="toggleAllPerms('{{ m.pk }}', false)">
+                  Deselect All
+                </button>
+              </div>
+            </div>
+
+            {% if m.is_owner_member and not m.can_remove_owner %}
+              <div class="alert alert-warning py-2 small mb-3">
+                <strong>Sole Organization Owner:</strong> This member is the only active owner in this organization. At least one owner must be maintained.
+              </div>
+            {% endif %}
+
+            <!-- Permissions Matrix (Two Columns) -->
+            <div class="border rounded p-3 bg-white" style="max-height: 480px; overflow-y: auto;">
+              <div class="fx-perm-grid" id="perm-grid-{{ m.pk }}">
+                {% for g in matrix %}
+                  <div class="fx-perm-group">
+                    <div class="text-uppercase small fw-bold text-dark mb-1">{{ g.module }}</div>
+                    {% for p in g.perms %}
+                      <div class="form-check mb-1">
+                        <input class="form-check-input" type="checkbox" name="permissions" value="{{ p.code }}"
+                               id="p-{{ m.pk }}-{{ p.code }}"
+                               {% if p.code in m.granted_permissions or m.is_owner_member %}checked{% endif %}>
+                        <label class="form-check-label small" for="p-{{ m.pk }}-{{ p.code }}">
+                          <code style="color: #D63384;">{{ p.code }}</code> <span class="text-body-secondary">{{ p.description }}</span>
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer bg-light border-top d-flex justify-content-between">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary px-4 fw-semibold">
+              {% icon 'shield' 14 %} Save Permissions
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+function applyRolePreset(memberId, selectEl) {
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  const codesCsv = selectedOption.getAttribute('data-codes');
+  if (!codesCsv && codesCsv !== '') return;
+  const codes = new Set(codesCsv.split(',').filter(Boolean));
+  const container = document.getElementById('perm-grid-' + memberId);
+  if (!container) return;
+  const checkboxes = container.querySelectorAll('input[type="checkbox"][name="permissions"]');
+  checkboxes.forEach(cb => {
+    cb.checked = codes.has(cb.value);
+  });
+}
+
+function toggleAllPerms(memberId, check) {
+  const container = document.getElementById('perm-grid-' + memberId);
+  if (!container) return;
+  const checkboxes = container.querySelectorAll('input[type="checkbox"][name="permissions"]');
+  checkboxes.forEach(cb => {
+    cb.checked = check;
+  });
+}
+</script>
 {% endblock %}
