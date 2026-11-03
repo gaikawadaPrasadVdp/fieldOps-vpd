@@ -65,7 +65,7 @@ document.addEventListener("change", function (e) {
     }
   });
 
-  // If inside an HTMX modal or container (e.g. #assetModalContent), update via HTMX without full-page navigation
+  // 1. If inside an HTMX modal dialog (e.g. #assetModalContent), update modal content in-place via HTMX
   var modalContent = sel.closest("#assetModalContent") || sel.closest(".modal-content");
   if (modalContent && window.htmx) {
     var formAction = sel.form.getAttribute("action") || "/app/assets/new/";
@@ -78,7 +78,24 @@ document.addEventListener("change", function (e) {
     return;
   }
 
-  // Standalone page fallback (e.g. /app/assets/new/ or /app/assets/<pk>/edit/)
+  // 2. If on standalone form page (e.g. /app/assets/new/ or /app/assets/<pk>/edit/), update form in-place via HTMX without reloading
+  var standaloneForm = sel.closest("#asset-form");
+  if (standaloneForm && window.htmx) {
+    var formAction = sel.form.getAttribute("action") || window.location.pathname;
+    var targetUrl = formAction.split("?")[0] + "?" + params.toString();
+    window.htmx.ajax("GET", targetUrl, {
+      target: standaloneForm,
+      select: "#asset-form",
+      swap: "outerHTML",
+      source: sel
+    });
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", targetUrl);
+    }
+    return;
+  }
+
+  // Fallback only if HTMX is completely missing
   var actionUrl = sel.form.getAttribute("action") || window.location.pathname;
   window.location.href = actionUrl.split("?")[0] + "?" + params.toString();
 });

@@ -95,10 +95,10 @@
       <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
         Sign In
       </a>
-      <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
+      {% comment %} <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
         <span>Get Started</span>
         {% icon 'arrow-up-right' 15 class="arrow-icon" %}
-      </a>
+      </a> {% endcomment %}
       {% endif %}
 
       <!-- Mobile Hamburger Toggle -->
@@ -789,9 +789,9 @@
       <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark flex-fill py-2 text-center text-decoration-none">
         Sign In
       </a>
-      <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
+      {% comment %} <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
         Get Started
-      </a>
+      </a> {% endcomment %}
       {% else %}
       <a href="{% url 'ui:home' %}" class="btn-fx-gold w-100 py-2 text-center text-decoration-none">
         Launch ERP
