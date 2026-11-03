@@ -173,7 +173,7 @@ class ProfilePatchSerializer(serializers.Serializer):
 
 
 class TargetWriteSerializer(serializers.Serializer):
-    priority = serializers.CharField(max_length=10)
+    priority = serializers.ChoiceField(choices=["LOW", "MEDIUM", "HIGH", "CRITICAL"])
     response_minutes = serializers.IntegerField()
     resolution_minutes = serializers.IntegerField()
     warning_percent = serializers.IntegerField(required=False)
@@ -440,8 +440,9 @@ class SLAProfileViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(request=TargetWriteSerializer, responses=ProfileSerializer)
     @action(detail=True, methods=["post"])
     def targets(self, request, pk=None):
+        profile = self._profile(request, pk)
         d = _validated(TargetWriteSerializer, request)
-        services.set_target(self._profile(request, pk), actor=request.user, request=request, **d)
+        services.set_target(profile, actor=request.user, request=request, **d)
         return self._out(request, pk)
 
     @extend_schema(request=RemoveSerializer, responses=ProfileSerializer)
@@ -462,6 +463,7 @@ class SLAProfileViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(request=RuleWriteSerializer, responses=ProfileSerializer)
     @action(detail=True, methods=["post"])
     def rules(self, request, pk=None):
+        profile = self._profile(request, pk)
         d = _validated(RuleWriteSerializer, request)
         role = None
         if d.get("notify_role"):

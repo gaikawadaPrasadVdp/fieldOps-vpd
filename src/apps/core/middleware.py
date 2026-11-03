@@ -24,6 +24,21 @@ class RequestIdMiddleware:
         rid = incoming if _VALID_ID.match(incoming) else uuid.uuid4().hex
         request.request_id = rid
 
+        for k, v in request.GET.items():
+            if "\x00" in k or "\x00" in v:
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {
+                        "error": {
+                            "code": "validation_failed",
+                            "message": "Null characters (0x00) are not permitted in query parameters.",
+                            "details": {},
+                            "request_id": rid,
+                        }
+                    },
+                    status=400,
+                )
+
         path = request.path_info or request.path or ""
         content_type = request.META.get("CONTENT_TYPE", "")
         if path.startswith("/api/") or "application/json" in content_type:

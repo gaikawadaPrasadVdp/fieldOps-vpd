@@ -135,10 +135,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         allowed_sites = [site.pk for site in sites if rbac.has_permission(membership, "work_order.create", site)]
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
-        allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
-        assets = Asset.objects.for_organization(organization).filter(
-            site_id__in=allowed_sites, status__in=allowed_asset_statuses).select_related("site")
-        self.fields["asset"].queryset = assets
+        self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
+            site_id__in=allowed_sites).select_related("site")
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
             status__in=allowed_asset_statuses, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
@@ -170,8 +168,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if asset.site_id != site.pk:
             raise serializers.ValidationError({"asset": "Invalid asset for the selected site."})
-        if asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
-            raise serializers.ValidationError({"asset": f"Cannot create work order for a {asset.status.lower()} asset."})
+        if asset.status != Asset.Status.ACTIVE:
+            raise serializers.ValidationError({"asset": f"Cannot create work order for an asset in {asset.status} status."})
         if component and not AssetComponent.objects.filter(organization=site.organization,
                 parent=asset, child=component,
                 relationship_type=AssetComponent.Relationship.COMPONENT).exists():
@@ -320,8 +318,16 @@ class WorkOrderReasonSerializer(serializers.Serializer):
 
 
 class WorkOrderCompleteSerializer(StrictInputSerializer):
-    resolution_notes = serializers.CharField(min_length=10)
+    resolution_notes = serializers.CharField(min_length=10, required=False)
+    summary = serializers.CharField(required=False, allow_blank=True)
     expected_version = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if not attrs.get("resolution_notes") and attrs.get("summary"):
+            attrs["resolution_notes"] = attrs["summary"]
+        if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
+            raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
+        return attrs
 
 
 class ChecklistReferenceSerializer(StrictInputSerializer):
