@@ -64,64 +64,12 @@ document.addEventListener("change", function (e) {
       params.set(key, value);
     }
   });
-
-  // 1. If inside an HTMX modal dialog (e.g. #assetModalContent), update modal content in-place via HTMX
-  var modalContent = sel.closest("#assetModalContent") || sel.closest(".modal-content");
-  if (modalContent && window.htmx) {
-    var formAction = sel.form.getAttribute("action") || "/app/assets/new/";
-    var targetUrl = formAction.split("?")[0] + "?" + params.toString();
-    window.htmx.ajax("GET", targetUrl, {
-      target: modalContent,
-      swap: "innerHTML",
-      source: sel
-    });
-    return;
-  }
-
-  // 2. If on standalone form page (e.g. /app/assets/new/ or /app/assets/<pk>/edit/), update form in-place via HTMX without reloading
-  var standaloneForm = sel.closest("#asset-form");
-  if (standaloneForm && window.htmx) {
-    var formAction = sel.form.getAttribute("action") || window.location.pathname;
-    var targetUrl = formAction.split("?")[0] + "?" + params.toString();
-    window.htmx.ajax("GET", targetUrl, {
-      target: standaloneForm,
-      select: "#asset-form",
-      swap: "outerHTML",
-      source: sel
-    });
-    if (window.history && window.history.replaceState) {
-      window.history.replaceState(null, "", targetUrl);
-    }
-    return;
-  }
-
-  // Fallback only if HTMX is completely missing
-  var actionUrl = sel.form.getAttribute("action") || window.location.pathname;
-  window.location.href = actionUrl.split("?")[0] + "?" + params.toString();
-});
-
-/* Asset form: filter zone options by chosen site */
-function filterAssetZonesBySite(formEl) {
-  if (!formEl) return;
-  var site = formEl.querySelector("select[data-site-select]");
-  var zone = formEl.querySelector("select[data-site-filter]");
-  if (!site || !zone) return;
-  var siteCodes = {};
-  Array.prototype.forEach.call(site.options, function (o) { siteCodes[o.value] = o.text.split(" ·")[0].trim(); });
-  var code = siteCodes[site.value];
-  Array.prototype.forEach.call(zone.options, function (o) {
-    if (!o.value) return;
-    var show = !code || o.text.indexOf(code + " ·") === 0;
-    o.hidden = !show;
-    o.disabled = !show;
-  });
-  if (zone.selectedOptions[0] && zone.selectedOptions[0].disabled) zone.value = "";
-}
-
-document.addEventListener("change", function (e) {
-  var siteSel = e.target.closest("select[data-site-select]");
-  if (siteSel && siteSel.form) {
-    filterAssetZonesBySite(siteSel.form);
+  var action = sel.form.getAttribute("action") || window.location.pathname;
+  var url = action + (action.indexOf("?") === -1 ? "?" : "&") + params.toString();
+  if (sel.form.id === "asset-modal-form" && window.htmx && document.getElementById("assetModalContent")) {
+    window.htmx.ajax("GET", url, {target: "#assetModalContent", swap: "innerHTML"});
+  } else {
+    window.location.href = url;
   }
 });
 
