@@ -116,6 +116,7 @@ class RequestCreateView(LoginRequiredMixin, View):
                     severity=d.get("severity", ServiceRequest.Severity.MEDIUM),
                     service_impact=d.get("service_impact", ServiceRequest.Impact.NONE),
                     impact_notes=d.get("impact_notes", ""),
+                    site=d.get("site"),
                     attachments=attachments,
                     override_duplicate=override_dup,
                     override_reason=override_rsn,
