@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import ValidationFailed
 from apps.sites import selectors as site_selectors
@@ -183,12 +184,13 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
                       "partial_update": "contract.update", "enable": "contract.update",
                       "disable": "contract.update"}
 
     @extend_schema(parameters=[query_param("q", "name"), query_param("active", "1 / 0")],
-                   responses=ProviderSerializer(many=True))
+                   responses=ProviderSerializer)
     def list(self, request):
         qs = selectors.providers_for(request.organization)
         q = (request.query_params.get("q") or "").strip()
@@ -233,6 +235,7 @@ class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
         "partial_update": "contract.update", "deactivate": "contract.update", "reactivate": "contract.update",
@@ -257,7 +260,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("provider", "provider id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=AgreementSerializer(many=True))
+                   responses=AgreementSerializer)
     def list(self, request):
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
@@ -338,7 +341,9 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(AgreementSerializer(self._ag(request, pk)).data)
 
     @extend_schema(parameters=[query_param("days", "look-ahead window in days (default 60, max 365)",
-                                           OpenApiTypes.INT)], responses=AgreementSerializer(many=True))
+                                           OpenApiTypes.INT)], responses=AgreementSerializer)
+    @action(detail=False, methods=["get"])
+    @extend_schema(parameters=[query_param("days", "integer days")], responses=AgreementSerializer)
     @action(detail=False, methods=["get"])
     def expiring(self, request):
         try:
@@ -376,6 +381,7 @@ class CoverageViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     permission_map = {"list": "contract.view"}
 
+    @extend_schema(responses=CoverageResultSerializer)
     def list(self, request):
         asset_id = request.query_params.get("asset")
         if not asset_id:
@@ -392,10 +398,11 @@ class CoverageViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class CoverageCheckViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.check"}
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID)],
-                   responses=CheckSerializer(many=True))
+                   responses=CheckSerializer)
     def list(self, request):
         qs = selectors.checks_for(request.membership, request.organization)
         wo = (request.query_params.get("work_order") or "").strip()

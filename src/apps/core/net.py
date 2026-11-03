@@ -35,7 +35,7 @@ def axes_username(request, credentials=None) -> str | None:
     (key ``username``, even though our USERNAME_FIELD is ``email``), normalised so that case/whitespace
     variants cannot dodge the failure counter."""
     value = None
-    if credentials:
+    if credentials and isinstance(credentials, dict):
         value = credentials.get("username") or credentials.get("email")
     if value is None and request:
         data = getattr(request, "data", None) or getattr(request, "POST", None)

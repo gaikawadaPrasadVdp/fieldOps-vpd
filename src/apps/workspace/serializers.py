@@ -126,7 +126,12 @@ class JobEvidenceSerializer(serializers.ModelSerializer):
     size = serializers.IntegerField(source="attachment.size", read_only=True)
     mime_type = serializers.CharField(source="attachment.mime_type", read_only=True)
     description = serializers.CharField(source="attachment.description", read_only=True)
-    file_url = serializers.FileField(source="attachment.file", read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj) -> str:
+        if obj.attachment_id:
+            return f"/app/files/{obj.attachment_id}/download/"
+        return ""
     uploader_name = serializers.CharField(source="attachment.uploaded_by.display_name", read_only=True)
 
     class Meta:

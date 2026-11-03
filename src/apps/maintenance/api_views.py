@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
 from apps.assets.models import AssetMeter
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import NotFound
 from apps.sites.selectors import scoped_get
@@ -134,6 +135,7 @@ def _resolve_meter(request, plan, value):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "create": "maintenance.create",
         "partial_update": "maintenance.update", "enable": "maintenance.update", "disable": "maintenance.update",
@@ -148,7 +150,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("q", "name / asset"), query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID), query_param("active", "1 / 0")],
-                   responses=PlanSerializer(many=True))
+                   responses=PlanSerializer)
     def list(self, request):
         qs = selectors.filter_plans(selectors.plans_for(request.membership, request.organization),
                                     request.query_params)
@@ -187,7 +189,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
                                         request=request)
         return Response(PlanSerializer(plan).data)
 
-    @extend_schema(methods=["GET"], responses=ScheduleSerializer(many=True))
+    @extend_schema(methods=["GET"], responses=ScheduleSerializer)
     @extend_schema(methods=["POST"], request=ScheduleWriteSerializer, responses={201: ScheduleSerializer})
     @action(detail=True, methods=["get", "post"])
     def schedules(self, request, pk=None):
@@ -205,6 +207,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "partial_update": "maintenance.update",
         "enable": "maintenance.update", "disable": "maintenance.update", "generate": "maintenance.generate",
@@ -219,7 +222,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("state", "DISABLED | DUE | SCHEDULED")],
-                   responses=ScheduleSerializer(many=True))
+                   responses=ScheduleSerializer)
     def list(self, request):
         qs = selectors.schedules_for(request.membership, request.organization)
         plan = (request.query_params.get("plan") or "").strip()
@@ -270,7 +273,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
         cycle = scoped_get(selectors.cycles_for(request.membership, request.organization), cycle.pk, "Cycle")
         return Response(CycleSerializer(cycle).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(responses=CycleSerializer(many=True))
+    @extend_schema(responses=CycleSerializer)
     @action(detail=True, methods=["get"])
     def cycles(self, request, pk=None):
         sch = self._sch(request, pk)
@@ -280,6 +283,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "maintenance.view", "retrieve": "maintenance.view", "compliance": "maintenance.view"}
 
     @extend_schema(
@@ -307,7 +311,7 @@ class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("schedule", "schedule id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=CycleSerializer(many=True))
+                   responses=CycleSerializer)
     def list(self, request):
         qs = selectors.filter_cycles(selectors.cycles_for(request.membership, request.organization),
                                      request.query_params)
