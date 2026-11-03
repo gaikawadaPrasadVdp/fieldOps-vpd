@@ -78,6 +78,7 @@
   </aside>
 
   <!-- Right Form Container -->
+  {% block auth_right %}
   <main class="flex-grow-1 d-flex flex-column justify-content-center align-items-center p-4 p-md-5 fx-auth-wrap" style="background:#F8FAFC;">
     <div class="w-100" style="max-width: 440px;">
       <!-- Mobile Brand Header -->
@@ -104,5 +105,6 @@
       </div>
     </div>
   </main>
+  {% endblock %}
 </div>
 {% endblock %}

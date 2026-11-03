@@ -2,8 +2,8 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.2">
-<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.2">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.4">
+<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.4">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
@@ -41,6 +41,11 @@
 
     <!-- Desktop Navigation Menu -->
     <nav class="fx-pub-nav-desktop" aria-label="Main Navigation">
+      <!-- Home Navigation Link -->
+      <a href="{% url 'ui:root' %}" class="fx-pub-nav-link {% if active_page == 'home' %}active{% endif %}" {% if
+        active_page=='home' %}aria-current="page" {% endif %}>
+        Home
+      </a>
       <!-- Product Dropdown Trigger -->
       <button type="button" class="fx-pub-nav-link {% if active_page == 'product' %}active{% endif %}"
         data-fx-mega-trigger="product" aria-expanded="false" aria-haspopup="dialog">
@@ -95,10 +100,10 @@
       <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
         Sign In
       </a>
-      <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
+      <!-- <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
         <span>Get Started</span>
         {% icon 'arrow-up-right' 15 class="arrow-icon" %}
-      </a>
+      </a> -->
       {% endif %}
 
       <!-- Mobile Hamburger Toggle -->
@@ -720,6 +725,12 @@
 
   <!-- Mobile Collapsible Menu Drawer -->
   <div class="fx-pub-mobile-drawer" data-fx-pub-drawer>
+    <!-- Home Navigation Link -->
+    <div class="fx-mobile-nav-item">
+      <a href="{% url 'ui:root' %}"
+        class="fx-mobile-accordion-trigger {% if active_page == 'home' %}is-active{% endif %}"
+        style="text-decoration:none;" {% if active_page=='home' %}aria-current="page" {% endif %}>Home</a>
+    </div>
     <!-- Product Accordion -->
     <div class="fx-mobile-nav-item">
       <button type="button" class="fx-mobile-accordion-trigger" data-fx-mobile-accordion="m-acc-product">
@@ -772,15 +783,19 @@
 
     <!-- Direct Links -->
     <div class="fx-mobile-nav-item">
-      <a href="{% url 'ui:public_features' %}" class="fx-mobile-accordion-trigger"
-        style="text-decoration:none;">Features</a>
+      <a href="{% url 'ui:public_features' %}"
+        class="fx-mobile-accordion-trigger {% if active_page == 'features' %}is-active{% endif %}"
+        style="text-decoration:none;" {% if active_page=='features' %}aria-current="page" {% endif %}>Features</a>
     </div>
     <div class="fx-mobile-nav-item">
-      <a href="{% url 'ui:public_resources' %}" class="fx-mobile-accordion-trigger"
-        style="text-decoration:none;">Resources</a>
+      <a href="{% url 'ui:public_resources' %}"
+        class="fx-mobile-accordion-trigger {% if active_page == 'resources' %}is-active{% endif %}"
+        style="text-decoration:none;" {% if active_page=='resources' %}aria-current="page" {% endif %}>Resources</a>
     </div>
     <div class="fx-mobile-nav-item">
-      <a href="{% url 'ui:public_about' %}" class="fx-mobile-accordion-trigger" style="text-decoration:none;">About</a>
+      <a href="{% url 'ui:public_about' %}"
+        class="fx-mobile-accordion-trigger {% if active_page == 'about' %}is-active{% endif %}"
+        style="text-decoration:none;" {% if active_page=='about' %}aria-current="page" {% endif %}>About</a>
     </div>
 
     <!-- Mobile Auth Actions -->
@@ -819,11 +834,11 @@
           <span class="fx-footer-brand-title">FieldOps <span class="fx-footer-brand-accent">Nexus</span></span>
         </div>
         <p class="fx-footer-desc">
-          The connected enterprise platform for assets, service, maintenance, and the people behind it all.
+          The connected enterprise platform for assets, services, maintenance, and the people who drive it.
         </p>
         <div class="fx-footer-status">
           <span class="fx-footer-status-dot"></span>
-          <span class="fx-footer-status-text">Platform Status: All Systems Operational</span>
+          <span class="fx-footer-status-text">Status of Platform: All Systems Go</span>
         </div>
         <div class="fx-footer-social-row">
           <a href="https://www.linkedin.com/company/fieldops-nexus" class="fx-footer-social-btn" target="_blank"
@@ -934,6 +949,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script defer src="{% static 'js/public.js' %}?v=4.2"></script>
-<script defer src="{% static 'js/public-detail.js' %}?v=4.2"></script>
+<script defer src="{% static 'js/public.js' %}?v=4.5"></script>
+<script defer src="{% static 'js/public-detail.js' %}?v=4.5"></script>
 {% endblock %}
