@@ -1,7 +1,11 @@
 """M10 Warranty & Contract exports (CSV / XLSX / PDF).
 
-Supports both bulk export of matching records (CSV, XLSX, PDF) and individual warranty reports (PDF/CSV),
-along with dedicated CSV downloads for agreement lists, single agreement details with covered assets, and expiry forecasts.
+Supports both:
+1. Bulk export of all matching/authorized warranty records (CSV, XLSX, PDF).
+2. Individual warranty comprehensive document (PDF) for a single warranty record.
+
+Ensures formula injection protection, UTF-8 encoding with BOM for CSV,
+proper date formatting, and avoids N+1 queries.
 """
 from __future__ import annotations
 

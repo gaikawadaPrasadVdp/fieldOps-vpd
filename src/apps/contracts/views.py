@@ -433,3 +433,54 @@ class WorkOrderCoveragePanelView(CBase):
         except DomainError as exc:
             return HttpResponse(exc.message, status=400)
         return self._render(request, wo)
+
+
+
+class AgreementExportView(CBase):
+    required_permission = "contract.view"
+
+    def get(self, request):
+        m, org = request.membership, request.organization
+        fmt = (request.GET.get("format") or request.GET.get("export") or "csv").lower()
+        if fmt not in exports.FORMATS:
+            return HttpResponse("Unknown export format (supported: csv, xlsx, pdf).", status=400)
+        base_agreements = selectors.agreements_for(m, org)
+        qs = selectors.filter_agreements(base_agreements, request.GET)
+        params = {k: v for k, v in request.GET.items() if k not in ("format", "export", "page") and v}
+        filters_text = ", ".join(f"{k}={v}" for k, v in params.items())
+        result = exports.build_bulk_export(fmt, qs, org, actor=request.user, filters_text=filters_text)
+        audit.record(
+            "contract.exported",
+            actor=request.user,
+            organization=org,
+            request=request,
+            metadata={"format": fmt, "rows": result.rows, "filters": params},
+        )
+        resp = HttpResponse(result.body, content_type=result.content_type)
+        resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+        resp["Cache-Control"] = "private, no-store"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
+
+
+class AgreementDownloadView(AgreementBase):
+    required_permission = "contract.view"
+
+    def get(self, request, pk):
+        ag = self.ag(request, pk, "contract.view")
+        org = request.organization
+        pdf_bytes = exports.build_single_warranty_pdf(ag, org, actor=request.user)
+        filename = exports.clean_ref_filename(ag.reference, "pdf")
+        audit.record(
+            "contract.downloaded",
+            actor=request.user,
+            organization=org,
+            target=ag,
+            request=request,
+            metadata={"format": "pdf", "reference": ag.reference},
+        )
+        resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        resp["Cache-Control"] = "private, no-store"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp

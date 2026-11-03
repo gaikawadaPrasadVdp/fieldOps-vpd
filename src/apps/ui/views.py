@@ -922,7 +922,10 @@ def bad_request(request, exception=None):
             },
             status=400,
         )
-    return render(request, "errors/400.html", status=400)
+    try:
+        return render(request, "errors/400.html", status=400)
+    except Exception:
+        return HttpResponse("Bad request.", status=400)
 
 
 def bad_request(request, exception=None):
@@ -941,7 +944,10 @@ def bad_request(request, exception=None):
             },
             status=400,
         )
-    return render(request, "errors/400.html", status=400)
+    try:
+        return render(request, "errors/400.html", status=400)
+    except Exception:
+        return HttpResponse("Bad request.", status=400)
 
 
 def forbidden(request, exception=None):

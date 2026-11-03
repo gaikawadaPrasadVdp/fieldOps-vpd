@@ -9,7 +9,7 @@
   </div>
 </div>
 
-{% include "components/_section_tabs.html" with section="Maintenance" %}
+{% include "components/_section_tabs.html" with section="Maintenance Planning" %}
 
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">
@@ -54,10 +54,10 @@
       <tbody>
         {% for r in page %}
         <tr>
-          <td><a href="{% url 'maintenance:plan' r.schedule.plan_id %}" class="fw-semibold text-decoration-none">{{ r.schedule.plan.name }}</a></td>
-          <td>{{ r.schedule.plan.asset.asset_tag }}</td>
-          <td><a href="{% url 'maintenance:schedule' r.schedule.pk %}" class="text-decoration-none">{{ r.schedule.describe }}</a></td>
-          <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y" }}{% else %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit }}{% endif %}</td>
+          <td>{% if r.schedule and r.schedule.plan_id %}<a href="{% url 'maintenance:plan' r.schedule.plan_id %}" class="fw-semibold text-decoration-none">{{ r.schedule.plan.name|default:"Plan" }}</a>{% else %}—{% endif %}</td>
+          <td>{{ r.schedule.plan.asset.asset_tag|default:"—" }}</td>
+          <td>{% if r.schedule and r.schedule.pk %}<a href="{% url 'maintenance:schedule' r.schedule.pk %}" class="text-decoration-none">{{ r.schedule.describe }}</a>{% else %}—{% endif %}</td>
+          <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y"|default:"—" }}{% elif r.schedule.next_due_value %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit|default:"" }}{% else %}—{% endif %}</td>
           <td>{% status_badge r.state %}</td>
           <td>
             {% if can_generate %}
