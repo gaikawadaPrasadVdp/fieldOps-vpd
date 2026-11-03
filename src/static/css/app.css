@@ -826,6 +826,24 @@ body.fx-app {
 .fx-bell-menu {
   width: 340px;
   max-width: 90vw;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 576px) {
+  .fx-bell-menu {
+    position: fixed !important;
+    top: 54px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    z-index: 1055 !important;
+  }
 }
 
 /* dialogs / drawer */
@@ -1890,7 +1908,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     padding: 0.2rem 1.25rem 0.2rem 0.4rem;
   }
 
-  .fx-topbar .dropdown .btn {
+  .fx-topbar .dropdown > .btn {
     max-width: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1996,7 +2014,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     max-width: 75px;
   }
 
-  .fx-topbar .dropdown .btn {
+  .fx-topbar .dropdown > .btn {
     max-width: 70px;
   }
 }
@@ -2060,7 +2078,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     width: 100% !important;
     max-width: 100vw !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   .fx-topbar .fx-search {
@@ -2093,7 +2111,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     min-width: 0 !important;
   }
 
-  .fx-topbar .dropdown .btn {
+  .fx-topbar .dropdown > .btn {
     max-width: 105px !important;
     font-size: 0.75rem !important;
     padding: 0.22rem 0.45rem !important;
@@ -2112,7 +2130,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     color: transparent !important;
   }
 
-  .fx-topbar .dropdown .btn {
+  .fx-topbar .dropdown > .btn {
     max-width: 85px !important;
   }
 
@@ -2126,7 +2144,7 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
     display: none !important;
   }
 
-  .fx-topbar .dropdown .btn {
+  .fx-topbar .dropdown > .btn {
     max-width: 75px !important;
   }
 }
