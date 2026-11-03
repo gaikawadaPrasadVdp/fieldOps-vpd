@@ -42,8 +42,7 @@
     <!-- Desktop Navigation Menu -->
     <nav class="fx-pub-nav-desktop" aria-label="Main Navigation">
       <!-- Home Navigation Link -->
-      <a href="{% url 'ui:root' %}" class="fx-pub-nav-link {% if active_page == 'home' %}active{% endif %}" {% if
-        active_page=='home' %}aria-current="page" {% endif %}>
+      <a href="{% url 'ui:root' %}" class="fx-pub-nav-link {% if active_page == 'home' %}active{% endif %}" {% if active_page == 'home' %}aria-current="page" {% endif %}>
         Home
       </a>
       <!-- Product Dropdown Trigger -->
@@ -729,7 +728,7 @@
     <div class="fx-mobile-nav-item">
       <a href="{% url 'ui:root' %}"
         class="fx-mobile-accordion-trigger {% if active_page == 'home' %}is-active{% endif %}"
-        style="text-decoration:none;" {% if active_page=='home' %}aria-current="page" {% endif %}>Home</a>
+        style="text-decoration:none;" {% if active_page == 'home' %}aria-current="page" {% endif %}>Home</a>
     </div>
     <!-- Product Accordion -->
     <div class="fx-mobile-nav-item">
@@ -785,17 +784,17 @@
     <div class="fx-mobile-nav-item">
       <a href="{% url 'ui:public_features' %}"
         class="fx-mobile-accordion-trigger {% if active_page == 'features' %}is-active{% endif %}"
-        style="text-decoration:none;" {% if active_page=='features' %}aria-current="page" {% endif %}>Features</a>
+        style="text-decoration:none;" {% if active_page == 'features' %}aria-current="page" {% endif %}>Features</a>
     </div>
     <div class="fx-mobile-nav-item">
       <a href="{% url 'ui:public_resources' %}"
         class="fx-mobile-accordion-trigger {% if active_page == 'resources' %}is-active{% endif %}"
-        style="text-decoration:none;" {% if active_page=='resources' %}aria-current="page" {% endif %}>Resources</a>
+        style="text-decoration:none;" {% if active_page == 'resources' %}aria-current="page" {% endif %}>Resources</a>
     </div>
     <div class="fx-mobile-nav-item">
       <a href="{% url 'ui:public_about' %}"
         class="fx-mobile-accordion-trigger {% if active_page == 'about' %}is-active{% endif %}"
-        style="text-decoration:none;" {% if active_page=='about' %}aria-current="page" {% endif %}>About</a>
+        style="text-decoration:none;" {% if active_page == 'about' %}aria-current="page" {% endif %}>About</a>
     </div>
 
     <!-- Mobile Auth Actions -->
