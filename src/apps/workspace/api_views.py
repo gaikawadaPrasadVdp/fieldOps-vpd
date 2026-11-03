@@ -90,6 +90,21 @@ class JobExecutionDrawerAPIView(TenantAPIMixin, APIView):
         })
 
 
+def _workspace_error_response(exc: DomainError) -> Response:
+    if exc.code == "permission_denied":
+        http_status = status.HTTP_403_FORBIDDEN
+    elif exc.code == "not_found":
+        http_status = status.HTTP_404_NOT_FOUND
+    elif exc.code in ("conflict", "invalid_transition"):
+        http_status = status.HTTP_409_CONFLICT
+    else:
+        http_status = getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST)
+    return Response(
+        {"error": {"code": exc.code, "message": exc.message, "details": getattr(exc, "details", {})}},
+        status=http_status,
+    )
+
+
 class JobStartAPIView(TenantAPIMixin, APIView):
     """Starts the assigned work order (DISPATCHED -> IN_PROGRESS)."""
 
@@ -101,7 +116,7 @@ class JobStartAPIView(TenantAPIMixin, APIView):
         try:
             order = services.start_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} started.",
@@ -124,7 +139,7 @@ class JobPauseAPIView(TenantAPIMixin, APIView):
         try:
             order = services.pause_job(wo, reason=reason, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} paused.",
@@ -143,7 +158,7 @@ class JobResumeAPIView(TenantAPIMixin, APIView):
         try:
             order = services.resume_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} resumed.",
@@ -179,7 +194,7 @@ class JobTravelLogAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Travel logged successfully.",
@@ -274,7 +289,7 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(WorkNoteSerializer(note_entry).data, status=status.HTTP_201_CREATED)
 
@@ -302,7 +317,7 @@ class JobLaborAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Labor time recorded successfully.",
@@ -342,7 +357,7 @@ class JobMaterialAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobMaterialSerializer(mat).data, status=status.HTTP_201_CREATED)
 
@@ -381,7 +396,7 @@ class JobEvidenceAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         from apps.workorders.models import WorkOrderEvidence
 
@@ -423,7 +438,7 @@ class JobPartConsumeAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -451,7 +466,7 @@ class JobPartReturnAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -524,7 +539,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
                     request=request,
                 )
             except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+                return _workspace_error_response(exc)
 
             return Response(
                 {
@@ -550,7 +565,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
                     request=request,
                 )
             except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+                return _workspace_error_response(exc)
 
             return Response(
                 {

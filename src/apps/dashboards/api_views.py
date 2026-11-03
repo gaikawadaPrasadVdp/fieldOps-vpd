@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -57,6 +57,13 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
         summary="Get operational dashboard section metrics",
         description="Returns real aggregated metrics for a section with date window and site filters.",
         parameters=[
+            OpenApiParameter(
+                "section",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Dashboard section",
+                enum=["operations", "assets", "maintenance", "service", "inventory", "my-work"],
+            ),
             query_param("from", "Start date (YYYY-MM-DD), defaults to 30 days ago"),
             query_param("to", "End date (YYYY-MM-DD), defaults to today"),
             query_param("site", "Specific site UUID or code filter"),
