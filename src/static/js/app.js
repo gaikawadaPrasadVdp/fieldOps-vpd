@@ -64,7 +64,13 @@ document.addEventListener("change", function (e) {
       params.set(key, value);
     }
   });
-  window.location.search = params.toString();
+  var action = sel.form.getAttribute("action") || window.location.pathname;
+  var url = action + (action.indexOf("?") === -1 ? "?" : "&") + params.toString();
+  if (sel.form.id === "asset-modal-form" && window.htmx && document.getElementById("assetModalContent")) {
+    window.htmx.ajax("GET", url, {target: "#assetModalContent", swap: "innerHTML"});
+  } else {
+    window.location.href = url;
+  }
 });
 
 /* Universal FieldOps Nexus Toast & Notification System */
