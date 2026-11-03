@@ -565,6 +565,9 @@ def test_pm_compliance_ratio_with_on_time_overdue_and_skipped(pm_, monkeypatch):
 
     # Cycle 1: Generated and completed on-time
     c1 = pm.generate_cycle(sch)
+    c2 = pm.MaintenanceCycle.objects.create(
+        organization=p["org"], schedule=sch, sequence=99, trigger="manual", work_order=None
+    )
     wo1 = c1.work_order
     WorkOrder.objects.filter(pk=wo1.pk).update(status="COMPLETED", completed_at=at(2026, 3, 10, 10))
     wo1.refresh_from_db()
@@ -612,6 +615,13 @@ def test_pm_compliance_api_endpoint(pm_, monkeypatch):
 def test_pm_history_view_with_compliance(pm_, monkeypatch):
     p = pm_
     freeze(monkeypatch, T0)
+    plan = make_plan(p)
+    sch = time_schedule(plan, start_date=date(2026, 3, 10))
+    c1 = pm.generate_cycle(sch)
+    c2 = pm.MaintenanceCycle.objects.create(
+        organization=p["org"], schedule=sch, sequence=99, trigger="manual", work_order=None
+    )
+
     from django.test import Client
     client = Client()
     client.force_login(p["planner"].user)
