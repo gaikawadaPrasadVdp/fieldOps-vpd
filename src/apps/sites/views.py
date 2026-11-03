@@ -83,7 +83,7 @@ class SiteCreateView(SiteBase):
     def get(self, request):
         initial = {
             "timezone": request.organization.timezone,
-            "country": getattr(request.organization, "country", "IN") or "IN",
+            "country": "",
         }
         form = SiteForm(initial=initial)
         if request.headers.get("HX-Request"):

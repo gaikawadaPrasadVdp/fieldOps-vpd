@@ -7,6 +7,7 @@ import datetime
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from django.http import HttpResponse
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -19,7 +20,7 @@ from apps.sites import selectors as site_selectors
 from apps.tenancy.api import TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
 
-from . import selectors, services
+from . import exports, selectors, services
 from .models import CoverageAgreement, CoverageCheck, ServiceProvider
 
 WORK_TYPE_CHOICES = [(w, w) for w in services.WORK_TYPES]
@@ -243,6 +244,20 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         "expiring": "contract.view", "export": "contract.view", "download": "contract.view",
     }
 
+    def perform_content_negotiation(self, request, force=False):
+        if getattr(self, "action", None) in ("export", "download"):
+            from rest_framework.renderers import BaseRenderer
+
+            class PassthroughRenderer(BaseRenderer):
+                media_type = "*/*"
+                format = "raw"
+
+                def render(self, data, accepted_media_type=None, renderer_context=None):
+                    return data
+
+            return (PassthroughRenderer(), "*/*")
+        return super().perform_content_negotiation(request, force=force)
+
     def _ag(self, request, pk, code=None) -> CoverageAgreement:
         ag = selectors.get_agreement(request.membership, request.organization, pk)
         if code:
@@ -354,21 +369,54 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
                         AgreementSerializer)
 
 
-    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    @extend_schema(parameters=[
+        query_param("format", "csv | xlsx | pdf (default csv)"),
+        query_param("q", "reference / title / provider / asset tag"),
+        query_param("kind", "WARRANTY | AMC | SERVICE_CONTRACT"),
+        query_param("state", "ACTIVE | UPCOMING | EXPIRED | INACTIVE"),
+        query_param("site", "site id", OpenApiTypes.UUID),
+        query_param("provider", "provider id", OpenApiTypes.UUID),
+        query_param("asset", "asset id", OpenApiTypes.UUID),
+        query_param("ordering", "ordering field"),
+    ], responses={200: OpenApiTypes.BINARY})
     @action(detail=False, methods=["get"])
     def export(self, request):
-        """Download filtered coverage agreements as CSV."""
-        from . import exports
+        fmt = (request.query_params.get("format") or request.query_params.get("export_format") or "csv").lower()
+        if fmt not in exports.FORMATS:
+            raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
-        return exports.export_agreements_csv(qs, request.organization)
+        params = {k: v for k, v in request.query_params.items() if k not in ("format", "export_format", "page") and v}
+        filters_text = ", ".join(f"{k}={v}" for k, v in params.items())
+        result = exports.build_bulk_export(fmt, qs, request.organization, actor=request.user,
+                                           filters_text=filters_text)
+        from apps.audit import services as audit
+        audit.record("contract.exported", actor=request.user, organization=request.organization, request=request,
+                     metadata={"format": fmt, "rows": result.rows, "filters": params})
+        resp = HttpResponse(result.body, content_type=result.content_type)
+        resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+        resp["Cache-Control"] = "private, no-store"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
 
     @extend_schema(responses={200: OpenApiTypes.BINARY})
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
-        """Download a single coverage agreement with covered assets as CSV."""
+        ag = self._ag(request, pk, "contract.view")
+        fmt = (request.query_params.get("format") or "").lower()
+        if fmt == "pdf":
+            from . import exports
+            pdf_bytes = exports.build_single_warranty_pdf(ag, request.organization, actor=request.user)
+            filename = exports.clean_ref_filename(ag.reference, "pdf")
+            from apps.audit import services as audit
+            audit.record("contract.downloaded", actor=request.user, organization=request.organization,
+                         target=ag, request=request, metadata={"format": "pdf", "reference": ag.reference})
+            resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+            resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
         from . import exports
-        ag = self._ag(request, pk)
         return exports.export_single_agreement_csv(ag)
 
 
