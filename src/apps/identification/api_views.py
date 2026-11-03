@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import ValidationFailed
 from apps.tenancy.api import TenantAPIMixin
@@ -55,6 +56,7 @@ class ScanEventSerializer(serializers.ModelSerializer):
 
 @extend_schema(parameters=[ID_PARAM])
 class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "asset.view",
         "retrieve": "asset.view",
@@ -76,7 +78,7 @@ class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
             query_param("kind", "QR or BARCODE"),
             query_param("active", "true/false"),
         ],
-        responses=IdentifierSerializer(many=True),
+        responses=IdentifierSerializer,
     )
     def list(self, request):
         import uuid

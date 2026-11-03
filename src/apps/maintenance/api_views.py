@@ -28,7 +28,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
     site = serializers.UUIDField(source="plan.site_id", read_only=True)
     description_text = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField(help_text="DISABLED | DUE | SCHEDULED")
-    meter_name = serializers.CharField(source="meter.name", read_only=True, default=None)
+    meter_name = serializers.CharField(source="meter.name", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = MaintenanceSchedule

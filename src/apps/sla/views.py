@@ -10,21 +10,25 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
+from apps.assets.models import Asset, AssetCategory
+from apps.contracts.models import CoverageAgreement
 from apps.core.exceptions import DomainError
 from apps.rbac import services as rbac
 from apps.rbac.models import Role
-from apps.rbac.models import MembershipRole
-from apps.assets.models import Asset, AssetCategory
-from apps.contracts.models import CoverageAgreement
-from apps.tenancy.models import Membership
 from apps.sites import selectors as site_selectors
-from apps.sites.models import Site
+from apps.sites.models import OperatingCalendar, Site
 from apps.sites.views import need, or404
+from apps.tenancy.models import Membership
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import selectors, services
-from .forms import (EscalationRuleFormSetFactory, PriorityTargetFormSetFactory, ProfileForm, RuleForm,
-                    TargetForm)
+from .forms import (
+    EscalationRuleFormSetFactory,
+    PriorityTargetFormSetFactory,
+    ProfileForm,
+    RuleForm,
+    TargetForm,
+)
 from .models import EscalationRule, SLATarget
 
 
@@ -46,11 +50,11 @@ def _safe_next(request, default):
 
 
 def _profile_form_page(request, *, title, form, submit, cancel_url, crumbs, subtitle="", status=200,
-                       target_formset=None, rule_formset=None):
+                       target_formset=None, rule_formset=None, profile=None, targets=None, rules=None):
     return render(request, "sla/profile_form.html", {
         "title": title, "form": form, "submit": submit, "cancel_url": cancel_url,
         "crumbs": crumbs, "subtitle": subtitle, "target_formset": target_formset,
-        "rule_formset": rule_formset,
+        "rule_formset": rule_formset, "profile": profile, "targets": targets, "rules": rules,
     }, status=status)
 
 
@@ -178,34 +182,54 @@ class ProfileCreateView(SlaBase):
     crumbs = [("SLA profiles", "/app/sla/profiles/"), ("New", None)]
 
     def _form(self, request, data=None):
-        raw_applies = (data.get("applies_to") if data else None) or request.POST.get("applies_to", "REQUEST")
-        return ProfileForm(data, applies_to=raw_applies, **_profile_choices(request))
+        raw_applies = (data.get("applies_to") if data else None) or request.POST.get("applies_to") or "WORK_ORDER"
+        return ProfileForm(data, applies_to=raw_applies, organization=request.organization, **_profile_choices(request))
 
-    def _target_formset(self, request, applies_to, data=None, is_draft=False):
+    def _target_formset(self, request, applies_to, data=None, is_draft=False, initial=None):
         prefix = "targets"
         if data is not None and "targets-TOTAL_FORMS" not in data and "form-TOTAL_FORMS" in data:
             prefix = "form"
-        prios = list(services.priorities_for(applies_to))
-        prios.reverse()
-        initial = [{"priority": priority, "warning_percent": 80} for priority in prios]
+        if initial is None and data is None:
+            default_p = "URGENT" if applies_to == "WORK_ORDER" else "CRITICAL"
+            initial = [{"priority": default_p, "response_minutes": "15 minutes", "resolution_minutes": "4 hours", "warning_percent": "80"}]
         return PriorityTargetFormSetFactory(data, initial=initial, applies_to=applies_to, prefix=prefix,
                                            is_draft=is_draft)
 
-    def _rule_formset(self, request, data=None):
+    def _rule_formset(self, request, data=None, initial=None):
         prefix = "rules"
         roles = Role.objects.for_organization(request.organization).order_by("name")
-        return EscalationRuleFormSetFactory(data, roles=roles, prefix=prefix)
+        if initial is None and data is None:
+            sup_role = Role.objects.for_organization(request.organization).filter(
+                system_key__in=["supervisor", "maintenance_supervisor"]
+            ).first() or Role.objects.for_organization(request.organization).filter(name__icontains="supervisor").first()
+            mgr_role = Role.objects.for_organization(request.organization).filter(
+                system_key__in=["operations_manager", "service_manager", "admin", "owner"]
+            ).first() or Role.objects.for_organization(request.organization).filter(name__icontains="manager").first()
+            initial = [
+                {
+                    "target_kind": "RESOLUTION",
+                    "trigger": "WARNING",
+                    "level": 1,
+                    "notify_role": sup_role.pk if sup_role else (mgr_role.pk if mgr_role else None),
+                    "notify_assignee": True,
+                    "after_minutes": None
+                }
+            ]
+        return EscalationRuleFormSetFactory(data, initial=initial, roles=roles, prefix=prefix)
 
     def _render(self, request, form, status=200, target_formset=None, rule_formset=None):
         return _profile_form_page(
             request, title="New SLA Profile", form=form, submit="Create profile",
             cancel_url="/app/sla/profiles/", crumbs=self.crumbs,
-            subtitle="Add targets and escalation rules after creating the profile.",
+            subtitle="Configure scope, response/resolution targets, and automated escalation notifications.",
             status=status, target_formset=target_formset, rule_formset=rule_formset)
 
     def get(self, request):
         form = self._form(request)
-        return self._render(request, form)
+        applies_to = form.initial.get("applies_to") or "WORK_ORDER"
+        target_formset = self._target_formset(request, applies_to)
+        rule_formset = self._rule_formset(request)
+        return self._render(request, form, target_formset=target_formset, rule_formset=rule_formset)
 
     def post(self, request):
         post_data = request.POST.copy()
@@ -265,12 +289,14 @@ class ProfileCreateView(SlaBase):
                         asset=d.get("asset"), asset_category=d.get("asset_category"),
                         service_type=d.get("service_type", ""), work_type=d.get("work_type", ""),
                         pause_states=d["pause_states"], coverage_only=d.get("coverage_only", False),
-                        is_active=d["is_active"])
+                        is_active=d["is_active"], calendar=d.get("calendar"),
+                        use_business_hours=d.get("use_business_hours", False))
                     if target_formset:
                         for target_form in target_formset:
                             target_data = target_form.cleaned_data
-                            if not target_data or not target_data.get("priority"):
+                            if not target_data or target_data.get("DELETE") or not target_data.get("priority"):
                                 continue
+                            target_data = {k: v for k, v in target_data.items() if k != "DELETE" and v not in (None, "")}
                             services.set_target(profile, actor=request.user, request=request,
                                                 **target_data)
                     if rule_formset:
@@ -282,6 +308,34 @@ class ProfileCreateView(SlaBase):
                                          if key != "DELETE" and value not in (None, "")}
                             rule_data["after_minutes"] = rule_data.get("after_minutes") or 0
                             services.create_rule(profile, actor=request.user, request=request, **rule_data)
+
+                    # Auto-seed standard workflow escalation rules if none exist and profile has targets
+                    if profile.targets.exists() and not profile.rules.exists():
+                        sup_role = Role.objects.for_organization(request.organization).filter(
+                            system_key__in=["supervisor", "maintenance_supervisor"]
+                        ).first() or Role.objects.for_organization(request.organization).filter(name__icontains="supervisor").first()
+                        mgr_role = Role.objects.for_organization(request.organization).filter(
+                            system_key__in=["operations_manager", "service_manager", "admin", "owner"]
+                        ).first() or Role.objects.for_organization(request.organization).filter(name__icontains="manager").first()
+                        if sup_role or mgr_role:
+                            try:
+                                services.create_rule(
+                                    profile, target_kind="RESOLUTION", trigger="WARNING",
+                                    notify_role=sup_role or mgr_role, notify_assignee=True,
+                                    level=1, actor=request.user, request=request
+                                )
+                                services.create_rule(
+                                    profile, target_kind="RESOLUTION", trigger="BREACH",
+                                    notify_role=mgr_role or sup_role, notify_assignee=True,
+                                    level=2, actor=request.user, request=request
+                                )
+                                services.create_rule(
+                                    profile, target_kind="RESOLUTION", trigger="ESCALATION",
+                                    after_minutes=30, notify_role=mgr_role or sup_role,
+                                    notify_assignee=False, level=3, actor=request.user, request=request
+                                )
+                            except Exception:
+                                pass
                 messages.success(request, f"SLA Profile '{profile.name}' was created.")
                 return redirect("sla:profile", pk=profile.pk)
             except DomainError as exc:
@@ -304,7 +358,8 @@ def _profile_choices(request):
             "contracts": CoverageAgreement.objects.for_organization(org).filter(is_active=True)
                 .select_related("site").order_by("reference"),
             "assets": Asset.objects.for_organization(org).select_related("site").order_by("asset_tag"),
-            "categories": AssetCategory.objects.for_organization(org).order_by("name")}
+            "categories": AssetCategory.objects.for_organization(org).order_by("name"),
+            "calendars": OperatingCalendar.objects.for_organization(org).order_by("name")}
 
 
 class ProfileDetailView(ProfileBase):
@@ -319,33 +374,161 @@ class ProfileDetailView(ProfileBase):
 
 
 class ProfileEditView(ProfileBase):
-    def _page(self, request, p, form, status=200):
-        return _profile_form_page(request, title=f"Edit SLA profile: {p.name}", form=form, submit="Save", status=status,
-                         cancel_url=f"/app/sla/profiles/{p.pk}/",
-                         crumbs=[("SLA profiles", "/app/sla/profiles/"), (p.name, f"/app/sla/profiles/{p.pk}/"),
-                                 ("Edit", None)])
+    def _page(self, request, p, form, status=200, target_formset=None, rule_formset=None):
+        return _profile_form_page(
+            request,
+            title=f"Edit SLA profile: {p.name}",
+            form=form,
+            submit="Save changes",
+            status=status,
+            cancel_url=f"/app/sla/profiles/{p.pk}/",
+            crumbs=[("SLA profiles", "/app/sla/profiles/"), (p.name, f"/app/sla/profiles/{p.pk}/"),
+                    ("Edit", None)],
+            subtitle="Update scope matching criteria, milestone targets, operating hours, and pause rules.",
+            profile=p,
+            targets=p.targets.order_by("priority"),
+            rules=p.rules.select_related("notify_role"),
+            target_formset=target_formset,
+            rule_formset=rule_formset
+        )
 
     def get(self, request, pk):
         p = self.profile(request, pk)
-        return self._page(request, p, ProfileForm(editing=True, applies_to=p.applies_to,
-            initial={"name": p.name, "description": p.description, "pause_states": p.pause_states,
-                     "applies_to": p.applies_to, "site": p.site_id, "client": p.client_id,
-                     "contract": p.contract_id, "asset": p.asset_id, "asset_category": p.asset_category_id,
-                     "service_type": p.service_type or p.work_type, "work_type": p.work_type,
-                     "coverage_only": p.coverage_only}, **_profile_choices(request)))
+        initial = {
+            "name": p.name,
+            "description": p.description,
+            "pause_states": p.pause_states,
+            "applies_to": p.applies_to,
+            "site": p.site_id,
+            "client": p.client_id,
+            "contract": p.contract_id,
+            "asset": p.asset_id,
+            "asset_category": p.asset_category_id,
+            "service_type": p.service_type or p.work_type,
+            "work_type": p.work_type,
+            "coverage_only": p.coverage_only,
+            "calendar": p.calendar_id,
+            "use_business_hours": p.use_business_hours,
+        }
+        form = ProfileForm(
+            editing=True,
+            applies_to=p.applies_to,
+            instance=p,
+            organization=request.organization,
+            initial=initial,
+            **_profile_choices(request)
+        )
+        target_initial = [
+            {
+                "priority": t.priority,
+                "response_minutes": f"{t.response_minutes} minutes",
+                "resolution_minutes": f"{t.resolution_minutes} minutes",
+                "warning_percent": f"{t.warning_percent}%",
+            }
+            for t in p.targets.order_by("priority")
+        ]
+        if not target_initial:
+            default_p = "URGENT" if p.applies_to == "WORK_ORDER" else "CRITICAL"
+            target_initial = [{"priority": default_p, "response_minutes": "15 minutes", "resolution_minutes": "4 hours", "warning_percent": "80"}]
+
+        target_formset = PriorityTargetFormSetFactory(
+            initial=target_initial, applies_to=p.applies_to, prefix="targets"
+        )
+        roles = Role.objects.for_organization(request.organization).order_by("name")
+        rule_initial = [
+            {
+                "target_kind": r.target_kind,
+                "trigger": r.trigger,
+                "after_minutes": r.after_minutes if r.trigger == "ESCALATION" else None,
+                "level": r.level,
+                "notify_role": r.notify_role_id,
+                "notify_assignee": r.notify_assignee,
+            }
+            for r in p.rules.order_by("level", "trigger")
+        ]
+        rule_formset = EscalationRuleFormSetFactory(
+            initial=rule_initial, roles=roles, prefix="rules"
+        )
+        return self._page(request, p, form, target_formset=target_formset, rule_formset=rule_formset)
 
     def post(self, request, pk):
         p = self.profile(request, pk)
-        form = ProfileForm(request.POST, editing=True, applies_to=request.POST.get("applies_to", p.applies_to),
+        post_data = request.POST.copy()
+        applies_to = post_data.get("applies_to", p.applies_to)
+        form = ProfileForm(post_data, editing=True, applies_to=applies_to,
+                           instance=p, organization=request.organization,
                            **_profile_choices(request))
-        if form.is_valid():
+        roles = Role.objects.for_organization(request.organization).order_by("name")
+
+        has_target_formset = "targets-TOTAL_FORMS" in post_data
+        has_single_target = "priority" in post_data and ("response_target" in post_data or "response_minutes" in post_data)
+
+        target_formset = None
+        rule_formset = None
+        valid = form.is_valid()
+
+        if has_target_formset:
+            target_formset = PriorityTargetFormSetFactory(post_data, applies_to=applies_to, prefix="targets")
+            rule_formset = EscalationRuleFormSetFactory(post_data, roles=roles, prefix="rules")
+            valid = valid and target_formset.is_valid() and rule_formset.is_valid()
+
+        if valid:
             try:
-                services.update_profile(p, actor=request.user, request=request, **form.cleaned_data)
-                messages.success(request, "Saved.")
+                with transaction.atomic():
+                    services.update_profile(p, actor=request.user, request=request, **form.cleaned_data)
+
+                    if has_target_formset:
+                        submitted_priorities = set()
+                        for t_form in target_formset:
+                            t_data = t_form.cleaned_data
+                            if not t_data:
+                                continue
+                            prio = t_data.get("priority")
+                            if t_data.get("DELETE"):
+                                if prio:
+                                    existing = p.targets.filter(priority=prio).first()
+                                    if existing:
+                                        services.remove_target(existing, actor=request.user, request=request)
+                                continue
+                            if prio and t_data.get("response_minutes") and t_data.get("resolution_minutes"):
+                                clean_t_data = {k: v for k, v in t_data.items() if k != "DELETE" and v not in (None, "")}
+                                services.set_target(p, actor=request.user, request=request, **clean_t_data)
+                                submitted_priorities.add(prio)
+
+                        for existing_t in p.targets.all():
+                            if existing_t.priority not in submitted_priorities and not any(f.cleaned_data and f.cleaned_data.get('priority') == existing_t.priority for f in target_formset):
+                                services.remove_target(existing_t, actor=request.user, request=request)
+
+                        p.rules.all().delete()
+                        for r_form in rule_formset:
+                            r_data = r_form.cleaned_data
+                            if not r_data or r_data.get("DELETE") or not r_data.get("target_kind"):
+                                continue
+                            r_data = {k: v for k, v in r_data.items() if k != "DELETE" and v not in (None, "")}
+                            r_data["after_minutes"] = r_data.get("after_minutes") or 0
+                            services.create_rule(p, actor=request.user, request=request, **r_data)
+
+                    elif has_single_target:
+                        resp_val = post_data.get("response_target") or post_data.get("response_minutes")
+                        resol_val = post_data.get("resolution_target") or post_data.get("resolution_minutes")
+                        prio_val = post_data.get("priority")
+                        warn_val = post_data.get("warning_alert") or post_data.get("warning_percent", "80")
+                        if resp_val and resol_val and prio_val:
+                            from apps.sla.services import parse_duration_minutes, parse_percentage
+                            services.set_target(
+                                p,
+                                priority=str(prio_val).strip().upper(),
+                                response_minutes=parse_duration_minutes(resp_val, what="Response Target"),
+                                resolution_minutes=parse_duration_minutes(resol_val, what="Resolution Target"),
+                                warning_percent=parse_percentage(warn_val, what="Warning Alert"),
+                                actor=request.user,
+                                request=request
+                            )
+                messages.success(request, f"SLA Profile '{p.name}' updated.")
                 return redirect("sla:profile", pk=p.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
-        return self._page(request, p, form, status=400)
+        return self._page(request, p, form, status=400, target_formset=target_formset, rule_formset=rule_formset)
 
 
 class ProfileActiveView(ProfileBase):

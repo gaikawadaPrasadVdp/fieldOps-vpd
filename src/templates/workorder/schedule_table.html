@@ -1,6 +1,7 @@
 {% if schedule_error %}<div class="wo-error-banner" role="alert">{{ schedule_error }}</div>{% endif %}
 {% if schedule_success %}<div class="wo-success-banner" role="status">{{ schedule_success }}</div>{% endif %}
 
+{% if can_assign %}
 <section class="wo-simple-schedule-section" aria-labelledby="unassigned-heading">
   <header class="wo-simple-section-heading"><h2 id="unassigned-heading">Planned work · awaiting assignment</h2><span>{{ selected_day|date:"D, M j" }}</span></header>
   <div class="wo-simple-job-list">
@@ -36,6 +37,7 @@
     {% empty %}<p class="wo-simple-empty">No unassigned planned work orders for this date.</p>{% endfor %}
   </div>
 </section>
+{% endif %}
 
 <section class="wo-simple-schedule-section" aria-labelledby="technician-schedule-heading">
   <header class="wo-simple-section-heading"><h2 id="technician-schedule-heading">Technician schedule</h2><span>{{ selected_day|date:"D, M j" }}</span></header>

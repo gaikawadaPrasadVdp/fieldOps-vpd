@@ -231,6 +231,8 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         params = request.query_params if request.method == "GET" else request.data
         asset_id = params.get("asset")
         if not asset_id:
+            if request.method == "POST":
+                raise ValidationFailed("asset and title are required for duplicate checking.", code="validation_failed")
             return Response({"duplicate_found": False, "duplicates": []})
         if selectors.is_owned_asset_reporter(request.membership):
             from apps.assets.models import Asset

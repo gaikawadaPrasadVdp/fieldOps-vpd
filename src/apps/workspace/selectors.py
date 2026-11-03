@@ -12,6 +12,14 @@ if TYPE_CHECKING:
     from apps.tenancy.models import Membership, Organization
 
 
+class ContactDict(dict):
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+
 def route_context(work_order: WorkOrder) -> dict:
     """Return navigation and site routing details for the work order."""
     site = work_order.site if getattr(work_order, "site_id", None) else None
@@ -19,7 +27,7 @@ def route_context(work_order: WorkOrder) -> dict:
     if site:
         contacts_qs = SiteContact.objects.filter(site=site).order_by("escalation_order")
         contacts = [
-            {
+            ContactDict({
                 "id": str(c.id),
                 "name": c.name,
                 "role_title": c.role_title,
@@ -27,7 +35,7 @@ def route_context(work_order: WorkOrder) -> dict:
                 "email": c.email,
                 "escalation_order": c.escalation_order,
                 "notes": c.notes,
-            }
+            })
             for c in contacts_qs
         ]
     asset = work_order.asset if getattr(work_order, "asset_id", None) else None

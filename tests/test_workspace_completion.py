@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.workorders.models import WorkOrder, WorkOrderLabor, WorkOrderSignoff
 from apps.workspace import selectors as ws_selectors
+from apps.workorders import services as wos
 from tests.phase3_support import wo_in_progress
 
 pytestmark = pytest.mark.django_db
@@ -110,6 +111,8 @@ def test_complete_job_with_signoff_service_happy_path(p3):
     wo.checklist_required = False
     wo.save(update_fields=["checklist_required"])
     tech = p3["tech"]
+    wos.record_labor(wo, technician=tech, work_date=timezone.localdate(), hours="1.0",
+                     description="Completed maintenance", actor=tech.user, membership=tech)
 
     completed_order, signoff = ws_services.complete_job_with_signoff(
         wo,
@@ -185,6 +188,8 @@ def test_job_complete_html_view(p3, client):
     wo.checklist_required = False
     wo.save(update_fields=["checklist_required"])
     tech = p3["tech"]
+    wos.record_labor(wo, technician=tech, work_date=timezone.localdate(), hours="1.0",
+                     description="Completed maintenance", actor=tech.user, membership=tech)
 
     client.force_login(tech.user)
     session = client.session
@@ -224,6 +229,8 @@ def test_job_complete_api_view(p3):
     wo.checklist_required = False
     wo.save(update_fields=["checklist_required"])
     tech = p3["tech"]
+    wos.record_labor(wo, technician=tech, work_date=timezone.localdate(), hours="1.0",
+                     description="Completed maintenance", actor=tech.user, membership=tech)
 
     api = APIClient()
     api.force_authenticate(user=tech.user)
@@ -267,6 +274,8 @@ def test_job_complete_html_view_negative_paths(p3, client):
     wo.checklist_required = False
     wo.save(update_fields=["checklist_required"])
     tech = p3["tech"]
+    wos.record_labor(wo, technician=tech, work_date=timezone.localdate(), hours="1.0",
+                     description="Completed maintenance", actor=tech.user, membership=tech)
 
     client.force_login(tech.user)
     session = client.session
@@ -306,6 +315,8 @@ def test_job_complete_api_view_negative_paths(p3):
     wo.checklist_required = False
     wo.save(update_fields=["checklist_required"])
     tech = p3["tech"]
+    wos.record_labor(wo, technician=tech, work_date=timezone.localdate(), hours="1.0",
+                     description="Completed maintenance", actor=tech.user, membership=tech)
 
     api = APIClient()
     api.force_authenticate(user=tech.user)

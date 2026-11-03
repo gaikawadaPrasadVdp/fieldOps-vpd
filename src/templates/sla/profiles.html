@@ -2,8 +2,19 @@
 {% load ui_tags %}
 {% block title %}SLA profiles &middot; FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>SLA profiles</h1><div class="text-body-secondary">Targets per priority and the escalation rules that notify people.</div></div>
-  <div><a class="btn btn-primary" href="{% url 'sla:profile_new' %}">{% icon 'plus' 16 %} New profile</a></div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>SLA profiles</h1>
+    <div class="text-body-secondary">
+      Response & resolution targets per priority, matching scope rules, and automated escalation notifications.
+    </div>
+  </div>
+  <div>
+    <a class="btn btn-primary" href="{% url 'sla:profile_new' %}">
+      <i class="bi bi-plus-lg me-1"></i>New profile
+    </a>
+  </div>
+</div>
 {% include "sla/_tabs.html" %}
 
 <!-- Standardized KPI Cards Row -->
@@ -19,10 +30,100 @@
   </div>
 </div>
 
-<div class="fx-card"><div class="table-responsive"><table class="table fx-table" id="profiles-table"><thead><tr><th>Profile</th><th>Applies to</th><th>Scope</th><th>Targets</th><th>Status</th></tr></thead><tbody>
-  {% for p in page %}<tr><td><a href="{% url 'sla:profile' p.pk %}">{{ p.name }}</a></td><td>{{ p.get_applies_to_display }}</td>
-    <td>{% if p.client %}Client: {{ p.client.user.display_name }}{% elif p.contract %}Contract / AMC: {{ p.contract.reference }}{% elif p.asset %}Asset: {{ p.asset.asset_tag }}{% elif p.asset_category %}Category: {{ p.asset_category.name }}{% elif p.site %}Site: {{ p.site.code }}{% elif p.service_type or p.work_type %}Service type: {{ p.service_type|default:p.work_type|title }}{% else %}Organization default{% endif %}{% if p.coverage_only %} &middot; <span class="badge fx-badge fx-badge-info">Coverage only</span>{% endif %}</td><td>{{ p.targets.all|length }}</td>
-    <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No SLA profiles yet" text="Create an SLA profile to start tracking Incident / Breakdown or Work Order Response Targets and Resolution Targets." %}</td></tr>{% endfor %}</tbody></table></div>
-  {% include "components/_pagination.html" %}</div>
+<div class="fx-card">
+  <div class="table-responsive">
+    <table class="table fx-table mb-0" id="profiles-table">
+      <thead>
+        <tr>
+          <th style="width: 22%;">Profile</th>
+          <th style="width: 14%;">Applies To</th>
+          <th style="width: 24%;">Matching Scope</th>
+          <th style="width: 20%;">Targets</th>
+          <th style="width: 10%;">Status</th>
+          <th style="width: 10%; text-align: end;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in page %}
+        <tr>
+          <td>
+            <div class="fw-semibold">
+              <a href="{% url 'sla:profile' p.pk %}" class="text-decoration-none">{{ p.name }}</a>
+            </div>
+            {% if p.description %}
+              <div class="small text-body-secondary text-truncate" style="max-width: 260px;">{{ p.description }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.applies_to == "WORK_ORDER" %}
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                <i class="bi bi-wrench me-1"></i>Work Order
+              </span>
+            {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                <i class="bi bi-exclamation-triangle me-1"></i>Incident / Request
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <div>
+              {% if p.site %}
+                <span class="fw-semibold text-body"><i class="bi bi-geo-alt me-1 text-danger"></i>{{ p.site.code }}</span>
+                <span class="text-body-secondary small">({{ p.site.name }})</span>
+              {% else %}
+                <span class="badge bg-light text-dark border"><i class="bi bi-building me-1 text-secondary"></i>All Sites</span>
+              {% endif %}
+            </div>
+            <div class="small text-body-secondary mt-1">
+              {% if p.work_type or p.service_type %}
+                <span class="badge bg-body text-body border py-0 px-1">{{ p.work_type|default:p.service_type|title }}</span>
+              {% endif %}
+              {% if p.client %}&middot; Client: {{ p.client.user.display_name }}{% endif %}
+              {% if p.asset %}&middot; Asset: {{ p.asset.asset_tag }}{% endif %}
+              {% if p.contract %}&middot; Agreement: {{ p.contract.reference }}{% endif %}
+              {% if p.coverage_only %}<span class="badge bg-info-subtle text-info-emphasis ms-1">Coverage only</span>{% endif %}
+            </div>
+          </td>
+          <td>
+            <div class="d-flex flex-column gap-1">
+              {% for t in p.targets.all %}
+                <div class="small text-nowrap">
+                  <span class="badge bg-light text-dark border py-0 px-1" style="font-size: 0.72rem;">{{ t.priority }}</span>
+                  <span class="text-body small">{{ t.response_minutes }}m resp &middot; {{ t.resolution_minutes }}m resol</span>
+                </div>
+              {% empty %}
+                <span class="text-body-secondary small">No targets</span>
+              {% endfor %}
+              {% if p.rules.count %}
+                <div class="small text-body-secondary mt-1">
+                  <i class="bi bi-bell text-primary me-1"></i>{{ p.rules.count }} escalation rule{{ p.rules.count|pluralize }}
+                </div>
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            {% if p.is_active %}
+              {% status_badge "ACTIVE" %}
+            {% else %}
+              {% status_badge "INACTIVE" %}
+            {% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            <a href="{% url 'sla:profile' p.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="View details">
+              <i class="bi bi-eye me-1"></i>View
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            {% include "components/_empty_state.html" with title="No SLA profiles yet" text="Create an SLA profile to start tracking Incident / Breakdown or Work Order Response Targets and Resolution Targets." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" %}
+</div>
 {% endblock %}

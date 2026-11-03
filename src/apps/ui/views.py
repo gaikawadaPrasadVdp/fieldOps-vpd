@@ -171,6 +171,7 @@ def public_legal(request, slug):
         "terms-of-service": "Terms of Service & User Agreement",
         "disclaimer": "Enterprise System Disclaimer",
         "cookie-policy": "Cookie & Session Policy",
+        "sitemap": "Platform Sitemap & Directory",
     }
     title = titles.get(slug, "Legal Notice")
     contents = {
@@ -180,8 +181,121 @@ def public_legal(request, slug):
         "disclaimer": "<p>This system operates as an Enterprise Asset, Maintenance & Field Service ERP. System specifications and operational workflows adhere to verified technical draft standards.</p><p>Final formal acceptance is subject to the mandatory 90-calendar-day evaluation gate.</p>",
         "cookie-policy": "<p>FieldOps Nexus utilizes strictly necessary session cookies (<code>sessionid</code> and <code>csrftoken</code>) configured with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections to maintain authenticated sessions and protect against cross-site request forgery.</p>",
     }
+    if slug == "sitemap":
+        return public_sitemap(request)
     content = contents.get(slug, "<p>Legal terms and conditions apply as specified in project governance documentation.</p>")
     return render(request, "public/legal.html", {"active_page": "legal", "selected_slug": slug, "title": title, "content": content})
+
+
+def public_contact(request):
+    title = "Contact Sales & Enterprise Support"
+    content = (
+        "<p class='lead text-dark'>Get in touch with the FieldOps Nexus team for enterprise deployment, technical evaluations, and platform inquiries.</p>"
+        "<div class='row g-4 mt-2'>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-4 rounded-3 border bg-light h-100'>"
+        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Sales & Commercial</h4>"
+        "      <p class='small text-secondary mb-2'>Speak with our solutions team about licensing tiers, pilot programs, and service contracts.</p>"
+        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:sales@fieldopsnexus.com' class='text-decoration-none'>sales@fieldopsnexus.com</a></p>"
+        "      <p class='mb-0'><strong>Response Time:</strong> Within 1 business day</p>"
+        "    </div>"
+        "  </div>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-4 rounded-3 border bg-light h-100'>"
+        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Technical Support & Headquarters</h4>"
+        "      <p class='small text-secondary mb-2'>Operational telemetry assistance, SLA escalations, and platform diagnostics.</p>"
+        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:support@fieldopsnexus.com' class='text-decoration-none'>support@fieldopsnexus.com</a></p>"
+        "      <p class='mb-1'><strong>Phone:</strong> <a href='tel:+919876543210' class='text-decoration-none'>+91 98765 43210</a></p>"
+        "      <p class='mb-0'><strong>Location:</strong> Bangalore, Karnataka, India</p>"
+        "    </div>"
+        "  </div>"
+        "</div>"
+    )
+    return render(request, "public/legal.html", {"active_page": "contact", "selected_slug": "contact", "title": title, "content": content})
+
+
+def public_careers(request):
+    title = "Careers & Engineering Opportunities"
+    content = (
+        "<p class='lead text-dark'>Join our mission to transform industrial maintenance, field service execution, and enterprise asset reliability.</p>"
+        "<div class='mt-4'>"
+        "  <h4 class='h5 fw-bold text-dark mb-3'>Open Engineering & Operations Positions</h4>"
+        "  <div class='list-group list-group-flush border rounded-3 mb-4'>"
+        "    <div class='list-group-item p-3'>"
+        "      <div class='d-flex justify-content-between align-items-center'>"
+        "        <h6 class='mb-1 fw-bold text-dark'>Senior Systems Architect &bull; Multi-Tenant Core</h6>"
+        "        <span class='badge bg-primary'>Full-Time</span>"
+        "      </div>"
+        "      <p class='small text-secondary mb-0'>Distributed Python/Django backend systems, telemetry streaming, and cryptographic audit ledgers.</p>"
+        "    </div>"
+        "    <div class='list-group-item p-3'>"
+        "      <div class='d-flex justify-content-between align-items-center'>"
+        "        <h6 class='mb-1 fw-bold text-dark'>Field Operations Solutions Engineer</h6>"
+        "        <span class='badge bg-success'>Bangalore / Hybrid</span>"
+        "      </div>"
+        "      <p class='small text-secondary mb-0'>Client onboarding, ERP integration (SAP/Oracle), and field workflow calibration.</p>"
+        "    </div>"
+        "  </div>"
+        "  <p class='small text-secondary'>To apply or submit an open inquiry, contact talent acquisition at <a href='mailto:careers@fieldopsnexus.com' class='fw-bold text-decoration-none'>careers@fieldopsnexus.com</a>.</p>"
+        "</div>"
+    )
+    return render(request, "public/legal.html", {"active_page": "careers", "selected_slug": "careers", "title": title, "content": content})
+
+
+def public_sitemap(request):
+    title = "Platform Sitemap & Directory"
+    content = (
+        "<p class='lead text-dark'>Complete architectural and navigational directory of FieldOps Nexus public portals and operational interfaces.</p>"
+        "<div class='row g-4 mt-3'>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-3 border rounded-3 bg-light h-100'>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Core Platform &amp; Workflows</h5>"
+        "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
+        "        <li><a href='/' class='text-decoration-none fw-semibold'>&rarr; Home &amp; Enterprise Landing</a></li>"
+        "        <li><a href='/features/' class='text-decoration-none fw-semibold'>&rarr; Features &amp; 8-Stage Connected Service Flow</a></li>"
+        "        <li><a href='/product/' class='text-decoration-none fw-semibold'>&rarr; Product Architecture Overview</a></li>"
+        "        <li><a href='/modules/' class='text-decoration-none fw-semibold'>&rarr; Operational Modules Index</a></li>"
+        "      </ul>"
+        "    </div>"
+        "  </div>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-3 border rounded-3 bg-light h-100'>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Enterprise Modules</h5>"
+        "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
+        "        <li><a href='/modules/asset-management/' class='text-decoration-none'>&bull; Asset Management &amp; Telemetry</a></li>"
+        "        <li><a href='/modules/service-management/' class='text-decoration-none'>&bull; Service Requests &amp; Triage</a></li>"
+        "        <li><a href='/modules/work-order-management/' class='text-decoration-none'>&bull; Work Order Formulation &amp; Execution</a></li>"
+        "        <li><a href='/modules/analytics-reporting/' class='text-decoration-none'>&bull; Analytics &amp; Operational Intelligence</a></li>"
+        "      </ul>"
+        "    </div>"
+        "  </div>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-3 border rounded-3 bg-light h-100'>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Industry Solutions</h5>"
+        "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
+        "        <li><a href='/solutions/enterprise-operations/' class='text-decoration-none'>&bull; Enterprise Operations</a></li>"
+        "        <li><a href='/solutions/manufacturing/' class='text-decoration-none'>&bull; Industrial Manufacturing</a></li>"
+        "        <li><a href='/solutions/facilities/' class='text-decoration-none'>&bull; Facilities Management</a></li>"
+        "        <li><a href='/solutions/service-maintenance/' class='text-decoration-none'>&bull; Field Service &amp; Maintenance</a></li>"
+        "      </ul>"
+        "    </div>"
+        "  </div>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-3 border rounded-3 bg-light h-100'>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Governance, Company &amp; Legal</h5>"
+        "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
+        "        <li><a href='/about/' class='text-decoration-none'>&bull; About Us &amp; Mission</a></li>"
+        "        <li><a href='/resources/' class='text-decoration-none'>&bull; Resources &amp; Documentation</a></li>"
+        "        <li><a href='/legal/privacy-policy/' class='text-decoration-none'>&bull; Privacy Policy &amp; Data Protection</a></li>"
+        "        <li><a href='/legal/terms-of-service/' class='text-decoration-none'>&bull; Terms of Service</a></li>"
+        "        <li><a href='/legal/disclaimer/' class='text-decoration-none'>&bull; Enterprise Disclaimer</a></li>"
+        "        <li><a href='/legal/cookie-policy/' class='text-decoration-none'>&bull; Cookie &amp; Session Policy</a></li>"
+        "      </ul>"
+        "    </div>"
+        "  </div>"
+        "</div>"
+    )
+    return render(request, "public/legal.html", {"active_page": "sitemap", "selected_slug": "sitemap", "title": title, "content": content})
 
 
 class ActivityEntry:
@@ -374,13 +488,21 @@ def home(request):
     current_in_progress_job = None
     assigned_work_orders = []
 
+    if can_view_work_orders:
+        open_wo_qs = WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED])
+        if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
+            open_wo_qs = open_wo_qs.filter(assigned_to=request.membership)
+        open_wo_count = open_wo_qs.count()
+    else:
+        open_wo_count = 0
+
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
         "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count() if can_view_users else 0,
         "roles": Role.objects.for_organization(org).count() if can_view_roles else 0,
         "total_assets": Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
         "total_sites": Site.objects.for_organization(org).filter(status="ACTIVE").count() if can_view_sites else 0,
-        "open_work_orders": WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]).count() if can_view_work_orders else 0,
+        "open_work_orders": open_wo_count,
     }
 
     # Build Role-Tailored KPIs, Shortcuts, Actions, and Recent Activity
@@ -504,7 +626,7 @@ def home(request):
             WorkOrder.objects.for_organization(org)
             .filter(
                 assigned_to=request.membership,
-                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "PLANNED"],
+                status__in=["IN_PROGRESS", "DISPATCHED", "ON_HOLD", "ASSIGNED", "PLANNED", "SUPERVISOR_REVIEW", "COMPLETED"],
             )
             .select_related("site", "asset")
             .order_by("-status", "-priority", "planned_start", "due_at")[:8]
@@ -539,7 +661,7 @@ def home(request):
         activity_link_label = "Technician Workspace →"
 
     elif persona_key == "supervisor":
-        pending_rev = WorkOrder.objects.for_organization(org).filter(status="COMPLETED").count()
+        pending_rev = WorkOrder.objects.for_organization(org).filter(status__in=[WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.COMPLETED]).count()
         active_orders = WorkOrder.objects.for_organization(org).filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
         breaches = SLABreach.objects.for_organization(org).count()
         inspections = Inspection.objects.for_organization(org).count()
@@ -550,7 +672,7 @@ def home(request):
             {"title": "Inspections Conducted", "value": inspections, "subtitle": "Quality & safety inspections", "tone": "gold", "icon": "shield"},
         ]
         shortcuts = [
-            {"label": "Work Order Review Board", "url": reverse("workorders:list"), "icon": "clipboard-check"},
+            {"label": "Work Order Review Board", "url": reverse("workorders:list") + "?status=SUPERVISOR_REVIEW", "icon": "clipboard-check"},
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock"},
             {"label": "Operational Dashboards", "url": reverse("dashboards:hub"), "icon": "grid"},
@@ -669,7 +791,10 @@ def home(request):
             activity_link = reverse("audit:list")
             activity_link_label = "Full Audit Trail →"
         else:
-            recent_objs = WorkOrder.objects.for_organization(org).order_by("-created_at")[:8]
+            recent_qs = WorkOrder.objects.for_organization(org)
+            if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
+                recent_qs = recent_qs.filter(assigned_to=request.membership)
+            recent_objs = recent_qs.order_by("-created_at")[:8]
             recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_objs]
             activity_title = "Recent Work Orders"
             activity_link = reverse("workorders:list")

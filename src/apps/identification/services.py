@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import secrets
+from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
 from django.db import transaction
@@ -197,12 +198,35 @@ def revoke_identifier(
     return identifier
 
 
+def extract_token(token: str) -> str:
+    """Normalize and extract the raw identifier token from scan URLs, query strings, or raw tokens."""
+    token = (token or "").strip()
+    if not token:
+        return ""
+    if "://" in token or "/" in token or "?" in token or "#" in token:
+        try:
+            parsed = urlparse(token)
+            qs = parse_qs(parsed.query)
+            if "token" in qs and qs["token"]:
+                return qs["token"][0].strip().strip("/")
+            path = parsed.path.strip()
+            if "/s/" in path:
+                return path.split("/s/")[-1].strip("/")
+            elif path:
+                candidate = path.strip("/").split("/")[-1].strip()
+                if candidate:
+                    return candidate
+        except Exception:
+            pass
+        token = token.split("#")[0].split("?")[0].strip("/")
+        if "/s/" in token:
+            token = token.split("/s/")[-1].strip("/")
+    return token
+
+
 def resolve_token(membership, token: str, *, actor=None, request=None) -> tuple[AssetIdentifier, Asset, bool]:
     """Look up an identifier token in the caller's organization and verify permissions."""
-    token = (token or "").strip()
-    # Strip URL prefix if a full URL was provided
-    if "/s/" in token:
-        token = token.split("/s/")[-1].strip("/").split("?")[0].split("#")[0]
+    token = extract_token(token)
 
     org = membership.organization
     identifier = (

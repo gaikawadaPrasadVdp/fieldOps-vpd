@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.sites import selectors as site_selectors
@@ -288,13 +289,14 @@ def resolve_refs(request, d: dict, *, code: str) -> dict:
 
 @extend_schema(parameters=[ID_PARAM])
 class AssetCategoryViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "create": "asset.category.manage",
                       "partial_update": "asset.category.manage"}
 
     def _cat(self, request, pk):
         return site_selectors.scoped_get(selectors.categories_for(request.organization), pk, "Category")
 
-    @extend_schema(responses=CategorySerializer(many=True))
+    @extend_schema(responses=CategorySerializer)
     def list(self, request):
         return paginate(request, selectors.categories_for(request.organization), CategorySerializer)
 
@@ -322,6 +324,7 @@ class AssetCategoryViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "asset.view", "retrieve": "asset.view", "create": "asset.create", "partial_update": "asset.update",
         "transition": "asset.change_status", "history": "asset.history.view",
@@ -346,7 +349,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
                     query_param("status", "asset status"), query_param("owner", "owner membership id",
                     OpenApiTypes.UUID), query_param("q", "tag / name / serial / model / manufacturer"),
                     query_param("ordering", "asset_tag, name, status, created_at (prefix - to reverse)")],
-        responses=AssetSerializer(many=True))
+        responses=AssetSerializer)
     def list(self, request):
         qs = selectors.filter_assets(self._qs(request), request.query_params)
         return paginate(request, qs, AssetSerializer)
@@ -510,6 +513,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "partial_update": "asset.hierarchy.manage",
                       "move": "asset.hierarchy.manage", "replace": "asset.hierarchy.manage",
                       "destroy": "asset.hierarchy.manage"}
@@ -522,7 +526,7 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("parent", "parent asset id", OpenApiTypes.UUID),
                                query_param("child", "child asset id", OpenApiTypes.UUID)],
-                   responses=ComponentSerializer(many=True))
+                   responses=ComponentSerializer)
     def list(self, request):
         import uuid
 
@@ -613,6 +617,7 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MeterViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "create": "asset.update",
                       "activate": "asset.update", "deactivate": "asset.update",
                       "readings:get": "asset.view", "readings:post": "asset.meter.record"}
@@ -624,7 +629,7 @@ class MeterViewSet(TenantAPIMixin, viewsets.ViewSet):
         return meter
 
     @extend_schema(parameters=[query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=MeterSerializer(many=True))
+                   responses=MeterSerializer)
     def list(self, request):
         import uuid
 

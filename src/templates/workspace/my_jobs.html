@@ -146,20 +146,16 @@ Technician Workspace{% endblock %} {% block content %}
   <!-- Standardized KPI Cards Row -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-      {% include "components/_kpi_card.html" with title="Active Execution"
-      value=active_count tone="success" icon="check" %}
+      {% include "components/_kpi_card.html" with title="Active Execution" value=active_count tone="success" icon="check" %}
     </div>
     <div class="col-6 col-md-3">
-      {% include "components/_kpi_card.html" with title="Upcoming / Assigned"
-      value=upcoming_count tone="info" icon="clock" %}
+      {% include "components/_kpi_card.html" with title="Upcoming / Assigned" value=upcoming_count tone="info" icon="clock" %}
     </div>
     <div class="col-6 col-md-3">
-      {% include "components/_kpi_card.html" with title="Completed"
-      value=completed_count tone="secondary" icon="clipboard-check" %}
+      {% include "components/_kpi_card.html" with title="Completed" value=completed_count tone="secondary" icon="clipboard-check" %}
     </div>
     <div class="col-6 col-md-3">
-      {% include "components/_kpi_card.html" with title="Total Assigned"
-      value=all_count tone="primary" icon="wrench" %}
+      {% include "components/_kpi_card.html" with title="Total Assigned" value=all_count tone="primary" icon="wrench" %}
     </div>
   </div>
 

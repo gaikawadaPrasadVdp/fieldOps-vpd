@@ -1,5 +1,5 @@
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,8 +15,8 @@ from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Si
 
 
 class SiteSerializer(serializers.ModelSerializer):
-    zone_count = serializers.IntegerField(read_only=True, required=False)
-    asset_count = serializers.IntegerField(read_only=True, required=False)
+    zone_count = serializers.SerializerMethodField()
+    asset_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Site
@@ -25,36 +25,25 @@ class SiteSerializer(serializers.ModelSerializer):
                   "contact_phone", "zone_count", "asset_count", "created_at", "updated_at"]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.IntegerField())
+    def get_zone_count(self, obj) -> int:
+        if hasattr(obj, "zone_count") and obj.zone_count is not None:
+            return obj.zone_count
+        try:
+            return obj.zones.count()
+        except Exception:
+            return 0
 
-import re as _phone_re
+    @extend_schema_field(serializers.IntegerField())
+    def get_asset_count(self, obj) -> int:
+        if hasattr(obj, "asset_count") and obj.asset_count is not None:
+            return obj.asset_count
+        try:
+            TERMINAL_STATES = ["RETIRED", "DISPOSED"]
+            return obj.assets.exclude(status__in=TERMINAL_STATES).count()
+        except Exception:
+            return 0
 
-def _validate_phone_num(val: str):
-    if not val:
-        return val
-    cleaned = val.strip()
-    if not cleaned:
-        return ""
-    digits = _phone_re.sub(r"\D", "", cleaned)
-    if len(digits) < 7 or len(digits) > 15:
-        raise serializers.ValidationError("Phone number must contain between 7 and 15 digits.")
-    if not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cleaned):
-        raise serializers.ValidationError("Phone number format is invalid.")
-    return cleaned
-
-import re as _phone_re
-
-def _validate_phone_num(val: str):
-    if not val:
-        return val
-    cleaned = val.strip()
-    if not cleaned:
-        return ""
-    digits = _phone_re.sub(r"\D", "", cleaned)
-    if len(digits) < 7 or len(digits) > 15:
-        raise serializers.ValidationError("Phone number must contain between 7 and 15 digits.")
-    if not _phone_re.match(r"^[+]?[0-9\s()./-]+$", cleaned):
-        raise serializers.ValidationError("Phone number format is invalid.")
-    return cleaned
 
 class SiteWriteSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=30)
@@ -70,12 +59,6 @@ class SiteWriteSerializer(serializers.Serializer):
     contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
 
-    def validate_contact_phone(self, value):
-        return _validate_phone_num(value)
-
-    def validate_contact_phone(self, value):
-        return _validate_phone_num(value)
-
 
 class ReasonSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=300)
@@ -83,7 +66,7 @@ class ReasonSerializer(serializers.Serializer):
 
 class ZoneSerializer(serializers.ModelSerializer):
     site_code = serializers.CharField(source="site.code", read_only=True)
-    parent_name = serializers.CharField(source="parent.name", read_only=True, default=None)
+    parent_name = serializers.CharField(source="parent.name", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Zone
@@ -171,12 +154,6 @@ class ContactWriteSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     escalation_order = serializers.IntegerField(min_value=1, max_value=MAX_ESCALATION_ORDER, required=False)
     notes = serializers.CharField(max_length=300, required=False, allow_blank=True)
-
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
-
-    def validate_phone(self, value):
-        return _validate_phone_num(value)
 
 
 class ContactUpdateSerializer(ContactWriteSerializer):

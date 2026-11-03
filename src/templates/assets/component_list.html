@@ -97,8 +97,7 @@
         <select name="site" class="form-select form-select-sm" aria-label="Filter by site">
           <option value="">All Sites</option>
           {% for s in sites %}
-          <option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{
-            s.name }}</option>
+          <option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -166,8 +165,7 @@
             {% if comp.child.manufacturer or comp.child.model %}
             <div class="text-body-secondary small">
               {{ comp.child.manufacturer|default:"" }} {{ comp.child.model|default:"" }}
-              {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number
-                }}</span>{% endif %}
+              {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number }}</span>{% endif %}
             </div>
             {% endif %}
           </td>
@@ -260,8 +258,7 @@
         {% empty %}
         <tr>
           <td colspan="9">
-            {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components
-            or replaceable parts match your search criteria." %}
+            {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components or replaceable parts match your search criteria." %}
           </td>
         </tr>
         {% endfor %}

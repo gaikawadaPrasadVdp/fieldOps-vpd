@@ -1,10 +1,13 @@
 """Base settings shared by every environment. All secrets/config come from the environment."""
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # .../src
+if str(BASE_DIR / "apps") not in sys.path:
+    sys.path.insert(0, str(BASE_DIR / "apps"))
 
 
 def env(name: str, default: str | None = None, required: bool = False) -> str | None:
@@ -217,6 +220,10 @@ CELERY_BEAT_SCHEDULE = {
     "inventory-reorder-alerts": {
         "task": "apps.inventory.tasks.fan_out_reorder_alerts",
         "schedule": 60 * 60 * 6,
+    },
+    "process-scheduled-organization-deletions": {
+        "task": "apps.tenancy.tasks.process_scheduled_deletions",
+        "schedule": 60 * 60,
     },
 }
 

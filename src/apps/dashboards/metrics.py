@@ -10,17 +10,17 @@ import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Avg, Count, F, Q, Sum
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.assets.models import Asset
 from apps.incidents.models import Downtime, ServiceRequest
-from apps.inventory.models import Part, StockBalance, StockMovement
+from apps.inventory.models import StockBalance, StockMovement
 from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole, Role
 from apps.sites.models import Site
-from apps.sla.models import SLABreach, SLATracking
+from apps.sla.models import SLABreach
 from apps.workorders.models import WorkOrder, WorkOrderLabor
 
 if TYPE_CHECKING:
@@ -126,22 +126,22 @@ def parse_date_window(
     if to_date_str:
         try:
             to_date = datetime.date.fromisoformat(str(to_date_str).strip())
-            end_dt = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=datetime.timezone.utc)
+            end_dt = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=datetime.UTC)
         except ValueError:
             from apps.core.exceptions import ValidationFailed
             raise ValidationFailed("Invalid to date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
-        end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.timezone.utc)
+        end_dt = datetime.datetime.combine(today, datetime.time.max, tzinfo=datetime.UTC)
 
     if from_date_str:
         try:
             from_date = datetime.date.fromisoformat(str(from_date_str).strip())
-            start_dt = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=datetime.timezone.utc)
+            start_dt = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=datetime.UTC)
         except ValueError:
             from apps.core.exceptions import ValidationFailed
             raise ValidationFailed("Invalid from date format. Use YYYY-MM-DD.", code="invalid_date")
     else:
-        start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.timezone.utc)
+        start_dt = datetime.datetime.combine(today - datetime.timedelta(days=default_days), datetime.time.min, tzinfo=datetime.UTC)
 
     if start_dt > end_dt:
         start_dt, end_dt = end_dt - datetime.timedelta(days=default_days), end_dt
@@ -161,7 +161,7 @@ def resolve_permitted_sites(
     requested_site_id: str | None = None,
 ) -> list[Site]:
     """Resolves sites accessible to the membership for the dashboard section.
-    
+
     Enforces intersection of `report.view` and section data permissions (D-052).
     """
     if not membership or not membership.is_active:
@@ -467,12 +467,31 @@ def compute_sla_breaches(organization: Organization, sites: list[Site], start_dt
     response_breaches = breaches.filter(target_kind="RESPONSE").count()
     resolution_breaches = breaches.filter(target_kind="RESOLUTION").count()
 
+    from collections import defaultdict
+    day_counts = defaultdict(int)
+    for b_dt in breaches.values_list("breached_at", flat=True):
+        if b_dt:
+            day_counts[b_dt.date().isoformat()] += 1
+    trend = []
+    curr = start_dt.date()
+    end_date = end_dt.date()
+    while curr <= end_date:
+        d_str = curr.isoformat()
+        trend.append({"date": d_str, "count": day_counts.get(d_str, 0)})
+        curr += datetime.timedelta(days=1)
+
+    by_priority = {r["priority"]: r["n"] for r in breaches.values("priority").annotate(n=Count("id"))}
+    by_site = {str(r["site_id"]): r["n"] for r in breaches.values("site_id").annotate(n=Count("id"))}
+
     return {
         "value": str(total_breaches),
         "numeric": total_breaches,
         "open_breaches": open_breaches,
         "response_breaches": response_breaches,
         "resolution_breaches": resolution_breaches,
+        "trend": trend,
+        "by_priority": by_priority,
+        "by_site": by_site,
         "unit": "count",
     }
 

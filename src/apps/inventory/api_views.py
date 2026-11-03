@@ -127,7 +127,7 @@ class TransferSerializer(serializers.Serializer):
 class MovementSerializer(serializers.ModelSerializer):
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True)
     part_number = serializers.CharField(source="part.part_number", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
     actor_email = serializers.SerializerMethodField()
 
     class Meta:
@@ -159,7 +159,7 @@ class PartLineSerializer(serializers.ModelSerializer):
     part_name = serializers.CharField(source="part.name", read_only=True)
     unit = serializers.CharField(source="part.unit", read_only=True)
     work_order_number = serializers.CharField(source="work_order.number", read_only=True)
-    warehouse_code = serializers.CharField(source="warehouse.code", read_only=True, default=None)
+    warehouse_code = serializers.CharField(source="warehouse.code", read_only=True, default=None, allow_null=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     reserved = serializers.SerializerMethodField()
 
