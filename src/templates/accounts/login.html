@@ -130,15 +130,13 @@
           {% endif %}
         </div>
 
-        <!-- Remember Me & Forgot Password Row -->
+        <!-- Remember Me  Row -->
         <div class="fx-login-meta-row">
           <label class="fx-remember-label" for="id_remember">
             <input type="checkbox" name="remember" id="id_remember" class="fx-remember-checkbox" checked>
             <span>Remember me</span>
           </label>
-          <a href="{% url 'accounts:password_reset' %}" class="fx-forgot-link">
-            Forgot password?
-          </a>
+
         </div>
 
         <input type="hidden" name="next" value="{{ next }}">
