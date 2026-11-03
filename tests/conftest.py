@@ -12,8 +12,9 @@ PASSWORD = "Correct-Horse-Battery-9"  # test-only value
 
 @pytest.fixture
 def platform_admin(db):
-    return User.objects.create_user(email="root@platform.test", password=PASSWORD, full_name="Root Admin",
-                                    is_platform_admin=True)
+    return User.objects.filter(email="root@platform.test").first() or User.objects.create_user(
+        email="root@platform.test", password=PASSWORD, full_name="Root Admin",
+        is_platform_admin=True)
 
 
 def _activate(membership):

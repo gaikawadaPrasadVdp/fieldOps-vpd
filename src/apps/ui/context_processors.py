@@ -142,6 +142,10 @@ def shell(request):
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
+        sections["Commercial"] = [
+            {"label": "Warranties & contracts", "url": reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring coverage", "url": reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+        ]
         sections["Administration"] = [
             {"label": "Organization", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
             {"label": "Users", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},

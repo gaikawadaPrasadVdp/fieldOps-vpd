@@ -64,6 +64,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "work_order.review", "maintenance.view", "work_order.close", "work_order.hold", "work_order.record",
          "work_order.attach", "checklist.*", "inspection.*", "inventory.view", "inventory.part.view",
          "inventory.request", "sla.view", "report.view", "qr.scan"),
+        excludes=("inspection.execute", "checklist.execute"),
     ),
     RoleTemplate(
         "stores_manager", "Stores Manager", "Part master, warehouse stock, reservations, issue/return, transfers and reconciliation.",

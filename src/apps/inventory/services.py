@@ -309,6 +309,25 @@ def _audit_movement(action: str, movement: StockMovement, *, actor, request, **e
                  metadata={"movement": str(movement.pk), "type": movement.movement_type,
                            "quantity": str(movement.quantity), "part": movement.part.part_number,
                            "warehouse": movement.warehouse.code, **extra}, request=request)
+    try:
+        from apps.core.outbox import publish_integration_event
+        publish_integration_event(
+            movement.organization,
+            event_type=f"inventory.{movement.movement_type.lower()}",
+            aggregate_type="stock_movement",
+            aggregate_id=str(movement.pk),
+            payload={
+                "part": movement.part.part_number,
+                "warehouse": movement.warehouse.code,
+                "quantity": str(movement.quantity),
+                "on_hand_delta": str(movement.on_hand_delta),
+                "reserved_delta": str(movement.reserved_delta),
+                "on_hand_after": str(movement.on_hand_after),
+                "movement_type": movement.movement_type,
+            },
+        )
+    except Exception:
+        pass
 
 
 # --- receive / adjust / levels / transfer ------------------------------------------------------------------------

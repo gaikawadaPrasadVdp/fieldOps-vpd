@@ -23,6 +23,8 @@ _ORG_FIELDS = ["name", "legal_name", "timezone", "country", "contact_email", "co
 
 def _check_email(email: str) -> str:
     email = (email or "").strip().lower()
+    if len(email) > 254:
+        raise ValidationFailed("Email address cannot exceed 254 characters.", details={"email": email})
     try:
         validate_email(email)
     except Exception as exc:
@@ -537,11 +539,16 @@ def set_member_active(membership: Membership, *, active: bool, actor, request=No
     if not active:
         rbac.assert_not_last_owner(membership)
     before = {"status": membership.status}
+    if active:
+        if membership.activated_at is None:
+            target = Membership.Status.INVITED
+        else:
+            target = Membership.Status.ACTIVE
+    else:
+        target = Membership.Status.SUSPENDED
     membership.status = target
-    if active and membership.activated_at is None:
-        membership.activated_at = timezone.now()
     rbac.clear_cache(membership)
-    membership.save(update_fields=["status", "activated_at", "updated_at"])
+    membership.save(update_fields=["status", "updated_at"])
     audit.record("user.reactivated" if active else "user.deactivated", actor=actor,
                  organization=membership.organization, target=membership, target_repr=membership.user.email,
                  before=before, after={"status": membership.status}, request=request)
