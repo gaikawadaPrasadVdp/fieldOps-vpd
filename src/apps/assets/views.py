@@ -325,7 +325,9 @@ class AssetCreateView(AssetBase):
         initial.update(_prefill(request))
         form = AssetForm(initial=initial, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, initial))
-        if request.headers.get("HX-Request") and not parent:
+        target = request.headers.get("HX-Target", "")
+        is_modal = not target or "modal" in target.lower()
+        if request.headers.get("HX-Request") and not parent and is_modal:
             return render(request, "assets/_asset_modal.html", {
                 "title": "Register asset", "form": form, "submit": "Register asset",
                 "action_url": request.path,

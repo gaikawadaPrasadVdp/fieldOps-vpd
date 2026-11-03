@@ -320,6 +320,56 @@ def check_closure_confirmation_eligibility(membership: Membership, sr: ServiceRe
     return True, ""
 
 
+def get_request_closure_blockers(sr: ServiceRequest) -> list[str]:
+    """Evaluates whether any pending conditions prevent the service request from being transitioned to CLOSED.
+
+    Returns a list of human-readable blocker messages explaining what is required before closure.
+    """
+    blockers = []
+
+    # 1. State prerequisite: request must be in CONFIRMED or RESOLVED state
+    if sr.status not in (
+        ServiceRequest.Status.RESOLVED,
+        ServiceRequest.Status.CONFIRMED,
+        ServiceRequest.Status.CLOSED,
+    ):
+        blockers.append(f"Request is in '{sr.status}' state and must be resolved and confirmed before closure.")
+
+    # 2. Client confirmation prerequisite
+    has_conf = (
+        getattr(sr, "closure_confirmation", None) is not None
+        or PortalClosureConfirmation.objects.filter(request=sr).exists()
+        or sr.confirmed_at is not None
+    )
+    if not has_conf and sr.status != ServiceRequest.Status.CLOSED:
+        blockers.append("Client confirmation of service completion is required before closure.")
+
+    # 3. Linked work order checks
+    wo = get_linked_work_order(sr)
+    if wo is not None:
+        from apps.workorders.models import ClosureApproval, WorkOrder
+
+        if wo.status == WorkOrder.Status.CANCELLED:
+            blockers.append("Linked work order was cancelled.")
+        elif wo.status in (
+            WorkOrder.Status.DRAFT,
+            WorkOrder.Status.PLANNED,
+            WorkOrder.Status.ASSIGNED,
+            WorkOrder.Status.DISPATCHED,
+            WorkOrder.Status.IN_PROGRESS,
+            WorkOrder.Status.ON_HOLD,
+        ):
+            blockers.append(f"Linked work order {wo.order_number} is still in progress ({wo.get_status_display()}).")
+        elif wo.status in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW):
+            has_approval = wo.closure_approvals.filter(decision=ClosureApproval.Decision.APPROVED).exists()
+            if not has_approval:
+                blockers.append(f"Supervisor quality review and approval is required on work order {wo.order_number}.")
+            elif wo.status != WorkOrder.Status.CLOSED:
+                blockers.append(f"Final closure of work order {wo.order_number} is pending.")
+
+    return blockers
+
+
 @transaction.atomic
 def confirm_portal_request_closure(
     membership: Membership,
@@ -340,7 +390,8 @@ def confirm_portal_request_closure(
     - Mandatory supervisor approval on any linked work order.
     - Atomic persistence in PortalClosureConfirmation.
     - M05 lifecycle transition to CONFIRMED.
-    - M15 audit record.
+    - Automatic transition to CLOSED if all closure conditions are satisfied.
+    - M15 audit records.
     """
     account = verify_portal_request_confirm_access(membership)
 
@@ -391,6 +442,12 @@ def confirm_portal_request_closure(
     )
     confirmation.save()
 
+    # Ensure resolved_at is set if previously missing
+    from django.utils import timezone
+    if sr.resolved_at is None:
+        sr.resolved_at = timezone.now()
+        sr.save(update_fields=["resolved_at"])
+
     # Transition M05 service request to CONFIRMED
     sr = incident_services.transition(
         sr,
@@ -402,7 +459,7 @@ def confirm_portal_request_closure(
     sr.refresh_from_db()
     confirmation.request = sr
 
-    # Record M15 audit record
+    # Record M15 audit record for client confirmation
     audit.record(
         "portal.closure_confirmed",
         actor=actor or membership.user,
@@ -423,6 +480,41 @@ def confirm_portal_request_closure(
         },
         request=request,
     )
+
+    # Check whether all required closure conditions are satisfied to transition to CLOSED automatically
+    blockers = get_request_closure_blockers(sr)
+    if not blockers and sr.status == ServiceRequest.Status.CONFIRMED:
+        # Automatic transition through existing M05 service layer to terminal CLOSED state
+        sr = incident_services.transition(
+            sr,
+            action="close",
+            reason=clean_feedback or "All closure conditions satisfied upon client confirmation",
+            actor=actor or membership.user,
+            request=request,
+        )
+        sr.refresh_from_db()
+        confirmation.request = sr
+
+        # Record audit log for request closure
+        audit.record(
+            "portal.request_closed",
+            actor=actor or membership.user,
+            organization=sr.organization,
+            target=sr,
+            after={
+                "status": sr.status,
+                "closed_at": sr.closed_at.isoformat() if sr.closed_at else None,
+                "confirmed_at": confirmation.confirmed_at.isoformat(),
+                "confirmed_by": (actor or membership.user).email,
+            },
+            metadata={
+                "portal_account_id": str(account.pk),
+                "confirmation_id": str(confirmation.pk),
+                "service_request_number": sr.number,
+                "automatic_closure": True,
+            },
+            request=request,
+        )
 
     return confirmation
 

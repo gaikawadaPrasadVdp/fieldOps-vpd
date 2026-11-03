@@ -137,9 +137,28 @@ class AgreementBase(CBase):
 
 
 class AgreementDownloadView(AgreementBase):
-    """Direct URL endpoint to download a single agreement as CSV."""
+    """Direct URL endpoint to download a single agreement as CSV or PDF."""
     def get(self, request, pk):
-        ag = self.ag(request, pk)
+        ag = self.ag(request, pk, "contract.view")
+        fmt = (request.GET.get("format") or "").lower()
+        if fmt == "pdf":
+            org = request.organization
+            pdf_bytes = exports.build_single_warranty_pdf(ag, org, actor=request.user)
+            filename = exports.clean_ref_filename(ag.reference, "pdf")
+            from apps.audit import services as audit
+            audit.record(
+                "contract.downloaded",
+                actor=request.user,
+                organization=org,
+                target=ag,
+                request=request,
+                metadata={"format": "pdf", "reference": ag.reference},
+            )
+            resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+            resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
         return exports.export_single_agreement_csv(ag)
 
 

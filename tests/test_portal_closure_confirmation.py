@@ -117,12 +117,18 @@ def test_authorized_requester_confirms_eligible_service(as_user, org_a, asset_a,
     assert res.status_code == status.HTTP_200_OK
 
     data = res.json()
-    assert data["status"] == "CONFIRMED"
+    assert data["status"] == "CLOSED"
     assert data["reference_number"] == sr.number
     assert data["confirmed_by"] == user.email
     assert data["rating"] == 5
     assert data["feedback"] == "Vibration resolved. Excellent service."
     assert data["confirmed_at"] is not None
+
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.CLOSED
+    assert sr.closed_at is not None
+    assert sr.confirmed_at is not None
+    assert sr.resolved_at is not None
 
 
 # 2. Confirmation is persisted in PostgreSQL
@@ -148,7 +154,7 @@ def test_confirmation_is_persisted_in_postgresql(as_user, org_a, asset_a, make_p
     assert conf.feedback == "Persisted in DB"
 
     sr.refresh_from_db()
-    assert sr.status == ServiceRequest.Status.CONFIRMED
+    assert sr.status == ServiceRequest.Status.CLOSED
 
 
 # 3. Correct user and timestamp are recorded
@@ -330,10 +336,14 @@ def test_required_supervisor_approval_cannot_be_bypassed(as_user, org_a, asset_a
     wo.status = WorkOrder.Status.CLOSED
     wo.save(update_fields=["status"])
 
-    # Now confirmation succeeds!
+    # Now confirmation succeeds and automatically closes request!
     res_ok = api.post(f"/api/v1/portal/requests/{sr.id}/confirm/", {"feedback": "Supervisor approved, I confirm too."}, format="json")
     assert res_ok.status_code == status.HTTP_200_OK
-    assert res_ok.json()["status"] == "CONFIRMED"
+    assert res_ok.json()["status"] == "CLOSED"
+
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.CLOSED
+    assert sr.closed_at is not None
 
 
 # 11. Duplicate confirmation is handled safely
@@ -409,15 +419,20 @@ def test_ui_closure_confirmation_flow(client, org_a, asset_a, make_portal_client
     )
     assert res_post.status_code == 200
     content = res_post.content.decode()
-    assert "completion confirmed successfully" in content.lower()
-    assert "Service Completion Confirmed" in content
+    assert "confirmed" in content.lower()
+    assert "Service Request Completed &amp; Closed!" in content or "Service Completion Confirmed" in content
 
-    # Refresh details page: Confirm button is now hidden, confirmed banner is shown
+    # Refresh details page: Confirm button is now hidden, completed & closed banner is shown
     res_get2 = client.get(f"/app/portal/requests/{sr.id}/")
     content2 = res_get2.content.decode()
     assert "Action Required: Confirm Service Completion" not in content2
-    assert "Service Completion Confirmed!" in content2
+    assert "Service Request Completed &amp; Closed!" in content2 or "Service Completion Confirmed" in content2
     assert user.email in content2
+    assert "Closed" in content2
+
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.CLOSED
+    assert sr.closed_at is not None
 
 
 # 15. Invalid closure rating is rejected with 400
@@ -534,3 +549,163 @@ def test_client_reopen_ui_workflow(client, org_a, asset_a, make_portal_client):
 
     sr.refresh_from_db()
     assert sr.status == "APPROVED"
+
+
+# 21. E2E full lifecycle test from Submitted -> Approved -> In Progress -> Resolved -> Closed
+def test_closure_lifecycle_e2e_complete_workflow(client, as_user, org_a, asset_a, make_portal_client):
+    user, membership, account = make_portal_client(org_a, "client.e2e@acme.test")
+    client.force_login(user)
+
+    # 1. Submitted (NEW)
+    sr = portal_services.create_portal_service_request(
+        membership,
+        asset=asset_a,
+        title="Full Lifecycle Water Chiller Repair",
+        description="Chiller is overheating during shift",
+    )
+    assert sr.status == ServiceRequest.Status.NEW
+
+    # 2. Approved (triage & approve)
+    incident_services.transition(sr, action="triage", actor=user)
+    incident_services.transition(sr, action="approve", actor=user)
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.APPROVED
+
+    # 3. Work Order Created & In Progress
+    wo = WorkOrder.objects.create(
+        organization=org_a,
+        created_by=user,
+        site=asset_a.site,
+        asset=asset_a,
+        source_request=sr,
+        source_type=WorkOrder.SourceType.REQUEST,
+        source_id=sr.pk,
+        source_reference=sr.number,
+        order_number="WO-E2E-9999",
+        title="Repair Chiller",
+        status=WorkOrder.Status.IN_PROGRESS,
+        priority=WorkOrder.Priority.HIGH,
+    )
+    sr = incident_services._apply(sr, "link_work_order", reason="", actor=user, source="work_order")
+    sr.refresh_from_db()
+    incident_services.on_work_order_started(sr, actor=user)
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.IN_SERVICE
+
+    # 4. Resolved
+    incident_services.on_work_order_completed(sr, actor=user)
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.RESOLVED
+
+    # Supervisor approves and closes work order
+    ClosureApproval.objects.create(
+        organization=org_a,
+        work_order=wo,
+        approver=user,
+        decision=ClosureApproval.Decision.APPROVED,
+        comment="Supervisor quality review approved.",
+    )
+    wo._workflow_transition_write = True
+    wo.status = WorkOrder.Status.CLOSED
+    wo.save(update_fields=["status"])
+
+    # 5. Client confirms service completion
+    res_post = client.post(
+        f"/app/portal/requests/{sr.id}/confirm/",
+        {"rating": "5", "feedback": "All repairs completed perfectly!"},
+        follow=True,
+    )
+    assert res_post.status_code == 200
+
+    # 6. Verify automatic transition to CLOSED
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.CLOSED
+    assert sr.resolved_at is not None
+    assert sr.confirmed_at is not None
+    assert sr.closed_at is not None
+
+    # 7. Verify UI details page renders all 5 stages completed and progress bar at 100%
+    res_detail = client.get(f"/app/portal/requests/{sr.id}/")
+    assert res_detail.status_code == 200
+    html = res_detail.content.decode()
+
+    # Progress bar and status checks
+    assert "width: 100%;" in html
+    assert "Current State: <strong class=\"text-dark\">Closed</strong>" in html
+    assert "Stage: <strong>CLOSED</strong>" in html
+    assert "Service Request Completed &amp; Closed!" in html or "Service Completion Confirmed!" in html
+    assert "All repairs completed perfectly!" in html
+    assert "Action Required: Confirm Service Completion" not in html
+
+    # 8. Verify audit log records
+    closure_audit = AuditLog.objects.filter(
+        organization=org_a,
+        action="portal.request_closed",
+    ).first()
+    assert closure_audit is not None
+    assert closure_audit.metadata.get("automatic_closure") is True
+
+
+# 22. Pending closure conditions keep request in CONFIRMED until conditions are satisfied
+def test_pending_conditions_keep_confirmed_until_satisfied(client, as_user, org_a, asset_a, make_portal_client):
+    user, membership, account = make_portal_client(org_a, "client.pending@acme.test")
+    client.force_login(user)
+
+    sr = portal_services.create_portal_service_request(membership, asset=asset_a, title="Pending Closure Conditions Test")
+    _resolve_request(sr, user)
+
+    # Work order is in SUPERVISOR_REVIEW with approved review, but work order status is not yet CLOSED
+    wo = WorkOrder.objects.create(
+        organization=org_a,
+        created_by=user,
+        site=asset_a.site,
+        asset=asset_a,
+        source_request=sr,
+        source_type=WorkOrder.SourceType.REQUEST,
+        source_id=sr.pk,
+        source_reference=sr.number,
+        order_number="WO-PEND-100",
+        title="WO Pending Final Closure",
+        status=WorkOrder.Status.SUPERVISOR_REVIEW,
+        priority=WorkOrder.Priority.MEDIUM,
+    )
+    ClosureApproval.objects.create(
+        organization=org_a,
+        work_order=wo,
+        approver=user,
+        decision=ClosureApproval.Decision.APPROVED,
+        comment="Supervisor review recorded.",
+    )
+
+    # Client confirms service completion
+    res_post = client.post(
+        f"/app/portal/requests/{sr.id}/confirm/",
+        {"rating": "4", "feedback": "Service looks good."},
+        follow=True,
+    )
+    assert res_post.status_code == 200
+
+    sr.refresh_from_db()
+    # Stays in CONFIRMED because work order is not yet CLOSED
+    assert sr.status == ServiceRequest.Status.CONFIRMED
+    assert sr.confirmed_at is not None
+    assert sr.closed_at is None
+
+    # Check UI renders pending closure warning
+    res_ui = client.get(f"/app/portal/requests/{sr.id}/")
+    html_ui = res_ui.content.decode()
+    assert "Pending Verification Before Final Closure" in html_ui
+    assert "Pending Close" in html_ui
+    assert "Final closure of work order" in html_ui
+
+    # Now close the work order via supervisor hook/transition
+    wo._workflow_transition_write = True
+    wo.status = WorkOrder.Status.CLOSED
+    wo.save(update_fields=["status"])
+    incident_services.on_work_order_closed(sr, actor=user)
+
+    # Now request automatically reaches CLOSED!
+    sr.refresh_from_db()
+    assert sr.status == ServiceRequest.Status.CLOSED
+    assert sr.closed_at is not None
+
