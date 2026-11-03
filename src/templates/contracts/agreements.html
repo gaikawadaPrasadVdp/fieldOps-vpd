@@ -81,6 +81,9 @@
       <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
       <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
     </select>
+    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv" class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">
+      {% icon 'download' 12 %} Export CSV
+    </a>
     <a href="{% url 'contracts:agreements' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
   <div class="table-responsive">
     <table class="table fx-table align-middle" id="agreements-table">

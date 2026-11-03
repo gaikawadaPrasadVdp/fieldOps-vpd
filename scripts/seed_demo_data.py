@@ -29,7 +29,7 @@ def seed():
     print("[*] Seeding FieldOps Nexus System Data & Demo Environment...")
 
     # 1. Organization
-    org = Organization.objects.filter(name__iexact="Apex Industrial Technologies Ltd").first()
+    org = Organization.objects.filter(slug="apex-industrial").first() or Organization.objects.filter(name__icontains="Apex").first()
     if not org:
         org = Organization.objects.create(
             name="Apex Industrial Technologies Ltd",

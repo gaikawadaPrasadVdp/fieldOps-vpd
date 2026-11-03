@@ -282,6 +282,23 @@ class PlanSerializer(serializers.Serializer):
         return attrs
 
 
+
+class ReassignSerializer(serializers.Serializer):
+    assigned_to = serializers.UUIDField(required=False)
+    technician = serializers.UUIDField(required=False)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    scheduled_start = serializers.DateTimeField(required=False, allow_null=True)
+    scheduled_end = serializers.DateTimeField(required=False, allow_null=True)
+    expected_version = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if not attrs.get("assigned_to") and not attrs.get("technician"):
+            raise serializers.ValidationError({"assigned_to": ["Technician is required for reassignment."]})
+        start, end = attrs.get("scheduled_start"), attrs.get("scheduled_end")
+        if start and end and end <= start:
+            raise serializers.ValidationError({"scheduled_end": ["Scheduled end must be later than scheduled start."]})
+        return attrs
+
 class AssignSerializer(serializers.Serializer):
     assigned_to = serializers.UUIDField()
     scheduled_start = serializers.DateTimeField(required=False)

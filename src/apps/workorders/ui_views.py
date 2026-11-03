@@ -1101,7 +1101,7 @@ class WorkOrderTabView(TenantPermissionMixin, View):
 
 
 ACTION_PERMISSION = {
-    "plan": "work_order.plan", "assign": "work_order.assign", "dispatch": "work_order.dispatch",
+    "plan": "work_order.plan", "assign": "work_order.assign", "reassign": "work_order.assign", "dispatch": "work_order.dispatch",
     "start": "work_order.start", "hold": "work_order.hold", "resume": "work_order.start",
     "complete": "work_order.complete", "submit_for_review": "work_order.complete",
     "review": "work_order.review",
@@ -1110,7 +1110,7 @@ ACTION_PERMISSION = {
     "labor": "work_order.record", "materials": "work_order.record",
     "evidence": "work_order.attach",
 }
-ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "hold": ReasonForm,
+ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "reassign": AssignForm, "hold": ReasonForm,
                 "complete": CompleteForm, "review": ReviewForm, "checklist": ChecklistForm,
                 "close": ClosureCommentForm, "return_for_rework": ClosureCommentForm,
                 "work_update": WorkUpdateForm, "labor": LaborForm, "materials": MaterialForm, "evidence": EvidenceForm}
@@ -1144,7 +1144,7 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if not form_type:
             raise Http404
         kwargs = {}
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             kwargs = {"membership": request.membership, "site": wo.site,
                       "work_order": wo,
                       "initial": {"expected_version": wo.version}}
@@ -1181,8 +1181,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                        "operation": self.operation.replace("_", " ").title(),
                        "expected_version": wo.version,
                        "is_close_action": self.operation == "close",
-                       "scheduled_start": wo.planned_start if self.operation == "assign" else None,
-                       "scheduled_end": wo.planned_end if self.operation == "assign" else None,
+                       "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
+                       "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
                        "labor_entries": wo.labor_entries.all(), "material_entries": wo.material_entries.all(),
                        "evidence_count": wo.evidence_links.count()})
 
@@ -1200,14 +1200,14 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if self.operation == "plan" and wo.status != WorkOrder.Status.DRAFT:
             raise PermissionDenied("Only a Draft work order can be planned.")
         form_type = ACTION_FORMS.get(self.operation)
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo}
         elif self.operation == "plan":
             form_kwargs = {"work_order": wo}
         else:
             form_kwargs = {}
         action_data = request.POST
-        if (self.operation == "assign" and "scheduled_start" not in request.POST and
+        if (self.operation in ("assign", "reassign") and "scheduled_start" not in request.POST and
                 wo.planned_start and wo.planned_end):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
@@ -1247,6 +1247,11 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 result = services.assign_work_order(wo, membership=request.membership, actor=request.user,
                     assignee_id=data["assigned_to"].pk, scheduled_start=data["scheduled_start"],
                     scheduled_end=data["scheduled_end"], expected_version=expected_version, request=request)
+            elif self.operation == "reassign":
+                result = services.reassign_work_order(wo, membership=request.membership, actor=request.user,
+                    assignee_id=data["assigned_to"].pk, scheduled_start=data.get("scheduled_start"),
+                    scheduled_end=data.get("scheduled_end"), reason=data.get("reason", ""),
+                    expected_version=expected_version, request=request)
             elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)

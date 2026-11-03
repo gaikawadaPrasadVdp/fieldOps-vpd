@@ -45,6 +45,7 @@ from apps.sites.api_views import (
     ZoneViewSet,
 )
 from apps.sla.api_views import (
+    EscalationViewSet,
     SLABreachViewSet,
     SLAMetricsView,
     SLAProfileViewSet,
@@ -79,6 +80,14 @@ router.register("warranties", AgreementViewSet, basename="warranty")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
+router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
+router.register("slas", SLAProfileViewSet, basename="sla")
+router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
+router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
+router.register("breaches", SLABreachViewSet, basename="breach")
+router.register("escalations", EscalationViewSet, basename="escalation")
+router.register("sla-escalations", EscalationViewSet, basename="sla-escalation")
+router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),

@@ -23,6 +23,8 @@ _ORG_FIELDS = ["name", "legal_name", "timezone", "country", "contact_email", "co
 
 def _check_email(email: str) -> str:
     email = (email or "").strip().lower()
+    if len(email) > 254:
+        raise ValidationFailed("Email address cannot exceed 254 characters.", details={"email": email})
     try:
         validate_email(email)
     except Exception as exc:

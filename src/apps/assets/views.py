@@ -427,6 +427,61 @@ class AssetEditView(AssetBase):
 # --- detail ----------------------------------------------------------------------------------------------------
 
 
+class AssetStartInspectionView(AssetBase):
+    required_permission = "inspection.execute"
+
+    def get(self, request, pk):
+        asset = _asset(request, pk)
+        need(request, "inspection.execute", asset.site_id)
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot inspect asset in {asset.status} status.")
+            return redirect("assets:detail", pk=asset.pk)
+
+        from apps.checklists.models import ChecklistTemplate
+
+        templates = ChecklistTemplate.objects.for_organization(request.organization).filter(
+            status="ACTIVE"
+        ).order_by("name")
+        return render(request, "assets/start_inspection.html", {
+            "asset": asset,
+            "templates": templates,
+            "terminal": asset.status in TERMINAL_STATES,
+        })
+
+    def post(self, request, pk):
+        asset = _asset(request, pk)
+        need(request, "inspection.execute", asset.site_id)
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot inspect asset in {asset.status} status.")
+            return redirect("assets:detail", pk=asset.pk)
+
+        template_id = request.POST.get("template_id")
+        from apps.checklists.models import ChecklistTemplate
+        template = ChecklistTemplate.objects.for_organization(request.organization).filter(
+            pk=template_id, status="ACTIVE"
+        ).first()
+        if not template:
+            messages.error(request, "Please select an active checklist template.")
+            return redirect("assets:start_inspection", pk=asset.pk)
+
+        from apps.checklists import services as checklist_services
+        try:
+            insp = checklist_services.start_inspection(
+                request.organization,
+                template=template,
+                membership=request.membership,
+                actor=request.user,
+                asset=asset,
+                request=request,
+            )
+            messages.success(request, f"Started inspection for {asset.asset_tag}.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
+        except Exception as exc:
+            msg = getattr(exc, "message", str(exc))
+            messages.error(request, msg)
+            return redirect("assets:start_inspection", pk=asset.pk)
+
+
 class AssetDetailView(AssetBase):
     required_permission = "asset.view"
 
@@ -440,6 +495,7 @@ class AssetDetailView(AssetBase):
             ("meters", "Meters"),
             ("history", "History"),
             ("hierarchy", "Hierarchy"),
+            ("inspections", "Inspections"),
         ]
         if rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):
             available_tabs.append(("coverage", "Coverage"))
@@ -459,6 +515,7 @@ class AssetDetailView(AssetBase):
                 "asset.meter.record",
                 "asset.hierarchy.manage",
                 "incident.create",
+                "inspection.execute",
             )
         }
         transitions = []
@@ -491,6 +548,11 @@ class AssetDetailView(AssetBase):
                 ctx["change_log"] = selectors.change_log(org, asset)
         elif tab == "hierarchy":
             ctx.update(self._hierarchy_ctx(request, asset, can))
+        elif tab == "inspections":
+            from apps.checklists.models import Inspection
+            ctx["inspections"] = Inspection.objects.for_organization(org).filter(asset=asset).select_related(
+                "template", "started_by__user"
+            ).order_by("-started_at")
         return render(request, "assets/detail.html", ctx)
 
     def _hierarchy_ctx(self, request, asset, can):
