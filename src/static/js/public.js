@@ -6,21 +6,11 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
-  // 1. Top Edge Gold Scroll Signal & NexusScrollFlow Telemetry 
+  // 1. Top Edge Gold Scroll Signal & Navbar Scrolled State
   // =========================================================================
   const navScrollSignal = document.getElementById('nexus-nav-scroll-signal');
-  const railLine = document.getElementById('nexus-rail-line');
-  const signalHead = document.getElementById('nexus-signal-head');
-  const stageTag = document.getElementById('nexus-stage-tag');
   const pubHeader = document.querySelector('.fx-pub-header');
 
-   const GLOBAL_STAGES = [
-     { p: 0.00, label: "SIGNAL INITIATED" },
-    { p: 0.20, label: "CONNECTED ARCHITECTURE" },
-     { p: 0.45, label: "MODULE ECOSYSTEM" },
-     { p: 0.70, label: "INTELLIGENCE & CONTROL" },
-     { p: 0.92, label: "NETWORK SYNCHRONIZED" }
-   ];
   const updateScrollSignals = () => {
     const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
     const scrollHeight = Math.max(
@@ -42,24 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (navScrollSignal) {
       navScrollSignal.style.transform = `scaleX(${progress})`;
-    }
-
-    // Right-rail telemetry
-    if (railLine) {
-      railLine.style.transform = `scaleY(${progress})`;
-    }
-    if (signalHead) {
-      const y = progress * 220; // 220px track height
-      signalHead.style.transform = `translate(-50%, -50%) translateY(${y}px)`;
-    }
-    if (stageTag) {
-      let currentStage = GLOBAL_STAGES[0].label;
-      for (let i = 0; i < GLOBAL_STAGES.length; i++) {
-        if (progress >= GLOBAL_STAGES[i].p) {
-          currentStage = GLOBAL_STAGES[i].label;
-        }
-      }
-      stageTag.textContent = currentStage;
     }
   };
 
