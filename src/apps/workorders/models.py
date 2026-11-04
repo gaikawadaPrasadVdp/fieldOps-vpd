@@ -348,6 +348,10 @@ class WorkOrderMaterial(TenantOwnedModel):
     def part_number(self):
         return self.part_reference
 
+    @property
+    def stock_backed(self) -> bool:
+        return self.part_line_id is not None
+
 
 class WorkOrderEvidence(TenantOwnedModel):
     work_order = models.ForeignKey(WorkOrder, on_delete=models.PROTECT, related_name="evidence_links")

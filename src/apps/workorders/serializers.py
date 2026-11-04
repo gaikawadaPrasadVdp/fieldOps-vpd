@@ -84,9 +84,11 @@ class LaborSerializer(serializers.ModelSerializer):
 
 
 class MaterialSerializer(serializers.ModelSerializer):
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, coerce_to_string=True)
+    stock_backed = serializers.BooleanField(read_only=True)
     class Meta:
         model = WorkOrderMaterial
-        fields = ["id", "part_reference", "item_name", "quantity", "unit", "notes", "created_at"]
+        fields = ["id", "part_reference", "item_name", "quantity", "unit", "notes", "created_at", "stock_backed"]
         read_only_fields = fields
 
 
