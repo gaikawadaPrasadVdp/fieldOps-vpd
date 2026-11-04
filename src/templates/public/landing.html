@@ -1007,7 +1007,7 @@ endblock %} {% block public_content %}
 <section id="product" class="fx-visibility-section">
   <div class="container-xl px-4">
     <div class="row align-items-center g-5">
-      <!-- Left text & checkmarks -->
+      <!-- Left: Complete Operational Visibility Text Content -->
       <div class="col-lg-5 landing-reveal">
         <div class="fx-eyebrow light">
           <span class="fx-eyebrow-bar"></span>
@@ -1096,7 +1096,7 @@ endblock %} {% block public_content %}
           <div class="fx-gallery-mask-bottom"></div>
 
           <div class="row g-3 h-100 overflow-hidden">
-            <!-- Left Marquee Column -->
+            <!-- Left Marquee Column (Continuously Scrolls Upward) -->
             <div class="col-sm-6">
               <div class="nexus-workflow-col-marquee-left">
                 <!-- Card 1 -->
@@ -1203,7 +1203,7 @@ endblock %} {% block public_content %}
                   </div>
                 </div>
 
-                <!-- Duplicate for seamless loop -->
+                <!-- Duplicate Group for Seamless Infinite Loop -->
                 <div class="fx-gallery-card" aria-hidden="true">
                   <div class="fx-gallery-card-img-wrap">
                     <img
@@ -1236,12 +1236,48 @@ endblock %} {% block public_content %}
                     </p>
                   </div>
                 </div>
+
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Field Operations"
+                      class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Site Visit &bull; Checklist</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Evidence</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">FIELD
+                      OPERATIONS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Empower Field Technicians</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">On-site execution with real-time
+                      updates</p>
+                  </div>
+                </div>
+
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-approval.jpg' %}" alt="Approval Workflow"
+                      class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Supervisor Review</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Approved</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">
+                      APPROVAL WORKFLOW</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Review &amp; Approve</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Supervisor verification and compliance
+                      sign-off</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Right Marquee Column -->
-            <div class="col-sm-6">
-              <div class="nexus-workflow-col-marquee-right pt-sm-4">
+            <!-- Right Marquee Column (Continuously Scrolls Downward) -->
+            <div class="col-sm-6 pt-sm-4">
+              <div class="nexus-workflow-col-marquee-right">
                 <!-- Card 4 -->
                 <div class="fx-gallery-card">
                   <div class="fx-gallery-card-img-wrap">
@@ -1345,7 +1381,7 @@ endblock %} {% block public_content %}
                   </div>
                 </div>
 
-                <!-- Duplicate for seamless loop -->
+                <!-- Duplicate Group for Seamless Infinite Loop -->
                 <div class="fx-gallery-card" aria-hidden="true">
                   <div class="fx-gallery-card-img-wrap">
                     <img
@@ -1379,11 +1415,48 @@ endblock %} {% block public_content %}
                     </p>
                   </div>
                 </div>
+
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-inventory-management.jpg' %}" alt="Inventory Management"
+                      class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Spare Parts: 124</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> In Stock</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">
+                      INVENTORY MANAGEMENT</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Spare Parts &amp; Stock Control</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Track inventory ledger and material
+                      consumption</p>
+                  </div>
+                </div>
+
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-insights.jpg' %}" alt="Operational Insights"
+                      class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">System Uptime</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> 98.2% Live</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">
+                      OPERATIONAL INSIGHTS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Real-Time Analytics</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Data-driven decisions for continuous
+                      improvement</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </section>
