@@ -91,6 +91,14 @@ router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenan
 router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
 router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
+router.register("parts", PartViewSet, basename="part")
+router.register("warehouses", WarehouseViewSet, basename="warehouse")
+router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
+router.register("stocks", StockBalanceViewSet, basename="stocks")
+router.register("stock-movements", StockMovementViewSet, basename="stock-movement")
+router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
+router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
+router.register("work-orders", WorkOrderViewSet, basename="work-order")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
