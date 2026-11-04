@@ -51,7 +51,7 @@
       agreement</a>{% endif %}
   </div>
 </div>
-{% include "components/_section_tabs.html" with section="Coverage" %}
+{% include "components/_section_tabs.html" with section="Commercial" %}
 
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">
@@ -84,25 +84,25 @@
     <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type">
       <option value="">All types</option>
       {% for v, l in kinds %}
-        <option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>
+      <option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="state" aria-label="State">
       <option value="">Any state</option>
       {% for v in states %}
-        <option value="{{ v }}" {% if filters.state == v %}selected{% endif %}>{{ v|title }}</option>
+      <option value="{{ v }}" {% if filters.state == v %}selected{% endif %}>{{ v|title }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site">
       <option value="">All sites</option>
       {% for s in sites %}
-        <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+      <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:190px" name="provider" aria-label="Provider">
       <option value="">All providers</option>
       {% for p in providers %}
-        <option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+      <option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
@@ -140,13 +140,13 @@
             <div class="small text-body-secondary">{{ a.title }}</div>
           </td>
           <td>{{ a.get_kind_display }}</td>
-          <td>{{ a.provider.name }}</td>
-          <td class="text-nowrap">{{ a.site.code }}</td>
+          <td>{{ a.provider.name|default:"—" }}</td>
+          <td class="text-nowrap">{{ a.site.code|default:"—" }}</td>
           <td class="small text-nowrap">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td>
           <td class="small text-nowrap text-secondary">{{ a.created_at|date:"M d, Y H:i" }}</td>
           <td>{% status_badge a.current_state %}</td>
           <td class="text-end">
-            <a href="{% url 'contracts:agreement_download' a.pk %}"
+            <a href="{% url 'contracts:agreement_download' a.pk %}?format=pdf"
               class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
               title="Download individual warranty PDF report" download>
               {% icon 'download' 14 %} PDF

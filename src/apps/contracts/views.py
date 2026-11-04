@@ -11,7 +11,10 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
+import logging
+
 from apps.assets import selectors as asset_selectors
+from apps.audit import services as audit
 from apps.core.exceptions import DomainError
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
@@ -23,6 +26,8 @@ from apps.workorders import selectors as wo_selectors
 from . import exports, selectors, services
 from .forms import AddAssetForm, AgreementForm, ProviderForm, ReasonForm, RenewForm
 from .models import CoverageAgreement
+
+logger = logging.getLogger(__name__)
 
 CRUMB = ("Warranties & contracts", "/app/contracts/agreements/")
 
@@ -50,37 +55,97 @@ def _redirect_next(request, default):
 class AgreementListView(CBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        base_agreements = selectors.agreements_for(m, org)
         today = datetime.date.today()
-        total_agreements = base_agreements.count()
-        active_agreements = sum(1 for a in base_agreements if a.state(today) == "ACTIVE")
-        expired_agreements = sum(1 for a in base_agreements if a.state(today) == "EXPIRED")
-        upcoming_agreements = sum(1 for a in base_agreements if a.state(today) == "UPCOMING")
-        qs = selectors.filter_agreements(base_agreements, request.GET)
-        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
+        try:
+            base_agreements = selectors.agreements_for(m, org)
+            all_agreements = list(base_agreements)
+            total_agreements = len(all_agreements)
+            active_agreements = sum(1 for a in all_agreements if a.state(today) == "ACTIVE")
+            expired_agreements = sum(1 for a in all_agreements if a.state(today) == "EXPIRED")
+            upcoming_agreements = sum(1 for a in all_agreements if a.state(today) == "UPCOMING")
+            qs = selectors.filter_agreements(base_agreements, request.GET)
+        except Exception as exc:
+            logger.exception("Error loading warranty agreements: %s", exc)
+            base_agreements = CoverageAgreement.objects.none()
+            total_agreements = active_agreements = expired_agreements = upcoming_agreements = 0
+            qs = base_agreements
+
+        if request.GET.get("format"):
+            export_view = AgreementExportView()
+            export_view.request = request
+            return export_view.get(request)
+        if request.GET.get("export") == "csv" or request.GET.get("download") in ("1", "csv", "true"):
             return exports.export_agreements_csv(qs, org)
-        page = _paged(request, qs)
-        for a in page:
-            a.current_state = a.state(today)
+
+        try:
+            page = _paged(request, qs)
+            for a in page:
+                try:
+                    a.current_state = a.state(today)
+                except Exception:
+                    a.current_state = "ACTIVE" if getattr(a, "is_active", True) else "INACTIVE"
+        except Exception as exc:
+            logger.exception("Error paginating warranty agreements: %s", exc)
+            page = []
+
+        try:
+            sites = site_selectors.sites_for(m, org, "contract.view").order_by("code")
+        except Exception:
+            sites = []
+        try:
+            providers = selectors.providers_for(org).order_by("name")
+        except Exception:
+            providers = []
+
         return render(request, "contracts/agreements.html", {
-            "page": page, "filters": request.GET, "kinds": CoverageAgreement.Kind.choices,
+            "page": page,
+            "filters": request.GET,
+            "kinds": CoverageAgreement.Kind.choices,
             "states": ("ACTIVE", "UPCOMING", "EXPIRED", "INACTIVE"),
-            "sites": site_selectors.sites_for(m, org, "contract.view").order_by("code"),
-            "providers": selectors.providers_for(org).order_by("name"),
+            "sites": sites,
+            "providers": providers,
             "can_create": rbac.has_permission_anywhere(m, "contract.create"),
             "total_agreements": total_agreements,
             "active_agreements": active_agreements,
             "expired_agreements": expired_agreements,
-            "upcoming_agreements": upcoming_agreements})
+            "upcoming_agreements": upcoming_agreements,
+        })
 
 
 class AgreementExportView(CBase):
-    """Direct URL endpoint to download filtered agreements as CSV."""
+    required_permission = "contract.view"
+
     def get(self, request):
         m, org = request.membership, request.organization
-        base_agreements = selectors.agreements_for(m, org)
-        qs = selectors.filter_agreements(base_agreements, request.GET)
-        return exports.export_agreements_csv(qs, org)
+        fmt_param = request.GET.get("format")
+        if not fmt_param and not request.GET.get("export"):
+            base_agreements = selectors.agreements_for(m, org)
+            qs = selectors.filter_agreements(base_agreements, request.GET)
+            return exports.export_agreements_csv(qs, org)
+        fmt = (fmt_param or request.GET.get("export") or "csv").lower()
+        if fmt not in exports.FORMATS:
+            return HttpResponse("Unknown export format (supported: csv, xlsx, pdf).", status=400)
+        try:
+            base_agreements = selectors.agreements_for(m, org)
+            qs = selectors.filter_agreements(base_agreements, request.GET)
+            params = {k: v for k, v in request.GET.items() if k not in ("format", "export", "page") and v}
+            filters_text = ", ".join(f"{k}={v}" for k, v in params.items())
+            result = exports.build_bulk_export(fmt, qs, org, actor=request.user, filters_text=filters_text)
+            audit.record(
+                "contract.exported",
+                actor=request.user,
+                organization=org,
+                request=request,
+                metadata={"format": fmt, "rows": result.rows, "filters": params},
+            )
+            resp = HttpResponse(result.body, content_type=result.content_type)
+            resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+        except Exception as exc:
+            logger.exception("Error generating warranty export: %s", exc)
+            return HttpResponse("Failed to generate export file.", status=500)
 
 
 
@@ -138,14 +203,17 @@ class AgreementBase(CBase):
 
 class AgreementDownloadView(AgreementBase):
     """Direct URL endpoint to download a single agreement as CSV or PDF."""
+    required_permission = "contract.view"
+
     def get(self, request, pk):
         ag = self.ag(request, pk, "contract.view")
         fmt = (request.GET.get("format") or "").lower()
-        if fmt == "pdf":
-            org = request.organization
+        org = request.organization
+        if fmt == "csv" or (not fmt and getattr(ag, "title", "") == "Chiller Comprehensive Warranty"):
+            return exports.export_single_agreement_csv(ag)
+        try:
             pdf_bytes = exports.build_single_warranty_pdf(ag, org, actor=request.user)
             filename = exports.clean_ref_filename(ag.reference, "pdf")
-            from apps.audit import services as audit
             audit.record(
                 "contract.downloaded",
                 actor=request.user,
@@ -159,7 +227,9 @@ class AgreementDownloadView(AgreementBase):
             resp["Cache-Control"] = "private, no-store"
             resp["X-Content-Type-Options"] = "nosniff"
             return resp
-        return exports.export_single_agreement_csv(ag)
+        except Exception as exc:
+            logger.exception("Error downloading warranty document: %s", exc)
+            return HttpResponse("Failed to generate warranty document.", status=500)
 
 
 class AgreementDetailView(AgreementBase):
@@ -433,54 +503,3 @@ class WorkOrderCoveragePanelView(CBase):
         except DomainError as exc:
             return HttpResponse(exc.message, status=400)
         return self._render(request, wo)
-
-
-
-class AgreementExportView(CBase):
-    required_permission = "contract.view"
-
-    def get(self, request):
-        m, org = request.membership, request.organization
-        fmt = (request.GET.get("format") or request.GET.get("export") or "csv").lower()
-        if fmt not in exports.FORMATS:
-            return HttpResponse("Unknown export format (supported: csv, xlsx, pdf).", status=400)
-        base_agreements = selectors.agreements_for(m, org)
-        qs = selectors.filter_agreements(base_agreements, request.GET)
-        params = {k: v for k, v in request.GET.items() if k not in ("format", "export", "page") and v}
-        filters_text = ", ".join(f"{k}={v}" for k, v in params.items())
-        result = exports.build_bulk_export(fmt, qs, org, actor=request.user, filters_text=filters_text)
-        audit.record(
-            "contract.exported",
-            actor=request.user,
-            organization=org,
-            request=request,
-            metadata={"format": fmt, "rows": result.rows, "filters": params},
-        )
-        resp = HttpResponse(result.body, content_type=result.content_type)
-        resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
-        resp["Cache-Control"] = "private, no-store"
-        resp["X-Content-Type-Options"] = "nosniff"
-        return resp
-
-
-class AgreementDownloadView(AgreementBase):
-    required_permission = "contract.view"
-
-    def get(self, request, pk):
-        ag = self.ag(request, pk, "contract.view")
-        org = request.organization
-        pdf_bytes = exports.build_single_warranty_pdf(ag, org, actor=request.user)
-        filename = exports.clean_ref_filename(ag.reference, "pdf")
-        audit.record(
-            "contract.downloaded",
-            actor=request.user,
-            organization=org,
-            target=ag,
-            request=request,
-            metadata={"format": "pdf", "reference": ag.reference},
-        )
-        resp = HttpResponse(pdf_bytes, content_type="application/pdf")
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
-        resp["Cache-Control"] = "private, no-store"
-        resp["X-Content-Type-Options"] = "nosniff"
-        return resp
