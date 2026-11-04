@@ -175,60 +175,205 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // =========================================================================
-  // 4. 7-Step Interactive Workflow Timeline (Scroll-Synchronized)
+  // 4. 7-Step Interactive Workflow Timeline (Step-Locked Section Experience)
   // =========================================================================
   const workflowSection = document.getElementById('workflow');
   const workflowLineFill = document.getElementById('workflow-line-fill');
   const workflowSteps = document.querySelectorAll('.fx-timeline-step');
+  const workflowDescText = document.getElementById('workflow-desc-text');
+  const workflowDescPill = document.getElementById('workflow-step-desc');
 
-  if (workflowSection && workflowLineFill && workflowSteps.length > 0) {
-    let ticking = false;
+  if (workflowSection && workflowSteps.length > 0) {
+    const STEP_DESCRIPTIONS = [
+      "01. Service Request Raised — Instant omnichannel incident logging & customer confirmation",
+      "02. Triage — AI & dispatcher assess urgency, severity, and contract SLA",
+      "03. Service Work Order — Structured work order generated with BOM parts and safety checklists",
+      "04. Technician Allocation — Geo-smart dispatch assigns certified technicians based on availability",
+      "05. Execution of Service — On-site mobile checklist completion, live telemetry & parts logging",
+      "06. Supervisor Approval — Digital QA verification, photo evidence & quality audit",
+      "07. Closure — Automated SLA reporting, inventory deduction, and customer satisfaction survey"
+    ];
 
-    const handleWorkflowScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          const rect = workflowSection.getBoundingClientRect();
-          const vh = window.innerHeight;
+    let currentStep = 0;
+    const maxStep = workflowSteps.length - 1; // 6 (Step 07 Closure)
+    let isTransitioning = false;
+    let accumulatedDelta = 0;
+    const WHEEL_THRESHOLD = 45;
 
-          const startOffset = vh * 0.70;
-          const endOffset = vh * 0.25;
-          const totalDistance = rect.height + (startOffset - endOffset);
-          const currentDistance = startOffset - rect.top;
+    const updateStepUI = (stepIdx) => {
+      currentStep = Math.min(Math.max(stepIdx, 0), maxStep);
 
-          const rawProgress = currentDistance / totalDistance;
-          const clamped = Math.min(Math.max(rawProgress, 0), 1);
+      // 1. Move connecting line: 0% at step 0, 100% at step 6
+      const progress = currentStep / maxStep;
+      if (workflowLineFill) {
+        workflowLineFill.style.transform = `scaleX(${progress})`;
+      }
 
-          const isDesktop = window.innerWidth >= 768;
-          if (isDesktop) {
-            workflowLineFill.style.transform = `scaleX(${clamped})`;
-          } else {
-            workflowLineFill.style.transform = `scaleY(${clamped})`;
+      // 2. Update step classes: completed, active, upcoming
+      workflowSteps.forEach((step, idx) => {
+        step.classList.remove('active', 'completed', 'upcoming');
+        if (idx === currentStep) {
+          step.classList.add('active');
+          step.setAttribute('aria-selected', 'true');
+          // On mobile, auto-center active step
+          if (window.innerWidth < 768 && step.scrollIntoView) {
+            step.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
           }
+        } else if (idx < currentStep) {
+          step.classList.add('completed');
+          step.setAttribute('aria-selected', 'false');
+        } else {
+          step.classList.add('upcoming');
+          step.setAttribute('aria-selected', 'false');
+        }
+      });
 
-          // Active step index (0 to 6)
-          const activeIndex = Math.min(Math.max(Math.floor(clamped * 6 + 0.5), 0), 6);
-
-          workflowSteps.forEach((step, idx) => {
-            if (idx === activeIndex) {
-              step.classList.add('active');
-              step.classList.remove('completed');
-            } else if (idx < activeIndex) {
-              step.classList.remove('active');
-              step.classList.add('completed');
-            } else {
-              step.classList.remove('active', 'completed');
-            }
-          });
-
-          ticking = false;
-        });
-        ticking = true;
+      // 3. Update description pill
+      if (workflowDescText && STEP_DESCRIPTIONS[currentStep]) {
+        if (workflowDescPill) {
+          workflowDescPill.classList.add('is-updating');
+          setTimeout(() => {
+            workflowDescText.textContent = STEP_DESCRIPTIONS[currentStep];
+            workflowDescPill.classList.remove('is-updating');
+          }, 100);
+        } else {
+          workflowDescText.textContent = STEP_DESCRIPTIONS[currentStep];
+        }
       }
     };
 
-    window.addEventListener('scroll', handleWorkflowScroll, { passive: true });
-    window.addEventListener('resize', handleWorkflowScroll, { passive: true });
-    handleWorkflowScroll();
+    const goToStep = (targetIdx) => {
+      if (isTransitioning) return;
+      const nextIdx = Math.min(Math.max(targetIdx, 0), maxStep);
+      if (nextIdx === currentStep) return;
+
+      isTransitioning = true;
+      updateStepUI(nextIdx);
+      setTimeout(() => {
+        isTransitioning = false;
+        accumulatedDelta = 0;
+      }, 240);
+    };
+
+    // Make steps clickable & accessible
+    workflowSteps.forEach((step, idx) => {
+      step.setAttribute('tabindex', '0');
+      step.setAttribute('role', 'button');
+      const title = step.querySelector('.fx-timeline-title')?.textContent?.trim() || '';
+      step.setAttribute('aria-label', `Step ${idx + 1}: ${title}`);
+
+      step.addEventListener('click', () => {
+        goToStep(idx);
+      });
+      step.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          goToStep(idx);
+        }
+      });
+    });
+
+    const isUserInWorkflowSection = () => {
+      const rect = workflowSection.getBoundingClientRect();
+      const header = document.querySelector('.fx-pub-header');
+      const headerH = header ? header.offsetHeight : 68;
+      // Active reading viewport: section top is within header zone and bottom is still visible
+      return (rect.top <= headerH + 60 && rect.bottom >= headerH + 180);
+    };
+
+    const lockSectionInView = () => {
+      const header = document.querySelector('.fx-pub-header');
+      const headerH = header ? header.offsetHeight : 68;
+      const targetTop = workflowSection.getBoundingClientRect().top + window.scrollY - headerH;
+      if (Math.abs(window.scrollY - targetTop) > 10) {
+        window.scrollTo({ top: targetTop, behavior: 'smooth' });
+      }
+    };
+
+    // Wheel Scroll Interceptor:
+    // If in section: page does NOT scroll, only bar moves.
+    // When bar reaches Step 07 Closure (or Step 01 when scrolling up), page scrolls normally!
+    window.addEventListener('wheel', (e) => {
+      if (!isUserInWorkflowSection()) {
+        accumulatedDelta = 0;
+        return;
+      }
+
+      if (e.deltaY > 0) {
+        // Scrolling DOWN
+        if (currentStep < maxStep) {
+          // Keep page pinned on this section, only the bar moves!
+          e.preventDefault();
+          lockSectionInView();
+          accumulatedDelta += e.deltaY;
+          if (accumulatedDelta >= WHEEL_THRESHOLD && !isTransitioning) {
+            goToStep(currentStep + 1);
+          }
+        }
+        // When currentStep === maxStep (at Step 07 Closure), NO preventDefault:
+        // page continues scrolling normally down!
+      } else if (e.deltaY < 0) {
+        // Scrolling UP
+        if (currentStep > 0) {
+          // Keep page pinned on this section, move bar backward!
+          e.preventDefault();
+          lockSectionInView();
+          accumulatedDelta += e.deltaY;
+          if (accumulatedDelta <= -WHEEL_THRESHOLD && !isTransitioning) {
+            goToStep(currentStep - 1);
+          }
+        }
+        // When currentStep === 0 (at Step 01), NO preventDefault:
+        // page continues scrolling normally up!
+      }
+    }, { passive: false });
+
+    // Touch Support for Mobile / Tablet
+    let touchStartY = 0;
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length > 0) {
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isUserInWorkflowSection()) return;
+      if (!e.touches || e.touches.length === 0) return;
+
+      const currentY = e.touches[0].clientY;
+      const diffY = touchStartY - currentY; // > 0 = swipe up = scroll down
+
+      if (Math.abs(diffY) > 35) {
+        if (diffY > 0 && currentStep < maxStep) {
+          if (e.cancelable) e.preventDefault();
+          touchStartY = currentY;
+          goToStep(currentStep + 1);
+        } else if (diffY < 0 && currentStep > 0) {
+          if (e.cancelable) e.preventDefault();
+          touchStartY = currentY;
+          goToStep(currentStep - 1);
+        }
+      }
+    }, { passive: false });
+
+    // Keyboard Arrow Navigation
+    window.addEventListener('keydown', (e) => {
+      if (!isUserInWorkflowSection()) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        if (currentStep < maxStep) {
+          e.preventDefault();
+          goToStep(currentStep + 1);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (currentStep > 0) {
+          e.preventDefault();
+          goToStep(currentStep - 1);
+        }
+      }
+    });
+
+    // Initialize initial state at Step 01
+    updateStepUI(0);
   }
 
   // =========================================================================

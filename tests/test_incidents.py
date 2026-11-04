@@ -786,3 +786,144 @@ def test_duplicate_detected_for_pump_failed_and_pump_failure_variations(org_a, p
             severity="MEDIUM",
         )
     assert exc2.value.duplicates[0]["id"] == str(first.pk)
+
+
+def test_downtime_start_before_occurred_at_is_refused(report, pump):
+    now = timezone.now()
+    with pytest.raises(ValidationFailed) as exc:
+        report(
+            occurred_at=now - timedelta(hours=1),
+            downtime_started_at=now - timedelta(hours=2),
+        )
+    assert exc.value.code == "downtime_start_before_occurred"
+
+    # Downtime starting after or at the failure time succeeds
+    sr_same = report(
+        title="Same time fault",
+        occurred_at=now - timedelta(hours=2),
+        downtime_started_at=now - timedelta(hours=2),
+    )
+    assert sr_same.downtime.started_at == now - timedelta(hours=2)
+
+    sr_after = report(
+        title="After time fault",
+        occurred_at=now - timedelta(hours=3),
+        downtime_started_at=now - timedelta(hours=2),
+        override_duplicate=True,
+        override_reason="Different incident",
+    )
+    assert sr_after.downtime.started_at == now - timedelta(hours=2)
+
+
+def test_form_and_ui_refuse_downtime_before_occurred_at(client, owner_a, org_a, pump):
+    from apps.assets.models import Asset
+    from apps.incidents.forms import RequestForm
+
+    client.force_login(owner_a)
+    now = timezone.now()
+
+    # Form validation
+    form = RequestForm(
+        {
+            "asset": str(pump.pk),
+            "kind": "INCIDENT",
+            "title": "Pump failure",
+            "severity": "HIGH",
+            "service_impact": "FULL_OUTAGE",
+            "occurred_at": (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+            "downtime_started_at": (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        },
+        assets=Asset.objects.filter(pk=pump.pk),
+    )
+    assert not form.is_valid()
+    assert "downtime_started_at" in form.errors
+    assert "The downtime start cannot be before the incident occurred." in form.errors["downtime_started_at"][0]
+
+    # UI POST /app/incidents/new/
+    res = client.post(
+        "/app/incidents/new/",
+        {
+            "asset": str(pump.pk),
+            "kind": "INCIDENT",
+            "title": "UI invalid downtime",
+            "severity": "HIGH",
+            "service_impact": "FULL_OUTAGE",
+            "occurred_at": (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+            "downtime_started_at": (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        },
+    )
+    assert res.status_code == 400
+    assert b"The downtime start cannot be before the incident occurred." in res.content
+
+
+def test_api_refuses_downtime_before_occurred_at(as_user, org_a, pump, reporter):
+    c = as_user(reporter.user)
+    now = timezone.now()
+    res = c.post(
+        "/api/v1/service-requests/",
+        {
+            "asset": str(pump.pk),
+            "title": "API invalid downtime test",
+            "severity": "HIGH",
+            "service_impact": "FULL_OUTAGE",
+            "occurred_at": (now - timedelta(hours=1)).isoformat(),
+            "downtime_started_at": (now - timedelta(hours=2)).isoformat(),
+        },
+    )
+    assert res.status_code == 400
+    data = res.json()
+    assert res.status_code == 400
+    fields = data.get("error", {}).get("details", {}).get("fields", {})
+    assert "downtime_started_at" in fields
+    assert "The downtime start cannot be before the incident occurred." in fields["downtime_started_at"][0]
+
+
+def test_incident_form_and_service_reject_dates_older_than_90_days(client, owner_a, org_a, pump, report):
+    from apps.assets.models import Asset
+    from apps.incidents.forms import RequestForm
+
+    now = timezone.now()
+    ancient_date = now - timedelta(days=95)
+
+    # Service layer rejects ancient occurred_at
+    with pytest.raises(ValidationFailed) as exc:
+        report(occurred_at=ancient_date)
+    assert exc.value.code == "past_time_limit"
+    assert "cannot be more than 90 days in the past" in exc.value.message
+
+    # Service layer rejects ancient downtime_started_at
+    with pytest.raises(ValidationFailed) as exc:
+        report(downtime_started_at=ancient_date)
+    assert exc.value.code == "past_time_limit"
+
+    # Form validation rejects ancient date
+    form = RequestForm(
+        {
+            "asset": str(pump.pk),
+            "kind": "INCIDENT",
+            "title": "Ancient failure",
+            "severity": "HIGH",
+            "service_impact": "FULL_OUTAGE",
+            "occurred_at": ancient_date.strftime("%Y-%m-%dT%H:%M"),
+        },
+        assets=Asset.objects.filter(pk=pump.pk),
+    )
+    assert not form.is_valid()
+    assert "occurred_at" in form.errors
+    assert "The time of the failure cannot be more than 90 days in the past." in form.errors["occurred_at"][0]
+
+    # UI POST /app/incidents/new/
+    client.force_login(owner_a)
+    res = client.post(
+        "/app/incidents/new/",
+        {
+            "asset": str(pump.pk),
+            "kind": "INCIDENT",
+            "title": "Ancient UI report",
+            "severity": "HIGH",
+            "service_impact": "FULL_OUTAGE",
+            "occurred_at": ancient_date.strftime("%Y-%m-%dT%H:%M"),
+        },
+    )
+    assert res.status_code == 400
+    assert b"The time of the failure cannot be more than 90 days in the past." in res.content

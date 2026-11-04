@@ -1074,24 +1074,42 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
 
 
 @transaction.atomic
-def record_labor(wo, *, membership, actor, work_date, hours, description="Labor recorded", technician=None, notes="", request=None, **kwargs):
+def record_labor(wo, *, membership, actor, work_date=None, hours=None, description="Labor recorded", technician=None, notes="", request=None, **kwargs):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
         raise Conflict("Labor can only be recorded during active work.")
+
+    started_at = kwargs.get("started_at")
+    ended_at = kwargs.get("ended_at")
+    if started_at and not work_date:
+        work_date = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
+    if started_at and ended_at:
+        if ended_at <= started_at:
+            raise ValidationFailed("End record date time must be later than start record date time.")
+        if wo.created_at and started_at < wo.created_at:
+            raise ValidationFailed("Start record date time cannot be earlier than work order creation time.")
+        if hours is None or hours == "":
+            hours = Decimal(str(round((ended_at - started_at).total_seconds() / 3600.0, 2)))
+
     try:
         hours = Decimal(str(hours))
     except Exception as exc:
         raise ValidationFailed("Hours must be a decimal between 0 and 24.") from exc
     desc = (description or notes or kwargs.get("notes") or "Labor recorded").strip()
-    if hours <= 0 or hours > 24 or work_date > timezone.localdate() or not desc:
+    if hours <= 0 or hours > 24 or not work_date or work_date > timezone.localdate() or not desc:
         raise ValidationFailed("Labor requires 0 < hours <= 24, a non-future date, and a description.")
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
-                                          entered_by=actor, work_date=work_date, hours=hours,
-                                          description=desc, notes=desc[:300])
-    _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
-            request=request)
+                                          entered_by=actor, work_date=work_date,
+                                          started_at=started_at, ended_at=ended_at,
+                                          hours=hours, description=desc, notes=desc[:300])
+    meta = {"labor_id": str(entry.pk), "hours": str(hours)}
+    if started_at:
+        meta["started_at"] = started_at.isoformat() if hasattr(started_at, "isoformat") else str(started_at)
+    if ended_at:
+        meta["ended_at"] = ended_at.isoformat() if hasattr(ended_at, "isoformat") else str(ended_at)
+    _record(wo, actor=actor, action="labor_recorded", metadata=meta, request=request)
     return entry
 
 

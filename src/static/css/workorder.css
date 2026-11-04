@@ -42,7 +42,7 @@
 .wo-table { width: 100%; border-collapse: collapse; font-size: .7rem; }
 .wo-table th { padding: .55rem .72rem; border-bottom: 1px solid #e8ebf0; background: #fbfcfe; color: #77869c; text-align: left; font-size: .59rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .wo-table td { padding: .65rem .72rem; border-bottom: 1px solid #edf0f4; color: #3d4d66; white-space: nowrap; }
-.wo-actions-heading,.wo-actions-cell { min-width: 92px; width: 92px; text-align: right; }
+.wo-actions-heading,.wo-actions-cell { min-width: 190px; text-align: right; }
 .wo-edit-button,.wo-view-button { display: inline-flex; min-width: 58px; min-height: 30px; align-items: center; justify-content: center; padding: .32rem .65rem; border: 1px solid #dce2e9; border-radius: 4px; color: #0b1728; background: #fff; text-decoration: none; font-size: .68rem; font-weight: 600; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; }
 .wo-update-action { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: .4rem .75rem; border: 1px solid #C9A227; border-radius: 4px; color: #0B1F3A; background: #C9A227; text-decoration: none; font-size: .72rem; font-weight: 600; }
 .wo-update-action:hover { border-color: #b5901f; background: #b5901f; color: #0B1F3A; }
@@ -259,24 +259,26 @@
 .fx-workorder-app .wo-scope { background: #e8efff; color: #326df0; }
 
 /* Keep the work-order list inside the content width; long values and actions wrap. */
-.wo-records .table-responsive { overflow-x: hidden; }
-.wo-list-table { width: 100%; min-width: 0; table-layout: fixed; }
+.wo-records .table-responsive { overflow-x: auto; }
+.wo-list-table { width: 100%; min-width: 980px; table-layout: fixed; }
 .wo-list-table th,.wo-list-table td { padding-left: .55rem; padding-right: .55rem; }
-.wo-list-table th:nth-child(1) { width: 16%; }
-.wo-list-table th:nth-child(2) { width: 13%; }
-.wo-list-table th:nth-child(3) { width: 13%; }
+.wo-list-table th:nth-child(1) { width: 13%; }
+.wo-list-table th:nth-child(2) { width: 10%; }
+.wo-list-table th:nth-child(3) { width: 12%; }
 .wo-list-table th:nth-child(4) { width: 7%; }
-.wo-list-table th:nth-child(5) { width: 10%; }
-.wo-list-table th:nth-child(6) { width: 12%; }
-.wo-list-table th:nth-child(7) { width: 13%; }
-.wo-list-table th:nth-child(8) { width: 16%; }
+.wo-list-table th:nth-child(5) { width: 8%; }
+.wo-list-table th:nth-child(6) { width: 11%; }
+.wo-list-table th:nth-child(7) { width: 11%; }
+.wo-list-table th:nth-child(8) { width: 12%; }
+.wo-list-table th:nth-child(9) { width: 16%; min-width: 190px; }
 .wo-list-table td { white-space: normal; overflow-wrap: anywhere; }
 .wo-list-table .wo-row-title { max-width: 100%; }
-.wo-list-table .wo-actions-cell { vertical-align: middle; }
-.wo-list-table .wo-row-actions { align-items: stretch; }
-.wo-list-table .wo-actions-cell a,.wo-list-table .wo-actions-cell button { width: auto; min-width: 58px; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; line-height: 1.2; }
-.wo-list-table .wo-actions-cell form { width: auto; margin: 0; display: inline-flex; }
-.wo-list-table .wo-actions-cell .wo-status-button { padding: .35rem .55rem; white-space: nowrap !important; }
+.wo-list-table .wo-actions-cell { vertical-align: middle; min-width: 190px; }
+.wo-list-table .wo-row-actions { align-items: stretch; width: 100%; min-width: 175px; }
+.wo-list-table .wo-actions-cell a,.wo-list-table .wo-actions-cell button { width: 100%; min-width: 165px; min-height: 32px; padding: .38rem .85rem; font-size: .72rem; font-weight: 600; text-align: center; justify-content: center; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; line-height: 1.2; box-sizing: border-box; }
+.wo-list-table .wo-actions-cell form { width: 100%; margin: 0; display: flex; }
+.wo-list-table .wo-actions-cell form button { width: 100%; }
+.wo-list-table .wo-actions-cell .wo-status-button { padding: .38rem .85rem; min-width: 165px; white-space: nowrap !important; }
 
 @media (max-width: 900px) {
   .wo-records .table-responsive { overflow: visible; }

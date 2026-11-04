@@ -129,39 +129,39 @@ def public_about(request):
     return render(request, "public/about.html", {"active_page": "about"})
 
 
-def client_register(request):
-    """Public self-service client onboarding request. Audits and queues request safely without rogue privilege grant."""
-    if request.user.is_authenticated:
-        return redirect("ui:home")
-    if request.method == "POST":
-        form = ClientOnboardingForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data["email"].strip().lower()
-            company = form.cleaned_data["company_name"].strip()
-            name = form.cleaned_data["full_name"].strip()
-            AuditLog.objects.create(
-                action="portal.client_onboarding_requested",
-                target_repr=f"Client Request: {company} ({email})",
-                metadata={
-                    "full_name": name,
-                    "email": email,
-                    "company_name": company,
-                    "phone": form.cleaned_data.get("phone", ""),
-                    "address": form.cleaned_data.get("facility_address", ""),
-                    "service_scope": form.cleaned_data.get("service_scope", ""),
-                },
-                actor_email=email,
-                ip_address=request.META.get("REMOTE_ADDR"),
-            )
-            return render(request, "accounts/client_register.html", {
-                "submitted": True,
-                "submitted_name": name,
-                "submitted_company": company,
-                "submitted_email": email,
-            })
-    else:
-        form = ClientOnboardingForm()
-    return render(request, "accounts/client_register.html", {"form": form})
+# def client_register(request):
+#     """Public self-service client onboarding request. Audits and queues request safely without rogue privilege grant."""
+#     if request.user.is_authenticated:
+#         return redirect("ui:home")
+#     if request.method == "POST":
+#         form = ClientOnboardingForm(request.POST)
+#         if form.is_valid():
+#             email = form.cleaned_data["email"].strip().lower()
+#             company = form.cleaned_data["company_name"].strip()
+#             name = form.cleaned_data["full_name"].strip()
+#             AuditLog.objects.create(
+#                 action="portal.client_onboarding_requested",
+#                 target_repr=f"Client Request: {company} ({email})",
+#                 metadata={
+#                     "full_name": name,
+#                     "email": email,
+#                     "company_name": company,
+#                     "phone": form.cleaned_data.get("phone", ""),
+#                     "address": form.cleaned_data.get("facility_address", ""),
+#                     "service_scope": form.cleaned_data.get("service_scope", ""),
+#                 },
+#                 actor_email=email,
+#                 ip_address=request.META.get("REMOTE_ADDR"),
+#             )
+#             return render(request, "accounts/client_register.html", {
+#                 "submitted": True,
+#                 "submitted_name": name,
+#                 "submitted_company": company,
+#                 "submitted_email": email,
+#             })
+#     else:
+#         form = ClientOnboardingForm()
+#     return render(request, "accounts/client_register.html", {"form": form})
 
 
 def public_legal(request, slug):
@@ -206,7 +206,7 @@ def public_contact(request):
         "      <p class='small text-secondary mb-2'>Operational telemetry assistance, SLA escalations, and platform diagnostics.</p>"
         "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:support@fieldopsnexus.com' class='text-decoration-none'>support@fieldopsnexus.com</a></p>"
         "      <p class='mb-1'><strong>Phone:</strong> <a href='tel:+919876543210' class='text-decoration-none'>+91 98765 43210</a></p>"
-        "      <p class='mb-0'><strong>Location:</strong> Bangalore, Karnataka, India</p>"
+        "      <p class='mb-0'><strong>Location:</strong> <a href='https://maps.google.com/?q=Bangalore,+Karnataka,+India' target='_blank' rel='noopener noreferrer' class='text-decoration-none'>Bangalore, Karnataka, India</a></p>"
         "    </div>"
         "  </div>"
         "</div>"

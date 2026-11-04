@@ -185,14 +185,7 @@
                 </select>
               </div>
 
-              <div class="d-flex align-items-center gap-1 ms-auto">
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="toggleAllPerms('{{ m.pk }}', true)">
-                  Select All
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="toggleAllPerms('{{ m.pk }}', false)">
-                  Deselect All
-                </button>
-              </div>
+              
             </div>
 
             {% if m.is_owner_member and not m.can_remove_owner %}

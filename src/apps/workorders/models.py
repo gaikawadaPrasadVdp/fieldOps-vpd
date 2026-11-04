@@ -307,6 +307,8 @@ class WorkOrderLabor(TenantOwnedModel):
     technician = models.ForeignKey("tenancy.Membership", on_delete=models.PROTECT, related_name="work_order_labor")
     entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     work_date = models.DateField()
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.CharField(max_length=500)
     notes = models.CharField(max_length=500, blank=True, default="")
@@ -347,6 +349,10 @@ class WorkOrderMaterial(TenantOwnedModel):
     @property
     def part_number(self):
         return self.part_reference
+
+    @property
+    def stock_backed(self) -> bool:
+        return self.part_line_id is not None
 
 
 class WorkOrderEvidence(TenantOwnedModel):

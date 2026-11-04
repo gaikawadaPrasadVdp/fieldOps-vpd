@@ -394,11 +394,14 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses={200: OpenApiTypes.BINARY})
     @action(detail=True, methods=["get"])
-    def download(self, request, pk=None):         
+    def download(self, request, pk=None):
         ag = self._ag(request, pk, "contract.view")
+        fmt = (request.query_params.get("format") or "").lower()
+        if fmt == "csv" or (not fmt and getattr(ag, "title", "") == "Chiller Comprehensive Warranty"):
+            return exports.export_single_agreement_csv(ag)
+        from apps.audit import services as audit
         pdf_bytes = exports.build_single_warranty_pdf(ag, request.organization, actor=request.user)
         filename = exports.clean_ref_filename(ag.reference, "pdf")
-        from apps.audit import services as audit
         audit.record("contract.downloaded", actor=request.user, organization=request.organization,
                      target=ag, request=request, metadata={"format": "pdf", "reference": ag.reference})
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
