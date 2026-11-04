@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% block title %}{{ title }} · FieldOps Nexus{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" %}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="fx-card"><div class="fx-card-body">
+      <form method="post" id="incidentEditForm" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2" role="alert">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+
+        <div class="fx-form-grid">
+          {% for field in form %}
+            {% if field.name == "failure_category" or field.name == "assigned_team" or field.name == "override_duplicate" or field.name == "override_reason" %}
+              {# These optional routing details are handled outside the compact form. #}
+            {% else %}
+              <div>{% include "components/_form_field.html" %}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="d-flex gap-2 align-items-center mt-3 pt-3 border-top">
+          <button type="submit" id="submitBtn" class="btn btn-primary">Save</button>
+          <a class="btn btn-link text-secondary" href="{{ cancel_url }}">Cancel</a>
+        </div>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+

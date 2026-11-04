@@ -1,4 +1,6 @@
+from datetime import timedelta
 from django.apps import apps
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
@@ -97,6 +99,32 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     duplicate_of = serializers.UUIDField(required=False, allow_null=True)
     occurred_at = serializers.DateTimeField(required=False)
     downtime_started_at = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        now = timezone.now()
+        future_limit = now + timedelta(minutes=5)
+        past_limit = now - timedelta(days=90)
+
+        occurred_at = attrs.get("occurred_at")
+        downtime_started_at = attrs.get("downtime_started_at")
+
+        if occurred_at:
+            if occurred_at > future_limit:
+                raise serializers.ValidationError({"occurred_at": "The time of the failure cannot be in the future."})
+            if occurred_at < past_limit:
+                raise serializers.ValidationError({"occurred_at": "The time of the failure cannot be more than 90 days in the past."})
+
+        if downtime_started_at:
+            if downtime_started_at > future_limit:
+                raise serializers.ValidationError({"downtime_started_at": "The downtime start cannot be in the future."})
+            if downtime_started_at < past_limit:
+                raise serializers.ValidationError({"downtime_started_at": "The downtime start cannot be more than 90 days in the past."})
+
+        if occurred_at and downtime_started_at and downtime_started_at < occurred_at:
+            raise serializers.ValidationError({
+                "downtime_started_at": "The downtime start cannot be before the incident occurred."
+            })
+        return attrs
 
 
 class ServiceRequestPatchSerializer(serializers.Serializer):

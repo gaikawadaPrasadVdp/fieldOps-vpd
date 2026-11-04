@@ -334,34 +334,37 @@ def test_admin_and_staff_actions_on_incidents_list_and_detail(
 
     client.force_login(admin_member.user)
 
-    # 1. Admin views list: Actions column present, Triage button shown for NEW request
+    # 1. Admin views list: Actions column has View option redirecting to detail
     res_list = client.get("/app/incidents/")
     assert res_list.status_code == 200
     content_list = res_list.content.decode()
     assert "Actions" in content_list
-    assert f"/app/incidents/{sr.pk}/transition/triage/" in content_list
+    assert f"/app/incidents/{sr.pk}/" in content_list
+    assert "View" in content_list
 
-    # 2. Admin executes Triage from list
+    # 2. Admin views detail and executes Triage
+    res_detail1 = client.get(f"/app/incidents/{sr.pk}/")
+    assert "btn-triage-request" in res_detail1.content.decode()
     res_triage = client.post(f"/app/incidents/{sr.pk}/transition/triage/", follow=True)
     assert res_triage.status_code == 200
     sr.refresh_from_db()
     assert sr.status == "TRIAGED"
 
-    # 3. Admin views list: Approve and Reject buttons shown for TRIAGED request
-    res_list2 = client.get("/app/incidents/")
-    content_list2 = res_list2.content.decode()
-    assert f"/app/incidents/{sr.pk}/transition/approve/" in content_list2
+    # 3. Admin views detail: Approve and Reject buttons shown for TRIAGED request
+    res_detail2 = client.get(f"/app/incidents/{sr.pk}/")
+    content_detail2 = res_detail2.content.decode()
+    assert "btn-approve-request" in content_detail2
+    assert "btn-reject-request" in content_detail2
 
-    # 4. Admin executes Approve from detail or list
+    # 4. Admin executes Approve
     res_approve = client.post(f"/app/incidents/{sr.pk}/transition/approve/", {"reason": "Admin approved work"}, follow=True)
     assert res_approve.status_code == 200
     sr.refresh_from_db()
     assert sr.status == "APPROVED"
 
-    # 5. Admin views list: Convert WO button shown for APPROVED request
-    res_list3 = client.get("/app/incidents/")
-    content_list3 = res_list3.content.decode()
-    assert f"/app/incidents/{sr.pk}/create-work-order/" in content_list3
+    # 5. Admin views detail: Convert WO button shown for APPROVED request
+    res_detail3 = client.get(f"/app/incidents/{sr.pk}/")
+    assert "btn-convert-work-order" in res_detail3.content.decode()
 
     # 6. Admin executes Convert to Work Order
     res_conv = client.post(f"/app/incidents/{sr.pk}/create-work-order/", follow=True)

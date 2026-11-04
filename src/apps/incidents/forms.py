@@ -1,4 +1,6 @@
+from datetime import timedelta
 from django import forms
+from django.utils import timezone
 
 from apps.assets.models import Asset
 from apps.ui.forms import BootstrapFormMixin
@@ -6,6 +8,8 @@ from apps.ui.forms import BootstrapFormMixin
 from .models import ServiceRequest
 
 DT_FORMAT = "%Y-%m-%dT%H:%M"
+FUTURE_SLACK = timedelta(minutes=5)
+MAX_PAST_DAYS = timedelta(days=90)
 
 
 def dt_field(label, required=False, **kw):
@@ -39,15 +43,40 @@ class RequestForm(BootstrapFormMixin, forms.Form):
 
     def __init__(self, *args, assets=None, editing=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if assets is not None:
+            self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
         if editing:
-            for f in ("asset", "downtime_started_at", "kind", "override_duplicate", "override_reason"):
+            for f in ("override_duplicate", "override_reason"):
                 if f in self.fields:
                     del self.fields[f]
-        else:
-            self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
 
     def clean(self):
         cleaned = super().clean()
+        now = timezone.now()
+        future_limit = now + FUTURE_SLACK
+        past_limit = now - MAX_PAST_DAYS
+
+        occurred_at = cleaned.get("occurred_at")
+        downtime_started_at = cleaned.get("downtime_started_at")
+
+        if occurred_at:
+            if occurred_at > future_limit:
+                self.add_error("occurred_at", "The time of the failure cannot be in the future.")
+            elif occurred_at < past_limit:
+                self.add_error("occurred_at", "The time of the failure cannot be more than 90 days in the past.")
+
+        if downtime_started_at:
+            if downtime_started_at > future_limit:
+                self.add_error("downtime_started_at", "The downtime start cannot be in the future.")
+            elif downtime_started_at < past_limit:
+                self.add_error("downtime_started_at", "The downtime start cannot be more than 90 days in the past.")
+
+        if occurred_at and downtime_started_at and downtime_started_at < occurred_at:
+            self.add_error(
+                "downtime_started_at",
+                "The downtime start cannot be before the incident occurred.",
+            )
+
         if cleaned.get("override_duplicate") and len((cleaned.get("override_reason") or "").strip()) < 3:
             self.add_error("override_reason", "Enter at least 3 characters explaining why this is a separate incident.")
         return cleaned
