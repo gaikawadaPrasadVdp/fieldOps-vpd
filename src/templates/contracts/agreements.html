@@ -83,31 +83,34 @@
       placeholder="Reference, title, provider, asset tag" aria-label="Search agreements">
     <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type">
       <option value="">All types</option>
-      {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind==v %}selected{% endif %}>{{ l }}</option>{%
-      endfor %}
+      {% for v, l in kinds %}
+        <option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="state" aria-label="State">
       <option value="">Any state</option>
-      {% for v in states %}<option value="{{ v }}" {% if filters.state==v %}selected{% endif %}>{{ v|title }}</option>{%
-      endfor %}
+      {% for v in states %}
+        <option value="{{ v }}" {% if filters.state == v %}selected{% endif %}>{{ v|title }}</option>
+      {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site">
       <option value="">All sites</option>
-      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:"s" %}selected{% endif %}>{{
-        s.code }}</option>{% endfor %}
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+      {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:190px" name="provider" aria-label="Provider">
       <option value="">All providers</option>
-      {% for p in providers %}<option value="{{ p.pk }}" {% if filters.provider==p.pk|stringformat:"s" %}selected{%
-        endif %}>{{ p.name }}</option>{% endfor %}
+      {% for p in providers %}
+        <option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
-      <option value="-created_at" {% if filters.ordering=="-created_at" or not filters.ordering %}selected{% endif %}>
-        Newest First</option>
-      <option value="created_at" {% if filters.ordering=="created_at" %}selected{% endif %}>Oldest First</option>
-      <option value="reference" {% if filters.ordering=="reference" %}selected{% endif %}>Reference (A–Z)</option>
-      <option value="-reference" {% if filters.ordering=="-reference" %}selected{% endif %}>Reference (Z–A)</option>
-      <option value="end_date" {% if filters.ordering=="end_date" %}selected{% endif %}>Expiry Date</option>
+      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="reference" {% if filters.ordering == "reference" %}selected{% endif %}>Reference (A–Z)</option>
+      <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
+      <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
     </select>
     <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv"
       class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">

@@ -2,13 +2,15 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.8">
-<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.4">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=5.1">
+<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=5.1">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
 
 {% block body %}
+
+
 <!-- Top Sticky Public Navigation Header -->
 <header class="fx-pub-header" role="banner">
   <!-- Top Edge Gold Scroll Signal -->
@@ -828,7 +830,7 @@
           <span class="fx-footer-status-dot"></span>
           <span class="fx-footer-status-text">Status of Platform: All Systems Go</span>
         </div>
-        <div class="fx-footer-social-row">
+        {% comment %} <div class="fx-footer-social-row">
           <a href="https://www.linkedin.com/company/fieldops-nexus" class="fx-footer-social-btn" target="_blank"
             rel="noopener noreferrer" aria-label="LinkedIn">
             {% icon 'linkedin' 16 %}
@@ -841,7 +843,7 @@
             rel="noopener noreferrer" aria-label="Instagram">
             {% icon 'instagram' 16 %}
           </a>
-        </div>
+        </div> {% endcomment %}
       </div>
 
       <!-- Col 2: Platform -->
@@ -906,7 +908,7 @@
             </div>
             <div class="fx-footer-contact-info">
               <span class="fx-footer-contact-label">Location</span>
-              <span class="fx-footer-contact-text">Mumbai, Maharashtra, India</span>
+              <a href="https://maps.google.com/?q=Bangalore,+Karnataka,+India" target="_blank" rel="noopener noreferrer" class="fx-footer-contact-link">Bangalore, Karnataka, India</a>
             </div>
           </a>
         </div>
