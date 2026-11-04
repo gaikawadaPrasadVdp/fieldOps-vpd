@@ -75,12 +75,20 @@ class CoverageAgreement(TenantOwnedModel):
         return f"{self.reference} · {self.title}"
 
     def state(self, on: datetime.date | None = None) -> str:
-        on = on or datetime.date.today()
-        if not self.is_active:
+        if not getattr(self, "is_active", True):
             return "INACTIVE"
-        if on < self.start_date:
+        on = on or datetime.date.today()
+        if hasattr(on, "date"):
+            on = on.date()
+        start = getattr(self, "start_date", None)
+        if hasattr(start, "date"):
+            start = start.date()
+        end = getattr(self, "end_date", None)
+        if hasattr(end, "date"):
+            end = end.date()
+        if start and on < start:
             return "UPCOMING"
-        if on > self.end_date:
+        if end and on > end:
             return "EXPIRED"
         return "ACTIVE"
 
