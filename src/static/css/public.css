@@ -190,9 +190,26 @@ body.fx-public-site {
 .fx-pub-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
   text-decoration: none;
   white-space: nowrap;
+}
+.fx-pub-brand-logo {
+  height: 52px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.fx-pub-brand:hover .fx-pub-brand-logo {
+  opacity: 0.95;
+  transform: scale(1.02);
+}
+@media (max-width: 768px) {
+  .fx-pub-brand-logo {
+    height: 44px;
+  }
 }
 .fx-pub-brand-badge {
   width: 36px;
