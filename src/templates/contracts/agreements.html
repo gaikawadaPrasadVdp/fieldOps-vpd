@@ -23,20 +23,20 @@
           <h6 class="dropdown-header">Export Filtered Warranties</h6>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'csv')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="csv"
+            href="{% url 'contracts:agreement_export' %}?format=csv">
             {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'xlsx')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="xlsx"
+            href="{% url 'contracts:agreement_export' %}?format=xlsx">
             {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'pdf')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="pdf"
+            href="{% url 'contracts:agreement_export' %}?format=pdf">
             {% icon 'file' 16 %} PDF Summary Report (.pdf)
           </a>
         </li>
@@ -162,83 +162,26 @@
   {% include "components/_pagination.html" %}
 </div>
 
-<script>
-  function handleWarrantyExport(event, format) {
-    event.preventDefault();
-    const filterForm = document.getElementById('agreements-filter-form');
-    const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
-    params.set('format', format);
-    // remove empty parameters
-    for (const [key, value] of Array.from(params.entries())) {
-      if (!value || value.trim() === '') {
-        params.delete(key);
-      }
-    }
-
-    const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
-
-    const btn = document.getElementById('warrantyExportDropdown');
-    const spinner = document.getElementById('export-spinner');
-    const icon = document.getElementById('export-icon');
-    const text = document.getElementById('export-btn-text');
-
-    if (btn) btn.classList.add('disabled');
-    if (spinner) spinner.classList.remove('d-none');
-    if (icon) icon.classList.add('d-none');
-    if (text) text.textContent = 'Exporting...';
-
-    if (window.fxToast) {
-      window.fxToast('Preparing ' + format.toUpperCase() + ' export...', 'info');
-    }
-
-    fetch(exportUrl, {
-      method: 'GET',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('Export request failed (HTTP ' + response.status + ')');
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    const exportLinks = document.querySelectorAll('.warranty-export-action');
+    exportLinks.forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        const format = this.getAttribute('data-format') || 'csv';
+        const filterForm = document.getElementById('agreements-filter-form');
+        const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
+        params.set('format', format);
+        for (const [key, value] of Array.from(params.entries())) {
+          if (!value || value.trim() === '') {
+            params.delete(key);
+          }
         }
-        const disposition = response.headers.get('Content-Disposition') || '';
-        let filename = 'warranties_export.' + format;
-        const match = disposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) {
-          filename = match[1];
-        }
-        return response.blob().then(function (blob) {
-          return { blob: blob, filename: filename };
-        });
-      })
-      .then(function (data) {
-        const blobUrl = window.URL.createObjectURL(data.blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = data.filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-        setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 1000);
-
+        this.href = "{% url 'contracts:agreement_export' %}?" + params.toString();
         if (window.fxToast) {
-          window.fxToast('Warranty export downloaded successfully (' + data.filename + ')', 'success');
+          window.fxToast('Downloading ' + format.toUpperCase() + ' warranty export...', 'info');
         }
-      })
-      .catch(function (err) {
-        console.error('Export error:', err);
-        if (window.fxToast) {
-          window.fxToast('Export failed: ' + (err.message || 'Network or server error'), 'danger');
-        } else {
-          alert('Export failed. Please check your network and try again.');
-        }
-      })
-      .finally(function () {
-        if (btn) btn.classList.remove('disabled');
-        if (spinner) spinner.classList.add('d-none');
-        if (icon) icon.classList.remove('d-none');
-        if (text) text.textContent = 'Download / Export';
       });
-  }
+    });
+  });
 </script>
 {% endblock %}
