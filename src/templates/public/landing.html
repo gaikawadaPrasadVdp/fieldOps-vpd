@@ -895,8 +895,8 @@ endblock %} {% block public_content %}
      5. 7-Step Interactive Workflow Timeline (Scroll-Synchronized)
      ========================================================================= -->
 <section id="workflow" class="fx-workflow-timeline-section">
-  <div class="container-xl px-4">
-    <div class="text-center max-w-2xl mx-auto mb-5 landing-reveal">
+  <div class="container-xl px-4 fx-workflow-inner-content">
+    <div class="text-center max-w-2xl mx-auto mb-4 landing-reveal">
       <div class="fx-eyebrow justify-content-center">
         <span class="fx-eyebrow-bar"></span>
         <span>The Workflow Process</span>
@@ -922,7 +922,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 1 -->
-      <div class="fx-timeline-step active">
+      <div class="fx-timeline-step active" data-step="0">
         <div class="fx-timeline-icon-box">{% icon 'file-text' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">01</span>
@@ -931,7 +931,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 2 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="1">
         <div class="fx-timeline-icon-box">{% icon 'broadcast' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">02</span>
@@ -940,7 +940,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 3 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="2">
         <div class="fx-timeline-icon-box">{% icon 'clipboard-list' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">03</span>
@@ -949,7 +949,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 4 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="3">
         <div class="fx-timeline-icon-box">{% icon 'people' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">04</span>
@@ -958,7 +958,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 5 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="4">
         <div class="fx-timeline-icon-box">{% icon 'wrench' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">05</span>
@@ -967,7 +967,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 6 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="5">
         <div class="fx-timeline-icon-box">{% icon 'shield' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">06</span>
@@ -976,7 +976,7 @@ endblock %} {% block public_content %}
       </div>
 
       <!-- Step 7 -->
-      <div class="fx-timeline-step">
+      <div class="fx-timeline-step upcoming" data-step="6">
         <div class="fx-timeline-icon-box">{% icon 'check-circle' 22 %}</div>
         <div class="fx-timeline-label-wrap">
           <span class="fx-timeline-idx">07</span>
@@ -986,17 +986,12 @@ endblock %} {% block public_content %}
     </div>
 
     <div class="text-center pt-2">
-      <span
-        class="badge px-3 py-2 rounded-pill font-weight-semibold"
-        style="
-          background: #fdf9ec;
-          color: #a8841e;
-          border: 1px solid #f7efcf;
-          font-size: 12px;
-        "
+      <div
+        id="workflow-step-desc"
+        class="fx-workflow-desc-pill badge px-4 py-2 rounded-pill font-weight-semibold"
       >
-        One continuous, traceable service lifecycle
-      </span>
+        <span id="workflow-desc-text">01. Service Request Raised — Instant omnichannel incident logging &amp; customer confirmation</span>
+      </div>
     </div>
   </div>
 </section>
