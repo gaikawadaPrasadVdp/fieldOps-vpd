@@ -21,12 +21,7 @@
   <div class="fx-pub-nav-container">
     <!-- Brand -->
     <a href="{% url 'ui:root' %}" class="fx-pub-brand" aria-label="FieldOps Nexus Home">
-      <div class="fx-pub-brand-badge">
-        {% icon 'activity' 20 %}
-      </div>
-      <div class="fx-pub-brand-text">
-        FieldOps <span class="fx-pub-brand-gold">Nexus</span>
-      </div>
+      <img src="{% static 'images/fieldops-nexus-logo.jpg' %}" alt="FieldOps Nexus" class="fx-pub-brand-logo">
     </a>
 
     <!-- Desktop Navigation Menu -->
@@ -928,8 +923,6 @@
         <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="fx-footer-legal-link">Disclaimer</a>
         <span class="fx-footer-pipe" aria-hidden="true">|</span>
         <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="fx-footer-legal-link">Cookie Policy</a>
-        <span class="fx-footer-pipe" aria-hidden="true">|</span>
-        <a href="{% url 'ui:public_sitemap' %}" class="fx-footer-legal-link">Sitemap</a>
       </nav>
     </div>
   </div>
