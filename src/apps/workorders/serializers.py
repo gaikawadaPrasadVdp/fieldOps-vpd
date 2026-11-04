@@ -137,6 +137,7 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         allowed_sites = [site.pk for site in sites if rbac.has_permission(membership, "work_order.create", site)]
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
+        allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
         self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
             site_id__in=allowed_sites).select_related("site")
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(

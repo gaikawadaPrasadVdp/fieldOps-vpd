@@ -147,12 +147,12 @@ body.fx-public-site {
   position: sticky;
   top: 0;
   z-index: 1040;
-  background-color: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Top Edge Gold Scroll Signal */
@@ -212,16 +212,24 @@ body.fx-public-site {
   }
 }
 .fx-pub-brand-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background-color: #F5C451;
-  color: #071426;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  background-color: #071426;
+  border: 0.5px solid rgba(245, 196, 81, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba(245, 196, 81, 0.3);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+.fx-pub-brand-badge .fx-brand-img,
+.fx-brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .fx-pub-brand-text {
   font-size: 1.15rem;
@@ -406,11 +414,12 @@ body.fx-public-site {
   right: 0;
   width: 100%;
   z-index: 1040;
-  background: linear-gradient(180deg, rgba(7, 20, 38, 0.72) 0%, rgba(7, 20, 38, 0.25) 60%, transparent 100%);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  transition: background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
+  background: rgba(7, 20, 38, 0.52);
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .fx-page-home .fx-pub-header:not(.is-scrolled):not(.has-mega-open) .fx-pub-brand-text {
@@ -442,12 +451,13 @@ body.fx-public-site {
 
 .fx-page-home .fx-pub-header:not(.is-scrolled):not(.has-mega-open) .fx-pub-signin-btn {
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 9px;
   padding: 0.45rem 1.15rem;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   transition: all 0.2s ease;
 }
@@ -466,11 +476,11 @@ body.fx-public-site {
 
 /* Scrolled state on Home Page */
 .fx-page-home .fx-pub-header.is-scrolled {
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(22px) saturate(190%);
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-brand-text {
@@ -500,13 +510,15 @@ body.fx-public-site {
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-signin-btn {
   color: #0B1F3B;
-  border: 1px solid rgba(11, 31, 59, 0.22);
-  border-radius: 8px;
+  border: 1px solid rgba(11, 31, 59, 0.16);
+  border-radius: 9px;
   padding: 0.45rem 1.15rem;
-  background-color: rgba(11, 31, 59, 0.04);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   text-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  transition: all 0.2s ease;
 }
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-signin-btn:hover {
@@ -2045,16 +2057,23 @@ footer.fx-pub-footer,
   flex-direction: column;
 }
 .fx-footer-brand-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background-color: #F5C451;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background-color: #071426;
+  border: 1.5px solid rgba(245, 196, 81, 0.6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #071426;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(245, 196, 81, 0.25);
+}
+.fx-footer-brand-badge .fx-brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .fx-footer-brand-title {
   font-size: 1.25rem;
