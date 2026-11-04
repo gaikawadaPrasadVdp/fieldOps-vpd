@@ -32,6 +32,7 @@ IN_PROGRESS = "IN_PROGRESS"
 ON_HOLD = "ON_HOLD"
 CANCELLED = "CANCELLED"
 
+WORKFLOW_STATES = (NEW, TRIAGED, APPROVED, REJECTED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED, CLOSED)
 STATES = (NEW, TRIAGED, APPROVED, REJECTED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED, CLOSED, IN_PROGRESS, ON_HOLD)
 TERMINAL_STATES = (REJECTED, CLOSED)
 OPEN_STATES = (NEW, TRIAGED, APPROVED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED)
@@ -79,4 +80,4 @@ ACTION_PERMISSIONS = {
     "confirm": "incident.confirm", "reopen": "incident.confirm", "close": "incident.close",
 }
 REASON_REQUIRED = ("reject", "reopen")
-BUTTON_STYLES = {"triage": "info", "approve": "success", "reject": "danger", "reopen": "warning", "close": "secondary"}
+BUTTON_STYLES = {"triage": "info", "approve": "success", "reject": "danger", "reopen": "warning", "close": "secondary", "confirm": "success"}

@@ -53,11 +53,12 @@ SNAPSHOT = [
     "failure_category", "assigned_team", "occurred_at",
 ]
 _EDITABLE = {
-    "title", "description", "severity", "service_impact", "impact_notes",
-    "failure_category", "assigned_team", "occurred_at",
+    "asset", "kind", "title", "description", "severity", "service_impact", "impact_notes",
+    "failure_category", "assigned_team", "occurred_at", "downtime_started_at",
 }
 _SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "CRITICAL"}
 _FUTURE_SLACK = timedelta(minutes=5)
+_MAX_PAST_DAYS = timedelta(days=90)
 
 
 def _sla():
@@ -74,9 +75,13 @@ def _clean_title(title: str) -> str:
     return title
 
 
-def _check_time(value, what: str):
-    if value is not None and value > timezone.now() + _FUTURE_SLACK:
-        raise ValidationFailed(f"{what} cannot be in the future.", code="future_time")
+def _check_time(value, what: str, max_past: timedelta | None = None):
+    if value is not None:
+        now = timezone.now()
+        if value > now + _FUTURE_SLACK:
+            raise ValidationFailed(f"{what} cannot be in the future.", code="future_time")
+        if max_past is not None and value < now - max_past:
+            raise ValidationFailed(f"{what} cannot be more than 90 days in the past.", code="past_time_limit")
 
 
 def _history(sr, *, from_status, to_status, action, reason, actor, source):
@@ -246,9 +251,14 @@ def create_request(org, *, asset, reporter, title: str, description: str = "", k
                 code="override_reason_required",
             )
 
-    occurred_at = occurred_at or timezone.now()
-    _check_time(occurred_at, "The time of the failure")
-    _check_time(downtime_started_at, "The downtime start")
+    occurred_at = occurred_at or downtime_started_at or timezone.now()
+    _check_time(occurred_at, "The time of the failure", max_past=_MAX_PAST_DAYS)
+    _check_time(downtime_started_at, "The downtime start", max_past=_MAX_PAST_DAYS)
+    if downtime_started_at is not None and occurred_at is not None and downtime_started_at < occurred_at:
+        raise ValidationFailed(
+            "The downtime start cannot be before the incident occurred.",
+            code="downtime_start_before_occurred",
+        )
     prefix = "INC" if kind == "INCIDENT" else "SR"
 
     with transaction.atomic():
@@ -384,9 +394,28 @@ def update_request(sr: ServiceRequest, *, actor, request=None, **changes) -> Ser
     if "assigned_team" in changes:
         sr.assigned_team = (changes["assigned_team"] or "").strip()[:100]
     if "occurred_at" in changes:
-        _check_time(changes["occurred_at"], "The time of the failure")
+        _check_time(changes["occurred_at"], "The time of the failure", max_past=_MAX_PAST_DAYS)
         sr.occurred_at = changes["occurred_at"]
+    if "asset" in changes and changes["asset"]:
+        new_asset = changes["asset"]
+        if new_asset.organization_id != sr.organization_id:
+            raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
+        if new_asset.status in ("RETIRED", "DISPOSED"):
+            raise Conflict("Retired or disposed assets cannot have requests.", code="asset_terminal")
+        sr.asset = new_asset
+        sr.site = new_asset.site
+    if "kind" in changes and changes["kind"]:
+        if changes["kind"] not in ServiceRequest.Kind.values:
+            raise ValidationFailed("Unknown request type.", code="invalid_kind")
+        sr.kind = changes["kind"]
     sr.save()
+    if "downtime_started_at" in changes:
+        dt_started = changes["downtime_started_at"]
+        dt = Downtime.objects.for_organization(sr.organization).filter(request=sr).first()
+        if dt_started is not None:
+            _write_downtime(sr, started_at=dt_started, ended_at=dt.ended_at if dt else None, actor=actor, request=request)
+        elif dt and not dt.ended_at:
+            dt.delete()
     after = audit.snapshot(sr, SNAPSHOT)
     if after != before and before.get("severity") != after.get("severity"):
         _sla().on_request_updated(sr)  # M11: a new severity re-targets the open SLA
@@ -521,11 +550,13 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
 # --- hooks called by the work-order lifecycle (M06) --------------------------------------------------------------------
 
 
+@transaction.atomic
 def on_work_order_started(sr: ServiceRequest, *, actor, request=None):
     if sr.status == WORK_ORDER_CREATED:
         _apply(sr, "start_service", reason="Work started", actor=actor, source="work_order", request=request)
 
 
+@transaction.atomic
 def on_work_order_completed(sr: ServiceRequest, *, actor, request=None):
     if sr.status == IN_SERVICE:
         sr = _apply(sr, "resolve", reason="Work completed", actor=actor, source="work_order", request=request)
@@ -533,17 +564,20 @@ def on_work_order_completed(sr: ServiceRequest, *, actor, request=None):
         _notify_reporter(sr, "resolve", "")
 
 
+@transaction.atomic
 def on_work_order_reworked(sr: ServiceRequest, *, actor, request=None):
     if sr.status == RESOLVED:
         _apply(sr, "resume_service", reason="Returned for rework", actor=actor, source="work_order", request=request)
 
 
+@transaction.atomic
 def on_work_order_cancelled(sr: ServiceRequest, *, actor, request=None):
     if sr.status == WORK_ORDER_CREATED:
         _apply(sr, "work_order_cancelled", reason="Work order cancelled", actor=actor, source="work_order",
                request=request)
 
 
+@transaction.atomic
 def on_work_order_closed(sr: ServiceRequest, *, actor, request=None):
     """Called when an associated work order is closed. If client has confirmed, closes request."""
     if sr.status == "CONFIRMED":

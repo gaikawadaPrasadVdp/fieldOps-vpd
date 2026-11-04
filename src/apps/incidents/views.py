@@ -21,10 +21,10 @@ from apps.ui.mixins import TenantPermissionMixin
 from . import selectors, services
 from .forms import DowntimeForm, EvidenceForm, RequestForm
 from .models import ServiceRequest
-from .workflow import ACTION_PERMISSIONS, BUTTON_STYLES, REASON_REQUIRED, REQUEST_STATUS, SYSTEM_ACTIONS
+from .workflow import ACTION_PERMISSIONS, BUTTON_STYLES, REASON_REQUIRED, REQUEST_STATUS, SYSTEM_ACTIONS, WORKFLOW_STATES
 
 TABS = [("overview", "Overview"), ("evidence", "Evidence"), ("history", "History")]
-CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?"}
+CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?", "confirm": "Confirm resolution of this request?", "reopen": "Reopen this request for rework?"}
 logger = logging.getLogger(__name__)
 
 
@@ -60,14 +60,22 @@ class RequestListView(IncidentBase):
         if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
             req_numbers = [r.number for r in page]
+            req_ids = [r.pk for r in page]
             for wo in WorkOrder.objects.for_organization(org).filter(
-                source_reference__in=req_numbers,
-                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
-            ):
-                linked_wo_map[wo.source_reference] = wo
+                models.Q(source_request_id__in=req_ids) |
+                models.Q(source_id__in=req_ids) |
+                models.Q(source_reference__in=req_numbers,
+                         source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
+            ).order_by("created_at"):
+                if wo.source_request_id:
+                    linked_wo_map[str(wo.source_request_id)] = wo
+                if wo.source_id:
+                    linked_wo_map[str(wo.source_id)] = wo
+                if wo.source_reference:
+                    linked_wo_map[wo.source_reference] = wo
 
         for r in page:
-            wo = linked_wo_map.get(r.number)
+            wo = linked_wo_map.get(str(r.pk)) or linked_wo_map.get(r.number)
             r.linked_work_order = wo
             r.can_triage = (r.status == "NEW" and rbac.has_permission(m, "incident.triage", r.site_id))
             r.can_approve = (r.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", r.site_id))
@@ -79,13 +87,19 @@ class RequestListView(IncidentBase):
             )
 
         base_reqs = selectors.requests_for(m, org)
-        total_incidents = base_reqs.count()
-        open_incidents = base_reqs.filter(status__in=("NEW", "TRIAGED", "APPROVED", "IN_SERVICE", "IN_PROGRESS", "ON_HOLD")).count()
-        critical_incidents = base_reqs.filter(severity="CRITICAL").exclude(status__in=("CLOSED", "REJECTED", "CANCELLED")).count()
-        closed_incidents = base_reqs.filter(status="CLOSED").count()
+        stats = base_reqs.order_by().aggregate(
+            total=models.Count("pk"),
+            open=models.Count("pk", filter=models.Q(status__in=("NEW", "TRIAGED", "APPROVED", "IN_SERVICE", "RESOLVED", "CONFIRMED"))),
+            critical=models.Count("pk", filter=models.Q(severity="CRITICAL") & ~models.Q(status__in=("CLOSED", "REJECTED", "CANCELLED"))),
+            closed=models.Count("pk", filter=models.Q(status="CLOSED")),
+        )
+        total_incidents = stats["total"] or 0
+        open_incidents = stats["open"] or 0
+        critical_incidents = stats["critical"] or 0
+        closed_incidents = stats["closed"] or 0
 
         return render(request, "incidents/list.html", {
-            "page": page, "filters": request.GET, "statuses": ServiceRequest.Status.choices,
+            "page": page, "filters": request.GET, "statuses": [(s, s.replace("_", " ").title()) for s in WORKFLOW_STATES],
             "severities": ServiceRequest.Severity.choices, "kinds": ServiceRequest.Kind.choices,
             "sites": site_selectors.sites_for(m, org, "incident.view").order_by("code"),
             "can_create": (rbac.has_permission_anywhere(m, "incident.create") or
@@ -285,30 +299,78 @@ class RequestCreateView(IncidentBase):
 class RequestEditView(IncidentBase):
     required_permission = "incident.update"
 
-    def _page(self, request, sr, form, status=200):
-        return form_page(request, title=f"Edit {sr.number}", form=form, submit="Save", status=status,
-                         cancel_url=f"/app/incidents/{sr.pk}/",
-                         crumbs=[("Incidents & requests", "/app/incidents/"), (sr.number, f"/app/incidents/{sr.pk}/"),
-                                 ("Edit", None)])
+    def _assets(self, request, current_asset_id=None):
+        m, org = request.membership, request.organization
+        if selectors.is_owned_asset_reporter(m):
+            from apps.assets.models import Asset
+
+            return Asset.objects.for_organization(org).filter(owner=m).exclude(
+                status__in=("RETIRED", "DISPOSED")).select_related("site").order_by("asset_tag")
+        scope = rbac.site_scope(m, "incident.create")
+        qs = asset_selectors.assets_for(m, org, "asset.view")
+        filtered_qs = scope.filter(qs.distinct(), "site_id")
+        if current_asset_id:
+            from apps.assets.models import Asset
+            from django.db.models import Q
+            return Asset.objects.for_organization(org).filter(
+                Q(pk__in=filtered_qs.values("pk")) | Q(pk=current_asset_id)
+            ).select_related("site").exclude(status__in=("RETIRED", "DISPOSED")).order_by("asset_tag")
+        return filtered_qs.order_by("asset_tag")
 
     def get(self, request, pk):
         sr = _req(request, pk, "incident.update")
-        initial = {f: getattr(sr, f) for f in ("title", "description", "severity", "service_impact", "impact_notes",
-                                                "occurred_at")}
-        return self._page(request, sr, RequestForm(initial=initial, editing=True))
+        dt = selectors.downtime_for(request.organization, sr)
+        initial = {
+            "asset": sr.asset_id,
+            "kind": sr.kind,
+            "title": sr.title,
+            "description": sr.description,
+            "severity": sr.severity,
+            "service_impact": sr.service_impact,
+            "impact_notes": sr.impact_notes,
+            "failure_category": sr.failure_category,
+            "assigned_team": sr.assigned_team,
+            "occurred_at": sr.occurred_at,
+            "downtime_started_at": dt.started_at if dt else None,
+        }
+        form = RequestForm(
+            initial=initial,
+            assets=self._assets(request, sr.asset_id),
+            editing=True,
+        )
+        return render(request, "incidents/edit.html", {
+            "title": f"Edit {sr.number}",
+            "subtitle": f"{sr.title} · Currently {sr.get_status_display()}",
+            "sr": sr,
+            "form": form,
+            "cancel_url": f"/app/incidents/{sr.pk}/",
+            "crumbs": [("Incidents & requests", "/app/incidents/"), (sr.number, f"/app/incidents/{sr.pk}/"), ("Edit", None)],
+        })
 
     def post(self, request, pk):
         sr = _req(request, pk, "incident.update")
-        form = RequestForm(request.POST, editing=True)
+        form = RequestForm(
+            request.POST,
+            assets=self._assets(request, sr.asset_id),
+            editing=True,
+        )
         if form.is_valid():
-            changes = {k: v for k, v in form.cleaned_data.items() if not (k == "occurred_at" and v is None)}
+            cleaned = dict(form.cleaned_data)
+            changes = {k: v for k, v in cleaned.items() if not (k == "occurred_at" and v is None)}
             try:
                 services.update_request(sr, actor=request.user, request=request, **changes)
-                messages.success(request, "Saved.")
+                messages.success(request, f"Saved changes to {sr.number}.")
                 return redirect("incidents:detail", pk=sr.pk)
             except DomainError as exc:
                 form.add_error(None, exc.message)
-        return self._page(request, sr, form, status=400)
+        return render(request, "incidents/edit.html", {
+            "title": f"Edit {sr.number}",
+            "subtitle": f"{sr.title} · Currently {sr.get_status_display()}",
+            "sr": sr,
+            "form": form,
+            "cancel_url": f"/app/incidents/{sr.pk}/",
+            "crumbs": [("Incidents & requests", "/app/incidents/"), (sr.number, f"/app/incidents/{sr.pk}/"), ("Edit", None)],
+        }, status=400)
 
 
 class RequestDetailView(IncidentBase):
@@ -375,6 +437,10 @@ class RequestDetailView(IncidentBase):
         user_roles_str = ", ".join(user_roles) if user_roles else "No roles assigned"
         is_client = hasattr(m, "portal_account") and m.portal_account.is_enabled
 
+        can["confirm"] = (sr.status == "RESOLVED" and rbac.has_permission(m, "incident.confirm", sr.site_id))
+        can["reopen"] = (sr.status == "RESOLVED" and rbac.has_permission(m, "incident.confirm", sr.site_id))
+        can["close"] = (sr.status == "CONFIRMED" and rbac.has_permission(m, "incident.close", sr.site_id))
+
         if sr.status == "NEW":
             next_action_title = "Triage Request"
             required_perm = "incident.triage"
@@ -394,17 +460,41 @@ class RequestDetailView(IncidentBase):
             is_authorized = can["create_work_order"]
             stage_index = 3
         elif sr.status == "WORK_ORDER_CREATED":
-            next_action_title = "Work Order Execution"
-            required_perm = "work_order.view"
-            authorized_roles = "Maintenance Planner, Supervisor, Technician"
+            next_action_title = "Work Order Execution (Start Service)"
+            required_perm = "work_order.start"
+            authorized_roles = "Field Technician, Supervisor"
             is_authorized = True
             stage_index = 4
+        elif sr.status == "IN_SERVICE":
+            next_action_title = "Service in Progress (Complete Work Order)"
+            required_perm = "work_order.complete"
+            authorized_roles = "Field Technician, Supervisor"
+            is_authorized = True
+            stage_index = 5
+        elif sr.status == "RESOLVED":
+            next_action_title = "Confirm Resolution or Reopen"
+            required_perm = "incident.confirm"
+            authorized_roles = "Client Requester, Service Manager, Operations Manager"
+            is_authorized = can["confirm"]
+            stage_index = 6
+        elif sr.status == "CONFIRMED":
+            next_action_title = "Close Service Request"
+            required_perm = "incident.close"
+            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            is_authorized = can["close"]
+            stage_index = 7
+        elif sr.status == "CLOSED":
+            next_action_title = "Request Closed"
+            required_perm = None
+            authorized_roles = "N/A"
+            is_authorized = False
+            stage_index = 8
         elif sr.status == "REJECTED":
             next_action_title = "Request Rejected"
             required_perm = None
             authorized_roles = "N/A"
             is_authorized = False
-            stage_index = 2
+            stage_index = 3
         else:
             next_action_title = sr.get_status_display()
             required_perm = None

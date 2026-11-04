@@ -107,6 +107,14 @@ class ServiceRequest(TenantOwnedModel):
             return wo.assigned_to.user.display_name
         return "Unassigned"
 
+    @property
+    def in_service_at(self):
+        wo = self.linked_work_order
+        if wo and getattr(wo, "started_at", None):
+            return wo.started_at
+        h = self.history.filter(to_status="IN_SERVICE").order_by("created_at").first()
+        return h.created_at if h else None
+
 
 class Downtime(TenantOwnedModel):
     """M05-owned downtime of the asset caused by one request (start required, end open until service is restored)."""
