@@ -56,20 +56,16 @@
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Total Agreements" value=total_agreements|default:0 tone="primary"
-    icon="clipboard" %}
+    {% include "components/_kpi_card.html" with title="Total Agreements" value=total_agreements|default:0 tone="primary" icon="clipboard" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Active Coverage" value=active_agreements|default:0 tone="success"
-    icon="check" %}
+    {% include "components/_kpi_card.html" with title="Active Coverage" value=active_agreements|default:0 tone="success" icon="check" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Upcoming" value=upcoming_agreements|default:0 tone="info"
-    icon="clock" %}
+    {% include "components/_kpi_card.html" with title="Upcoming" value=upcoming_agreements|default:0 tone="info" icon="clock" %}
   </div>
   <div class="col-12 col-md-3">
-    {% include "components/_kpi_card.html" with title="Expired Contracts" value=expired_agreements|default:0
-    tone="warning" icon="alert-circle" %}
+    {% include "components/_kpi_card.html" with title="Expired Contracts" value=expired_agreements|default:0 tone="warning" icon="alert-circle" %}
   </div>
 </div>
 <div class="fx-card" id="agreements-list-card" hx-get="{% url 'contracts:agreements' %}"
@@ -156,8 +152,7 @@
         {% empty %}
         <tr>
           <td colspan="8">
-            {% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or
-            create an agreement." %}
+            {% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or create an agreement." %}
           </td>
         </tr>
         {% endfor %}
