@@ -401,19 +401,77 @@ class ClosureCommentForm(BootstrapFormMixin, forms.Form):
 
 
 class LaborForm(BootstrapFormMixin, forms.Form):
-    work_date = forms.DateField(label="Work date", widget=forms.DateInput(attrs={"type": "date"}),
-                                help_text="Use today or an earlier date.")
-    hours = forms.DecimalField(label="Hours worked", max_digits=4, decimal_places=2,
-        min_value=Decimal("0.01"), max_value=Decimal("24"),
-        help_text="Enter more than 0 and no more than 24 hours for this entry.")
-    description = forms.CharField(label="Work performed", min_length=5, max_length=500,
-        widget=forms.Textarea(attrs={"rows": 3}), help_text="Summarize the labor performed.")
+    started_at = forms.DateTimeField(
+        label="Start record date time",
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
+        help_text="Select when the labor work started."
+    )
+    ended_at = forms.DateTimeField(
+        label="End record date time",
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
+        help_text="Select when the labor work completed."
+    )
+    description = forms.CharField(
+        label="Work performed",
+        min_length=5,
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Describe the work performed..."}),
+        help_text="Summarize the labor performed."
+    )
+    hours = forms.DecimalField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    work_date = forms.DateField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
 
-    def clean_work_date(self):
-        work_date = self.cleaned_data["work_date"]
-        if work_date > timezone.localdate():
-            raise forms.ValidationError("Work date cannot be in the future.")
-        return work_date
+    def __init__(self, *args, work_order=None, **kwargs):
+        self.work_order = work_order
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        started_at = cleaned_data.get("started_at")
+        ended_at = cleaned_data.get("ended_at")
+        hours = cleaned_data.get("hours")
+        work_date = cleaned_data.get("work_date")
+
+        if started_at and ended_at:
+            if ended_at <= started_at:
+                self.add_error("ended_at", "End record date time must be later than start record date time.")
+            else:
+                diff_seconds = (ended_at - started_at).total_seconds()
+                diff_hours = Decimal(str(round(diff_seconds / 3600.0, 2)))
+                if diff_hours < Decimal("0.01"):
+                    self.add_error("ended_at", "Duration must be at least 0.01 hours (1 minute).")
+                elif diff_hours > Decimal("24.00"):
+                    self.add_error("ended_at", "Labor duration cannot exceed 24 hours for a single entry.")
+                else:
+                    cleaned_data["hours"] = diff_hours
+                    hours = diff_hours
+
+
+            if self.work_order and self.work_order.created_at and started_at < self.work_order.created_at:
+                self.add_error("started_at", "Start record date time cannot be earlier than work order creation time.")
+
+            start_date = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
+            cleaned_data["work_date"] = start_date
+        elif work_date and hours:
+            if work_date > timezone.localdate():
+                self.add_error("work_date", "Work date cannot be in the future.")
+        else:
+            if not started_at:
+                self.add_error("started_at", "Enter the start record date and time.")
+            if not ended_at:
+                self.add_error("ended_at", "Enter the end record date and time.")
+
+        return cleaned_data
 
 
 class MaterialForm(BootstrapFormMixin, forms.Form):
