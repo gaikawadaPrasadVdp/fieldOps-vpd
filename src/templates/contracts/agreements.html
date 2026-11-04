@@ -24,19 +24,19 @@
         </li>
         <li>
           <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="csv"
-            href="{% url 'contracts:agreement_export' %}?format=csv">
+            href="{% url 'contracts:agreement_export' %}?format=csv" onclick="handleWarrantyExport(event, 'csv')">
             {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
           </a>
         </li>
         <li>
           <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="xlsx"
-            href="{% url 'contracts:agreement_export' %}?format=xlsx">
+            href="{% url 'contracts:agreement_export' %}?format=xlsx" onclick="handleWarrantyExport(event, 'xlsx')">
             {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
           </a>
         </li>
         <li>
           <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="pdf"
-            href="{% url 'contracts:agreement_export' %}?format=pdf">
+            href="{% url 'contracts:agreement_export' %}?format=pdf" onclick="handleWarrantyExport(event, 'pdf')">
             {% icon 'file' 16 %} PDF Summary Report (.pdf)
           </a>
         </li>
@@ -163,23 +163,29 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
+  function handleWarrantyExport(event, format) {
+    if (event && event.preventDefault) event.preventDefault();
+    const filterForm = document.getElementById('agreements-filter-form');
+    const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
+    params.set('format', format || 'csv');
+    for (const [key, value] of Array.from(params.entries())) {
+      if (!value || value.trim() === '') {
+        params.delete(key);
+      }
+    }
+    const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
+    if (window.fxToast) {
+      window.fxToast('Downloading ' + (format || 'csv').toUpperCase() + ' warranty export...', 'info');
+    }
+    window.location.href = exportUrl;
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     const exportLinks = document.querySelectorAll('.warranty-export-action');
     exportLinks.forEach(function (link) {
       link.addEventListener('click', function (e) {
         const format = this.getAttribute('data-format') || 'csv';
-        const filterForm = document.getElementById('agreements-filter-form');
-        const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
-        params.set('format', format);
-        for (const [key, value] of Array.from(params.entries())) {
-          if (!value || value.trim() === '') {
-            params.delete(key);
-          }
-        }
-        this.href = "{% url 'contracts:agreement_export' %}?" + params.toString();
-        if (window.fxToast) {
-          window.fxToast('Downloading ' + format.toUpperCase() + ' warranty export...', 'info');
-        }
+        handleWarrantyExport(e, format);
       });
     });
   });
