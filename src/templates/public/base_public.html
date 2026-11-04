@@ -2,24 +2,14 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.6">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=5.0">
 <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.4">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
 
 {% block body %}
-<!-- Global Right Rail: NexusScrollFlow Operational Telemetry (excluded on features page to prevent collision with its 8-stage workflow) -->
-{% if active_page != 'features' %}
-<div class="nexus-scroll-flow-rail" aria-hidden="true">
-  <div class="nexus-rail-track">
-    <div class="nexus-rail-line" id="nexus-rail-line" style="transform: scaleY(0);"></div>
-    <div class="nexus-signal-head" id="nexus-signal-head" style="transform: translate(-50%, -50%) translateY(0px);">
-    </div>
-  </div>
-  <div class="nexus-rail-stage-tag" id="nexus-stage-tag">SIGNAL INITIATED</div>
-</div>
-{% endif %}
+
 
 <!-- Top Sticky Public Navigation Header -->
 <header class="fx-pub-header" role="banner">
