@@ -14,28 +14,36 @@
   <div class="text-body-secondary">{{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity %} · <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a> · {% if can.view_site %}<a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>{% else %}{{ sr.site.code }}{% endif %}</div>
   {% hierarchy_trail sr.asset %}
 </div>
-  <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'incidents:edit' sr.pk %}">Edit</a>{% endif %}
-    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo" title="Create work order">Convert to Work Order</button></form>{% endif %}
-    {% if linked_work_order %}<a class="btn btn-outline-primary" href="{% url 'workorders:detail' linked_work_order.pk %}">Open {{ linked_work_order.order_number }}</a>{% endif %}</div></div>
+  <div class="d-flex align-items-center gap-2">
+    {% if can.update and editable %}
+      <a class="btn btn-outline-primary d-inline-flex align-items-center gap-1" href="{% url 'incidents:edit' sr.pk %}">
+        {% icon 'edit' 14 %} Edit
+      </a>
+    {% endif %}
+    {% if linked_work_order %}
+      <a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'workorders:detail' linked_work_order.pk %}" id="btn-view-linked-wo">
+        {% icon 'tool' 15 %} Open {{ linked_work_order.order_number }}
+      </a>
+    {% endif %}
+  </div>
+</div>
 <div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
 
 <!-- Lifecycle & Authorized Actions Card -->
 <div class="fx-card mb-3" id="workflow-action-card">
   <div class="fx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-      <span class="fw-semibold me-2">Service Request Lifecycle</span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="fw-semibold">Service Request Lifecycle</span>
       <span class="small text-muted">(Current Status: {% status_badge sr.status %})</span>
     </div>
     {% if linked_work_order %}
-      <div>
-        <a class="btn btn-sm btn-outline-success" href="{% url 'workorders:detail' linked_work_order.pk %}">
-          Linked Work Order: {{ linked_work_order.order_number }}
-        </a>
-      </div>
+      <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 px-2 py-1">
+        {% icon 'link' 13 %} Linked: {{ linked_work_order.order_number }}
+      </span>
     {% endif %}
   </div>
   <div class="fx-card-body">
-    <!-- Stepper indicator -->
+    <!-- Stepper indicator (HPE Mandatory States: NEW -> TRIAGED -> APPROVED/REJECTED -> WORK ORDER CREATED -> IN SERVICE -> RESOLVED -> CONFIRMED -> CLOSED) -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
       <div class="small {% if workflow_guide.stage_index > 1 %}text-success fw-semibold{% elif workflow_guide.stage_index == 1 %}fw-bold text-primary{% else %}text-muted{% endif %}">
         {% if workflow_guide.stage_index > 1 %}✓{% else %}1.{% endif %} Intake / Reported
@@ -45,17 +53,33 @@
         {% if workflow_guide.stage_index > 2 %}✓{% else %}2.{% endif %} Triage
       </div>
       <div class="text-muted small">→</div>
-      <div class="small {% if workflow_guide.stage_index > 3 %}text-success fw-semibold{% elif workflow_guide.stage_index == 3 %}fw-bold text-primary{% elif sr.status == 'REJECTED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
-        {% if workflow_guide.stage_index > 3 %}✓{% else %}3.{% endif %} Approval
+      <div class="small {% if workflow_guide.stage_index > 3 %}text-success fw-semibold{% elif workflow_guide.stage_index == 3 and sr.status != 'REJECTED' %}fw-bold text-primary{% elif sr.status == 'REJECTED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 3 %}✓{% elif sr.status == 'REJECTED' %}✗{% else %}3.{% endif %} Approval
       </div>
       <div class="text-muted small">→</div>
-      <div class="small {% if workflow_guide.stage_index >= 4 %}text-success fw-semibold{% else %}text-muted{% endif %}">
-        {% if workflow_guide.stage_index >= 4 %}✓{% else %}4.{% endif %} Work Order Conversion
+      <div class="small {% if workflow_guide.stage_index > 4 %}text-success fw-semibold{% elif workflow_guide.stage_index == 4 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 4 %}✓{% else %}4.{% endif %} Work Order Created
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index > 5 %}text-success fw-semibold{% elif workflow_guide.stage_index == 5 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 5 %}✓{% else %}5.{% endif %} In Service
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index > 6 %}text-success fw-semibold{% elif workflow_guide.stage_index == 6 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 6 %}✓{% else %}6.{% endif %} Resolved
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index > 7 %}text-success fw-semibold{% elif workflow_guide.stage_index == 7 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 7 %}✓{% else %}7.{% endif %} Confirmed
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index == 8 %}text-success fw-bold{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index == 8 %}✓{% else %}8.{% endif %} Closed
       </div>
     </div>
 
     <!-- Authorized Action Buttons -->
-    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
       <span class="small fw-bold me-2">Actions:</span>
       {% if can.triage %}
         <form method="post" action="{% url 'incidents:transition' sr.pk 'triage' %}" class="d-inline m-0">
@@ -94,15 +118,45 @@
         </form>
       {% endif %}
 
-      {% if linked_work_order %}
-        <a class="btn btn-sm btn-primary" href="{% url 'workorders:detail' linked_work_order.pk %}" id="btn-view-linked-wo">
-          View Work Order {{ linked_work_order.order_number }}
-        </a>
+      {% if can.confirm %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'confirm' %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-success" type="submit" id="btn-confirm-request" data-confirm="Confirm resolution of this request?">
+            Confirm Resolution
+          </button>
+        </form>
+      {% endif %}
+
+      {% if can.reopen %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'reopen' %}" class="d-inline-flex gap-1 m-0" id="reopen-panel">
+          {% csrf_token %}
+          <input class="form-control form-control-sm" style="width: 14rem;" name="reason" required minlength="3" maxlength="500" placeholder="Reopen reason (required)" aria-label="Reopen reason">
+          <button class="btn btn-sm btn-warning text-dark" type="submit" id="btn-reopen-request" data-confirm="Reopen this request for rework?">
+            Reopen Request
+          </button>
+        </form>
+      {% endif %}
+
+      {% if can.close %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'close' %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-secondary" type="submit" id="btn-close-request" data-confirm="Close this request?">
+            Close Request
+          </button>
+        </form>
+      {% endif %}
+
+      {% if linked_work_order and sr.status in "WORK_ORDER_CREATED,IN_SERVICE" %}
+        <span class="text-primary small fw-medium d-inline-flex align-items-center gap-1">
+          {% icon 'check-circle' 14 %} Work order {{ linked_work_order.order_number }} ({% status_badge linked_work_order.status %})
+        </span>
+      {% elif not can.triage and not can.approve and not can.reject and not can.create_work_order and not can.confirm and not can.reopen and not can.close %}
+        <span class="text-muted small">No pending workflow actions for your role.</span>
       {% endif %}
     </div>
 
     <!-- Diagnostic and guidance when an action is unavailable -->
-    {% if not workflow_guide.is_authorized and sr.status in "NEW,TRIAGED,APPROVED" %}
+    {% if not workflow_guide.is_authorized and sr.status in "NEW,TRIAGED,APPROVED,RESOLVED,CONFIRMED" %}
       <div class="alert alert-warning py-2 px-3 small mb-0 mt-2" id="action-unavailable-notice">
         {% if workflow_guide.is_client %}
           <strong>Client Account:</strong> Client / Requester accounts cannot perform internal triage, approval, or conversion actions.
@@ -117,8 +171,24 @@
         <strong>Request Rejected:</strong> {{ sr.decision_reason|default:"No rejection reason recorded." }}
       </div>
     {% elif linked_work_order and sr.status == "WORK_ORDER_CREATED" %}
-      <div class="alert alert-success py-2 px-3 small mb-0 mt-2" id="wo-conversion-success-notice">
-        <strong>Work Order Created:</strong> This request has been converted to Work Order <strong>{{ linked_work_order.order_number }}</strong>. Duplicate work order conversion is prevented.
+      <div class="alert alert-info py-2 px-3 small mb-0 mt-2" id="wo-conversion-success-notice">
+        <strong>Work Order Created:</strong> This request has been converted to Work Order <strong>{{ linked_work_order.order_number }}</strong>. Work order dispatch/start will move the request to <em>In Service</em>.
+      </div>
+    {% elif linked_work_order and sr.status == "IN_SERVICE" %}
+      <div class="alert alert-info py-2 px-3 small mb-0 mt-2" id="in-service-notice">
+        <strong>In Service:</strong> Work order <strong>{{ linked_work_order.order_number }}</strong> is actively in progress ({% status_badge linked_work_order.status %}). Completing the work order will resolve this request.
+      </div>
+    {% elif sr.status == "RESOLVED" %}
+      <div class="alert alert-success py-2 px-3 small mb-0 mt-2" id="resolved-notice">
+        <strong>Service Resolved:</strong> Work is complete. Please confirm resolution or reopen with a reason if rework is required.
+      </div>
+    {% elif sr.status == "CONFIRMED" %}
+      <div class="alert alert-success py-2 px-3 small mb-0 mt-2" id="confirmed-notice">
+        <strong>Resolution Confirmed:</strong> Client / supervisor confirmed satisfactory resolution. Request is ready to be closed.
+      </div>
+    {% elif sr.status == "CLOSED" %}
+      <div class="alert alert-secondary py-2 px-3 small mb-0 mt-2" id="closed-notice">
+        <strong>Request Closed:</strong> All lifecycle stages complete. Closed on {{ sr.closed_at|date:"d M Y H:i" }}.
       </div>
     {% endif %}
   </div>
@@ -128,31 +198,181 @@
 
 {% if tab == "overview" %}
 {% include "sla/_panel.html" %}
-<div class="row g-3"><div class="col-lg-7">
-  <div class="fx-card mb-3"><div class="fx-card-header">What happened</div><div class="fx-card-body"><dl class="fx-kv">
-    <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>
-    {% if sr.failure_category %}<dt>Failure category</dt><dd>{{ sr.failure_category }}</dd>{% endif %}
-    {% if sr.assigned_team %}<dt>Assigned team</dt><dd>{{ sr.assigned_team }}</dd>{% endif %}
-    <dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
-    <dt>Service impact</dt><dd>{{ sr.get_service_impact_display }}{% if sr.impact_notes %} · {{ sr.impact_notes }}{% endif %}</dd>
-    <dt>Reported by</dt><dd>{{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M Y H:i" }}</dd>
-    {% if sr.duplicate_of %}<dt>Duplicate of</dt><dd><a href="{% url 'incidents:detail' sr.duplicate_of.pk %}">{{ sr.duplicate_of.number }} · {{ sr.duplicate_of.title }}</a></dd>{% endif %}
-    {% if sr.override_reason %}<dt class="text-warning">Override reason</dt><dd class="text-warning-emphasis fw-medium">{{ sr.override_reason }}</dd>{% endif %}
-    {% if sr.decision_reason %}<dt>Decision / reason</dt><dd>{{ sr.decision_reason }}</dd>{% endif %}</dl></div></div>
+
+<!-- Only Three Focused Cards After Lifecycle UI -->
+<div class="row g-3">
+  <!-- Card 1: Incident Details (All user-entered fields up to date, highlighted override and edit details) -->
+  <div class="col-lg-7">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Incident Details</span>
+        <span class="badge bg-light text-dark border">{{ sr.get_kind_display }}</span>
+      </div>
+      <div class="fx-card-body">
+        <dl class="fx-kv">
+          <dt>Description</dt>
+          <dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>
+
+          <dt>Occurred</dt>
+          <dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
+
+          <dt>Severity</dt>
+          <dd>{% status_badge sr.severity %}</dd>
+
+          <dt>Service impact</dt>
+          <dd>{{ sr.get_service_impact_display }}{% if sr.impact_notes %} · {{ sr.impact_notes }}{% endif %}</dd>
+
+          <dt>Reported by</dt>
+          <dd>{{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M Y H:i" }}</dd>
+
+          {% if sr.failure_category %}
+            <dt>Failure category</dt>
+            <dd>{{ sr.failure_category }}</dd>
+          {% endif %}
+
+          {% if sr.assigned_team %}
+            <dt>Assigned team</dt>
+            <dd>{{ sr.assigned_team }}</dd>
+          {% endif %}
+
+          {% if sr.duplicate_of %}
+            <dt>Duplicate of</dt>
+            <dd><a href="{% url 'incidents:detail' sr.duplicate_of.pk %}">{{ sr.duplicate_of.number }} · {{ sr.duplicate_of.title }}</a></dd>
+          {% endif %}
+
+          {% if sr.override_reason %}
+            <dt class="text-warning fw-semibold">Override reason</dt>
+            <dd class="text-warning-emphasis fw-medium">{{ sr.override_reason }}</dd>
+          {% endif %}
+
+          {% if sr.decision_reason %}
+            <dt class="text-info fw-semibold">Decision / reason</dt>
+            <dd class="text-info-emphasis fw-medium">{{ sr.decision_reason }}</dd>
+          {% endif %}
+
+          {% if sr.updated_at and sr.updated_at|date:"U" != sr.created_at|date:"U" %}
+            <dt class="text-primary fw-semibold">Edited details</dt>
+            <dd class="text-primary-emphasis fw-medium">Last updated on {{ sr.updated_at|date:"d M Y H:i" }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
   </div>
-<div class="col-lg-5">
-  <div class="fx-card mb-3"><div class="fx-card-header">Downtime</div><div class="fx-card-body">
-    {% if downtime %}<dl class="fx-kv"><dt>Started</dt><dd>{{ downtime.started_at|date:"d M Y H:i" }}</dd>
-      <dt>Ended</dt><dd>{% if downtime.ended_at %}{{ downtime.ended_at|date:"d M Y H:i" }} ({{ downtime.duration }}){% else %}<span class="text-danger">still down</span>{% endif %}</dd></dl>
-    {% else %}<div class="text-body-secondary mb-2">No downtime recorded.</div>{% endif %}
-    {% if can.downtime and sr.status != "CLOSED" and sr.status != "REJECTED" %}<form method="post" action="{% url 'incidents:downtime' sr.pk %}" class="row g-2">{% csrf_token %}
-      <div class="col-12"><label class="form-label small" for="id_started_at">Started</label>{{ downtime_form.started_at }}</div>
-      <div class="col-12"><label class="form-label small" for="id_ended_at">Ended (blank = still down)</label>{{ downtime_form.ended_at }}</div>
-      <div class="col-12"><button class="btn btn-outline-primary btn-sm">Save downtime</button></div></form>{% endif %}</div></div>
-  <div class="fx-card"><div class="fx-card-header">Timeline</div><div class="fx-card-body"><dl class="fx-kv">
-    <dt>Triaged</dt><dd>{{ sr.triaged_at|date:"d M Y H:i"|default:"—" }}</dd><dt>Decided</dt><dd>{{ sr.decided_at|date:"d M Y H:i"|default:"—" }}</dd>
-    <dt>Resolved</dt><dd>{{ sr.resolved_at|date:"d M Y H:i"|default:"—" }}</dd><dt>Confirmed</dt><dd>{{ sr.confirmed_at|date:"d M Y H:i"|default:"—" }}</dd>
-    <dt>Closed</dt><dd>{{ sr.closed_at|date:"d M Y H:i"|default:"—" }}</dd></dl></div></div></div></div>
+
+  <!-- Right Column: Card 2 (Timeline) & Card 3 (Asset Information) -->
+  <div class="col-lg-5 d-flex flex-column gap-3">
+    <!-- Card 2: Lifecycle Timeline (Shows workflow execution times across all 8 mandatory states) -->
+    <div class="fx-card">
+      <div class="fx-card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Lifecycle Timeline</span>
+        <span class="small text-muted">Workflow timestamps</span>
+      </div>
+      <div class="fx-card-body">
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">1. Reported / Intake</span>
+            <span class="fw-medium text-dark">{{ sr.created_at|date:"d M Y H:i" }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">2. Triaged</span>
+            {% if sr.triaged_at %}
+              <span class="fw-medium text-dark">{{ sr.triaged_at|date:"d M Y H:i" }}</span>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">3. Decision (Approve/Reject)</span>
+            {% if sr.decided_at %}
+              <div class="text-end">
+                <span class="fw-medium text-dark">{{ sr.decided_at|date:"d M Y H:i" }}</span>
+                {% if sr.status == "REJECTED" %}
+                  <span class="badge bg-danger-subtle text-danger ms-1">Rejected</span>
+                {% else %}
+                  <span class="badge bg-success-subtle text-success ms-1">Approved</span>
+                {% endif %}
+                {% if sr.decision_reason %}
+                  <div class="text-body-secondary small mt-0.5">{{ sr.decision_reason }}</div>
+                {% endif %}
+              </div>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">4. Work Order Created</span>
+            {% if linked_work_order %}
+              <div class="text-end">
+                <span class="fw-medium text-dark">{{ linked_work_order.created_at|date:"d M Y H:i" }}</span>
+                <a href="{% url 'workorders:detail' linked_work_order.pk %}" class="fw-semibold text-decoration-none ms-1">
+                  {{ linked_work_order.order_number }}
+                </a>
+              </div>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">5. In Service</span>
+            {% if sr.in_service_at %}
+              <span class="fw-medium text-dark">{{ sr.in_service_at|date:"d M Y H:i" }}</span>
+            {% elif sr.status in "IN_SERVICE,RESOLVED,CONFIRMED,CLOSED" %}
+              <span class="fw-medium text-dark">Active</span>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">6. Resolved</span>
+            {% if sr.resolved_at %}
+              <span class="fw-medium text-dark">{{ sr.resolved_at|date:"d M Y H:i" }}</span>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-body-secondary">7. Confirmed</span>
+            {% if sr.confirmed_at %}
+              <span class="fw-medium text-dark">{{ sr.confirmed_at|date:"d M Y H:i" }}</span>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1">
+            <span class="text-body-secondary">8. Closed</span>
+            {% if sr.closed_at %}
+              <span class="fw-medium text-dark">{{ sr.closed_at|date:"d M Y H:i" }}</span>
+            {% else %}
+              <span class="text-muted">— Pending</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Asset Information (Simple clean card) -->
+    <div class="fx-card">
+      <div class="fx-card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Asset Information</span>
+        <a class="btn btn-sm btn-outline-primary py-0 px-2" href="{% url 'assets:detail' sr.asset_id %}">View Asset</a>
+      </div>
+      <div class="fx-card-body small">
+        <dl class="fx-kv mb-0">
+          <dt>Asset Tag</dt>
+          <dd><a href="{% url 'assets:detail' sr.asset_id %}" class="fw-semibold text-dark text-decoration-none">{{ sr.asset.asset_tag }}</a></dd>
+          <dt>Asset Name</dt>
+          <dd class="text-dark">{{ sr.asset.name|default:"—" }}</dd>
+          <dt>Site</dt>
+          <dd class="text-dark">{{ sr.site.name }} ({{ sr.site.code }})</dd>
+          {% if sr.asset.criticality %}
+            <dt>Criticality</dt>
+            <dd>{% status_badge sr.asset.criticality %}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% elif tab == "evidence" %}
 <div class="fx-card"><div class="fx-card-header">Evidence (photos / files)</div>

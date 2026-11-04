@@ -272,8 +272,16 @@ document.addEventListener('DOMContentLoaded', function() {
       if (overrideField && (overrideField.value === 'True' || overrideField.value === '1')) {
         if (!reasonInput || !reasonInput.value.trim() || reasonInput.value.trim().length < 3) {
           e.preventDefault();
-          alert('An override reason of at least 3 characters is mandatory when overriding duplicate detection.');
           enableOverrideMode();
+          reasonInput.classList.add('is-invalid');
+          var group = document.getElementById('overrideReasonGroup');
+          if (group && !group.querySelector('.invalid-feedback')) {
+            var fb = document.createElement('div');
+            fb.className = 'invalid-feedback d-block small mt-1 fw-medium';
+            fb.textContent = 'An override reason of at least 3 characters is mandatory when overriding duplicate detection.';
+            group.appendChild(fb);
+          }
+          reasonInput.focus();
         }
       }
     });

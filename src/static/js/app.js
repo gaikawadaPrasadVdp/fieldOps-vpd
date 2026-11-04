@@ -659,6 +659,40 @@ document.addEventListener("click", function (e) {
       }
     }
 
+    if (isValid && field.id === "id_downtime_started_at" && field.value) {
+      var occEl = document.getElementById("id_occurred_at");
+      var dtVal = new Date(field.value);
+      var now = Date.now();
+      var futureLimit = new Date(now + 5 * 60 * 1000);
+      var pastLimit = new Date(now - 90 * 24 * 60 * 60 * 1000);
+
+      if (dtVal > futureLimit) {
+        isValid = false;
+        customMsg = "The downtime start cannot be in the future.";
+      } else if (dtVal < pastLimit) {
+        isValid = false;
+        customMsg = "The downtime start cannot be more than 90 days in the past.";
+      } else if (occEl && occEl.value && dtVal < new Date(occEl.value)) {
+        isValid = false;
+        customMsg = "The downtime start cannot be before the incident occurred.";
+      }
+    }
+
+    if (isValid && field.id === "id_occurred_at" && field.value) {
+      var occVal = new Date(field.value);
+      var now = Date.now();
+      var futureLimit = new Date(now + 5 * 60 * 1000);
+      var pastLimit = new Date(now - 90 * 24 * 60 * 60 * 1000);
+
+      if (occVal > futureLimit) {
+        isValid = false;
+        customMsg = "The time of the failure cannot be in the future.";
+      } else if (occVal < pastLimit) {
+        isValid = false;
+        customMsg = "The time of the failure cannot be more than 90 days in the past.";
+      }
+    }
+
     if (!isValid) {
       var msg = customMsg || getErrorMessage(field);
       showFieldError(field, msg);
@@ -689,7 +723,6 @@ document.addEventListener("click", function (e) {
     if (!allValid) {
       e.preventDefault();
       e.stopPropagation();
-      form.classList.add("was-validated");
 
       if (firstInvalid) {
         firstInvalid.focus();
@@ -728,12 +761,32 @@ document.addEventListener("click", function (e) {
     if (field && field.classList.contains("is-invalid")) {
       validateField(field);
     }
+    if (field && (field.id === "id_occurred_at" || field.id === "id_downtime_started_at")) {
+      var dtEl = document.getElementById("id_downtime_started_at");
+      if (dtEl && dtEl.value) {
+        validateField(dtEl);
+      }
+      var occEl = document.getElementById("id_occurred_at");
+      if (occEl && occEl.value) {
+        validateField(occEl);
+      }
+    }
   });
 
   document.addEventListener("change", function (e) {
     var field = e.target;
-    if (field && (field.tagName.toLowerCase() === "select" || field.type === "checkbox" || field.type === "radio")) {
+    if (field && (field.tagName.toLowerCase() === "select" || field.type === "checkbox" || field.type === "radio" || field.type === "datetime-local" || field.type === "date")) {
       validateField(field);
+    }
+    if (field && (field.id === "id_occurred_at" || field.id === "id_downtime_started_at")) {
+      var dtEl = document.getElementById("id_downtime_started_at");
+      if (dtEl && dtEl.value) {
+        validateField(dtEl);
+      }
+      var occEl = document.getElementById("id_occurred_at");
+      if (occEl && occEl.value) {
+        validateField(occEl);
+      }
     }
   });
 })();
