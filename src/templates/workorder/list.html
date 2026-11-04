@@ -1,7 +1,53 @@
 {% extends "shell.html" %}
 {% load static %}
 {% block title %}Work Order Visibility · FieldOps Nexus{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-2">{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-4">
+<style>
+  /* Ensure actions column and buttons have generous width and are never clipped */
+  .wo-records .table-responsive {
+    overflow-x: auto !important;
+  }
+  .wo-actions-heading,
+  .wo-list-table .wo-actions-cell {
+    min-width: 190px !important;
+    width: 16% !important;
+    text-align: right;
+  }
+  .wo-list-table .wo-row-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-width: 175px !important;
+    gap: .35rem;
+  }
+  .wo-list-table .wo-row-actions a,
+  .wo-list-table .wo-row-actions button,
+  .wo-list-table .wo-row-actions .wo-status-button,
+  .wo-list-table .wo-row-actions .wo-view-button,
+  .wo-list-table .wo-row-actions .wo-edit-button {
+    width: 100% !important;
+    min-width: 165px !important;
+    min-height: 32px !important;
+    padding: .38rem .85rem !important;
+    font-size: .72rem !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+  }
+  .wo-list-table .wo-actions-cell form {
+    width: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+  }
+  .wo-list-table .wo-actions-cell form button {
+    width: 100% !important;
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="wo-page">
   <div class="wo-eyebrow-row">

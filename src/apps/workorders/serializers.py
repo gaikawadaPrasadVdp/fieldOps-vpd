@@ -79,7 +79,7 @@ class LaborSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkOrderLabor
-        fields = ["id", "technician", "technician_name", "work_date", "hours", "description", "created_at"]
+        fields = ["id", "technician", "technician_name", "work_date", "started_at", "ended_at", "hours", "description", "created_at"]
         read_only_fields = fields
 
 
@@ -361,10 +361,33 @@ class WorkNoteSerializer(serializers.Serializer):
 
 
 class LaborInputSerializer(serializers.Serializer):
-    work_date = serializers.DateField()
+    work_date = serializers.DateField(required=False)
+    started_at = serializers.DateTimeField(required=False, allow_null=True)
+    ended_at = serializers.DateTimeField(required=False, allow_null=True)
     hours = serializers.DecimalField(max_digits=4, decimal_places=2,
-                                    min_value=Decimal("0.01"), max_value=Decimal("24"))
+                                    min_value=Decimal("0.01"), max_value=Decimal("24"),
+                                    required=False)
     description = serializers.CharField(min_length=5, max_length=500, trim_whitespace=True)
+
+    def validate(self, attrs):
+        started_at = attrs.get("started_at")
+        ended_at = attrs.get("ended_at")
+        hours = attrs.get("hours")
+        work_date = attrs.get("work_date")
+
+        if started_at and ended_at:
+            if ended_at <= started_at:
+                raise serializers.ValidationError({"ended_at": "End record date time must be later than start record date time."})
+            if not hours:
+                attrs["hours"] = Decimal(str(round((ended_at - started_at).total_seconds() / 3600.0, 2)))
+            if not work_date:
+                attrs["work_date"] = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
+        elif not work_date:
+            raise serializers.ValidationError({"work_date": "Work date is required if start and end time are not provided."})
+        elif not hours:
+            raise serializers.ValidationError({"hours": "Hours worked is required."})
+
+        return attrs
 
 
 class MaterialInputSerializer(serializers.Serializer):
