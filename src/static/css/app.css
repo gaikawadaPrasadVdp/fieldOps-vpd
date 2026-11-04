@@ -2369,11 +2369,14 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
 }
 
+/* Do not show green borders or checkmark icons on neutral/valid form fields */
 .was-validated .form-control:valid,
-.form-control.is-valid,
 .was-validated .form-select:valid,
+.form-control.is-valid,
 .form-select.is-valid {
-  border-color: var(--fx-success) !important;
+  border-color: var(--fx-border) !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 .invalid-feedback[data-dynamic-error="1"],
