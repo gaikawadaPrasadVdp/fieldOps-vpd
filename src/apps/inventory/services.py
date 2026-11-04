@@ -570,9 +570,13 @@ def reserve(line: WorkOrderPart, warehouse: Warehouse, quantity=None, *, actor, 
         raise Conflict("Cannot reserve more than the uncovered requirement.", code="exceeds_requirement",
                        details={"uncovered": str(uncovered)})
     bal = _lock_balance(wo.organization, warehouse, line.part, create=False)
-    if bal is None or bal.available < q:
-        raise Conflict("Insufficient available stock.", code="insufficient_available",
-                       details={"available": str(bal.available if bal else ZERO)})
+    avail = bal.available if bal else ZERO
+    if bal is None or avail < q:
+        raise Conflict(
+            f"Insufficient stock in warehouse {warehouse.code} (Available: {avail:.3f}).",
+            code="insufficient_available",
+            details={"available": str(avail)},
+        )
     mv = _apply(bal, movement_type=Type.RESERVE, quantity=q, reserved_delta=q, actor=actor, work_order=wo, line=line)
     if res is None:
         res = PartReservation(organization=wo.organization, part_line=line, work_order=wo, warehouse=warehouse,
@@ -632,9 +636,13 @@ def issue(line: WorkOrderPart, warehouse: Warehouse, quantity, *, actor, request
     held = res.quantity if res else ZERO
     from_hold = min(held, q)
     bal = _lock_balance(wo.organization, warehouse, line.part, create=False)
-    if bal is None or bal.available < q - from_hold:
-        raise Conflict("Insufficient available stock.", code="insufficient_available",
-                       details={"available": str(bal.available if bal else ZERO)})
+    avail = bal.available if bal else ZERO
+    if bal is None or avail < q - from_hold:
+        raise Conflict(
+            f"Insufficient stock in warehouse {warehouse.code} (Available: {avail:.3f}).",
+            code="insufficient_available",
+            details={"available": str(avail)},
+        )
     mv = _apply(bal, movement_type=Type.ISSUE, quantity=q, on_hand_delta=-q, reserved_delta=-from_hold, actor=actor,
                 work_order=wo, line=line)
     if res is not None and from_hold:
