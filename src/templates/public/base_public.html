@@ -2,25 +2,13 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.6">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.8">
 <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=4.4">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
 
 {% block body %}
-<!-- Global Right Rail: NexusScrollFlow Operational Telemetry (excluded on features page to prevent collision with its 8-stage workflow) -->
-{% if active_page != 'features' %}
-<div class="nexus-scroll-flow-rail" aria-hidden="true">
-  <div class="nexus-rail-track">
-    <div class="nexus-rail-line" id="nexus-rail-line" style="transform: scaleY(0);"></div>
-    <div class="nexus-signal-head" id="nexus-signal-head" style="transform: translate(-50%, -50%) translateY(0px);">
-    </div>
-  </div>
-  <div class="nexus-rail-stage-tag" id="nexus-stage-tag">SIGNAL INITIATED</div>
-</div>
-{% endif %}
-
 <!-- Top Sticky Public Navigation Header -->
 <header class="fx-pub-header" role="banner">
   <!-- Top Edge Gold Scroll Signal -->
@@ -912,15 +900,15 @@
               <a href="tel:+919876543210" class="fx-footer-contact-link">+91 98765 43210</a>
             </div>
           </div>
-          <div class="fx-footer-contact-row">
+          <a href="https://www.google.com/maps/search/?api=1&query=Mumbai%2C%20Maharashtra%2C%20India" target="_blank" rel="noopener noreferrer" class="fx-footer-contact-row fx-footer-location-link" aria-label="Location: Mumbai, Maharashtra, India (opens in Google Maps)">
             <div class="fx-footer-contact-icon">
               {% icon 'map-pin' 17 %}
             </div>
             <div class="fx-footer-contact-info">
               <span class="fx-footer-contact-label">Location</span>
-              <span class="fx-footer-contact-text">Bangalore, Karnataka, India</span>
+              <span class="fx-footer-contact-text">Mumbai, Maharashtra, India</span>
             </div>
-          </div>
+          </a>
         </div>
       </div>
     </div>
@@ -949,6 +937,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script defer src="{% static 'js/public.js' %}?v=4.5"></script>
+<script defer src="{% static 'js/public.js' %}?v=4.7"></script>
 <script defer src="{% static 'js/public-detail.js' %}?v=4.5"></script>
 {% endblock %}
