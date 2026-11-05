@@ -11,6 +11,6 @@ urlpatterns = [
     path("requests/<str:pk>/confirm/", views.RequestConfirmView.as_view(), name="request_confirm"),
     path("requests/<str:pk>/reopen/", views.RequestReopenView.as_view(), name="request_reopen"),
     path("accounts/", views.AccountsListView.as_view(), name="accounts_list"),
+    path("accounts/<str:pk>/edit/", views.AccountEditView.as_view(), name="account_edit"),
     path("accounts/<str:pk>/toggle/", views.AccountToggleView.as_view(), name="account_toggle"),
 ]
-

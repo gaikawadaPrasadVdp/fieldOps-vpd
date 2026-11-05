@@ -1803,6 +1803,7 @@ body.fx-app {
 }
 
 .fx-global-loader.is-active,
+.fx-global-loader.htmx-request,
 .htmx-request .fx-global-loader,
 body.htmx-request .fx-global-loader {
   opacity: 1;

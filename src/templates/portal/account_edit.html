@@ -1,0 +1,100 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Edit Client Account · {{ account.membership.user.email }} · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'portal:accounts_list' %}">Portal Accounts</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit Account</li>
+      </ol>
+    </nav>
+    <h1 class="h3 fw-bold text-dark mb-1">Edit Client Portal Account</h1>
+    <div class="text-secondary small">Update client company, contact details, and portal permissions for {{ account.membership.user.email }}.</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'portal:accounts_list' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm">
+      Back to Accounts
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left: Edit Form -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm bg-white" style="border-radius:10px;">
+      <div class="card-header bg-transparent border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+        <h5 class="card-title fw-bold text-dark mb-0 fs-6">Account Settings</h5>
+        <div>
+          {% if account.is_enabled %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">Portal Enabled</span>
+          {% else %}
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Portal Disabled</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2 px-3 small mb-3">
+            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+          </div>
+          {% endif %}
+
+          {% for field in form %}
+            {% include "components/_form_field.html" %}
+          {% endfor %}
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <a href="{% url 'portal:accounts_list' %}" class="btn btn-sm btn-outline-secondary px-3">Cancel</a>
+            <button type="submit" class="btn btn-sm btn-primary px-4 d-inline-flex align-items-center gap-1 shadow-sm">
+              {% icon 'check' 14 %} Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Account Summary -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm p-4 bg-white mb-4" style="border-radius:10px;">
+      <div class="text-center pb-3 border-bottom">
+        <div class="d-inline-grid place-items-center rounded-circle text-white fw-bold mx-auto mb-3 shadow-sm" style="width: 64px; height: 64px; background: var(--fx-accent); font-size: 1.35rem; border: 2px solid var(--fx-gold);">
+          {{ account.membership.user.display_name|slice:":2"|upper }}
+        </div>
+        <h5 class="fw-bold text-dark mb-1">{{ account.membership.user.display_name }}</h5>
+        <div class="text-secondary small mb-2">{{ account.membership.user.email }}</div>
+        {% status_badge account.membership.status %}
+      </div>
+
+      <div class="pt-3">
+        <div class="small text-secondary text-uppercase fw-semibold mb-2" style="font-size:0.75rem; letter-spacing:0.5px;">Account Context</div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-secondary">Company:</span>
+          <span class="fw-semibold text-dark">{{ account.company_name|default:"Not specified" }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-secondary">Organization:</span>
+          <span class="fw-semibold text-dark">{{ org.name }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-secondary">Portal Access:</span>
+          {% if account.is_enabled %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">Enabled</span>
+          {% else %}
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled</span>
+          {% endif %}
+        </div>
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-secondary">Created:</span>
+          <span class="text-muted">{{ account.created_at|date:"d M Y" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

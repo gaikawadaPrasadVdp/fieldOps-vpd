@@ -42,14 +42,19 @@
             {% endif %}
           </td>
           <td class="text-end">
-            <form method="post" action="{% url 'portal:account_toggle' a.pk %}" class="d-inline">
-              {% csrf_token %}
-              {% if a.is_enabled %}
-              <button type="submit" class="btn btn-sm btn-outline-danger">Disable</button>
-              {% else %}
-              <button type="submit" class="btn btn-sm btn-outline-success">Enable</button>
-              {% endif %}
-            </form>
+            <div class="d-flex justify-content-end gap-2 align-items-center">
+              <a href="{% url 'portal:account_edit' a.pk %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                {% icon 'edit' 13 %} Edit
+              </a>
+              <form method="post" action="{% url 'portal:account_toggle' a.pk %}" class="d-inline m-0">
+                {% csrf_token %}
+                {% if a.is_enabled %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Disable</button>
+                {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-success">Enable</button>
+                {% endif %}
+              </form>
+            </div>
           </td>
         </tr>
         {% empty %}
