@@ -176,7 +176,7 @@ def resolve_permitted_sites(
         "assets": "asset.view",
         "maintenance": "work_order.view",
         "service": "incident.view" if rbac.catalog.is_registered("incident.view") else "work_order.view",
-        "inventory": "inventory.part.view" if rbac.catalog.is_registered("inventory.part.view") else "work_order.view",
+        "inventory": "inventory.view" if rbac.catalog.is_registered("inventory.view") else "work_order.view",
         "my_work": None,
     }
     sec_perm = section_perm_map.get(section)
@@ -189,7 +189,10 @@ def resolve_permitted_sites(
     if sec_perm:
         sec_scope = rbac.site_scope(membership, sec_perm)
         if not sec_scope.all_sites:
-            sites_qs = sites_qs.filter(pk__in=sec_scope.site_ids)
+            if sec_scope.site_ids:
+                sites_qs = sites_qs.filter(pk__in=sec_scope.site_ids)
+            elif not rbac.has_permission_anywhere(membership, sec_perm):
+                return []
 
     sites = list(sites_qs.order_by("code"))
 
@@ -412,7 +415,7 @@ def compute_parts_consumption(organization: Organization, sites: list[Site], sta
     )
 
     return {
-        "value": f"{int(net) if net.is_integer() else net:.1f} units",
+        "value": f"{net:.1f} units",
         "numeric": net,
         "issued": issued,
         "returned": returned,
@@ -746,12 +749,18 @@ def get_service_dashboard(organization: Organization, sites: list[Site], start_d
 def get_inventory_dashboard(organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime) -> dict[str, Any]:
     """Consolidates Inventory Section metrics (Parts consumption, low stock count)."""
     site_ids = [s.pk for s in sites]
-    balances = StockBalance.objects.filter(organization=organization, warehouse__site_id__in=site_ids)
+    balances = StockBalance.objects.filter(
+        organization=organization,
+        warehouse__site_id__in=site_ids,
+    ).select_related("part", "warehouse")
     total_lines = balances.count()
     low_stock_count = 0
     for b in balances:
-        if b.is_low:
-            low_stock_count += 1
+        try:
+            if b.is_low:
+                low_stock_count += 1
+        except Exception:
+            continue
 
     parts_res = compute_parts_consumption(organization, sites, start_dt, end_dt)
 

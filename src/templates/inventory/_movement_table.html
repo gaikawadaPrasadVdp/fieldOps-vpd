@@ -3,16 +3,16 @@
   <table class="table fx-table movement-table">
     <thead>
       <tr>
-        <th>When</th>
-        <th>Type</th>
-        <th>Warehouse</th>
-        <th>Part</th>
-        <th>Qty</th>
-        <th>On hand Δ</th>
-        <th>Reserved Δ</th>
-        <th>On hand after</th>
-        <th>Work order</th>
-        <th>By</th>
+        <th><a href="{% sort_url 'when' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by timestamp">When {% sort_icon 'when' %}</a></th>
+        <th><a href="{% sort_url 'type' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by type">Type {% sort_icon 'type' %}</a></th>
+        <th><a href="{% sort_url 'warehouse' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by warehouse">Warehouse {% sort_icon 'warehouse' %}</a></th>
+        <th><a href="{% sort_url 'part' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by part number">Part {% sort_icon 'part' %}</a></th>
+        <th><a href="{% sort_url 'qty' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by quantity">Qty {% sort_icon 'qty' %}</a></th>
+        <th><a href="{% sort_url 'on_hand_delta' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by on hand change">On hand Δ {% sort_icon 'on_hand_delta' %}</a></th>
+        <th><a href="{% sort_url 'reserved_delta' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by reserved change">Reserved Δ {% sort_icon 'reserved_delta' %}</a></th>
+        <th><a href="{% sort_url 'on_hand_after' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by resulting on hand">On hand after {% sort_icon 'on_hand_after' %}</a></th>
+        <th><a href="{% sort_url 'work_order' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by work order">Work order {% sort_icon 'work_order' %}</a></th>
+        <th><a href="{% sort_url 'by' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by user">By {% sort_icon 'by' %}</a></th>
       </tr>
     </thead>
     <tbody>

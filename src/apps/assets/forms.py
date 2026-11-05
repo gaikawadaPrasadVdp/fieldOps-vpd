@@ -124,7 +124,7 @@ class AssetForm(BootstrapFormMixin, forms.Form):
 
 class RelationshipFields(forms.Form):
     relationship_type = forms.ChoiceField(choices=AssetComponent.Relationship.choices, initial="COMPONENT")
-    quantity = forms.IntegerField(min_value=1, initial=1)
+    quantity = forms.IntegerField(min_value=1, initial=1, widget=forms.NumberInput(attrs={"step": "1", "min": "1"}))
     part_number = forms.CharField(max_length=100, required=False)
     notes = forms.CharField(max_length=300, required=False)
 

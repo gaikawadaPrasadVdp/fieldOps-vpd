@@ -510,7 +510,7 @@ class LaborForm(BootstrapFormMixin, forms.Form):
 class MaterialForm(BootstrapFormMixin, forms.Form):
     item_name = forms.CharField(label="Part or material", min_length=2, max_length=150)
     part_reference = forms.CharField(label="Part reference", max_length=100, required=False)
-    quantity = forms.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"),
+    quantity = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"step": "1", "min": "1"}),
                                   label="Quantity used")
     unit = forms.CharField(label="Unit", max_length=30, required=False,
                            help_text="For example: each, metre, litre.")

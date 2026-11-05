@@ -114,7 +114,7 @@ class Command(BaseCommand):
 
                 "job_title": "IT & Systems Administrator",
 
-                "role_key": "admin",
+                "role_key": "owner",
 
                 "is_platform_admin": False,
 

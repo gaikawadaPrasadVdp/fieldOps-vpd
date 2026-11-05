@@ -137,8 +137,9 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
 
 def _role_field(org, membership=None):
     from apps.rbac import services as rbac
+    from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
 
-    qs = Role.objects.for_organization(org).order_by("name")
+    qs = Role.objects.for_organization(org).filter(system_key__in=PRIMARY_ROLE_KEYS).order_by("name")
     if membership is not None:
         if not rbac.has_role_assignment_permission(membership):
             return forms.ModelMultipleChoiceField(
@@ -237,7 +238,8 @@ class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
         self.org = org
         self.membership = membership
 
-        roles_qs = Role.objects.for_organization(org).order_by("name")
+        from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
+        roles_qs = Role.objects.for_organization(org).filter(system_key__in=PRIMARY_ROLE_KEYS).order_by("name")
         sites_qs = Site.objects.for_organization(org).order_by("code")
 
         if membership is not None:
@@ -333,8 +335,8 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
     )
     slug = forms.CharField(
         max_length=60,
-        required=False,
-        label="URL Slug (Optional)",
+        required=True,
+        label="URL Slug",
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. apex-industrial",
         }),
