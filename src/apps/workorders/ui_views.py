@@ -164,11 +164,11 @@ class WorkOrderListView(TenantPermissionMixin, View):
         if search:
             qs = qs.filter(Q(order_number__icontains=search) | Q(title__icontains=search)
                            | Q(asset_reference__icontains=search) | Q(source_reference__icontains=search))
-        ordering = request.GET.get("ordering", "-created_at")
+        raw_ordering = (request.GET.get("ordering") or "").strip()
         allowed_ordering = {"created_at", "-created_at", "title", "-title", "due_at", "-due_at", "priority", "-priority",
                             "planned_start", "-planned_start", "order_number", "-order_number"}
-        if ordering not in allowed_ordering:
-            ordering = "-created_at"
+        ordering = raw_ordering if raw_ordering in allowed_ordering else "-created_at"
+        selected_ordering = raw_ordering if raw_ordering in allowed_ordering else ""
         qs = qs.order_by(ordering)
         card_statuses = [choice for choice in WorkOrder.Status.choices if choice[0] != WorkOrder.Status.CANCELLED]
         counts = {row["status"]: row["total"] for row in _orders(request).values("status").annotate(total=Count("pk"))}
@@ -207,7 +207,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
             "selected_status": state, "selected_priority": priority, "selected_work_type": work_type,
             "selected_site": site_id, "selected_assignee": assignee_id, "overdue": overdue,
             "selected_source": source, "source_types": WorkOrder.SourceType.distinct_choices(),
-              "selected_ordering": ordering, "q": search,
+              "selected_ordering": selected_ordering, "q": search,
               "querystring": query.urlencode(),
               "has_visible_work_orders": has_visible_work_orders,
               "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create"),

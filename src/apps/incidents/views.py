@@ -89,9 +89,9 @@ class RequestListView(IncidentBase):
         base_reqs = selectors.requests_for(m, org)
         stats = base_reqs.order_by().aggregate(
             total=models.Count("pk"),
-            open=models.Count("pk", filter=models.Q(status__in=("NEW", "TRIAGED", "APPROVED", "IN_SERVICE", "RESOLVED", "CONFIRMED"))),
+            open=models.Count("pk", filter=~models.Q(status__in=("CLOSED", "REJECTED", "CANCELLED"))),
             critical=models.Count("pk", filter=models.Q(severity="CRITICAL") & ~models.Q(status__in=("CLOSED", "REJECTED", "CANCELLED"))),
-            closed=models.Count("pk", filter=models.Q(status="CLOSED")),
+            closed=models.Count("pk", filter=models.Q(status__in=("RESOLVED", "CLOSED"))),
         )
         total_incidents = stats["total"] or 0
         open_incidents = stats["open"] or 0
@@ -444,13 +444,13 @@ class RequestDetailView(IncidentBase):
         if sr.status == "NEW":
             next_action_title = "Triage Request"
             required_perm = "incident.triage"
-            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            authorized_roles = "Maintenance Supervisor, Service Manager, Operations Manager, Organization Owner"
             is_authorized = can["triage"]
             stage_index = 1
         elif sr.status == "TRIAGED":
             next_action_title = "Approve or Reject Request"
             required_perm = "incident.approve"
-            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            authorized_roles = "Maintenance Supervisor, Service Manager, Operations Manager, Organization Owner"
             is_authorized = can["approve"]
             stage_index = 2
         elif sr.status == "APPROVED":
@@ -474,13 +474,13 @@ class RequestDetailView(IncidentBase):
         elif sr.status == "RESOLVED":
             next_action_title = "Confirm Resolution or Reopen"
             required_perm = "incident.confirm"
-            authorized_roles = "Client Requester, Service Manager, Operations Manager"
+            authorized_roles = "Client Requester, Service Manager, Maintenance Supervisor, Organization Owner"
             is_authorized = can["confirm"]
             stage_index = 6
         elif sr.status == "CONFIRMED":
             next_action_title = "Close Service Request"
             required_perm = "incident.close"
-            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            authorized_roles = "Maintenance Supervisor, Service Manager, Operations Manager, Organization Owner"
             is_authorized = can["close"]
             stage_index = 7
         elif sr.status == "CLOSED":
@@ -545,6 +545,10 @@ class RequestTransitionView(_Post):
     def post(self, request, pk, action):
         sr = _req(request, pk)
         if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+            if action == "confirm":
+                return redirect(f"/portal/requests/{sr.pk}/confirm/")
+            if action == "reopen":
+                return redirect(f"/portal/requests/{sr.pk}/reopen/")
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied("Clients cannot perform internal service request actions.")
         if action not in ACTION_PERMISSIONS:

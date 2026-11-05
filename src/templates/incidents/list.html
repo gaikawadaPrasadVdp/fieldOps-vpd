@@ -48,13 +48,11 @@
     <select class="form-select form-select-sm" style="max-width:192px" name="kind" aria-label="Type"><option value="">All types</option>
       {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
-      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="" {% if not filters.ordering or filters.ordering == "all" %}selected{% endif %}>All</option>
+      <option value="-created_at" {% if filters.ordering == "-created_at" %}selected{% endif %}>Newest First</option>
       <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
       <option value="title" {% if filters.ordering == "title" %}selected{% endif %}>Title (A–Z)</option>
-      <option value="-title" {% if filters.ordering == "-title" %}selected{% endif %}>Title (Z–A)</option>
       <option value="number" {% if filters.ordering == "number" %}selected{% endif %}>Number (A–Z)</option>
-      <option value="-number" {% if filters.ordering == "-number" %}selected{% endif %}>Number (Z–A)</option>
-      <option value="severity" {% if filters.ordering == "severity" %}selected{% endif %}>Severity</option>
     </select>
     <a href="{% url 'incidents:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
   </form>
