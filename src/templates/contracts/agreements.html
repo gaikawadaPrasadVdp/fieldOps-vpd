@@ -23,20 +23,20 @@
           <h6 class="dropdown-header">Export Filtered Warranties</h6>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'csv')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="csv"
+            href="{% url 'contracts:agreement_export' %}?format=csv" onclick="handleWarrantyExport(event, 'csv')">
             {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'xlsx')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="xlsx"
+            href="{% url 'contracts:agreement_export' %}?format=xlsx" onclick="handleWarrantyExport(event, 'xlsx')">
             {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2" href="#"
-            onclick="handleWarrantyExport(event, 'pdf')">
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-action" data-format="pdf"
+            href="{% url 'contracts:agreement_export' %}?format=pdf" onclick="handleWarrantyExport(event, 'pdf')">
             {% icon 'file' 16 %} PDF Summary Report (.pdf)
           </a>
         </li>
@@ -80,35 +80,33 @@
     <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type">
       <option value="">All types</option>
       {% for v, l in kinds %}
-      <option value="{{ v }}" {% if filters.kind==v %}selected{% endif %}>{{ l }}</option>
+      <option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="state" aria-label="State">
       <option value="">Any state</option>
       {% for v in states %}
-      <option value="{{ v }}" {% if filters.state==v %}selected{% endif %}>{{ v|title }}</option>
+      <option value="{{ v }}" {% if filters.state == v %}selected{% endif %}>{{ v|title }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site">
       <option value="">All sites</option>
       {% for s in sites %}
-      <option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+      <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:190px" name="provider" aria-label="Provider">
       <option value="">All providers</option>
       {% for p in providers %}
-      <option value="{{ p.pk }}" {% if filters.provider==p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}
-      </option>
+      <option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
       {% endfor %}
     </select>
     <select class="form-select form-select-sm" style="max-width:170px" name="ordering" aria-label="Sort order">
-      <option value="-created_at" {% if filters.ordering=="-created_at" or not filters.ordering %}selected{% endif %}>
-        Newest First</option>
-      <option value="created_at" {% if filters.ordering=="created_at" %}selected{% endif %}>Oldest First</option>
-      <option value="reference" {% if filters.ordering=="reference" %}selected{% endif %}>Reference (A–Z)</option>
-      <option value="-reference" {% if filters.ordering=="-reference" %}selected{% endif %}>Reference (Z–A)</option>
-      <option value="end_date" {% if filters.ordering=="end_date" %}selected{% endif %}>Expiry Date</option>
+      <option value="-created_at" {% if filters.ordering == "-created_at" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+      <option value="reference" {% if filters.ordering == "reference" %}selected{% endif %}>Reference (A–Z)</option>
+      <option value="-reference" {% if filters.ordering == "-reference" %}selected{% endif %}>Reference (Z–A)</option>
+      <option value="end_date" {% if filters.ordering == "end_date" %}selected{% endif %}>Expiry Date</option>
     </select>
     <a href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}export=csv"
       class="btn btn-sm btn-outline-secondary" title="Export current filtered agreements to CSV">
@@ -164,83 +162,32 @@
   {% include "components/_pagination.html" %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
   function handleWarrantyExport(event, format) {
-    event.preventDefault();
+    if (event && event.preventDefault) event.preventDefault();
     const filterForm = document.getElementById('agreements-filter-form');
     const params = new URLSearchParams(filterForm ? new FormData(filterForm) : window.location.search);
-    params.set('format', format);
-    // remove empty parameters
+    params.set('format', format || 'csv');
     for (const [key, value] of Array.from(params.entries())) {
       if (!value || value.trim() === '') {
         params.delete(key);
       }
     }
-
     const exportUrl = "{% url 'contracts:agreement_export' %}?" + params.toString();
-
-    const btn = document.getElementById('warrantyExportDropdown');
-    const spinner = document.getElementById('export-spinner');
-    const icon = document.getElementById('export-icon');
-    const text = document.getElementById('export-btn-text');
-
-    if (btn) btn.classList.add('disabled');
-    if (spinner) spinner.classList.remove('d-none');
-    if (icon) icon.classList.add('d-none');
-    if (text) text.textContent = 'Exporting...';
-
     if (window.fxToast) {
-      window.fxToast('Preparing ' + format.toUpperCase() + ' export...', 'info');
+      window.fxToast('Downloading ' + (format || 'csv').toUpperCase() + ' warranty export...', 'info');
     }
-
-    fetch(exportUrl, {
-      method: 'GET',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('Export request failed (HTTP ' + response.status + ')');
-        }
-        const disposition = response.headers.get('Content-Disposition') || '';
-        let filename = 'warranties_export.' + format;
-        const match = disposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) {
-          filename = match[1];
-        }
-        return response.blob().then(function (blob) {
-          return { blob: blob, filename: filename };
-        });
-      })
-      .then(function (data) {
-        const blobUrl = window.URL.createObjectURL(data.blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = data.filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-        setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 1000);
-
-        if (window.fxToast) {
-          window.fxToast('Warranty export downloaded successfully (' + data.filename + ')', 'success');
-        }
-      })
-      .catch(function (err) {
-        console.error('Export error:', err);
-        if (window.fxToast) {
-          window.fxToast('Export failed: ' + (err.message || 'Network or server error'), 'danger');
-        } else {
-          alert('Export failed. Please check your network and try again.');
-        }
-      })
-      .finally(function () {
-        if (btn) btn.classList.remove('disabled');
-        if (spinner) spinner.classList.add('d-none');
-        if (icon) icon.classList.remove('d-none');
-        if (text) text.textContent = 'Download / Export';
-      });
+    window.location.href = exportUrl;
   }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const exportLinks = document.querySelectorAll('.warranty-export-action');
+    exportLinks.forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        const format = this.getAttribute('data-format') || 'csv';
+        handleWarrantyExport(e, format);
+      });
+    });
+  });
 </script>
 {% endblock %}
