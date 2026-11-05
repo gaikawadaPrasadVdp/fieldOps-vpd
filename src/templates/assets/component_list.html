@@ -97,7 +97,8 @@
         <select name="site" class="form-select form-select-sm" aria-label="Filter by site">
           <option value="">All Sites</option>
           {% for s in sites %}
-          <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>
+          <option value="{{ s.pk }}" {% if filters.site==s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }} · {{
+            s.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -105,23 +106,24 @@
         <select name="relationship_type" class="form-select form-select-sm" aria-label="Filter by relationship role">
           <option value="">All Roles</option>
           {% for r_val, r_label in relationship_types %}
-          <option value="{{ r_val }}" {% if filters.relationship_type == r_val %}selected{% endif %}>{{ r_label }}</option>
+          <option value="{{ r_val }}" {% if filters.relationship_type==r_val %}selected{% endif %}>{{ r_label }}
+          </option>
           {% endfor %}
         </select>
       </div>
       <div class="col-md-2">
         <select name="has_part" class="form-select form-select-sm" aria-label="Filter by part number status">
           <option value="">Part # Status (All)</option>
-          <option value="yes" {% if filters.has_part == 'yes' %}selected{% endif %}>Has Part Number</option>
-          <option value="no" {% if filters.has_part == 'no' %}selected{% endif %}>Missing Part Number</option>
+          <option value="yes" {% if filters.has_part=='yes' %}selected{% endif %}>Has Part Number</option>
+          <option value="no" {% if filters.has_part=='no' %}selected{% endif %}>Missing Part Number</option>
         </select>
       </div>
       <div class="col-md-2">
         <select name="health" class="form-select form-select-sm" aria-label="Filter by health status">
           <option value="">Health (All)</option>
-          <option value="healthy" {% if filters.health == 'healthy' %}selected{% endif %}>Healthy</option>
-          <option value="breakdown" {% if filters.health == 'breakdown' %}selected{% endif %}>Active Breakdown</option>
-          <option value="degraded" {% if filters.health == 'degraded' %}selected{% endif %}>Degraded / Maint.</option>
+          <option value="healthy" {% if filters.health=='healthy' %}selected{% endif %}>Healthy</option>
+          <option value="breakdown" {% if filters.health=='breakdown' %}selected{% endif %}>Active Breakdown</option>
+          <option value="degraded" {% if filters.health=='degraded' %}selected{% endif %}>Degraded / Maint.</option>
         </select>
       </div>
       <div class="col-md-1 d-flex gap-1">
@@ -164,7 +166,8 @@
             {% if comp.child.manufacturer or comp.child.model %}
             <div class="text-body-secondary small">
               {{ comp.child.manufacturer|default:"" }} {{ comp.child.model|default:"" }}
-              {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number }}</span>{% endif %}
+              {% if comp.child.serial_number %} · SN: <span class="font-monospace">{{ comp.child.serial_number
+                }}</span>{% endif %}
             </div>
             {% endif %}
           </td>
@@ -257,7 +260,8 @@
         {% empty %}
         <tr>
           <td colspan="9">
-            {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components or replaceable parts match your search criteria." %}
+            {% include "components/_empty_state.html" with title="No components found" text="No installed sub-components
+            or replaceable parts match your search criteria." %}
           </td>
         </tr>
         {% endfor %}
