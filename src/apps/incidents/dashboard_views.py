@@ -15,15 +15,20 @@ from .workflow import CLOSED, REJECTED
 
 
 ROLE_TITLES = {
+    "owner": "Organization Owner",
     "admin": "Organization Owner",
+    "service_dispatcher": "Service Dispatcher",
     "operations_manager": "Operations Manager",
     "asset_manager": "Asset Manager",
     "maintenance_planner": "Maintenance Planner",
     "supervisor": "Maintenance Supervisor",
     "technician": "Lead Field Technician",
+    "field_technician": "Lead Field Technician",
     "stores_manager": "Stores / Inventory Manager",
+    "stores_inventory": "Stores / Inventory Manager",
     "service_manager": "Service & SLA Manager",
     "auditor": "Compliance & Audit Officer",
+    "compliance": "Compliance & Audit Officer",
     "client_requester": "Client / Requester",
 }
 
@@ -53,12 +58,14 @@ def _dashboard_context(request, *, platform=False):
         if membership is None or not membership.is_active:
             raise PermissionDenied
         role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))
-        if "admin" in role_keys or rbac.is_owner(membership):
+        if "admin" in role_keys or "owner" in role_keys or rbac.is_owner(membership):
             title = "Organization Owner"
         else:
             title = next((ROLE_TITLES[key] for key in (
-                "operations_manager", "asset_manager", "maintenance_planner", "supervisor", "technician",
-                "stores_manager", "service_manager", "auditor", "client_requester") if key in role_keys),
+                "owner", "service_dispatcher", "operations_manager", "asset_manager",
+                "maintenance_planner", "supervisor", "technician", "field_technician",
+                "stores_manager", "stores_inventory", "service_manager", "auditor",
+                "compliance", "client_requester") if key in role_keys),
                 "Incident & Service Dashboard")
 
         has_incidents = (rbac.has_permission_anywhere(membership, "incident.view") or
@@ -190,6 +197,7 @@ def _dashboard_context(request, *, platform=False):
         },
         "can": can, "has_incidents": has_incidents, "has_work_orders": has_work_orders,
         "has_sla": has_sla, "has_audit": has_audit,
+        "is_portal_client": not platform and membership is not None and hasattr(membership, "portal_account") and membership.portal_account.is_enabled,
         "client_portal_gap": client_no_assets,
         "as_of": now,
     }
