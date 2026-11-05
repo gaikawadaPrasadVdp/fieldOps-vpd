@@ -55,7 +55,7 @@ def pause_job(work_order: WorkOrder, *, reason: str, membership: Membership, act
     assert_can_execute_job(work_order, membership)
     reason = (reason or "").strip()
     if not reason:
-        raise ValidationFailed("A reason is required to pause the job.")
+        raise ValidationFailed("Add a Pause Reason before moving this Work Order into a configured pause state.", code="pause_reason_required")
     order = wo_services.hold_work_order(work_order, membership=membership, actor=actor, reason=reason, request=request)
     audit.record(
         action="workspace.job_paused",
@@ -349,19 +349,7 @@ def complete_job_with_signoff(
         except Exception as exc:
             raise ValidationFailed(f"Invalid digital signature image data: {exc}", code="invalid_signature") from exc
     else:
-        # Generate default transparent signature image if omitted
-        raw_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-        image_data = base64.b64decode(raw_b64)
-        sig_file = ContentFile(image_data, name=f"signature_{work_order.order_number}.png")
-        signature_attachment = files_services.attach(
-            sig_file,
-            target=work_order,
-            organization=work_order.organization,
-            user=actor,
-            description=f"Customer Digital Signature ({signer_name})",
-            read_permission="work_order.view_assigned",
-            request=request,
-        )
+        raise ValidationFailed("Digital signature image is required.", code="signature_required")
 
     # If final photo evidence was provided, attach it as completion evidence
     if final_photo_file:

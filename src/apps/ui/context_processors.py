@@ -193,21 +193,11 @@ def shell(request):
         ]
 
     elif role_keys & {"technician", "field_technician"}:
-        sections["Workspace"] = [
-            {"label": "Technician Workspace", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
-        ]
-        sections["Service"] = [
-            {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
-            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
-        ]
-        sections["Assets"] = [
-            {"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
-        ]
-        sections["Operations & Assets"] = [
-            {"label": "Facility Sites", "url": _safe_reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
-            {"label": "Asset Registry", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Incident & Defects", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+        sections["Field Execution"] = [
+            {"label": "My Assigned Jobs", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
+            {"label": "All Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "My Work Cockpit", "url": _safe_reverse("dashboards:my_work"), "icon": "activity", "match_prefix": "/app/dashboards/my-work"},
+            {"label": "My Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "list-check", "match_prefix": "/app/inspections"},
         ]
         field_tools = [
             {"label": "Scan Asset Label", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},

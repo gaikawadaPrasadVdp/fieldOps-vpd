@@ -172,7 +172,7 @@
       </div>
     {% elif linked_work_order and sr.status == "WORK_ORDER_CREATED" %}
       <div class="alert alert-info py-2 px-3 small mb-0 mt-2" id="wo-conversion-success-notice">
-        <strong>Work Order Created:</strong> This request has been converted to Work Order <strong>{{ linked_work_order.order_number }}</strong>. Work order dispatch/start will move the request to <em>In Service</em>.
+        <strong>Work Order Created:</strong> This request has been converted to Work Order <strong>{{ linked_work_order.order_number }}</strong>. Duplicate work order conversion is prevented. Work order dispatch/start will move the request to <em>In Service</em>.
       </div>
     {% elif linked_work_order and sr.status == "IN_SERVICE" %}
       <div class="alert alert-info py-2 px-3 small mb-0 mt-2" id="in-service-notice">

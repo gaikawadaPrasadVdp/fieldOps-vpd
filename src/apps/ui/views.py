@@ -129,39 +129,39 @@ def public_about(request):
     return render(request, "public/about.html", {"active_page": "about"})
 
 
-# def client_register(request):
-#     """Public self-service client onboarding request. Audits and queues request safely without rogue privilege grant."""
-#     if request.user.is_authenticated:
-#         return redirect("ui:home")
-#     if request.method == "POST":
-#         form = ClientOnboardingForm(request.POST)
-#         if form.is_valid():
-#             email = form.cleaned_data["email"].strip().lower()
-#             company = form.cleaned_data["company_name"].strip()
-#             name = form.cleaned_data["full_name"].strip()
-#             AuditLog.objects.create(
-#                 action="portal.client_onboarding_requested",
-#                 target_repr=f"Client Request: {company} ({email})",
-#                 metadata={
-#                     "full_name": name,
-#                     "email": email,
-#                     "company_name": company,
-#                     "phone": form.cleaned_data.get("phone", ""),
-#                     "address": form.cleaned_data.get("facility_address", ""),
-#                     "service_scope": form.cleaned_data.get("service_scope", ""),
-#                 },
-#                 actor_email=email,
-#                 ip_address=request.META.get("REMOTE_ADDR"),
-#             )
-#             return render(request, "accounts/client_register.html", {
-#                 "submitted": True,
-#                 "submitted_name": name,
-#                 "submitted_company": company,
-#                 "submitted_email": email,
-#             })
-#     else:
-#         form = ClientOnboardingForm()
-#     return render(request, "accounts/client_register.html", {"form": form})
+def client_register(request):
+    """Public self-service client onboarding request. Audits and queues request safely without rogue privilege grant."""
+    if request.user.is_authenticated:
+        return redirect("ui:home")
+    if request.method == "POST":
+        form = ClientOnboardingForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"].strip().lower()
+            company = form.cleaned_data["company_name"].strip()
+            name = form.cleaned_data["full_name"].strip()
+            AuditLog.objects.create(
+                action="portal.client_onboarding_requested",
+                target_repr=f"Client Request: {company} ({email})",
+                metadata={
+                    "full_name": name,
+                    "email": email,
+                    "company_name": company,
+                    "phone": form.cleaned_data.get("phone", ""),
+                    "address": form.cleaned_data.get("facility_address", ""),
+                    "service_scope": form.cleaned_data.get("service_scope", ""),
+                },
+                actor_email=email,
+                ip_address=request.META.get("REMOTE_ADDR"),
+            )
+            return render(request, "accounts/client_register.html", {
+                "submitted": True,
+                "submitted_name": name,
+                "submitted_company": company,
+                "submitted_email": email,
+            })
+    else:
+        form = ClientOnboardingForm()
+    return render(request, "accounts/client_register.html", {"form": form})
 
 
 def public_legal(request, slug):
@@ -512,6 +512,7 @@ def home(request):
             {"title": "Pending Invitations", "value": stats["pending_invites"], "subtitle": "Pending activation links", "tone": "warning", "icon": "clock"},
             {"title": "RBAC Roles", "value": stats["roles"], "subtitle": "Configured system & custom roles", "tone": "gold", "icon": "shield"},
             {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
+            {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating plant & facility assets", "tone": "accent", "icon": "box"},
         ]
         shortcuts = [
             {"label": "Operations Analytics", "url": reverse("dashboards:hub"), "icon": "activity"},
