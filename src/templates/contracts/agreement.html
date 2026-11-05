@@ -11,8 +11,7 @@
       </ol>
     </nav>
     <h1>{{ ag.title }} {% status_badge state %}</h1>
-    <div class="text-body-secondary">{{ ag.get_kind_display }} {{ ag.reference }} · {{ ag.provider.name }} · site {{
-      ag.site.code }}</div>
+    <div class="text-body-secondary">{{ ag.get_kind_display }} {{ ag.reference }} · {{ ag.provider.name }} · site {{ ag.site.code }}</div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
     <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
@@ -67,17 +66,14 @@
   eligible.</div>
 {% elif state == "UPCOMING" %}
 <div class="alert alert-info">Coverage starts on {{ ag.start_date|date:"d M Y" }}.</div>
-{% elif days_left <= ag.renewal_alert_days and not renewal %} <div class="alert alert-warning">Expires in {{ days_left
-  }} day{{ days_left|pluralize }} ({{ ag.end_date|date:"d M Y" }}). It has not been renewed.</div>
+{% elif days_left <= ag.renewal_alert_days and not renewal %} <div class="alert alert-warning">Expires in {{ days_left }} day{{ days_left|pluralize }} ({{ ag.end_date|date:"d M Y" }}). It has not been renewed.</div>
   {% endif %}
 
   {% if renewal %}
-  <div class="alert alert-success">Renewed as <a href="{% url 'contracts:agreement' renewal.pk %}">{{ renewal.reference
-      }}</a> ({{ renewal.start_date|date:"d M Y" }} → {{ renewal.end_date|date:"d M Y" }}).</div>
+  <div class="alert alert-success">Renewed as <a href="{% url 'contracts:agreement' renewal.pk %}">{{ renewal.reference }}</a> ({{ renewal.start_date|date:"d M Y" }} → {{ renewal.end_date|date:"d M Y" }}).</div>
   {% endif %}
   {% if ag.renewed_from %}
-  <div class="alert alert-light border">Renewal of <a href="{% url 'contracts:agreement' ag.renewed_from_id %}">{{
-      ag.renewed_from.reference }}</a>.</div>
+  <div class="alert alert-light border">Renewal of <a href="{% url 'contracts:agreement' ag.renewed_from_id %}">{{ ag.renewed_from.reference }}</a>.</div>
   {% endif %}
 
   <div class="row g-3 mb-3">
@@ -89,20 +85,17 @@
             <dt>Valid</dt>
             <dd>{{ ag.start_date|date:"d M Y" }} → {{ ag.end_date|date:"d M Y" }}</dd>
             <dt>Provider</dt>
-            <dd>{{ ag.provider.name }}{% if ag.provider.email %} · {{ ag.provider.email }}{% endif %}{% if
-              ag.provider.phone %} · {{ ag.provider.phone }}{% endif %}</dd>
+            <dd>{{ ag.provider.name }}{% if ag.provider.email %} · {{ ag.provider.email }}{% endif %}{% if ag.provider.phone %} · {{ ag.provider.phone }}{% endif %}</dd>
             <dt>Coverage terms</dt>
             <dd>{{ ag.terms|default:"—"|linebreaksbr }}</dd>
             <dt>Not covered (work types)</dt>
-            <dd id="exclusions">{% for e in exclusions %}<span class="badge text-bg-light border">{{ e }}</span> {%
-              empty %}None{% endfor %}</dd>
+            <dd id="exclusions">{% for e in exclusions %}<span class="badge text-bg-light border">{{ e }}</span> {% empty %}None{% endfor %}</dd>
             <dt>Other exclusions</dt>
             <dd>{{ ag.exclusion_notes|default:"—"|linebreaksbr }}</dd>
             <dt>Provider response terms</dt>
             <dd>{{ ag.sla_terms|default:"—" }}</dd>
             <dt>Internal SLA profile</dt>
-            <dd id="coverage-sla">{% if ag.sla_profile %}<a href="{% url 'sla:profile' ag.sla_profile_id %}">{{
-                ag.sla_profile.name }}</a>{% else %}— (site / organization SLA applies){% endif %}</dd>
+            <dd id="coverage-sla">{% if ag.sla_profile %}<a href="{% url 'sla:profile' ag.sla_profile_id %}">{{ ag.sla_profile.name }}</a>{% else %}— (site / organization SLA applies){% endif %}</dd>
             <dt>Renewal alert</dt>
             <dd>{{ ag.renewal_alert_days }} days before the end</dd>
           </dl>
