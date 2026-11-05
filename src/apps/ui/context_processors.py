@@ -60,7 +60,7 @@ def shell(request):
             "Platform Governance": [
                 {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
                 {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                {"label": "Incident Dashboard", "url": _safe_reverse("platform_admin:incident_dashboard"), "icon": "activity", "match_prefix": "/platform/incidents"},
+                
             ]
         }
         sections = _filter_valid_nav_items(sections)

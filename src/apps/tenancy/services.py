@@ -44,7 +44,7 @@ def _check_timezone(tz: str):
 
 @transaction.atomic
 def create_organization(*, name, owner_email, owner_name, actor=None, slug=None, timezone_name="UTC",
-                        country="", contact_email="", request=None, owner_password="FieldOps@2026!") -> tuple[Organization, Membership]:
+                        country="", contact_email="", request=None, owner_password=None) -> tuple[Organization, Membership]:
     """Enterprise onboarding: creates the org, seeds system roles, invites the initial Owner."""
     if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
         raise PermissionDenied("Only administrators can create organizations.")
@@ -262,7 +262,7 @@ def permanently_delete_organization(org: Organization, *, actor, reason: str = "
         'assets_asset', 'assets_assetcategory', 'files_attachment',
         'sites_calendarholiday', 'sites_zone', 'sites_sitecontact',
         'sites_operatingcalendar', 'sites_site',
-        'rbac_membershiprole', 'rbac_role',
+        'rbac_rolepermission', 'rbac_membershiprole', 'rbac_role',
         'core_documentsequence', 'audit_auditlog',
         'tenancy_membership',
         'tenancy_organization'
@@ -276,6 +276,11 @@ def permanently_delete_organization(org: Organization, *, actor, reason: str = "
                 for tbl in tenant_tables:
                     if tbl == 'tenancy_organization':
                         cur.execute(f"DELETE FROM {tbl} WHERE id = %s", [org_id])
+                    elif tbl == 'rbac_rolepermission':
+                        cur.execute(
+                            f"DELETE FROM {tbl} WHERE role_id IN (SELECT id FROM rbac_role WHERE organization_id = %s)",
+                            [org_id]
+                        )
                     elif tbl == 'rbac_membershiprole':
                         cur.execute(
                             f"DELETE FROM {tbl} WHERE membership_id IN (SELECT id FROM tenancy_membership WHERE organization_id = %s)",

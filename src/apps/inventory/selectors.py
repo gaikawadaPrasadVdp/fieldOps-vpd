@@ -137,7 +137,51 @@ def filter_movements(qs, params):
     kind = (params.get("type") or "").strip()
     if kind:
         qs = qs.filter(movement_type=kind) if kind in M.Type.values else qs.none()
-    return qs.order_by("-created_at", "-id")
+
+    ordering = (params.get("ordering") or "").strip()
+    sort = (params.get("sort") or "").strip()
+    direction = (params.get("dir") or params.get("direction") or "").lower().strip()
+
+    if not ordering and sort:
+        if direction == "desc" or sort.startswith("-"):
+            ordering = f"-{sort.lstrip('-')}"
+        else:
+            ordering = sort.lstrip("+")
+
+    ordering_map = {
+        "-created_at": ("-created_at", "-id"),
+        "created_at": ("created_at", "id"),
+        "-when": ("-created_at", "-id"),
+        "when": ("created_at", "id"),
+        "type": ("movement_type", "-created_at"),
+        "-type": ("-movement_type", "-created_at"),
+        "movement_type": ("movement_type", "-created_at"),
+        "-movement_type": ("-movement_type", "-created_at"),
+        "warehouse": ("warehouse__code", "-created_at"),
+        "-warehouse": ("-warehouse__code", "-created_at"),
+        "part": ("part__part_number", "-created_at"),
+        "-part": ("-part__part_number", "-created_at"),
+        "part_number": ("part__part_number", "-created_at"),
+        "-part_number": ("-part__part_number", "-created_at"),
+        "qty": ("quantity", "-created_at"),
+        "-qty": ("-quantity", "-created_at"),
+        "quantity": ("quantity", "-created_at"),
+        "-quantity": ("-quantity", "-created_at"),
+        "on_hand_delta": ("on_hand_delta", "-created_at"),
+        "-on_hand_delta": ("-on_hand_delta", "-created_at"),
+        "reserved_delta": ("reserved_delta", "-created_at"),
+        "-reserved_delta": ("-reserved_delta", "-created_at"),
+        "on_hand_after": ("on_hand_after", "-created_at"),
+        "-on_hand_after": ("-on_hand_after", "-created_at"),
+        "work_order": ("work_order__order_number", "-created_at"),
+        "-work_order": ("-work_order__order_number", "-created_at"),
+        "actor": ("actor__email", "-created_at"),
+        "-actor": ("-actor__email", "-created_at"),
+        "by": ("actor__email", "-created_at"),
+        "-by": ("-actor__email", "-created_at"),
+    }
+    order_fields = ordering_map.get(ordering, ("-created_at", "-id"))
+    return qs.order_by(*order_fields)
 
 
 def reservations_for(membership, org):

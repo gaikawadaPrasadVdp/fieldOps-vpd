@@ -1,14 +1,129 @@
 {% extends "shell.html" %}
-{% block title %}Platform audit · FieldOps Nexus{% endblock %}
+{% block title %}Platform Audit · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Platform audit</h1><div class="text-body-secondary">Recent events across organizations</div></div>
-  <div class="d-flex gap-2"><a class="btn btn-primary" href="{% url 'platform_admin:incident_dashboard' %}">Incident dashboard</a><a class="btn btn-outline-secondary" href="{% url 'platform_admin:organizations' %}">Organizations</a></div>
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'platform_admin:organizations' %}">Platform Governance</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Audit Trail</li>
+      </ol>
+    </nav>
+    <h1>Platform Audit Trail</h1>
+    <div class="text-body-secondary">
+      Security, authentication, and tenant lifecycle audit logs (Strictly isolated from tenant operational workflows).
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'platform_admin:organizations' %}">
+      <i class="bi bi-building me-1"></i> Organizations
+    </a>
+  </div>
 </div>
-<div class="fx-card"><div class="table-responsive"><table class="table mb-0">
-  <thead><tr><th>When</th><th>Organization</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
-  <tbody>{% for entry in page %}
-    <tr><td>{{ entry.occurred_at|date:"Y-m-d H:i" }}</td><td>{{ entry.organization.name|default:"Platform" }}</td><td>{{ entry.action }}</td><td>{{ entry.actor_email|default:"System" }}</td><td>{{ entry.target_repr }}</td></tr>
-  {% empty %}<tr><td colspan="5" class="text-body-secondary">No audit events yet.</td></tr>{% endfor %}</tbody>
-</table></div></div>
+
+<div class="fx-card mb-4 p-3">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-md-5">
+      <div class="input-group">
+        <span class="input-group-text bg-transparent border-end-0 text-muted">
+          <i class="bi bi-search"></i>
+        </span>
+        <input type="text" name="q" value="{{ q }}" class="form-control border-start-0" placeholder="Search by actor, action, organization, or target...">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <select name="category" class="form-select">
+        <option value="">All Platform Events</option>
+        <option value="auth" {% if category == 'auth' %}selected{% endif %}>Sign-ins &amp; Authentication (auth.*)</option>
+        <option value="org" {% if category == 'org' %}selected{% endif %}>Organization Governance (organization.*)</option>
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-secondary">
+        <i class="bi bi-funnel me-1"></i> Filter
+      </button>
+      {% if q or category %}
+        <a href="{% url 'platform_admin:audit' %}" class="btn btn-outline-secondary">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="fx-card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width: 170px;">When</th>
+          <th style="width: 200px;">Event / Action</th>
+          <th style="width: 220px;">Actor</th>
+          <th style="width: 180px;">Organization</th>
+          <th>Target / Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in page %}
+          <tr>
+            <td class="text-nowrap small text-muted">
+              {{ entry.occurred_at|date:"Y-m-d H:i:s" }}
+            </td>
+            <td>
+              {% if entry.action == "auth.login" %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                  <i class="bi bi-box-arrow-in-right me-1"></i>{{ entry.action }}
+                </span>
+              {% elif entry.action == "auth.logout" %}
+                <span class="badge bg-secondary-subtle text-secondary border">
+                  <i class="bi bi-box-arrow-right me-1"></i>{{ entry.action }}
+                </span>
+              {% elif entry.action == "auth.lockout" %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                  <i class="bi bi-shield-x me-1"></i>{{ entry.action }}
+                </span>
+              {% elif "organization." in entry.action %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                  <i class="bi bi-building me-1"></i>{{ entry.action }}
+                </span>
+              {% else %}
+                <span class="badge bg-light text-dark border">
+                  {{ entry.action }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex align-items-center">
+                <i class="bi bi-person-circle text-muted me-2"></i>
+                <span class="fw-medium text-truncate" style="max-width: 180px;" title="{{ entry.actor_email }}">
+                  {{ entry.actor_email|default:"System" }}
+                </span>
+              </div>
+            </td>
+            <td>
+              {% if entry.organization %}
+                <span class="badge bg-secondary-subtle text-secondary">
+                  {{ entry.organization.name }}
+                </span>
+              {% else %}
+                <span class="badge bg-dark-subtle text-body-secondary">
+                  Platform
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="small font-monospace">{{ entry.target_repr|default:"—" }}</span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-center py-4 text-body-secondary">
+              <i class="bi bi-shield-check fs-2 d-block mb-2 text-muted"></i>
+              No platform audit events found.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% include "components/_pagination.html" %}
 {% endblock %}

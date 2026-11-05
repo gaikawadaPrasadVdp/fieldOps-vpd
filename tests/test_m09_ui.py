@@ -295,3 +295,67 @@ def test_csrf_is_enforced_on_inventory_posts(ui):
                                                  "quantity": "5"})
     assert r.status_code == 403
     assert not StockMovement.objects.exists()
+
+
+def test_stock_movements_sorting(ui):
+    stores = ui["cl"]["stores"]
+    wh1 = ui["wh"]
+    wh2 = ui["wh2"]
+    part1 = ui["part"]  # SEAL-100
+    part2 = Part.objects.create(organization=ui["org"], part_number="ABC-001", name="Alpha Part")
+
+    inv.receive(wh1, part1, 5, actor=ui["stores"].user)
+    inv.receive(wh2, part2, 20, actor=ui["stores"].user)
+
+    # Sort by part ascending: ABC-001 first, then SEAL-100
+    resp_asc = stores.get("/app/inventory/movements/?ordering=part")
+    assert resp_asc.status_code == 200
+    content_asc = resp_asc.content.decode()
+    pos_abc = content_asc.find("ABC-001")
+    pos_seal = content_asc.find("SEAL-100")
+    assert pos_abc != -1 and pos_seal != -1
+    assert pos_abc < pos_seal
+
+    # Sort by part descending: SEAL-100 first, then ABC-001
+    resp_desc = stores.get("/app/inventory/movements/?ordering=-part")
+    assert resp_desc.status_code == 200
+    content_desc = resp_desc.content.decode()
+    pos_abc_desc = content_desc.find("ABC-001")
+    pos_seal_desc = content_desc.find("SEAL-100")
+    assert pos_seal_desc < pos_abc_desc
+
+    # Sort by quantity descending: 20 before 5
+    resp_qty_desc = stores.get("/app/inventory/movements/?ordering=-quantity")
+    assert resp_qty_desc.status_code == 200
+    movements_page = resp_qty_desc.context["page"]
+    qtys = [float(m.quantity) for m in movements_page]
+    assert qtys == sorted(qtys, reverse=True)
+
+    # Check header links and sort indicators are rendered
+    assert "href=\"?ordering=part\"" in content_asc or "href=\"?ordering=-part\"" in content_asc
+    assert "Sort order" in content_asc
+
+
+def test_quantity_rejects_decimals_across_inventory_ui(ui):
+    c = ui["cl"]["stores"]
+    base = {"warehouse": str(ui["wh"].pk), "part": str(ui["part"].pk)}
+
+    # 1. Decimal inputs in receive stock must return 400 Bad Request
+    resp_receive = c.post("/app/inventory/stock/receive/", {**base, "quantity": "9.999999"})
+    assert resp_receive.status_code == 400
+    assert "Enter a whole number." in resp_receive.content.decode()
+
+    # 2. Receive page renders input with step="1" and min="1"
+    get_receive = c.get("/app/inventory/stock/receive/")
+    assert get_receive.status_code == 200
+    html = get_receive.content.decode()
+    assert 'step="1"' in html
+    assert 'min="1"' in html
+
+    # 3. Decimal inputs in transfer stock must return 400 Bad Request
+    resp_transfer = c.post(
+        "/app/inventory/stock/transfer/",
+        {"source": str(ui["wh"].pk), "target": str(ui["wh2"].pk), "part": str(ui["part"].pk), "quantity": "4.5"}
+    )
+    assert resp_transfer.status_code == 400
+    assert "Enter a whole number." in resp_transfer.content.decode()

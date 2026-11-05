@@ -682,7 +682,7 @@
                   <div class="col-8">
                     <label for="part-quantity-input" class="form-label small fw-semibold">Quantity Used *</label>
                     <div class="input-group input-group-sm">
-                      <input type="number" step="0.001" min="0.001" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                      <input type="number" step="1" min="1" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="1" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'0' }}{% endwith %}">
                       <span class="input-group-text" id="part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
                     </div>
                   </div>
@@ -735,7 +735,7 @@
                   <div class="col-8">
                     <label for="return-part-quantity-input" class="form-label small fw-semibold">Quantity to Return *</label>
                     <div class="input-group input-group-sm">
-                      <input type="number" step="0.001" min="0.001" name="quantity" id="return-part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                      <input type="number" step="1" min="1" name="quantity" id="return-part-quantity-input" class="form-control form-control-sm" required placeholder="1" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'0' }}{% endwith %}">
                       <span class="input-group-text" id="return-part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
                     </div>
                   </div>
@@ -831,7 +831,7 @@
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Quantity *</label>
-                <input type="number" step="0.01" min="0.01" name="quantity" class="form-control form-control-sm" required placeholder="e.g. 2.00">
+                <input type="number" step="1" min="1" name="quantity" class="form-control form-control-sm" required placeholder="e.g. 2">
               </div>
               <div class="col-6">
                 <label class="form-label small fw-semibold">Unit</label>

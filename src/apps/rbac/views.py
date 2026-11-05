@@ -62,9 +62,12 @@ class RoleListView(TenantPermissionMixin, View):
             request.GET.get("page")
         )
 
+        from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
+
         # Available roles in this organization (Owner first, then alphabetically)
         all_roles = list(
             Role.objects.for_organization(org)
+            .filter(system_key__in=PRIMARY_ROLE_KEYS)
             .prefetch_related("role_permissions__permission")
             .order_by("-is_owner", "name")
         )

@@ -59,6 +59,11 @@ def seed_system_roles(org, prune_extra: bool = False) -> dict[str, Role]:
             role = Role(organization=org, name=tpl.name, description=tpl.description,
                         system_key=tpl.key, is_owner=tpl.is_owner)
             role.save()
+        else:
+            if role.name != tpl.name or role.description != tpl.description:
+                role.name = tpl.name
+                role.description = tpl.description
+                role.save(update_fields=["name", "description"])
         have = set(role.role_permissions.values_list("permission__code", flat=True))
         expected = _template_codes(tpl)
         for code in sorted(expected - have):
@@ -435,11 +440,16 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
         raise ValidationFailed("Role name is required.")
     if role.is_system and name != role.name:
         aliases_map = {
-            "technician": {"Technician", "Field Technician"},
-            "stores_manager": {"Stores Manager", "Stores / Inventory", "Stores"},
-            "auditor": {"Auditor", "Auditor / Report Consumer", "Auditor / Compliance", "Compliance"},
+            "technician": {"Technician", "Field Technician", "Lead Field Technician"},
+            "stores_manager": {"Stores Manager", "Stores / Inventory", "Stores", "Stores / Inventory Manager"},
+            "auditor": {"Auditor", "Auditor / Report Consumer", "Auditor / Compliance", "Compliance", "Compliance & Audit Officer"},
             "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner"},
             "supervisor": {"Supervisor", "Maintenance Supervisor"},
+            "service_manager": {"Service Manager", "Service & SLA Manager"},
+            "service_dispatcher": {"Service Dispatcher"},
+            "asset_manager": {"Asset Manager"},
+            "maintenance_planner": {"Maintenance Planner"},
+            "client_requester": {"Client / Requester"},
         }
         valid_names = {role.name} | aliases_map.get(role.system_key, set())
         tmpl = BY_KEY.get(role.system_key)
@@ -501,4 +511,16 @@ def delete_role(role: Role, *, actor, request=None):
 def system_role_by_key(org, key: str) -> Role:
     if key not in BY_KEY:
         raise KeyError(key)
-    return Role.objects.unscoped().get(organization=org, system_key=key)
+    role = Role.objects.unscoped().filter(organization=org, system_key=key).first()
+    if role:
+        return role
+    tpl = BY_KEY[key]
+    role = Role.objects.create(
+        organization=org, name=tpl.name, description=tpl.description,
+        system_key=tpl.key, is_owner=tpl.is_owner
+    )
+    perm_by_code = {p.code: p for p in Permission.objects.all()}
+    for code in _template_codes(tpl):
+        if code in perm_by_code:
+            RolePermission.objects.create(role=role, permission=perm_by_code[code])
+    return role

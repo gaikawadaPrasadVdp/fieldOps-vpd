@@ -166,7 +166,40 @@ def organization_cancel_deletion(request, org_id):
 
 @platform_admin_required
 def audit(request):
-    page = Paginator(
-        AuditLog.objects.select_related("organization").order_by("-occurred_at"), 50
-    ).get_page(request.GET.get("page"))
-    return render(request, "tenancy/platform_audit.html", {"page": page})
+    # Rule D-008: Platform admin has no tenant operational rights and cannot view tenant-internal changes
+    # (incidents, work orders, assets, checklists, maintenance, inventory, etc.).
+    # Platform audit is strictly restricted to platform governance, authentication, and security events.
+    from django.db.models import Q
+
+    platform_filter = (
+        Q(action__startswith="auth.")
+        | Q(action__startswith="organization.")
+        | Q(action="portal.client_onboarding_requested")
+    )
+    qs = AuditLog.objects.filter(platform_filter).select_related("organization")
+
+    category = request.GET.get("category", "").strip().lower()
+    if category == "auth":
+        qs = qs.filter(action__startswith="auth.")
+    elif category == "org":
+        qs = qs.filter(action__startswith="organization.")
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        qs = qs.filter(
+            Q(actor_email__icontains=q)
+            | Q(target_repr__icontains=q)
+            | Q(action__icontains=q)
+            | Q(organization__name__icontains=q)
+        )
+
+    page = Paginator(qs.order_by("-occurred_at"), 50).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "tenancy/platform_audit.html",
+        {
+            "page": page,
+            "q": q,
+            "category": category,
+        },
+    )

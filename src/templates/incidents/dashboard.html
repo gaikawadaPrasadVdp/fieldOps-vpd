@@ -21,10 +21,8 @@
       jobs</a>{% endif %} {% if can.asset_manage %}<a class="btn btn-outline-primary"
       href="{% url 'assets:list' %}">Assets &amp; history</a>{% endif %} {% if can.parts %}<a
       class="btn btn-outline-primary" href="{% url 'inventory:reservations' %}">Reservations &amp; stock</a>{% endif %}
-    {% if can.sla_manage %}<a class="btn btn-outline-primary" href="{% url 'sla:profiles' %}">Configure SLAs</a>{% endif %} {% if platform %}<a class="btn btn-outline-primary"
-      href="{% url 'platform_admin:organizations' %}">Organizations</a><a class="btn btn-outline-primary"
-      href="{% url 'platform_admin:audit' %}">Platform audit</a>{% endif %} {% if can.sla and not platform %}<a
-      class="btn btn-outline-primary" href="{% url 'sla:breaches' %}">SLA breaches</a>{% endif %} {% if can.audit and not platform %}<a class="btn btn-outline-primary" href="{% url 'audit:list' %}">Audit trail</a>{% endif %}
+    {% if can.sla_manage %}<a class="btn btn-outline-primary" href="{% url 'sla:profiles' %}">Configure SLAs</a>{% endif %} {% if can.sla %}<a
+      class="btn btn-outline-primary" href="{% url 'sla:breaches' %}">SLA breaches</a>{% endif %} {% if can.audit %}<a class="btn btn-outline-primary" href="{% url 'audit:list' %}">Audit trail</a>{% endif %}
   </div>
 </div>
 

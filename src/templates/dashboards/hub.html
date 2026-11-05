@@ -242,7 +242,7 @@
         <tbody>
           {% for b in trace_data.low_stock_lines %}
           <tr>
-            <td data-label="Part Number"><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
+            <td data-label="Part Number"><a href="{% url 'inventory:part' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
             <td data-label="Part Name">{{ b.part.name }}</td>
             <td data-label="Warehouse">{{ b.warehouse.name }}</td>
             <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand }}</td>

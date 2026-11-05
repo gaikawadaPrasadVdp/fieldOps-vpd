@@ -7,6 +7,7 @@ urlpatterns = [
     path("inventory/parts/", views.PartListView.as_view(), name="parts"),
     path("inventory/parts/new/", views.PartCreateView.as_view(), name="part_new"),
     path("inventory/parts/<uuid:pk>/", views.PartDetailView.as_view(), name="part"),
+    path("inventory/parts/<uuid:pk>/detail/", views.PartDetailView.as_view(), name="part_detail"),
     path("inventory/parts/<uuid:pk>/edit/", views.PartEditView.as_view(), name="part_edit"),
     path("inventory/parts/<uuid:pk>/active/", views.PartActiveView.as_view(), name="part_active"),
     path("inventory/warehouses/", views.WarehouseListView.as_view(), name="warehouses"),
