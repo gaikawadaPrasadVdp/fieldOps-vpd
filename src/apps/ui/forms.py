@@ -27,6 +27,23 @@ def validate_phone_number(value: str | None) -> str:
     return val
 
 
+def validate_alphabetical_description(value: str | None, field_label: str = "Description") -> str:
+    """Validates that a descriptive text field contains alphabetical text only and cannot contain numbers."""
+    if not value:
+        return ""
+    val = value.strip()
+    if not val:
+        return ""
+    if any(character.isdigit() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain alphabetical text.")
+    allowed_punctuation = set(".,;:!?'\"’“”()[]/\\-–—_&%\r\n\t")
+    if any(not (character.isalpha() or character.isspace() or character in allowed_punctuation) for character in val):
+        raise ValidationError(f"{field_label} can contain letters, spaces, and standard punctuation only.")
+    return val
+
+
 class BootstrapFormMixin:
     """Gives widgets Bootstrap 5 classes so server-rendered forms look consistent."""
 

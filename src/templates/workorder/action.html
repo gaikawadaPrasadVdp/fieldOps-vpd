@@ -102,108 +102,88 @@
 
 
 
-    if (!startInput || !endInput) return;
+    if (startInput && endInput) {
+      function validateLaborDates() {
+        startInput.setCustomValidity("");
+        endInput.setCustomValidity("");
+        if (startError) { startError.hidden = true; startError.textContent = ""; }
+        if (endError) { endError.hidden = true; endError.textContent = ""; }
 
-
-
-    function validateLaborDates() {
-
-      startInput.setCustomValidity("");
-
-      endInput.setCustomValidity("");
-
-      if (startError) { startError.hidden = true; startError.textContent = ""; }
-
-      if (endError) { endError.hidden = true; endError.textContent = ""; }
-
-
-
-      if (startInput.value) {
-
-        const startDate = new Date(startInput.value);
-
-        if (!isNaN(startDate.getTime()) && workDateInput) {
-
-          const y = startDate.getFullYear();
-
-          const m = String(startDate.getMonth() + 1).padStart(2, "0");
-
-          const d = String(startDate.getDate()).padStart(2, "0");
-
-          workDateInput.value = `${y}-${m}-${d}`;
-
-        }
-
-      }
-
-
-
-      if (startInput.value && endInput.value) {
-
-        const startMs = new Date(startInput.value).getTime();
-
-        const endMs = new Date(endInput.value).getTime();
-
-
-
-        if (!isNaN(startMs) && !isNaN(endMs)) {
-
-          if (endMs <= startMs) {
-
-            const msg = "End record date time must be later than start record date time.";
-
-            endInput.setCustomValidity(msg);
-
-            if (endError) { endError.textContent = msg; endError.hidden = false; }
-
-          } else {
-
-            const diffHours = (endMs - startMs) / (1000 * 60 * 60);
-
-            if (diffHours < 0.01) {
-
-              const msg = "Duration must be at least 0.01 hours (1 minute).";
-
-              endInput.setCustomValidity(msg);
-
-              if (endError) { endError.textContent = msg; endError.hidden = false; }
-
-            } else if (diffHours > 24) {
-
-              const msg = "Labor duration cannot exceed 24 hours for a single entry.";
-
-              endInput.setCustomValidity(msg);
-
-              if (endError) { endError.textContent = msg; endError.hidden = false; }
-
-            } else {
-
-              if (hoursInput) hoursInput.value = diffHours.toFixed(2);
-
-            }
-
+        if (startInput.value) {
+          const startDate = new Date(startInput.value);
+          if (!isNaN(startDate.getTime()) && workDateInput) {
+            const y = startDate.getFullYear();
+            const m = String(startDate.getMonth() + 1).padStart(2, "0");
+            const d = String(startDate.getDate()).padStart(2, "0");
+            workDateInput.value = `${y}-${m}-${d}`;
           }
-
         }
 
+        if (startInput.value && endInput.value) {
+          const startMs = new Date(startInput.value).getTime();
+          const endMs = new Date(endInput.value).getTime();
+
+          if (!isNaN(startMs) && !isNaN(endMs)) {
+            if (endMs <= startMs) {
+              const msg = "End record date time must be later than start record date time.";
+              endInput.setCustomValidity(msg);
+              if (endError) { endError.textContent = msg; endError.hidden = false; }
+            } else {
+              const diffHours = (endMs - startMs) / (1000 * 60 * 60);
+              if (diffHours < 0.01) {
+                const msg = "Duration must be at least 0.01 hours (1 minute).";
+                endInput.setCustomValidity(msg);
+                if (endError) { endError.textContent = msg; endError.hidden = false; }
+              } else if (diffHours > 24) {
+                const msg = "Labor duration cannot exceed 24 hours for a single entry.";
+                endInput.setCustomValidity(msg);
+                if (endError) { endError.textContent = msg; endError.hidden = false; }
+              } else {
+                if (hoursInput) hoursInput.value = diffHours.toFixed(2);
+              }
+            }
+          }
+        }
       }
 
+      startInput.addEventListener("input", validateLaborDates);
+      startInput.addEventListener("change", validateLaborDates);
+      endInput.addEventListener("input", validateLaborDates);
+      endInput.addEventListener("change", validateLaborDates);
+      validateLaborDates();
     }
 
+    // Alphabetical validation for text fields (disallow numbers)
+    const alphaFields = [
+      { id: "id_description", label: "Work performed" },
+      { id: "id_update", label: "Work update" },
+      { id: "id_resolution_notes", label: "Resolution notes" },
+      { id: "id_comment", label: "Comment" },
+      { id: "id_reason", label: "Reason" },
+      { id: "id_notes", label: "Notes" }
+    ];
 
+    alphaFields.forEach(({ id, label }) => {
+      const field = document.getElementById(id);
+      if (!field) return;
 
-    startInput.addEventListener("input", validateLaborDates);
+      function validateAlphaField() {
+        const val = field.value.trim();
+        if (!val) {
+          field.setCustomValidity("");
+          return;
+        }
+        if (/\d/.test(val)) {
+          field.setCustomValidity(`${label} must contain only alphabetical characters and cannot contain numbers.`);
+        } else {
+          field.setCustomValidity("");
+        }
+      }
 
-    startInput.addEventListener("change", validateLaborDates);
-
-    endInput.addEventListener("input", validateLaborDates);
-
-    endInput.addEventListener("change", validateLaborDates);
-
-
-
-    validateLaborDates();
-
+      field.addEventListener("input", validateAlphaField);
+      field.addEventListener("change", validateAlphaField);
+      validateAlphaField();
+    });
   });
 
 </script>
