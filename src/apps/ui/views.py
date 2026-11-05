@@ -476,22 +476,32 @@ def home(request):
     activity_link_label = ""
 
     # Standard stats mapping for backwards-compatibility
-    can_view_users = rbac.has_permission(request.membership, "user.view")
-    can_view_roles = rbac.has_permission(request.membership, "role.view")
-    can_view_assets = rbac.has_permission(request.membership, "asset.view")
-    can_view_sites = rbac.has_permission(request.membership, "site.view")
+    can_view_users = rbac.has_permission_anywhere(request.membership, "user.view")
+    can_view_roles = rbac.has_permission_anywhere(request.membership, "role.view")
+    can_view_assets = rbac.has_permission_anywhere(request.membership, "asset.view")
+    can_view_sites = rbac.has_permission_anywhere(request.membership, "site.view")
     can_view_work_orders = (
-        rbac.has_permission(request.membership, "work_order.view")
-        or rbac.has_permission(request.membership, "work_order.view_assigned")
+        rbac.has_permission_anywhere(request.membership, "work_order.view")
+        or rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+    )
+    can_view_incidents = (
+        rbac.has_permission_anywhere(request.membership, "incident.view")
+        or rbac.has_permission_anywhere(request.membership, "incident.view_assigned")
     )
     capacity_summary = None
     current_in_progress_job = None
     assigned_work_orders = []
 
+    from apps.workorders import selectors as wo_selectors
+    from apps.assets import selectors as asset_selectors
+    from apps.sites import selectors as site_selectors
+    from apps.incidents import selectors as incident_selectors
+    from apps.maintenance import selectors as maintenance_selectors
+
+    TERMINAL_WO_STATUSES = [WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED]
+
     if can_view_work_orders:
-        open_wo_qs = WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED])
-        if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
-            open_wo_qs = open_wo_qs.filter(assigned_to=request.membership)
+        open_wo_qs = wo_selectors.work_order_list(request.membership, org).exclude(status__in=TERMINAL_WO_STATUSES)
         open_wo_count = open_wo_qs.count()
     else:
         open_wo_count = 0
@@ -500,8 +510,8 @@ def home(request):
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
         "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count() if can_view_users else 0,
         "roles": Role.objects.for_organization(org).count() if can_view_roles else 0,
-        "total_assets": Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
-        "total_sites": Site.objects.for_organization(org).filter(status="ACTIVE").count() if can_view_sites else 0,
+        "total_assets": asset_selectors.assets_for(request.membership, org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
+        "total_sites": site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").count() if can_view_sites else 0,
         "open_work_orders": open_wo_count,
     }
 
@@ -561,10 +571,10 @@ def home(request):
         activity_link_label = "Asset Registry →"
 
     elif persona_key == "maintenance_planner":
-        active_pms = MaintenancePlan.objects.for_organization(org).filter(is_active=True).count()
-        prev_wos = WorkOrder.objects.for_organization(org).filter(work_type="PREVENTIVE").exclude(status__in=["COMPLETED", "CANCELLED"]).count()
-        backlog = WorkOrder.objects.for_organization(org).filter(status__in=["DRAFT", "PLANNED"]).count()
-        checklists = ChecklistTemplate.objects.for_organization(org).count()
+        active_pms = maintenance_selectors.plans_for(request.membership, org).filter(is_active=True).count()
+        prev_wos = wo_selectors.work_order_list(request.membership, org).filter(work_type=WorkOrder.WorkType.PREVENTIVE).exclude(status__in=TERMINAL_WO_STATUSES).count()
+        backlog = wo_selectors.work_order_list(request.membership, org).filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED]).count()
+        checklists = ChecklistTemplate.objects.for_organization(org).exclude(status="ARCHIVED").count()
         kpi_cards = [
             {"title": "Active PM Plans", "value": active_pms, "subtitle": "Active recurrence plans", "tone": "accent", "icon": "wrench"},
             {"title": "Preventive Orders", "value": prev_wos, "subtitle": "Scheduled active PM jobs", "tone": "gold", "icon": "clipboard"},
@@ -577,10 +587,7 @@ def home(request):
             {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Inspection Checklists", "url": reverse("checklists:list"), "icon": "list-check"},
         ]
-        header_actions = [
-            {"label": "Maintenance Plans", "url": reverse("maintenance:plans"), "icon": "wrench"},
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
-        ]
+        header_actions = []
         recent_objs = WorkOrder.objects.for_organization(org).filter(work_type="PREVENTIVE").order_by("-created_at")[:8]
         recent = [ActivityEntry(f"PM Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "unassigned") if w.assigned_to else "unassigned", w.title) for w in recent_objs]
         activity_title = "Recent Preventive Work Orders"
@@ -588,8 +595,8 @@ def home(request):
         activity_link_label = "Due Maintenance →"
 
     elif persona_key == "service_dispatcher":
-        open_reqs = ServiceRequest.objects.for_organization(org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count()
-        unassigned = WorkOrder.objects.for_organization(org).filter(assigned_to__isnull=True).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
+        open_reqs = incident_selectors.requests_for(request.membership, org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count()
+        unassigned = wo_selectors.work_order_list(request.membership, org).filter(assigned_to__isnull=True).exclude(status__in=TERMINAL_WO_STATUSES).count()
         dispatched = WorkOrder.objects.for_organization(org).filter(status__in=["DISPATCHED", "IN_PROGRESS"]).count()
         breaches = SLABreach.objects.for_organization(org).count()
         kpi_cards = [
@@ -632,7 +639,7 @@ def home(request):
             .select_related("site", "asset")
             .order_by("-status", "-priority", "planned_start", "due_at")[:8]
         )
-        my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
+        my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=TERMINAL_WO_STATUSES).count()
         my_active = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status="IN_PROGRESS").count()
         my_completed = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status__in=["COMPLETED", "CLOSED"]).count()
         my_inspections = Inspection.objects.for_organization(org).filter(Q(started_by=request.membership) | Q(completed_by=request.membership)).count()
@@ -769,7 +776,7 @@ def home(request):
         activity_link_label = "Full Audit Trail →"
 
     else:  # operations_manager / fallback
-        open_incidents = ServiceRequest.objects.for_organization(org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count() if rbac.has_permission(request.membership, "incident.view") else 0
+        open_incidents = incident_selectors.requests_for(request.membership, org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count() if can_view_incidents else 0
         kpi_cards = [
             {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating plant & facility assets", "tone": "accent", "icon": "box"},
             {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "gold", "icon": "building"},
@@ -782,10 +789,7 @@ def home(request):
             {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
         ]
-        header_actions = [
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
-            {"label": "Asset Registry", "url": reverse("assets:list"), "icon": "box"},
-        ]
+        header_actions = []
         if rbac.has_permission(request.membership, "audit.view"):
             recent = list(AuditLog.objects.for_organization(org)[:8])
             activity_title = "Recent Immutable Audit Activity"

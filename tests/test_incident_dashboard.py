@@ -9,6 +9,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.mark.parametrize(("role_key", "expected_title"), [
     ("owner", "Organization Owner"),
+    ("service_dispatcher", "Service Dispatcher"),
     ("operations_manager", "Operations Manager"),
     ("asset_manager", "Asset Manager"),
     ("maintenance_planner", "Maintenance Planner"),

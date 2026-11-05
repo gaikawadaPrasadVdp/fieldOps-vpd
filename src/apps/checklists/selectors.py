@@ -32,6 +32,8 @@ def filter_templates(qs, params):
         qs = qs.filter(name__icontains=q)
     ordering = (params.get("ordering") or "").strip()
     ordering_map = {
+        "": "-created_at",
+        "all": "-created_at",
         "-created_at": "-created_at",
         "created_at": "created_at",
         "name": "name",
