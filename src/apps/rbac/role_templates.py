@@ -102,3 +102,10 @@ BY_KEY = {t.key: t for t in TEMPLATES}
 BY_KEY["field_technician"] = BY_KEY["technician"]
 BY_KEY["stores_inventory"] = BY_KEY["stores_manager"]
 BY_KEY["compliance"] = BY_KEY["auditor"]
+
+# Primary role keys recognized across organization UI, invitation, and role management
+PRIMARY_ROLE_KEYS: tuple[str, ...] = tuple(t.key for t in TEMPLATES) + (
+    "field_technician",
+    "stores_inventory",
+    "compliance",
+)
