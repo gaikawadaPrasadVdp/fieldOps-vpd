@@ -55,7 +55,7 @@ def pause_job(work_order: WorkOrder, *, reason: str, membership: Membership, act
     assert_can_execute_job(work_order, membership)
     reason = (reason or "").strip()
     if not reason:
-        raise ValidationFailed("A reason is required to pause the job.")
+        raise ValidationFailed("Add a Pause Reason before moving this Work Order into a configured pause state.", code="pause_reason_required")
     order = wo_services.hold_work_order(work_order, membership=membership, actor=actor, reason=reason, request=request)
     audit.record(
         action="workspace.job_paused",

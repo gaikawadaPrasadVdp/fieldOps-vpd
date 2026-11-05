@@ -356,6 +356,39 @@ class AssignForm(BootstrapFormMixin, forms.Form):
         return cleaned
 
 
+class ReassignForm(AssignForm):
+    reason = forms.CharField(
+        max_length=500,
+        min_length=3,
+        required=True,
+        label="Reason for reassignment",
+        help_text="Mandatory reason explaining why the work order is being reallocated.",
+        error_messages={
+            "required": "Reason for reassignment is mandatory.",
+        },
+        widget=forms.Textarea(attrs={
+            "rows": 3,
+            "placeholder": "e.g. Primary technician reallocated to emergency line stoppage.",
+        }),
+    )
+
+    def __init__(self, *args, membership, site, work_order=None, **kwargs):
+        super().__init__(*args, membership=membership, site=site, work_order=work_order, **kwargs)
+        self.fields["scheduled_start"].required = False
+        self.fields["scheduled_end"].required = False
+        if work_order is not None and work_order.assigned_to_id:
+            self.fields["assigned_to"].queryset = self.fields["assigned_to"].queryset.exclude(
+                pk=work_order.assigned_to_id
+            )
+        self.order_fields(["assigned_to", "reason", "scheduled_start", "scheduled_end", "expected_version"])
+
+    def clean_reason(self):
+        reason = (self.cleaned_data.get("reason") or "").strip()
+        if not reason:
+            raise forms.ValidationError("Reason for reassignment is mandatory.")
+        return reason
+
+
 class ReasonForm(BootstrapFormMixin, forms.Form):
     reason = forms.CharField(max_length=500)
 

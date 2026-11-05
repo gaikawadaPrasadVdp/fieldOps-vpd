@@ -172,3 +172,100 @@ def test_reassign_api_endpoint(p3, as_user, dispatched_order, held_order):
     assert res2.status_code == 200, res2.data
     assert str(res2.data["assigned_to"]) == str(p3["tech2"].pk)
     assert res2.data["status"] == WorkOrder.Status.ON_HOLD
+
+
+def test_reassign_ui_happy_path(p3, dispatched_order):
+    """PRD §4.2 Edge Case 2: UI Reassignment Happy Path with mandatory reason.
+    - Top action bar /app/work-orders/<pk>/reassign/
+    - Select new technician
+    - Mandatory reason: Primary technician reallocated to emergency line stoppage.
+    - Click Save & Reassign
+    - Status remains DISPATCHED
+    - Assigned To updates to new technician
+    - History / Timeline tab logs Action: reassigned with reason
+    """
+    from django.test import Client
+
+    ui = Client()
+    ui.force_login(p3["planner"].user)
+
+    # 1. GET Reassign view
+    url = f"/app/work-orders/{dispatched_order.pk}/reassign/"
+    res_get = ui.get(url)
+    assert res_get.status_code == 200
+    assert b"Reassign technician" in res_get.content
+    assert b"Reason for reassignment" in res_get.content
+    assert b"Save &amp; Reassign" in res_get.content or b"Save & Reassign" in res_get.content
+
+    # 2. POST Reassignment with mandatory reason
+    reason_text = "Primary technician reallocated to emergency line stoppage."
+    res_post = ui.post(url, {
+        "assigned_to": str(p3["tech2"].pk),
+        "reason": reason_text,
+        "expected_version": dispatched_order.version,
+    })
+    assert res_post.status_code == 302
+    assert res_post.url == f"/app/work-orders/{dispatched_order.pk}/"
+
+    # 3. Verify status remains DISPATCHED and assignee is updated
+    dispatched_order.refresh_from_db()
+    assert dispatched_order.status == WorkOrder.Status.DISPATCHED
+    assert dispatched_order.assigned_to_id == p3["tech2"].pk
+
+    # 4. Verify History / Timeline tab logs event
+    timeline_res = ui.get(f"/app/work-orders/{dispatched_order.pk}/tabs/timeline/")
+    assert timeline_res.status_code == 200
+    assert b"Action: reassigned" in timeline_res.content
+    assert reason_text.encode() in timeline_res.content
+
+    # 5. Verify Assignment tab logs event
+    assignment_res = ui.get(f"/app/work-orders/{dispatched_order.pk}/tabs/assignment/")
+    assert assignment_res.status_code == 200
+    assert reason_text.encode() in assignment_res.content
+
+
+def test_reassign_ui_mandatory_reason_sad_path(p3, dispatched_order):
+    """Sad Path: Reassignment fails if reason is blank or omitted."""
+    from django.test import Client
+
+    ui = Client()
+    ui.force_login(p3["planner"].user)
+
+    url = f"/app/work-orders/{dispatched_order.pk}/reassign/"
+    res_empty = ui.post(url, {
+        "assigned_to": str(p3["tech2"].pk),
+        "reason": "   ",
+        "expected_version": dispatched_order.version,
+    })
+    assert res_empty.status_code == 400
+    assert b"Reason for reassignment is mandatory." in res_empty.content
+
+    # Assignee must remain untouched
+    dispatched_order.refresh_from_db()
+    assert dispatched_order.assigned_to_id == p3["tech"].pk
+
+
+def test_reassign_ui_during_hold_happy_path(p3, held_order):
+    """Reassignment via UI for work order ON_HOLD preserves hold status and logs reason."""
+    from django.test import Client
+
+    ui = Client()
+    ui.force_login(p3["planner"].user)
+
+    url = f"/app/work-orders/{held_order.pk}/reassign/"
+    reason_text = "Primary technician reallocated to emergency line stoppage."
+    res = ui.post(url, {
+        "assigned_to": str(p3["tech2"].pk),
+        "reason": reason_text,
+        "expected_version": held_order.version,
+    })
+    assert res.status_code == 302
+
+    held_order.refresh_from_db()
+    assert held_order.status == WorkOrder.Status.ON_HOLD
+    assert held_order.assigned_to_id == p3["tech2"].pk
+
+    timeline_res = ui.get(f"/app/work-orders/{held_order.pk}/tabs/timeline/")
+    assert timeline_res.status_code == 200
+    assert b"Action: reassigned" in timeline_res.content
+    assert reason_text.encode() in timeline_res.content
