@@ -214,8 +214,7 @@ body.fx-public-site {
   transform: translateY(-0.5px);
 }
 .fx-pub-brand-emblem,
-.fx-brand-img,
-.fx-pub-brand-logo {
+.fx-brand-img {
   height: 44px;
   width: auto;
   max-width: 54px;
@@ -227,17 +226,32 @@ body.fx-public-site {
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
   transition: transform 0.25s ease;
 }
+.fx-pub-brand-logo {
+  height: 52px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  display: block;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+  transition: transform 0.25s ease;
+}
 .fx-pub-brand:hover .fx-pub-brand-emblem,
 .fx-pub-brand:hover .fx-brand-img,
 .fx-pub-brand:hover .fx-pub-brand-logo {
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 @media (max-width: 768px) {
   .fx-pub-brand-emblem,
-  .fx-brand-img,
-  .fx-pub-brand-logo {
+  .fx-brand-img {
     height: 38px;
     max-width: 46px;
+  }
+  .fx-pub-brand-logo {
+    height: 40px;
+    max-width: 180px;
   }
 }
 .fx-pub-brand-badge {

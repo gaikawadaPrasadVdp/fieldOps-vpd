@@ -2,8 +2,8 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=5.1">
-<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=5.1">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=5.2">
+<link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=5.2">
 {% endblock %}
 
 {% block body_class %}fx-public-site{% if active_page %} fx-page-{{ active_page }}{% endif %}{% endblock %}
@@ -21,8 +21,7 @@
   <div class="fx-pub-nav-container">
     <!-- Brand -->
     <a href="{% url 'ui:root' %}" class="fx-pub-brand" aria-label="FieldOps Nexus Home" title="FieldOps Nexus">
-      <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus Logo" class="fx-pub-brand-emblem">
-      <span class="fx-pub-brand-text">FieldOps<span class="fx-pub-brand-gold">Nexus</span></span>
+      <img src="{% static 'images/fieldops-logo.png' %}" alt="FieldOps Nexus" class="fx-pub-brand-logo" style="height: 52px; width: auto; max-width: 240px; object-fit: contain;">
     </a>
 
     <!-- Desktop Navigation Menu -->
@@ -814,10 +813,7 @@
       <!-- Col 1: Brand & Specs -->
       <div class="fx-footer-brand-col">
         <div class="d-flex align-items-center gap-2 mb-3">
-          <div class="fx-footer-brand-badge">
-            <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img">
-          </div>
-          <span class="fx-footer-brand-title">FieldOps <span class="fx-footer-brand-accent">Nexus</span></span>
+          <a href="{% url 'ui:root' %}" class="fx-pub-brand" aria-label="FieldOps Nexus Home"><img src="{% static 'images/fieldops-logo.png' %}" alt="FieldOps Nexus" class="fx-pub-brand-logo" style="height: 42px;"></a>
         </div>
         <p class="fx-footer-desc">
           The connected enterprise platform for assets, services, maintenance, and the people who drive it.
