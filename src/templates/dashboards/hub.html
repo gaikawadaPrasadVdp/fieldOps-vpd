@@ -118,6 +118,12 @@
     {% include "dashboards/_css_bars.html" with title="Top Failing Equipment (Outage Count)" items=css_bars.top_failing %}
   </div>
   {% endif %}
+
+  {% if css_bars.top_parts %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Top Consumed Spare Parts" items=css_bars.top_parts %}
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -242,11 +248,17 @@
         <tbody>
           {% for b in trace_data.low_stock_lines %}
           <tr>
-            <td data-label="Part Number"><a href="{% url 'inventory:part' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
-            <td data-label="Part Name">{{ b.part.name }}</td>
-            <td data-label="Warehouse">{{ b.warehouse.name }}</td>
-            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand }}</td>
-            <td data-label="Min Level">{{ b.min_level|default:"-" }}</td>
+            <td data-label="Part Number">
+              {% if b.part %}
+                <a href="{% url 'inventory:part' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td data-label="Part Name">{{ b.part.name|default:"—" }}</td>
+            <td data-label="Warehouse">{{ b.warehouse.name|default:"—" }}</td>
+            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand|floatformat:0 }}</td>
+            <td data-label="Min Level">{{ b.min_level|floatformat:0|default:"-" }}</td>
             <td data-label="Status"><span class="badge bg-danger">Low Stock Alert</span></td>
           </tr>
           {% empty %}
