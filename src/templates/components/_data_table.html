@@ -1,10 +1,9 @@
 {% load ui_tags %}
-{# Standardized Data Table Wrapper Component #}
-{# Blocks: table_header, table_body, table_empty #}
+{# Standardized Enterprise ERP Data Table Wrapper Component #}
 <div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
+    <table class="table table-hover align-middle mb-0 fx-data-table">
+      <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom" style="font-size: 0.75rem; letter-spacing: 0.5px;">
         {% block table_header %}{% endblock %}
       </thead>
       <tbody>

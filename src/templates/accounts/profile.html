@@ -1,11 +1,87 @@
 {% extends "shell.html" %}
-{% block title %}My profile · FieldOps Nexus{% endblock %}
+{% load ui_tags %}
+
+{% block title %}User Profile &middot; FieldOps Nexus{% endblock %}
+
 {% block content %}
-<div class="fx-page-header"><h1>My profile</h1><a class="btn btn-outline-secondary" href="{% url 'accounts:password_change' %}">Change password</a></div>
-<div class="fx-card" style="max-width:520px"><div class="fx-card-body">
-<p class="text-body-secondary mb-3">Signed in as <strong>{{ request.user.email }}</strong></p>
-<form method="post" novalidate>{% csrf_token %}
-  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
-  <button class="btn btn-primary">Save</button>
-</form></div></div>
+<div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">User Profile</li>
+      </ol>
+    </nav>
+    <h1 class="h3 fw-bold text-dark mb-1">User Profile &amp; Settings</h1>
+    <div class="text-secondary small">Manage your personal details, credentials, and notification preferences.</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm" href="{% url 'accounts:password_change' %}">
+      {% icon 'lock' 14 %} Change Password
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: User Summary Card -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm p-4 bg-white mb-4" style="border-radius:10px;">
+      <div class="text-center pb-3 border-bottom">
+        <div class="d-inline-grid place-items-center rounded-circle text-white fw-bold mx-auto mb-3 shadow-sm" style="width: 72px; height: 72px; background: var(--fx-accent); font-size: 1.5rem; border: 2px solid var(--fx-gold);">
+          {{ request.user.display_name|slice:":2"|upper }}
+        </div>
+        <h5 class="fw-bold text-dark mb-1">{{ request.user.display_name }}</h5>
+        <div class="text-secondary small mb-2">{{ request.user.email }}</div>
+        <span class="badge bg-light text-dark border">
+          {% if request.user.is_platform_admin %}Platform Super Admin{% elif shell_org %}Tenant Member{% else %}User{% endif %}
+        </span>
+      </div>
+
+      <div class="pt-3">
+        <div class="small text-secondary text-uppercase fw-semibold mb-2" style="font-size:0.75rem; letter-spacing:0.5px;">Account Context</div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-secondary">Current Organization:</span>
+          <span class="fw-semibold text-dark">{{ shell_org.name|default:"Global" }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-secondary">Account Status:</span>
+          <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-secondary">User ID:</span>
+          <span class="font-monospace text-muted" style="font-size:0.75rem;">{{ request.user.pk|stringformat:".8s" }}...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Profile Edit Form -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm bg-white" style="border-radius:10px;">
+      <div class="card-header bg-transparent border-bottom py-3 px-4">
+        <h5 class="card-title fw-bold text-dark mb-0 fs-6">Personal Details</h5>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2 px-3 small mb-3">
+              {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+            </div>
+          {% endif %}
+
+          {% for field in form %}
+            {% include "components/_form_field.html" %}
+          {% endfor %}
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <a href="{% url 'ui:home' %}" class="btn btn-sm btn-outline-secondary px-3">Cancel</a>
+            <button type="submit" class="btn btn-sm btn-primary px-4 d-inline-flex align-items-center gap-1 shadow-sm">
+              {% icon 'check' 14 %} Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

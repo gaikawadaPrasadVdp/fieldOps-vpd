@@ -12,6 +12,11 @@ from apps.assets.api_views import (
     MeterViewSet,
 )
 from apps.audit.api_views import AuditLogViewSet
+from apps.checklists.api_views import (
+    ChecklistTemplateViewSet,
+    FindingViewSet,
+    InspectionViewSet,
+)
 from apps.contracts.api_views import (
     AgreementViewSet,
     CoverageCheckViewSet,
@@ -99,6 +104,9 @@ router.register("stock-movements", StockMovementViewSet, basename="stock-movemen
 router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
 router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
+router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
+router.register("inspections", InspectionViewSet, basename="inspection")
+router.register("findings", FindingViewSet, basename="finding")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
