@@ -5,7 +5,7 @@ from django import forms
 from apps.assets.models import Asset
 from apps.incidents.models import ServiceRequest
 from apps.sites.models import Site
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_phone_number
 
 
 class _PortalAssetSelect(forms.Select):
@@ -127,3 +127,57 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
         if site and asset and asset.site_id != site.pk:
             self.add_error("asset", "The selected asset does not belong to the chosen site / location.")
         return cleaned_data
+
+
+class PortalAccountEditForm(BootstrapFormMixin, forms.Form):
+    """Form to edit client portal account metadata and requester contact information."""
+
+    company_name = forms.CharField(
+        max_length=150,
+        required=True,
+        min_length=2,
+        label="Company / Client Name",
+        help_text="Organization name associated with this portal account.",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Acme Corporation"}),
+    )
+    full_name = forms.CharField(
+        max_length=150,
+        required=True,
+        min_length=2,
+        label="Requester Full Name",
+        help_text="Name of the external client contact.",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Jane Doe"}),
+    )
+    phone = forms.CharField(
+        max_length=32,
+        required=False,
+        label="Phone Number",
+        help_text="Optional. Minimum 7 digits (e.g. +94 11 289 9000).",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. +94 11 289 9000", "type": "tel"}),
+    )
+    is_enabled = forms.BooleanField(
+        required=False,
+        label="Portal Access Enabled",
+        help_text="When enabled, this user can sign in and report service requests.",
+    )
+    notes = forms.CharField(
+        required=False,
+        label="Account Notes",
+        help_text="Internal notes for operations staff (not visible to the client).",
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Optional internal notes..."}),
+    )
+
+    def clean_company_name(self):
+        val = (self.cleaned_data.get("company_name") or "").strip()
+        if not val or len(val) < 2:
+            raise forms.ValidationError("Company name must be at least 2 characters.")
+        return val
+
+    def clean_full_name(self):
+        val = (self.cleaned_data.get("full_name") or "").strip()
+        if not val or len(val) < 2:
+            raise forms.ValidationError("Requester full name must be at least 2 characters.")
+        return val
+
+    def clean_phone(self):
+        return validate_phone_number(self.cleaned_data.get("phone"))

@@ -97,6 +97,11 @@ class AgreementListView(CBase):
         except Exception:
             providers = []
 
+        try:
+            can_create = rbac.has_permission_anywhere(m, "contract.create")
+        except Exception:
+            can_create = False
+
         return render(request, "contracts/agreements.html", {
             "page": page,
             "filters": request.GET,
@@ -104,7 +109,7 @@ class AgreementListView(CBase):
             "states": ("ACTIVE", "UPCOMING", "EXPIRED", "INACTIVE"),
             "sites": sites,
             "providers": providers,
-            "can_create": rbac.has_permission_anywhere(m, "contract.create"),
+            "can_create": can_create,
             "total_agreements": total_agreements,
             "active_agreements": active_agreements,
             "expired_agreements": expired_agreements,

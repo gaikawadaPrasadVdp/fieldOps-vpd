@@ -105,7 +105,8 @@
         <select name="relationship_type" class="form-select form-select-sm" aria-label="Filter by relationship role">
           <option value="">All Roles</option>
           {% for r_val, r_label in relationship_types %}
-          <option value="{{ r_val }}" {% if filters.relationship_type == r_val %}selected{% endif %}>{{ r_label }}</option>
+          <option value="{{ r_val }}" {% if filters.relationship_type == r_val %}selected{% endif %}>{{ r_label }}
+          </option>
           {% endfor %}
         </select>
       </div>

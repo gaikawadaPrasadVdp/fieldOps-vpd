@@ -34,6 +34,7 @@
       var r = document.getElementById("fx-search-results"); if (r) r.innerHTML = "";
     }
   });
+
 })();
 
 /* Delegated handlers (replace inline onclick attributes so the Content-Security-Policy can forbid them). */
@@ -789,6 +790,7 @@ document.addEventListener("click", function (e) {
       }
     }
   });
+
 })();
 
 /* ==========================================================================
@@ -1493,4 +1495,19 @@ document.addEventListener("click", function (e) {
       toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
     }
   });
+
 })();
+
+// Global loading bar during HTMX navigation, filtering and swaps
+  document.addEventListener("htmx:beforeRequest", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.add("is-active");
+  });
+  document.addEventListener("htmx:afterRequest", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.remove("is-active");
+  });
+  document.addEventListener("htmx:requestError", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.remove("is-active");
+  });

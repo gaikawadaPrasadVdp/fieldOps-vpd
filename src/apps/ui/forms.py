@@ -1,5 +1,30 @@
 """Form helpers shared by module screens."""
+import re
 from django import forms
+from django.core.exceptions import ValidationError
+
+_PHONE_RE = re.compile(r"^[0-9+\s\-()]{7,32}$")
+
+
+def validate_phone_number(value: str | None) -> str:
+    """Validates phone number format and digit count.
+
+    Accepts international and national formats: +94 11 289 9000, (555) 012-3456, etc.
+    Requires at least 7 digits and at most 15 digits (ITU-T E.164 standard).
+    """
+    if not value:
+        return ""
+    val = value.strip()
+    if not val:
+        return ""
+    digits = [c for c in val if c.isdigit()]
+    if len(digits) < 7:
+        raise ValidationError("Phone number must contain at least 7 digits (e.g. +94 11 289 9000).")
+    if len(digits) > 15:
+        raise ValidationError("Phone number cannot exceed 15 digits (ITU-T E.164 standard).")
+    if not _PHONE_RE.fullmatch(val):
+        raise ValidationError("Enter a valid phone number (e.g. +94 11 289 9000).")
+    return val
 
 
 class BootstrapFormMixin:
@@ -59,3 +84,12 @@ class ClientOnboardingForm(BootstrapFormMixin, forms.Form):
         label="I accept the enterprise platform terms and data protection policy",
         required=True,
     )
+
+    def clean_full_name(self):
+        val = (self.cleaned_data.get("full_name") or "").strip()
+        if not val or len(val) < 2:
+            raise forms.ValidationError("Full name must be at least 2 characters.")
+        return val
+
+    def clean_phone(self):
+        return validate_phone_number(self.cleaned_data.get("phone"))

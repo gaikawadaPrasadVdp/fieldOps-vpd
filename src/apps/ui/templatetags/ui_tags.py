@@ -271,3 +271,70 @@ def hierarchy_trail(asset):
     trail_html = ' <span class="text-muted mx-1">›</span> '.join(items)
     return format_html('<span class="fx-hierarchy-trail small text-body-secondary">Machine Path: {}</span>', mark_safe(trail_html))
 
+
+_SORT_ALIASES = {
+    "when": ("created_at", "when"),
+    "created_at": ("created_at", "when"),
+    "part": ("part", "part_number"),
+    "part_number": ("part", "part_number"),
+    "qty": ("qty", "quantity"),
+    "quantity": ("qty", "quantity"),
+    "type": ("type", "movement_type"),
+    "movement_type": ("type", "movement_type"),
+    "by": ("by", "actor"),
+    "actor": ("by", "actor"),
+    "work_order": ("work_order", "wo", "work_order_number"),
+    "wo": ("work_order", "wo", "work_order_number"),
+    "warehouse": ("warehouse", "wh"),
+    "wh": ("warehouse", "wh"),
+    "held": ("held", "quantity", "qty"),
+    "status": ("status",),
+    "updated": ("updated", "updated_at"),
+    "updated_at": ("updated", "updated_at"),
+}
+
+
+@register.simple_tag(takes_context=True)
+def sort_url(context, field):
+    """Generates a URL with preserved query parameters and toggled ordering for field."""
+    request = context.get("request")
+    if not request:
+        return f"?ordering={field}"
+    params = request.GET.copy()
+    params.pop("page", None)
+    current_ordering = params.get("ordering", "-created_at")
+
+    aliases = _SORT_ALIASES.get(field, (field,))
+    is_asc = current_ordering in aliases
+    is_desc = any(current_ordering == f"-{a}" for a in aliases)
+
+    if is_asc:
+        params["ordering"] = f"-{field}"
+    elif is_desc:
+        params["ordering"] = field
+    else:
+        if field in ("created_at", "when", "quantity", "qty", "held", "on_hand_delta", "reserved_delta", "on_hand_after", "updated", "updated_at"):
+            params["ordering"] = f"-{field}"
+        else:
+            params["ordering"] = field
+
+    encoded = params.urlencode()
+    return f"?{encoded}" if encoded else "?"
+
+
+@register.simple_tag(takes_context=True)
+def sort_icon(context, field):
+    """Returns sort indicator icon HTML or symbol for the table header."""
+    request = context.get("request")
+    if not request:
+        return ""
+    current_ordering = request.GET.get("ordering", "-created_at")
+    aliases = _SORT_ALIASES.get(field, (field,))
+
+    if current_ordering in aliases:
+        return mark_safe('<span class="text-primary ms-1" title="Ascending">▲</span>')
+    elif any(current_ordering == f"-{a}" for a in aliases):
+        return mark_safe('<span class="text-primary ms-1" title="Descending">▼</span>')
+    return mark_safe('<span class="text-muted opacity-50 ms-1" style="font-size: 0.75em;">↕</span>')
+
+

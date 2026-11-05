@@ -60,7 +60,7 @@ def shell(request):
             "Platform Governance": [
                 {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
                 {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                {"label": "Incident Dashboard", "url": _safe_reverse("platform_admin:incident_dashboard"), "icon": "activity", "match_prefix": "/platform/incidents"},
+                
             ]
         }
         sections = _filter_valid_nav_items(sections)
@@ -121,6 +121,7 @@ def shell(request):
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
             {"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
+            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
         ]
         sections["Maintenance Planning"] = [
             {"label": "Maintenance plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
@@ -193,21 +194,11 @@ def shell(request):
         ]
 
     elif role_keys & {"technician", "field_technician"}:
-        sections["Workspace"] = [
-            {"label": "Technician Workspace", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
-        ]
-        sections["Service"] = [
-            {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
-            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
-        ]
-        sections["Assets"] = [
-            {"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
-        ]
-        sections["Operations & Assets"] = [
-            {"label": "Facility Sites", "url": _safe_reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
-            {"label": "Asset Registry", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Incident & Defects", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+        sections["Field Execution"] = [
+            {"label": "My Assigned Jobs", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
+            {"label": "All Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "My Work Cockpit", "url": _safe_reverse("dashboards:my_work"), "icon": "activity", "match_prefix": "/app/dashboards/my-work"},
+            {"label": "My Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "list-check", "match_prefix": "/app/inspections"},
         ]
         field_tools = [
             {"label": "Scan Asset Label", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
@@ -219,6 +210,9 @@ def shell(request):
         sections["Field Tools"] = field_tools
 
     elif role_keys & {"stores_manager", "stores_inventory"}:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Inventory & Warehouses"] = [
             {"label": "Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
             {"label": "Stock", "url": _safe_reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"},
@@ -232,6 +226,9 @@ def shell(request):
             ]
 
     elif "asset_manager" in role_keys:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Service"] = [
             {"label": "Service Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
@@ -252,6 +249,9 @@ def shell(request):
             ]
 
     elif "maintenance_planner" in role_keys:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Operations"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
@@ -263,6 +263,7 @@ def shell(request):
         ]
         sections["Work Management"] = [
             {"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
+            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
         ]
         sections["Inventory & Warehouses"] = [
             {"label": "Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
@@ -277,6 +278,9 @@ def shell(request):
             ]
 
     elif "supervisor" in role_keys:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Supervisory Operations"] = [
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
             {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
@@ -293,8 +297,10 @@ def shell(request):
             ]
 
     elif "service_dispatcher" in role_keys:
-        sections["Operations"] = [
+        sections["Overview"] = [
             {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
+        sections["Operations"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
             {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
@@ -312,6 +318,9 @@ def shell(request):
             ]
 
     elif "service_manager" in role_keys:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Service Assurance"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
@@ -320,6 +329,9 @@ def shell(request):
         ]
 
     elif role_keys & {"auditor", "compliance"}:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
         sections["Audit & Compliance"] = [
             {"label": "Audit Trail", "url": _safe_reverse("audit:list"), "icon": "shield", "match_prefix": "/app/audit/"},
             {"label": "Compliance reports", "url": _safe_reverse("audit:reports"), "icon": "list-check", "match_prefix": "/app/audit/reports"},

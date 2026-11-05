@@ -1,10 +1,10 @@
 {% extends "public.html" %}
-{% load ui_tags %}
+{% load static ui_tags %}
 
 {% block title %}Sign In &middot; FieldOps Nexus{% endblock %}
 
 {% block auth_right %}
-<main class="fx-login-wrap" role="main">
+<main class="fx-login-wrap fx-auth-wrap" role="main">
   <!-- Soft Background with Subtle Gold Curves -->
   <svg class="fx-login-bg-curves" viewBox="0 0 1000 1000" preserveAspectRatio="none" fill="none"
     xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -26,14 +26,14 @@
     <div class="d-lg-none d-flex align-items-center gap-2 mb-4 pb-2 w-100 border-bottom">
       <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
         <div class="fx-pub-brand-badge" style="width:34px; height:34px;">
-          {% icon 'activity' 18 %}
+          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img">
         </div>
         <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
       </a>
     </div>
 
     <!-- Centered White Login Card -->
-    <div class="fx-login-card">
+    <div class="fx-login-card fx-auth-card">
       <!-- Top-Right Curved Gold Accent (Matches Reference Mockup) -->
       <svg class="fx-card-gold-accent" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true">
@@ -61,7 +61,7 @@
 
       <!-- Heading & Subtitle (No icons or logos above) -->
       <h1 class="fx-login-title">Welcome Back</h1>
-      <p class="fx-login-subtitle">Sign in to your enterprise account.</p>
+      <p class="fx-login-subtitle">Sign in with your enterprise credentials.</p>
 
       <!-- Login Form -->
       <form method="post" novalidate>{% csrf_token %}
@@ -110,19 +110,23 @@
             <input type="password" name="password" id="id_password"
               class="fx-login-input {% if form.password.errors %}is-invalid{% endif %}" required
               autocomplete="current-password" placeholder="Enter your password">
-            <button type="button" class="fx-pw-toggle-btn" id="fx-pw-toggle" aria-label="Toggle password visibility">
-              <svg id="fx-pw-icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <svg id="fx-pw-icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-                <line x1="2" x2="22" y1="2" y2="22" />
-              </svg>
+            <button type="button" class="fx-pw-toggle-btn fx-password-toggle" id="fx-pw-toggle" data-target="id_password" aria-label="Toggle password visibility">
+              <span class="fx-pw-show">
+                <svg id="fx-pw-icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </span>
+              <span class="fx-pw-hide" style="display: none;">
+                <svg id="fx-pw-icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                  <line x1="2" x2="22" y1="2" y2="22" />
+                </svg>
+              </span>
             </button>
           </div>
           {% if form.password.errors %}
@@ -152,6 +156,11 @@
             </svg>
           </span>
         </button>
+        <!-- Client / Requester Onboarding -->
+        {% comment %} <div class="text-center mt-3 pt-2 border-top small text-body-secondary">
+          <span>Are you a service requester or client?</span>
+          <a href="{% url 'ui:client_register' %}" class="fw-semibold text-primary text-decoration-none ms-1">Client Onboarding &rarr;</a>
+        </div> {% endcomment %}
       </form>
 
 

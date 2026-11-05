@@ -35,7 +35,8 @@ def test_role_create_edit_delete_via_ui(client, owner_a, org_a):
 
 def test_role_duplicate_name_shows_error(client, owner_a, org_a):
     client.force_login(owner_a)
-    r = client.post("/app/roles/new/", {"name": "technician", "description": "", "permissions": []})
+    existing_name = Role.objects.unscoped().filter(organization=org_a).first().name
+    r = client.post("/app/roles/new/", {"name": existing_name, "description": "", "permissions": []})
     assert r.status_code == 200 and "already exists" in r.content.decode()
 
 

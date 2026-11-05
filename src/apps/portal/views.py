@@ -10,6 +10,7 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.audit import services as audit
 from apps.core.exceptions import DomainError
 from apps.incidents.models import ServiceRequest
 from apps.incidents.selectors import evidence_for
@@ -404,3 +405,84 @@ class AccountToggleView(TenantPermissionMixin, View):
         )
         return redirect("portal:accounts_list")
 
+
+
+class AccountEditView(TenantPermissionMixin, View):
+    """Staff management view to edit a client portal account.
+
+    Requires portal.manage permission.
+    """
+
+    required_permission = "portal.manage"
+
+    def get(self, request, pk):
+        account = selectors.get_portal_account_by_id(request.organization, pk)
+        if account is None:
+            raise Http404("Portal account not found.")
+
+        user = account.membership.user
+        form = forms.PortalAccountEditForm(initial={
+            "company_name": account.company_name,
+            "full_name": user.full_name,
+            "phone": user.phone,
+            "is_enabled": account.is_enabled,
+            "notes": account.notes,
+        })
+        return render(
+            request,
+            "portal/account_edit.html",
+            {
+                "account": account,
+                "form": form,
+                "org": request.organization,
+            },
+        )
+
+    def post(self, request, pk):
+        account = selectors.get_portal_account_by_id(request.organization, pk)
+        if account is None:
+            raise Http404("Portal account not found.")
+
+        form = forms.PortalAccountEditForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                "portal/account_edit.html",
+                {
+                    "account": account,
+                    "form": form,
+                    "org": request.organization,
+                },
+                status=400,
+            )
+
+        cd = form.cleaned_data
+        user = account.membership.user
+        if user.full_name != cd["full_name"] or user.phone != cd["phone"]:
+            before_user = {"full_name": user.full_name, "phone": user.phone}
+            user.full_name = cd["full_name"]
+            user.phone = cd["phone"]
+            user.save(update_fields=["full_name", "phone"])
+            audit.record(
+                "user.profile_updated",
+                actor=request.user,
+                target=user,
+                target_repr=user.email,
+                before=before_user,
+                after={"full_name": user.full_name, "phone": user.phone},
+                request=request,
+            )
+
+        services.update_portal_account(
+            account,
+            company_name=cd["company_name"],
+            notes=cd["notes"],
+            is_enabled=cd["is_enabled"],
+            actor=request.user,
+        )
+
+        messages.success(
+            request,
+            f"Portal account for {user.email} updated successfully.",
+        )
+        return redirect("portal:accounts_list")

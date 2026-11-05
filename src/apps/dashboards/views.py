@@ -57,7 +57,9 @@ class DashboardHubView(TenantPermissionMixin, View):
             )
         elif sec == "inventory":
             return (
-                rbac.has_permission_anywhere(membership, "inventory.reconcile")
+                rbac.has_permission_anywhere(membership, "inventory.view")
+                or rbac.has_permission_anywhere(membership, "inventory.part.view")
+                or rbac.has_permission_anywhere(membership, "inventory.reconcile")
                 or rbac.has_permission_anywhere(membership, "inventory.warehouse.manage")
                 or rbac.has_permission_anywhere(membership, "inventory.adjust")
                 or rbac.has_permission_anywhere(membership, "audit.view")
@@ -173,8 +175,15 @@ class DashboardHubView(TenantPermissionMixin, View):
             all_balances = StockBalance.objects.filter(
                 organization=request.organization,
                 warehouse__site__in=permitted_sites,
-            ).select_related("part", "warehouse__site")
-            trace_data["low_stock_lines"] = [b for b in all_balances if b.is_low][:8]
+            ).select_related("part", "warehouse", "warehouse__site")
+            low_stock = []
+            for b in all_balances:
+                try:
+                    if b.is_low:
+                        low_stock.append(b)
+                except Exception:
+                    continue
+            trace_data["low_stock_lines"] = low_stock[:8]
 
         # 5. Precompute Pure CSS Bar Percentages
         css_bars = self._compute_css_bars(section, data.get("details", {}))
@@ -244,6 +253,19 @@ class DashboardHubView(TenantPermissionMixin, View):
                     "pct": round((item["outage_count"] / max_outages) * 100, 1),
                 }
                 for item in top_failing
+            ]
+
+        elif section == "inventory":
+            parts_data = details.get("parts_data", {})
+            top_parts = parts_data.get("top_parts", [])
+            max_qty = max([float(item.get("total_qty") or 0) for item in top_parts], default=1.0) or 1.0
+            bars["top_parts"] = [
+                {
+                    "label": f"{item.get('part__part_number')} - {item.get('part__name')}",
+                    "count": f"{int(round(float(item.get('total_qty'))))} {item.get('part__unit') or 'units'}",
+                    "pct": round((float(item.get("total_qty") or 0) / max_qty) * 100, 1),
+                }
+                for item in top_parts if item.get("total_qty")
             ]
 
         return bars
