@@ -427,11 +427,26 @@ class ReservationListView(InvBase):
     def get(self, request):
         m, org = request.membership, request.organization
         params = request.GET.copy()
-        if "status" not in params:
+        if "status" not in request.GET:
             params["status"] = "ACTIVE"
-        qs = selectors.filter_reservations(selectors.reservations_for(m, org), params)
+        base_reservations = selectors.reservations_for(m, org)
+        qs = selectors.filter_reservations(base_reservations, params)
+        warehouses = selectors.warehouses_for(m, org).order_by("code")
+        total_count = base_reservations.count()
+        active_count = base_reservations.filter(status=PartReservation.Status.ACTIVE).count()
+        released_count = base_reservations.filter(status=PartReservation.Status.RELEASED).count()
+        fulfilled_count = base_reservations.filter(status=PartReservation.Status.FULFILLED).count()
+
         return render(request, "inventory/reservations.html", {
-            "page": _paged(request, qs), "filters": params, "statuses": PartReservation.Status.choices})
+            "page": _paged(request, qs),
+            "filters": params,
+            "statuses": PartReservation.Status.choices,
+            "warehouses": warehouses,
+            "total_count": total_count,
+            "active_count": active_count,
+            "released_count": released_count,
+            "fulfilled_count": fulfilled_count,
+        })
 
 
 class MovementListView(InvBase):

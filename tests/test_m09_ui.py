@@ -359,3 +359,60 @@ def test_quantity_rejects_decimals_across_inventory_ui(ui):
     )
     assert resp_transfer.status_code == 400
     assert "Enter a whole number." in resp_transfer.content.decode()
+
+
+def test_reservations_page_sorting_and_filtering(ui):
+    stores = ui["cl"]["stores"]
+    inv.receive(ui["wh"], ui["part"], 20, actor=ui["stores"].user)
+    wo = wo_in_progress(ui)
+
+    # Create part line and reservation
+    line = inv.request_part(wo, ui["part"], 10, actor=ui["tech"].user, membership=ui["tech"])
+    inv.reserve(line, ui["wh"], 8, actor=ui["stores"].user)
+
+    # 1. GET reservations page renders correctly with search, filter dropdowns, and KPI cards
+    resp = stores.get("/app/inventory/reservations/")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Stock held for work orders" in html
+    assert "Total Reservations" in html
+    assert "Active Holds" in html
+    assert "All Warehouses" in html
+    assert "Recently Updated" in html
+    assert wo.number in html
+    assert ui["part"].part_number in html
+    assert 'href="?ordering=work_order"' in html or 'href="?ordering=-work_order"' in html
+    assert 'href="?ordering=held"' in html or 'href="?ordering=-held"' in html
+
+    # 2. Search filtering by WO number
+    resp_search = stores.get(f"/app/inventory/reservations/?q={wo.number}")
+    assert resp_search.status_code == 200
+    assert wo.number in resp_search.content.decode()
+
+    # Search with non-matching query
+    resp_none = stores.get("/app/inventory/reservations/?q=NON_EXISTENT_WO_99999")
+    assert resp_none.status_code == 200
+    assert "No matching reservations" in resp_none.content.decode()
+
+    # 3. Filter by status: ACTIVE vs RELEASED
+    resp_active = stores.get("/app/inventory/reservations/?status=ACTIVE")
+    assert resp_active.status_code == 200
+    assert wo.number in resp_active.content.decode()
+
+    resp_released = stores.get("/app/inventory/reservations/?status=RELEASED")
+    assert resp_released.status_code == 200
+    assert "No matching reservations" in resp_released.content.decode()
+
+    # 4. Filter by warehouse
+    resp_wh = stores.get(f"/app/inventory/reservations/?warehouse={ui['wh'].pk}")
+    assert resp_wh.status_code == 200
+    assert wo.number in resp_wh.content.decode()
+
+    # 5. Sorting by held quantity and work order
+    resp_sort_held = stores.get("/app/inventory/reservations/?ordering=-held")
+    assert resp_sort_held.status_code == 200
+    assert wo.number in resp_sort_held.content.decode()
+
+    resp_sort_wo = stores.get("/app/inventory/reservations/?ordering=work_order")
+    assert resp_sort_wo.status_code == 200
+    assert wo.number in resp_sort_wo.content.decode()

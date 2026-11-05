@@ -1,17 +1,187 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Reservations Â· FieldOps Nexus{% endblock %}
+{% block title %}Reservations · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Reservations</h1><div class="text-body-secondary">Stock held for work orders. Reserved stock cannot be issued elsewhere, transferred or adjusted away.</div></div></div>
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'inventory:stock' %}">Inventory</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Reservations</li>
+      </ol>
+    </nav>
+    <h1>Reservations</h1>
+    <div class="text-body-secondary">
+      Stock held for work orders. Reserved stock cannot be issued elsewhere, transferred or adjusted away.
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventory:stock' %}">
+      {% icon 'boxes' 16 %} Stock balances
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'inventory:movements' %}">
+      {% icon 'activity' 16 %} Stock movements
+    </a>
+  </div>
+</div>
+
 {% include "components/_section_tabs.html" with section="Inventory" %}
+
+<div class="row g-3 mb-4 mt-1">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Reservations" value=total_count|default:page.paginator.count tone="primary" icon="boxes" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Active Holds" value=active_count|default:"0" tone="success" icon="check" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Released / Fulfilled" value=released_count|default:"0" tone="secondary" icon="archive" %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-12 col-md-4">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light border-end-0">
+          {% icon 'search' 14 %}
+        </span>
+        <input
+          class="form-control form-control-sm border-start-0 bg-light"
+          type="search"
+          name="q"
+          value="{{ filters.q|default:'' }}"
+          placeholder="Search WO#, part number, name, warehouse..."
+          aria-label="Search reservations"
+        >
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <select class="form-select form-select-sm" name="status" aria-label="Status filter">
+        <option value="">All Statuses</option>
+        {% for v, l in statuses %}
+          <option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <select class="form-select form-select-sm" name="warehouse" aria-label="Warehouse filter">
+        <option value="">All Warehouses</option>
+        {% for w in warehouses %}
+          <option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.code }} · {{ w.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <select class="form-select form-select-sm" name="ordering" aria-label="Sort order" onchange="this.form.submit()">
+        <option value="-updated_at" {% if filters.ordering == "-updated_at" or filters.ordering == "-updated" or not filters.ordering %}selected{% endif %}>Recently Updated</option>
+        <option value="updated_at" {% if filters.ordering == "updated_at" or filters.ordering == "updated" %}selected{% endif %}>Oldest Updated</option>
+        <option value="work_order" {% if filters.ordering == "work_order" or filters.ordering == "wo" %}selected{% endif %}>Work Order (A–Z)</option>
+        <option value="-work_order" {% if filters.ordering == "-work_order" or filters.ordering == "-wo" %}selected{% endif %}>Work Order (Z–A)</option>
+        <option value="part" {% if filters.ordering == "part" or filters.ordering == "part_number" %}selected{% endif %}>Part Number (A–Z)</option>
+        <option value="-part" {% if filters.ordering == "-part" or filters.ordering == "-part_number" %}selected{% endif %}>Part Number (Z–A)</option>
+        <option value="warehouse" {% if filters.ordering == "warehouse" or filters.ordering == "wh" %}selected{% endif %}>Warehouse (A–Z)</option>
+        <option value="-warehouse" {% if filters.ordering == "-warehouse" or filters.ordering == "-wh" %}selected{% endif %}>Warehouse (Z–A)</option>
+        <option value="-held" {% if filters.ordering == "-held" or filters.ordering == "-quantity" or filters.ordering == "-qty" %}selected{% endif %}>Held Qty (High–Low)</option>
+        <option value="held" {% if filters.ordering == "held" or filters.ordering == "quantity" or filters.ordering == "qty" %}selected{% endif %}>Held Qty (Low–High)</option>
+        <option value="status" {% if filters.ordering == "status" %}selected{% endif %}>Status (A–Z)</option>
+        <option value="-status" {% if filters.ordering == "-status" %}selected{% endif %}>Status (Z–A)</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-sm btn-primary">
+        {% icon 'filter' 14 %} Filter
+      </button>
+      {% if filters.q or filters.status or filters.warehouse or filters.ordering %}
+        <a href="{% url 'inventory:reservations' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
 <div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <select class="form-select form-select-sm" style="max-width:180px" name="status" aria-label="Status"><option value="">All</option>
-      {% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <a href="{% url 'inventory:reservations' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
-  <div class="table-responsive"><table class="table fx-table" id="reservations-table"><thead><tr><th>Work order</th><th>Part</th><th>Warehouse</th><th>Held</th><th>Status</th><th>Updated</th></tr></thead><tbody>
-  {% for r in page %}<tr><td><a href="{% url 'inventory:wo_parts' r.work_order_id %}">{{ r.work_order.number }}</a></td><td>{{ r.part.part_number }} Â· {{ r.part.name }}</td><td>{{ r.warehouse.code }}</td><td>{{ r.quantity|floatformat:"-3" }}</td><td>{% status_badge r.status %}</td><td class="small">{{ r.updated_at|date:"d M H:i" }}</td></tr>
-  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No reservations" text="Reserve stock from a work order's parts page." %}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="table-responsive">
+    <table class="table fx-table align-middle mb-0" id="reservations-table">
+      <thead>
+        <tr>
+          <th>
+            <a href="{% sort_url 'work_order' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by work order">
+              Work Order {% sort_icon 'work_order' %}
+            </a>
+          </th>
+          <th>
+            <a href="{% sort_url 'part' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by part">
+              Part {% sort_icon 'part' %}
+            </a>
+          </th>
+          <th>
+            <a href="{% sort_url 'warehouse' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center" title="Sort by warehouse">
+              Warehouse {% sort_icon 'warehouse' %}
+            </a>
+          </th>
+          <th class="text-end">
+            <a href="{% sort_url 'held' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center justify-content-end" title="Sort by held quantity">
+              Held {% sort_icon 'held' %}
+            </a>
+          </th>
+          <th class="text-center">
+            <a href="{% sort_url 'status' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center justify-content-center" title="Sort by status">
+              Status {% sort_icon 'status' %}
+            </a>
+          </th>
+          <th class="text-end">
+            <a href="{% sort_url 'updated' %}" class="text-decoration-none text-body fw-semibold d-inline-flex align-items-center justify-content-end" title="Sort by updated date">
+              Updated {% sort_icon 'updated' %}
+            </a>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in page %}
+          <tr>
+            <td>
+              <a href="{% url 'inventory:wo_parts' r.work_order_id %}" class="fw-semibold text-decoration-none text-primary" title="{{ r.work_order.title|default:'' }}">
+                {{ r.work_order.number }}
+              </a>
+              {% if r.work_order.title %}
+                <div class="small text-muted text-truncate" style="max-width: 200px;">{{ r.work_order.title }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <strong class="font-monospace text-dark">{{ r.part.part_number }}</strong>
+              <div class="small text-body-secondary text-truncate" style="max-width: 240px;">{{ r.part.name }}</div>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">
+                {{ r.warehouse.code }}
+              </span>
+              <span class="small text-muted ms-1">{{ r.warehouse.name }}</span>
+            </td>
+            <td class="text-end">
+              <span class="fw-bold font-monospace text-dark">{{ r.quantity|floatformat:"-3" }}</span>
+              <span class="text-muted small ms-1">{{ r.part.unit }}</span>
+            </td>
+            <td class="text-center">
+              {% status_badge r.status %}
+            </td>
+            <td class="text-end small text-muted text-nowrap">
+              {{ r.updated_at|date:"Y-m-d H:i" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-body-secondary">
+              {% if filters.q or filters.status or filters.warehouse %}
+                {% include "components/_empty_state.html" with title="No matching reservations" text="No reservations match your search or filter criteria. Try resetting filters." %}
+              {% else %}
+                {% include "components/_empty_state.html" with title="No reservations" text="Reserve stock from a work order's parts page." %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include "components/_pagination.html" %}
 </div>
 {% endblock %}

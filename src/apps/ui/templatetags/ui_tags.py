@@ -283,6 +283,14 @@ _SORT_ALIASES = {
     "movement_type": ("type", "movement_type"),
     "by": ("by", "actor"),
     "actor": ("by", "actor"),
+    "work_order": ("work_order", "wo", "work_order_number"),
+    "wo": ("work_order", "wo", "work_order_number"),
+    "warehouse": ("warehouse", "wh"),
+    "wh": ("warehouse", "wh"),
+    "held": ("held", "quantity", "qty"),
+    "status": ("status",),
+    "updated": ("updated", "updated_at"),
+    "updated_at": ("updated", "updated_at"),
 }
 
 
@@ -305,7 +313,7 @@ def sort_url(context, field):
     elif is_desc:
         params["ordering"] = field
     else:
-        if field in ("created_at", "when", "quantity", "qty", "on_hand_delta", "reserved_delta", "on_hand_after"):
+        if field in ("created_at", "when", "quantity", "qty", "held", "on_hand_delta", "reserved_delta", "on_hand_after", "updated", "updated_at"):
             params["ordering"] = f"-{field}"
         else:
             params["ordering"] = field
