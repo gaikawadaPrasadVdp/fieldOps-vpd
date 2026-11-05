@@ -17,18 +17,15 @@
 
   <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>
 
-  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% else %}{{
-    operation }}{% endif %}</h1>
+  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% else %}{{ operation }}{% endif %}</h1>
 
   {% if operation == 'Complete' %}
 
-  <div class="wo-action-flags" role="status"><span class="wo-inline-state is-info">Checklist {{
-      checklist_summary.status|title }}</span>
+  <div class="wo-action-flags" role="status"><span class="wo-inline-state is-info">Checklist {{ checklist_summary.status|title }}</span>
 
     {% if wo.work_type == 'CORRECTIVE' or wo.work_type == 'INSTALLATION' %}{% if not evidence_count %}<a
       class="wo-inline-state is-warning"
-      href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif
-    %}{% endif %}</div>
+      href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}</div>
 
   {% elif operation == 'Assign' %}{% if not form.fields.assigned_to.queryset.exists %}<div class="wo-action-flags"
     role="status"><span class="wo-inline-state is-warning">No eligible technicians</span></div>{% endif %}{% endif %}
@@ -46,8 +43,7 @@
       <div
         class="mb-3 {% if field.name == 'resolution_notes' or field.name == 'update' or field.name == 'reason' or field.name == 'notes' or field.name == 'comment' or field.name == 'items' or field.name == 'description' or field.name == 'assigned_to' or field.name == 'approved' %}wo-field-wide{% elif field.name == 'work_type' or field.name == 'planned_start' or field.name == 'due_at' or field.name == 'scheduled_start' or field.name == 'started_at' or field.name == 'item_name' or field.name == 'quantity' or field.name == 'file' %}wo-field-col-1{% elif field.name == 'priority' or field.name == 'planned_end' or field.name == 'estimated_hours' or field.name == 'scheduled_end' or field.name == 'ended_at' or field.name == 'part_reference' or field.name == 'unit' %}wo-field-col-2{% endif %}">
 
-        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if
-          field.field.required or field.name == 'started_at' or field.name == 'ended_at' %}<span class="text-danger">
+        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required or field.name == 'started_at' or field.name == 'ended_at' %}<span class="text-danger">
             *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
 
         {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small mt-1" role="alert"
@@ -76,11 +72,7 @@
     {% if 'expected_version' not in form.fields %}<input type="hidden" name="expected_version"
       value="{{ expected_version }}">{% endif %}
 
-    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if
-        operation=='Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action
-        %}data-confirm="Approve and close this work order? This cannot be undone." {% endif %}>{% if operation ==
-        'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials'
-        %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary"
+    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation=='Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone." {% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary"
         href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
 
   </form>
