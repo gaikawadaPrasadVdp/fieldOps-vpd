@@ -36,4 +36,25 @@
   </form>
 </div>
 {% endblock %}
-{% block scripts %}{{ block.super }}{% if title == "Create work order" %}<script src="{% static 'js/workorder-create.js' %}?v=m06-wo-create-v4" defer></script>{% else %}<script src="{% static 'js/workorder-date-validation.js' %}?v=m06-wo-val-v4" defer></script>{% endif %}{% endblock %}
+{% block scripts %}<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const descField = document.getElementById("id_description");
+    if (!descField) return;
+    function validateDesc() {
+      const val = descField.value.trim();
+      if (!val) {
+        descField.setCustomValidity("");
+        return;
+      }
+      if (/\d/.test(val)) {
+        descField.setCustomValidity("Description must contain only alphabetical characters and cannot contain numbers.");
+      } else {
+        descField.setCustomValidity("");
+      }
+    }
+    descField.addEventListener("input", validateDesc);
+    descField.addEventListener("change", validateDesc);
+    validateDesc();
+  });
+</script>
+{{ block.super }}{% if title == "Create work order" %}<script src="{% static 'js/workorder-create.js' %}?v=m06-wo-create-v4" defer></script>{% else %}<script src="{% static 'js/workorder-date-validation.js' %}?v=m06-wo-val-v4" defer></script>{% endif %}{% endblock %}

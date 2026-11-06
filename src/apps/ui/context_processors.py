@@ -203,6 +203,10 @@ def shell(request):
         field_tools = [
             {"label": "Scan Asset Label", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
+        if rbac.has_permission_anywhere(membership, "checklist.view") or rbac.has_permission_anywhere(membership, "checklist.execute"):
+            field_tools.append(
+                {"label": "Checklist Templates", "url": _safe_reverse("checklists:list"), "icon": "file-text", "match_prefix": "/app/checklists"}
+            )
         if rbac.has_permission_anywhere(membership, "inventory.part.view"):
             field_tools.append(
                 {"label": "Cataloged Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"}

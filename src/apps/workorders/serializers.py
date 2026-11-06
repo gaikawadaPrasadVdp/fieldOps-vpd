@@ -1,6 +1,10 @@
 from decimal import Decimal
+from django.utils import timezone
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+
+from apps.ui.forms import validate_alphabetical_description
 
 from apps.assets.models import Asset, AssetComponent
 from apps.incidents.models import ServiceRequest
@@ -319,6 +323,12 @@ class WorkOrderReasonSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
+    def validate_reason(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Reason")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
+
 
 class WorkOrderCompleteSerializer(StrictInputSerializer):
     resolution_notes = serializers.CharField(min_length=10, required=False)
@@ -330,6 +340,10 @@ class WorkOrderCompleteSerializer(StrictInputSerializer):
             attrs["resolution_notes"] = attrs["summary"]
         if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
             raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
+        try:
+            validate_alphabetical_description(attrs["resolution_notes"], field_label="Resolution notes")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"resolution_notes": exc.message})
         return attrs
 
 
@@ -347,10 +361,24 @@ class ReviewSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
+    def validate_notes(self, value):
+        if value:
+            try:
+                return validate_alphabetical_description(value, field_label="Review notes")
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.message)
+        return value
+
 
 class ClosureCommentSerializer(serializers.Serializer):
     comment = serializers.CharField(min_length=1, max_length=1000, trim_whitespace=True)
     expected_version = serializers.IntegerField(min_value=1, required=False)
+
+    def validate_comment(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Comment")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
 
 
 class ExpectedVersionSerializer(StrictInputSerializer):
@@ -359,6 +387,12 @@ class ExpectedVersionSerializer(StrictInputSerializer):
 
 class WorkNoteSerializer(serializers.Serializer):
     text = serializers.CharField(min_length=5, max_length=1000, trim_whitespace=True)
+
+    def validate_text(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Work note")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
 
 
 class LaborInputSerializer(serializers.Serializer):
@@ -369,6 +403,12 @@ class LaborInputSerializer(serializers.Serializer):
                                     min_value=Decimal("0.01"), max_value=Decimal("24"),
                                     required=False)
     description = serializers.CharField(min_length=5, max_length=500, trim_whitespace=True)
+
+    def validate_description(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Work performed")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
 
     def validate(self, attrs):
         started_at = attrs.get("started_at")

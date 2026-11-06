@@ -251,6 +251,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  if (titleInput) {
+    function validateTitleAlpha() {
+      var val = titleInput.value.trim();
+      if (!val) {
+        titleInput.setCustomValidity("");
+        return;
+      }
+      if (/\d/.test(val)) {
+        titleInput.setCustomValidity("Title must contain only alphabetical characters and cannot contain numbers.");
+      } else {
+        titleInput.setCustomValidity("");
+      }
+    }
+    titleInput.addEventListener("input", validateTitleAlpha);
+    titleInput.addEventListener("change", validateTitleAlpha);
+    validateTitleAlpha();
+  }
+
+  if (descInput) {
+    function validateDescAlpha() {
+      var val = descInput.value.trim();
+      if (!val) {
+        descInput.setCustomValidity("");
+        return;
+      }
+      if (/\d/.test(val)) {
+        descInput.setCustomValidity("Description must contain only alphabetical characters and cannot contain numbers.");
+      } else {
+        descInput.setCustomValidity("");
+      }
+    }
+    descInput.addEventListener("input", validateDescAlpha);
+    descInput.addEventListener("change", validateDescAlpha);
+    validateDescAlpha();
+  }
+
   if (overrideButton) overrideButton.addEventListener('click', enableOverrideMode);
 
   // Client validation on submit

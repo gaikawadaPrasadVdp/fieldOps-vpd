@@ -612,18 +612,27 @@ document.addEventListener("click", function (e) {
     var parent = container.parentElement;
     if (!parent) return;
 
-    var existingFeedback = parent.querySelector(".invalid-feedback[data-dynamic-error='1']");
-    if (!existingFeedback) {
-      existingFeedback = document.createElement("div");
-      existingFeedback.className = "invalid-feedback d-block small mt-1 fw-medium";
-      existingFeedback.setAttribute("data-dynamic-error", "1");
+    var errEl = parent.querySelector("div.field-error-message, div.invalid-feedback");
+    if (!errEl) {
+      errEl = document.createElement("div");
+      errEl.className = "invalid-feedback text-danger small mt-1 fw-medium field-error-message";
+      errEl.setAttribute("data-dynamic-error", "1");
       if (container.nextSibling) {
-        parent.insertBefore(existingFeedback, container.nextSibling);
+        parent.insertBefore(errEl, container.nextSibling);
       } else {
-        parent.appendChild(existingFeedback);
+        parent.appendChild(errEl);
       }
     }
-    existingFeedback.textContent = message;
+    errEl.textContent = message;
+    errEl.style.display = "block";
+    errEl.classList.add("d-block");
+
+    var allErrDivs = parent.querySelectorAll("div.field-error-message, div.invalid-feedback, div.text-danger");
+    for (var i = 0; i < allErrDivs.length; i++) {
+      if (allErrDivs[i] !== errEl) {
+        allErrDivs[i].remove();
+      }
+    }
   }
 
   function clearFieldError(field) {
@@ -631,8 +640,12 @@ document.addEventListener("click", function (e) {
     var container = field.closest(".input-group") || field;
     var parent = container.parentElement;
     if (parent) {
-      var feedback = parent.querySelector(".invalid-feedback[data-dynamic-error='1']");
-      if (feedback) feedback.remove();
+      var allErrDivs = parent.querySelectorAll("div.field-error-message, div.invalid-feedback, div.text-danger");
+      allErrDivs.forEach(function (el) {
+        el.textContent = "";
+        el.style.display = "none";
+        el.classList.remove("d-block");
+      });
     }
   }
 
@@ -645,10 +658,10 @@ document.addEventListener("click", function (e) {
     var customMsg = "";
 
     if (isValid && field.type === "email" && field.value.trim()) {
-      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(field.value.trim())) {
+      var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
+      if (!strictEmailRegex.test(field.value.trim())) {
         isValid = false;
-        customMsg = "Please enter a valid email address (e.g. name@example.com).";
+        customMsg = "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension.";
       }
     }
 
@@ -945,12 +958,18 @@ document.addEventListener("click", function (e) {
     if (!field) return;
     field.classList.add("is-invalid");
     var parent = field.closest(".mb-3") || field.parentElement;
-    var errEl = parent.querySelector(".js-field-error");
+    var errEl = parent.querySelector(".field-error-message, .invalid-feedback, .js-field-error");
     if (!errEl) {
       errEl = document.createElement("div");
-      errEl.className = "text-danger small mt-1 fw-medium js-field-error";
-      parent.appendChild(errEl);
+      errEl.className = "invalid-feedback d-block text-danger small mt-1 fw-medium field-error-message";
+      var helpText = parent.querySelector(".form-text");
+      if (helpText) {
+        parent.insertBefore(errEl, helpText);
+      } else {
+        parent.appendChild(errEl);
+      }
     }
+    errEl.className = "invalid-feedback d-block text-danger small mt-1 fw-medium field-error-message";
     errEl.textContent = msg;
     errEl.style.display = "block";
   }
@@ -959,11 +978,11 @@ document.addEventListener("click", function (e) {
     if (!field) return;
     field.classList.remove("is-invalid");
     var parent = field.closest(".mb-3") || field.parentElement;
-    var errEl = parent.querySelector(".js-field-error");
-    if (errEl) {
+    var errEls = parent.querySelectorAll(".field-error-message, .invalid-feedback, .js-field-error");
+    errEls.forEach(function (errEl) {
       errEl.textContent = "";
       errEl.style.display = "none";
-    }
+    });
   }
 
   function initSiteForm(root) {
@@ -993,9 +1012,116 @@ document.addEventListener("click", function (e) {
       });
     }
 
+    function validateNameField() {
+      if (!nameEl) return true;
+      var name = (nameEl.value || "").trim();
+      if (!name) {
+        setFieldError(nameEl, "Site name is required.");
+        return false;
+      }
+      if (name.length < 2) {
+        setFieldError(nameEl, "Site name must be at least 2 characters.");
+        return false;
+      }
+      if (/\d/.test(name)) {
+        setFieldError(nameEl, "Site name must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      if (!/^[a-zA-Z\s'-]+$/.test(name)) {
+        setFieldError(nameEl, "Site name must contain only alphabetical characters.");
+        return false;
+      }
+      clearFieldError(nameEl);
+      return true;
+    }
+
     if (nameEl) {
       nameEl.addEventListener("input", function () {
-        if (this.value.trim().length >= 2) clearFieldError(this);
+        var name = this.value;
+        if (/\d/.test(name)) {
+          setFieldError(this, "Site name must contain only alphabetical characters and cannot contain numbers.");
+        } else if (!/^[a-zA-Z\s'-]*$/.test(name)) {
+          setFieldError(this, "Site name must contain only alphabetical characters.");
+        } else if (name.trim().length >= 2) {
+          clearFieldError(this);
+        }
+      });
+      nameEl.addEventListener("blur", function () {
+        validateNameField();
+      });
+    }
+
+    var contactNameEl = form.querySelector("input[name='contact_name']");
+    function validateContactNameField() {
+      if (!contactNameEl) return true;
+      var cname = (contactNameEl.value || "").trim();
+      if (cname) {
+        if (cname.length < 2) {
+          setFieldError(contactNameEl, "Contact name must be at least 2 characters.");
+          return false;
+        }
+        if (/\d/.test(cname)) {
+          setFieldError(contactNameEl, "Contact name must contain only alphabetical characters and cannot contain numbers.");
+          return false;
+        }
+        if (!/^[a-zA-Z\s'-]+$/.test(cname)) {
+          setFieldError(contactNameEl, "Contact name must contain only alphabetical characters.");
+          return false;
+        }
+      }
+      clearFieldError(contactNameEl);
+      return true;
+    }
+
+    if (contactNameEl) {
+      contactNameEl.addEventListener("input", function () {
+        var cname = this.value;
+        if (/\d/.test(cname)) {
+          setFieldError(this, "Contact name must contain only alphabetical characters and cannot contain numbers.");
+        } else if (!/^[a-zA-Z\s'-]*$/.test(cname)) {
+          setFieldError(this, "Contact name must contain only alphabetical characters.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+      contactNameEl.addEventListener("blur", function () {
+        validateContactNameField();
+      });
+    }
+
+    function validatePhoneField() {
+      if (!phoneEl) return true;
+      var phone = (phoneEl.value || "").trim();
+      if (phone) {
+        if (/[a-zA-Z]/.test(phone)) {
+          setFieldError(phoneEl, "Phone number cannot contain letters.");
+          return false;
+        }
+        var digits = phone.replace(/\D/g, "");
+        if (digits.length < 7) {
+          setFieldError(phoneEl, "Phone number must contain at least 7 digits.");
+          return false;
+        }
+        if (digits.length > 15) {
+          setFieldError(phoneEl, "Phone number cannot exceed 15 digits.");
+          return false;
+        }
+      }
+      clearFieldError(phoneEl);
+      return true;
+    }
+
+    if (phoneEl) {
+      phoneEl.addEventListener("input", function () {
+        var phone = this.value;
+        if (/[a-zA-Z]/.test(phone)) {
+          setFieldError(this, "Phone number cannot contain letters.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+      phoneEl.addEventListener("blur", function () {
+        validatePhoneField();
       });
     }
 
@@ -1259,21 +1385,25 @@ document.addEventListener("click", function (e) {
 
       // Validate Name
       if (nameEl) {
-        var name = (nameEl.value || "").trim();
-        if (!name) {
-          setFieldError(nameEl, "Site name is required.");
+        if (!validateNameField()) {
           isValid = false;
           firstInvalid = firstInvalid || nameEl;
-        } else if (name.length < 2) {
-          setFieldError(nameEl, "Site name must be at least 2 characters.");
+        }
+      }
+
+      // Validate Contact Name
+      if (contactNameEl) {
+        if (!validateContactNameField()) {
           isValid = false;
-          firstInvalid = firstInvalid || nameEl;
-        } else if (/^\d+$/.test(name)) {
-          setFieldError(nameEl, "Site name cannot be purely numbers.");
+          firstInvalid = firstInvalid || contactNameEl;
+        }
+      }
+
+      // Validate Contact Phone
+      if (phoneEl) {
+        if (!validatePhoneField()) {
           isValid = false;
-          firstInvalid = firstInvalid || nameEl;
-        } else {
-          clearFieldError(nameEl);
+          firstInvalid = firstInvalid || phoneEl;
         }
       }
 
@@ -1341,19 +1471,447 @@ document.addEventListener("click", function (e) {
     updateHierarchyVisibility();
   }
 
+  function initAssetForm(root) {
+    var form = (root && (root.id === "asset-modal-form" || root.id === "asset-form"))
+      ? root
+      : (root ? root.querySelector("#asset-modal-form, #asset-form") : null);
+    if (!form || form.dataset.assetValidationInitialized === "true") return;
+    form.dataset.assetValidationInitialized = "true";
+
+    var nameEl = form.querySelector("input[name='name']");
+    var tagEl = form.querySelector("input[name='asset_tag']");
+    var catEl = form.querySelector("select[name='category']");
+    var siteEl = form.querySelector("select[name='site']");
+    var descEl = form.querySelector("textarea[name='description']");
+    var reasonEl = form.querySelector("input[name='reason'], textarea[name='reason']");
+    var purchaseEl = form.querySelector("input[name='purchase_date']");
+    var commEl = form.querySelector("input[name='commission_date']");
+
+    function validateName() {
+      if (!nameEl) return true;
+      var val = (nameEl.value || "").trim();
+      if (!val) {
+        setFieldError(nameEl, "Asset name is required.");
+        return false;
+      }
+      if (val.length < 2) {
+        setFieldError(nameEl, "Asset name must be at least 2 characters.");
+        return false;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(nameEl, "Asset name must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      if (!/^[a-zA-Z\s'-]+$/.test(val)) {
+        setFieldError(nameEl, "Asset name must contain only alphabetical characters.");
+        return false;
+      }
+      clearFieldError(nameEl);
+      return true;
+    }
+
+    if (nameEl) {
+      nameEl.addEventListener("input", function () {
+        var val = this.value;
+        if (/\d/.test(val)) {
+          setFieldError(this, "Asset name must contain only alphabetical characters and cannot contain numbers.");
+        } else if (!/^[a-zA-Z\s'-]*$/.test(val)) {
+          setFieldError(this, "Asset name must contain only alphabetical characters.");
+        } else if (val.trim().length >= 2) {
+          clearFieldError(this);
+        }
+      });
+      nameEl.addEventListener("blur", validateName);
+    }
+
+    function validateTag() {
+      if (!tagEl) return true;
+      var val = (tagEl.value || "").trim();
+      if (!val) {
+        setFieldError(tagEl, "Asset tag is required.");
+        return false;
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9._\/-]{0,39}$/.test(val)) {
+        setFieldError(tagEl, "Asset tag must be 1-40 characters: letters, digits, '.', '_', '/' or '-'.");
+        return false;
+      }
+      clearFieldError(tagEl);
+      return true;
+    }
+
+    if (tagEl) {
+      tagEl.addEventListener("input", function () {
+        var val = this.value.trim();
+        if (val && !/^[A-Za-z0-9][A-Za-z0-9._\/-]{0,39}$/.test(val)) {
+          setFieldError(this, "Asset tag must be 1-40 characters: letters, digits, '.', '_', '/' or '-'.");
+        } else if (val) {
+          clearFieldError(this);
+        }
+      });
+      tagEl.addEventListener("blur", validateTag);
+    }
+
+    function validateDates() {
+      if (purchaseEl && commEl && purchaseEl.value && commEl.value) {
+        if (new Date(commEl.value) < new Date(purchaseEl.value)) {
+          setFieldError(commEl, "Commissioning date cannot be before the purchase date.");
+          return false;
+        } else {
+          clearFieldError(commEl);
+        }
+      }
+      return true;
+    }
+
+    if (purchaseEl && commEl) {
+      purchaseEl.addEventListener("change", validateDates);
+      commEl.addEventListener("change", validateDates);
+    }
+
+    if (descEl) {
+      descEl.addEventListener("input", function () {
+        if (/\d/.test(this.value)) {
+          setFieldError(this, "Description must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+      descEl.addEventListener("blur", function () {
+        if (this.value && /\d/.test(this.value)) {
+          setFieldError(this, "Description must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+    }
+
+    if (reasonEl) {
+      reasonEl.addEventListener("input", function () {
+        if (/\d/.test(this.value)) {
+          setFieldError(this, "Reason must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+      reasonEl.addEventListener("blur", function () {
+        if (this.value && /\d/.test(this.value)) {
+          setFieldError(this, "Reason must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+    }
+
+    if (catEl) {
+      catEl.addEventListener("change", function () {
+        if (this.value) clearFieldError(this);
+      });
+    }
+
+    if (siteEl) {
+      siteEl.addEventListener("change", function () {
+        if (this.value) clearFieldError(this);
+      });
+    }
+
+    form.addEventListener("submit", function (e) {
+      var valid = true;
+      if (!validateTag()) valid = false;
+      if (!validateName()) valid = false;
+      if (catEl && !catEl.value) {
+        setFieldError(catEl, "Category is required.");
+        valid = false;
+      }
+      if (siteEl && !siteEl.value) {
+        setFieldError(siteEl, "Site is required.");
+        valid = false;
+      }
+      if (!validateDates()) valid = false;
+      if (descEl && descEl.value && /\d/.test(descEl.value)) {
+        setFieldError(descEl, "Description must contain only alphabetical characters and cannot contain numbers.");
+        valid = false;
+      }
+      if (reasonEl && reasonEl.value && /\d/.test(reasonEl.value)) {
+        setFieldError(reasonEl, "Reason must contain only alphabetical characters and cannot contain numbers.");
+        valid = false;
+      }
+
+      if (!valid) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        var firstErr = form.querySelector(".is-invalid");
+        if (firstErr) {
+          firstErr.focus();
+          firstErr.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        if (window.fxToast) {
+          window.fxToast("Please complete all required fields correctly before submitting.", "warning");
+        }
+      }
+    });
+  }
+
+  function initMemberInviteForm(root) {
+    var form = (root && root.id === "member-invite-form")
+      ? root
+      : (root ? root.querySelector("#member-invite-form") : null);
+    if (!form || form.dataset.inviteValidationInitialized === "true") return;
+    form.dataset.inviteValidationInitialized = "true";
+
+    var emailEl = form.querySelector("input[name='email'], input[type='email']");
+    var nameEl = form.querySelector("input[name='full_name']");
+    var pwdEl = form.querySelector("input[name='password']");
+    var rolesEls = form.querySelectorAll("input[name='roles']");
+
+    var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
+
+    function validateEmail() {
+      if (!emailEl) return true;
+      var val = (emailEl.value || "").trim();
+      if (!val) {
+        setFieldError(emailEl, "Email is required.");
+        return false;
+      }
+      if (!strictEmailRegex.test(val)) {
+        setFieldError(emailEl, "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension.");
+        return false;
+      }
+      clearFieldError(emailEl);
+      return true;
+    }
+
+    if (emailEl) {
+      emailEl.addEventListener("input", function () {
+        var val = this.value.trim();
+        if (val && !strictEmailRegex.test(val)) {
+          setFieldError(this, "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension.");
+        } else if (val) {
+          clearFieldError(this);
+        }
+      });
+      emailEl.addEventListener("blur", validateEmail);
+    }
+
+    function validateFullName() {
+      if (!nameEl) return true;
+      var val = (nameEl.value || "").trim();
+      if (!val) {
+        setFieldError(nameEl, "Full name is required.");
+        return false;
+      }
+      if (val.length < 2) {
+        setFieldError(nameEl, "Full name must be at least 2 characters.");
+        return false;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(nameEl, "Full name must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      if (!/^[a-zA-Z\s'-]+$/.test(val)) {
+        setFieldError(nameEl, "Full name must contain only alphabetical characters.");
+        return false;
+      }
+      clearFieldError(nameEl);
+      return true;
+    }
+
+    if (nameEl) {
+      nameEl.addEventListener("input", function () {
+        var val = this.value;
+        if (/\d/.test(val)) {
+          setFieldError(this, "Full name must contain only alphabetical characters and cannot contain numbers.");
+        } else if (!/^[a-zA-Z\s'-]*$/.test(val)) {
+          setFieldError(this, "Full name must contain only alphabetical characters.");
+        } else if (val.trim().length >= 2) {
+          clearFieldError(this);
+        }
+      });
+      nameEl.addEventListener("blur", validateFullName);
+    }
+
+    function validatePassword() {
+      if (!pwdEl) return true;
+      var val = (pwdEl.value || "").trim();
+      if (!val) {
+        setFieldError(pwdEl, "Password is required.");
+        return false;
+      }
+      if (val.length < 8) {
+        setFieldError(pwdEl, "Password must be at least 8 characters.");
+        return false;
+      }
+      clearFieldError(pwdEl);
+      return true;
+    }
+
+    if (pwdEl) {
+      pwdEl.addEventListener("input", function () {
+        var val = this.value;
+        if (val && val.length < 8) {
+          setFieldError(this, "Password must be at least 8 characters.");
+        } else {
+          clearFieldError(this);
+        }
+      });
+      pwdEl.addEventListener("blur", validatePassword);
+    }
+
+    function validateRoles() {
+      if (!rolesEls || rolesEls.length === 0) return true;
+      var anyChecked = Array.from(rolesEls).some(function (r) { return r.checked; });
+      if (!anyChecked) {
+        setFieldError(rolesEls[0], "Please select at least one role.");
+        return false;
+      }
+      clearFieldError(rolesEls[0]);
+      return true;
+    }
+
+    rolesEls.forEach(function (r) {
+      r.addEventListener("change", function () {
+        validateRoles();
+      });
+    });
+
+    form.addEventListener("submit", function (e) {
+      var valid = true;
+      if (!validateEmail()) valid = false;
+      if (!validateFullName()) valid = false;
+      if (!validatePassword()) valid = false;
+      if (!validateRoles()) valid = false;
+
+      if (!valid) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        var firstErr = form.querySelector(".is-invalid");
+        if (firstErr) {
+          firstErr.focus();
+          firstErr.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        if (window.fxToast) {
+          window.fxToast("Please complete all required fields correctly before submitting.", "warning");
+        }
+      }
+    });
+  }
+  function initDocumentUploadForm(root) {
+    var form = (root && root.id === "document-upload-form")
+      ? root
+      : (root ? root.querySelector("#document-upload-form") : null);
+    if (!form || form.dataset.docValidationInitialized === "true") return;
+    form.dataset.docValidationInitialized = "true";
+
+    var fileInput = form.querySelector("input[name='file'], input[type='file']");
+    var typeSelect = form.querySelector("select[name='doc_type']");
+
+    if (!fileInput || !typeSelect) return;
+
+    var imageExts = ["jpg", "jpeg", "png", "webp", "gif"];
+
+    function updateAcceptAttr() {
+      var docType = typeSelect.value;
+      if (docType === "PHOTO") {
+        fileInput.setAttribute("accept", "image/png,image/jpeg,image/webp,image/gif,.jpg,.jpeg,.png,.webp");
+      } else if (docType === "PDF") {
+        fileInput.setAttribute("accept", ".pdf,application/pdf");
+      } else {
+        fileInput.setAttribute("accept", ".pdf,image/png,image/jpeg,image/webp,image/gif,.docx,.xlsx,.txt,.csv");
+      }
+    }
+
+    updateAcceptAttr();
+
+    function validateFile() {
+      var docType = typeSelect.value;
+      if (!fileInput.files || fileInput.files.length === 0) {
+        setFieldError(fileInput, "Please choose a file to upload.");
+        return false;
+      }
+      var file = fileInput.files[0];
+      var name = file.name || "";
+      var ext = name.indexOf(".") !== -1 ? name.split(".").pop().toLowerCase() : "";
+
+      if (file.size === 0) {
+        setFieldError(fileInput, "The uploaded file is empty.");
+        return false;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        setFieldError(fileInput, "File exceeds the 25 MB limit.");
+        return false;
+      }
+
+      if (docType === "PHOTO") {
+        if (imageExts.indexOf(ext) === -1) {
+          setFieldError(fileInput, "Selected document type is Photograph. Please upload a valid image file (.jpg, .jpeg, .png, .webp).");
+          return false;
+        }
+      } else if (docType === "PDF") {
+        if (ext !== "pdf") {
+          setFieldError(fileInput, "Selected document type is PDF. Please upload a valid PDF file (.pdf).");
+          return false;
+        }
+      } else if (docType === "OTHER") {
+        var allowedOther = ["pdf", "jpg", "jpeg", "png", "webp", "gif", "docx", "xlsx", "txt", "csv"];
+        if (allowedOther.indexOf(ext) === -1) {
+          setFieldError(fileInput, "File type '." + ext + "' is not supported. Allowed formats: PDF, images, Office documents, text/CSV.");
+          return false;
+        }
+      }
+
+      clearFieldError(fileInput);
+      return true;
+    }
+
+    typeSelect.addEventListener("change", function () {
+      updateAcceptAttr();
+      if (fileInput.files && fileInput.files.length > 0) {
+        validateFile();
+      }
+    });
+
+    fileInput.addEventListener("change", function () {
+      if (this.files && this.files.length > 0) {
+        validateFile();
+      } else {
+        setFieldError(this, "Please choose a file to upload.");
+      }
+    });
+
+    form.addEventListener("submit", function (e) {
+      if (!validateFile()) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        fileInput.focus();
+        if (window.fxToast) {
+          window.fxToast("Please select a valid file matching the chosen document type.", "warning");
+        }
+        return false;
+      }
+    });
+  }
+
   // Hook into lifecycle events
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initSiteForm(document);
+      initAssetForm(document);
+      initMemberInviteForm(document);
+      initDocumentUploadForm(document);
     });
   } else {
     initSiteForm(document);
+    initAssetForm(document);
+    initMemberInviteForm(document);
+    initDocumentUploadForm(document);
   }
 
   // Hook into HTMX swaps
   document.body.addEventListener("htmx:afterSwap", function (evt) {
     if (evt.detail && evt.detail.target) {
       initSiteForm(evt.detail.target);
+      initAssetForm(evt.detail.target);
+      initMemberInviteForm(evt.detail.target);
+      initDocumentUploadForm(evt.detail.target);
     }
   });
 
@@ -1361,6 +1919,9 @@ document.addEventListener("click", function (e) {
   document.addEventListener("shown.bs.modal", function (evt) {
     if (evt.target && (evt.target.id === "siteModal" || evt.target.querySelector("#site-modal-form"))) {
       initSiteForm(evt.target);
+    }
+    if (evt.target && (evt.target.id === "assetModal" || evt.target.querySelector("#asset-modal-form"))) {
+      initAssetForm(evt.target);
     }
   });
 
@@ -1474,6 +2035,39 @@ document.addEventListener("click", function (e) {
               });
             }
           }
+        }
+      }
+    }
+  });
+
+  // Live validation for Workflow Action reason inputs (e.g. Start maintenance)
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.name === "reason" && (e.target.closest(".fx-workflow-bar") || e.target.closest("form"))) {
+      var input = e.target;
+      var val = input.value;
+      if (/\d/.test(val)) {
+        input.setCustomValidity("Reason must contain only alphabetical characters and cannot contain numbers.");
+        input.classList.add("is-invalid");
+      } else {
+        input.setCustomValidity("");
+        input.classList.remove("is-invalid");
+      }
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (form) {
+      var reasonInput = form.querySelector("input[name='reason']");
+      if (reasonInput) {
+        var val = (reasonInput.value || "").trim();
+        if (/\d/.test(val)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          reasonInput.setCustomValidity("Reason must contain only alphabetical characters and cannot contain numbers.");
+          reasonInput.classList.add("is-invalid");
+          reasonInput.reportValidity();
+          return false;
         }
       }
     }

@@ -38,4 +38,257 @@
 
 {% block scripts %}
   {% block form_scripts %}{% endblock %}
+  <script nonce="{{ csp_nonce }}">
+  document.addEventListener("DOMContentLoaded", function () {
+    const partNumberEl = document.getElementById("id_part_number");
+    const nameEl = document.getElementById("id_name");
+    const descEl = document.getElementById("id_description");
+    const unitEl = document.getElementById("id_unit");
+    const minStockEl = document.getElementById("id_min_stock");
+    const maxStockEl = document.getElementById("id_max_stock");
+    const reorderQtyEl = document.getElementById("id_reorder_quantity");
+
+    // Helper ensuring strictly a SINGLE error message element exists per field container
+    function setLiveError(inputEl, msg) {
+      if (!inputEl) return;
+      const parent = inputEl.closest(".mb-3") || inputEl.parentElement;
+      if (!parent) return;
+
+      var errEl = parent.querySelector("div.field-error-message, div.invalid-feedback");
+      if (!errEl) {
+        errEl = document.createElement("div");
+        errEl.className = "invalid-feedback text-danger small mt-1 fw-medium field-error-message";
+        parent.appendChild(errEl);
+      }
+
+      if (msg) {
+        inputEl.setCustomValidity(msg);
+        inputEl.classList.add("is-invalid");
+        errEl.textContent = msg;
+        errEl.style.display = "block";
+        errEl.classList.add("d-block");
+      } else {
+        inputEl.setCustomValidity("");
+        inputEl.classList.remove("is-invalid");
+        errEl.textContent = "";
+        errEl.style.display = "none";
+        errEl.classList.remove("d-block");
+      }
+
+      // Remove any extra error divs (divs only, never spans)
+      const allDivs = parent.querySelectorAll("div.field-error-message, div.invalid-feedback, div.text-danger");
+      for (var i = 0; i < allDivs.length; i++) {
+        if (allDivs[i] !== errEl) {
+          allDivs[i].remove();
+        }
+      }
+    }
+
+    if (nameEl && partNumberEl) {
+      function validateName() {
+        const val = nameEl.value.trim();
+        if (!val) {
+          setLiveError(nameEl, "");
+          return;
+        }
+        if (/\d/.test(val)) {
+          setLiveError(nameEl, "Name must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          setLiveError(nameEl, "");
+        }
+      }
+      nameEl.addEventListener("input", validateName);
+      nameEl.addEventListener("change", validateName);
+    }
+
+    if (partNumberEl) {
+      function validatePartNumber() {
+        const val = partNumberEl.value.trim();
+        if (!val) {
+          setLiveError(partNumberEl, "");
+          return;
+        }
+        if (/[a-zA-Z]/.test(val)) {
+          setLiveError(partNumberEl, "Part number must contain only numbers and cannot contain letters.");
+        } else if (!/\d/.test(val)) {
+          setLiveError(partNumberEl, "Part number must contain numbers.");
+        } else {
+          setLiveError(partNumberEl, "");
+        }
+      }
+      partNumberEl.addEventListener("input", validatePartNumber);
+      partNumberEl.addEventListener("change", validatePartNumber);
+    }
+
+    // Unit validation: Only numbers allowed (rejects letters like ppfdsbdhg)
+    if (unitEl && partNumberEl) {
+      function validateUnit() {
+        const val = unitEl.value.trim();
+        if (!val) {
+          setLiveError(unitEl, "");
+          return true;
+        }
+        if (/[a-zA-Z]/.test(val)) {
+          setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
+          return false;
+        }
+        if (!/\d/.test(val)) {
+          setLiveError(unitEl, "Unit must contain numbers.");
+          return false;
+        }
+        setLiveError(unitEl, "");
+        return true;
+      }
+      unitEl.addEventListener("input", validateUnit);
+      unitEl.addEventListener("change", validateUnit);
+      if (unitEl.value) {
+        validateUnit();
+      }
+    }
+
+    if (descEl && partNumberEl) {
+      function validateDesc() {
+        const val = descEl.value.trim();
+        if (val && /\d/.test(val)) {
+          setLiveError(descEl, "Description must contain only alphabetical characters and cannot contain numbers.");
+        } else {
+          setLiveError(descEl, "");
+        }
+      }
+      descEl.addEventListener("input", validateDesc);
+      descEl.addEventListener("change", validateDesc);
+    }
+
+    // Number validation helper for min_stock, max_stock, reorder_quantity
+    function checkNumberField(el, labelName) {
+      if (!el) return true;
+      if (el.validity && el.validity.badInput) {
+        setLiveError(el, labelName + " must contain only numbers.");
+        return false;
+      }
+      const raw = el.value.trim();
+      if (!raw) {
+        setLiveError(el, "");
+        return true;
+      }
+      if (/[a-zA-Z]/.test(raw) || !/^\d+$/.test(raw)) {
+        setLiveError(el, labelName + " must contain only numbers.");
+        return false;
+      }
+      const val = parseFloat(raw);
+      if (isNaN(val) || val < 0) {
+        setLiveError(el, labelName + " must be a non-negative number (0 or greater).");
+        return false;
+      }
+      setLiveError(el, "");
+      return true;
+    }
+
+    function validateStockLevels() {
+      const minValid = checkNumberField(minStockEl, "Minimum stock");
+      const maxValid = checkNumberField(maxStockEl, "Maximum stock");
+      const reorderValid = checkNumberField(reorderQtyEl, "Reorder quantity");
+
+      if (minValid && maxValid && minStockEl && maxStockEl) {
+        const minVal = minStockEl.value.trim() !== "" ? parseFloat(minStockEl.value) : null;
+        const maxVal = maxStockEl.value.trim() !== "" ? parseFloat(maxStockEl.value) : null;
+        if (minVal !== null && maxVal !== null && maxVal < minVal) {
+          setLiveError(maxStockEl, "Maximum stock cannot be less than minimum stock.");
+        }
+      }
+    }
+
+    [minStockEl, maxStockEl, reorderQtyEl].forEach(function (el) {
+      if (el) {
+        el.addEventListener("keydown", function (e) {
+          if (e.key === "e" || e.key === "E" || e.key === "+" || e.key === "-") {
+            e.preventDefault();
+          }
+        });
+        el.addEventListener("input", validateStockLevels);
+        el.addEventListener("change", validateStockLevels);
+        if (el.validity && el.validity.badInput) {
+          validateStockLevels();
+        }
+      }
+    });
+
+    const formEl = document.querySelector("form");
+    if (formEl && partNumberEl) {
+      formEl.addEventListener("submit", function (e) {
+        if (nameEl && /\d/.test(nameEl.value.trim())) {
+          e.preventDefault();
+          setLiveError(nameEl, "Name must contain only alphabetical characters and cannot contain numbers.");
+          nameEl.focus();
+          return;
+        }
+        if (partNumberEl) {
+          const val = partNumberEl.value.trim();
+          if (/[a-zA-Z]/.test(val)) {
+            e.preventDefault();
+            setLiveError(partNumberEl, "Part number must contain only numbers and cannot contain letters.");
+            partNumberEl.focus();
+            return;
+          }
+          if (!val || !/\d/.test(val)) {
+            e.preventDefault();
+            setLiveError(partNumberEl, "Part number must contain numbers.");
+            partNumberEl.focus();
+            return;
+          }
+        }
+        if (unitEl) {
+          const uVal = unitEl.value.trim();
+          if (!uVal) {
+            e.preventDefault();
+            setLiveError(unitEl, "Unit is required.");
+            unitEl.focus();
+            return;
+          }
+          if (/[a-zA-Z]/.test(uVal)) {
+            e.preventDefault();
+            setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
+            unitEl.focus();
+            return;
+          }
+          if (!/\d/.test(uVal)) {
+            e.preventDefault();
+            setLiveError(unitEl, "Unit must contain numbers.");
+            unitEl.focus();
+            return;
+          }
+        }
+        if (descEl && /\d/.test(descEl.value.trim())) {
+          e.preventDefault();
+          setLiveError(descEl, "Description must contain only alphabetical characters and cannot contain numbers.");
+          descEl.focus();
+          return;
+        }
+        if (minStockEl && !checkNumberField(minStockEl, "Minimum stock")) {
+          e.preventDefault();
+          minStockEl.focus();
+          return;
+        }
+        if (maxStockEl && !checkNumberField(maxStockEl, "Maximum stock")) {
+          e.preventDefault();
+          maxStockEl.focus();
+          return;
+        }
+        if (reorderQtyEl && !checkNumberField(reorderQtyEl, "Reorder quantity")) {
+          e.preventDefault();
+          reorderQtyEl.focus();
+          return;
+        }
+        const minVal = minStockEl && minStockEl.value.trim() !== "" ? parseFloat(minStockEl.value) : null;
+        const maxVal = maxStockEl && maxStockEl.value.trim() !== "" ? parseFloat(maxStockEl.value) : null;
+        if (minVal !== null && maxVal !== null && maxVal < minVal) {
+          e.preventDefault();
+          setLiveError(maxStockEl, "Maximum stock cannot be less than minimum stock.");
+          maxStockEl.focus();
+          return;
+        }
+      });
+    }
+  });
+  </script>
 {% endblock %}
