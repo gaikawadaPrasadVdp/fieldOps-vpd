@@ -88,6 +88,14 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     asset = serializers.UUIDField()
     kind = serializers.ChoiceField(choices=ServiceRequest.Kind.choices, required=False)
     title = serializers.CharField(max_length=200)
+
+    def validate_title(self, value):
+        from apps.ui.forms import validate_alphabetical_description
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_alphabetical_description(value, field_label="Title")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)
@@ -129,6 +137,16 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
 
 class ServiceRequestPatchSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200, required=False)
+
+    def validate_title(self, value):
+        if value:
+            from apps.ui.forms import validate_alphabetical_description
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            try:
+                return validate_alphabetical_description(value, field_label="Title")
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.message)
+        return value
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)

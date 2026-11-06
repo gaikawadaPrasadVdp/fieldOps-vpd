@@ -22,13 +22,11 @@ _ORG_FIELDS = ["name", "legal_name", "timezone", "country", "contact_email", "co
 
 
 def _check_email(email: str) -> str:
-    email = (email or "").strip().lower()
-    if len(email) > 254:
-        raise ValidationFailed("Email address cannot exceed 254 characters.", details={"email": email})
+    from apps.ui.forms import validate_strict_email
     try:
-        validate_email(email)
-    except Exception as exc:
-        raise ValidationFailed("Enter a valid email address.", details={"email": email}) from exc
+        email = validate_strict_email(email)
+    except ValidationError as exc:
+        raise ValidationFailed(str(exc.message if hasattr(exc, "message") else exc), details={"email": email}) from exc
     return email
 
 

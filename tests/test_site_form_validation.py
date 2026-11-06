@@ -31,7 +31,7 @@ def test_invalid_pincode_mismatch():
     """Verify that a Kerala site with a Karnataka PIN code (560001) fails with a descriptive validation error."""
     data = {
         "code": "PLANT-KL-02",
-        "name": "Kochi Unit 2",
+        "name": "Kochi Unit Secondary",
         "country": "IN",
         "state_region": "Kerala",
         "city": "Kochi",
@@ -154,3 +154,74 @@ def test_andhra_pradesh_valid_site_accepted():
     assert form.cleaned_data["city"] == "Visakhapatnam"
     assert form.cleaned_data["state_region"] == "Andhra Pradesh"
 
+
+
+def test_site_name_rejects_numbers():
+    """Verify that site names containing numbers (e.g. Head655, Plant-01 Name) are rejected."""
+    for invalid_name in ["Head655", "Plant 1", "Site 99", "12345", "Facility #2"]:
+        data = {
+            "code": "PLANT-KL-99",
+            "name": invalid_name,
+            "country": "IN",
+            "state_region": "Kerala",
+            "city": "Kochi",
+            "postal_code": "682001",
+            "timezone": "Asia/Kolkata",
+        }
+        form = SiteForm(data=data)
+        assert not form.is_valid(), f"Expected {invalid_name} to be invalid"
+        assert "name" in form.errors
+        assert "cannot contain numbers" in form.errors["name"][0]
+
+
+def test_contact_name_rejects_numbers():
+    """Verify that contact names containing numbers are rejected."""
+    data = {
+        "code": "PLANT-KL-01",
+        "name": "Kochi Processing Facility",
+        "country": "IN",
+        "state_region": "Kerala",
+        "city": "Kochi",
+        "postal_code": "682001",
+        "timezone": "Asia/Kolkata",
+        "contact_name": "Rajesh Kumar 123",
+    }
+    form = SiteForm(data=data)
+    assert not form.is_valid()
+    assert "contact_name" in form.errors
+    assert "cannot contain numbers" in form.errors["contact_name"][0]
+
+
+def test_contact_phone_rejects_letters():
+    """Verify that contact phone containing letters is rejected."""
+    data = {
+        "code": "PLANT-KL-01",
+        "name": "Kochi Processing Facility",
+        "country": "IN",
+        "state_region": "Kerala",
+        "city": "Kochi",
+        "postal_code": "682001",
+        "timezone": "Asia/Kolkata",
+        "contact_phone": "+91 98765 ABCDE",
+    }
+    form = SiteForm(data=data)
+    assert not form.is_valid()
+    assert "contact_phone" in form.errors
+    assert "cannot contain letters" in form.errors["contact_phone"][0]
+
+
+def test_city_rejects_numbers():
+    """Verify that city names containing numbers are rejected."""
+    data = {
+        "code": "PLANT-KL-01",
+        "name": "Kochi Processing Facility",
+        "country": "IN",
+        "state_region": "Kerala",
+        "city": "Kochi 2",
+        "postal_code": "682001",
+        "timezone": "Asia/Kolkata",
+    }
+    form = SiteForm(data=data)
+    assert not form.is_valid()
+    assert "city" in form.errors
+    assert "cannot contain numbers" in form.errors["city"][0]

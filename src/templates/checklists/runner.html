@@ -1,6 +1,170 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Inspection Runner · {{ insp.template.name }} · FieldOps Nexus{% endblock %}
+{% block title %}Inspection Runner · {{ insp.template.name }} · FieldOps Nexus
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  function setFieldError(input, errorEl, msg) {
+    if (!input || !errorEl) return;
+    if (msg) {
+      input.classList.add("is-invalid");
+      input.setCustomValidity(msg);
+      errorEl.textContent = msg;
+      errorEl.style.display = "block";
+    } else {
+      input.classList.remove("is-invalid");
+      input.setCustomValidity("");
+      errorEl.textContent = "";
+      errorEl.style.display = "none";
+    }
+  }
+
+  // 1. Finding descriptions
+  document.querySelectorAll(".finding-form").forEach(function (form) {
+    const descInput = form.querySelector(".finding-desc-input");
+    const errDiv = form.querySelector(".field-error-message");
+    if (!descInput || !errDiv) return;
+
+    function validate() {
+      const val = descInput.value.trim();
+      if (!val) {
+        setFieldError(descInput, errDiv, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(descInput, errDiv, "Finding description must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(descInput, errDiv, "");
+      return true;
+    }
+
+    descInput.addEventListener("input", validate);
+    descInput.addEventListener("change", validate);
+
+    form.addEventListener("submit", function (e) {
+      const val = descInput.value.trim();
+      if (!val) {
+        e.preventDefault();
+        setFieldError(descInput, errDiv, "Finding description is required.");
+        descInput.focus();
+        return;
+      }
+      if (/\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(descInput, errDiv, "Finding description must contain only alphabetical characters and cannot contain numbers.");
+        descInput.focus();
+        return;
+      }
+    });
+  });
+
+  // 2. Technician Summary & Field Observations
+  const summaryEl = document.getElementById("id_summary");
+  const summaryErr = document.getElementById("summary-error");
+  const completeForm = summaryEl ? summaryEl.closest("form") : null;
+  if (summaryEl && summaryErr) {
+    function validateSummary() {
+      const val = summaryEl.value.trim();
+      if (!val) {
+        setFieldError(summaryEl, summaryErr, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(summaryEl, summaryErr, "Technician summary must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(summaryEl, summaryErr, "");
+      return true;
+    }
+
+    summaryEl.addEventListener("input", validateSummary);
+    summaryEl.addEventListener("change", validateSummary);
+
+    if (completeForm) {
+      completeForm.addEventListener("submit", function (e) {
+        const val = summaryEl.value.trim();
+        if (val && /\d/.test(val)) {
+          e.preventDefault();
+          setFieldError(summaryEl, summaryErr, "Technician summary must contain only alphabetical characters and cannot contain numbers.");
+          summaryEl.focus();
+          return;
+        }
+      });
+    }
+  }
+
+  // 3. Text item answers
+  document.querySelectorAll(".text-answer-input").forEach(function (input) {
+    const parent = input.closest("form");
+    const errDiv = parent ? parent.querySelector(".text-answer-error") : null;
+    if (!parent || !errDiv) return;
+
+    function validate() {
+      const val = input.value.trim();
+      if (!val) {
+        setFieldError(input, errDiv, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(input, errDiv, "Answer must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(input, errDiv, "");
+      return true;
+    }
+
+    input.addEventListener("input", validate);
+    input.addEventListener("change", validate);
+
+    parent.addEventListener("submit", function (e) {
+      const val = input.value.trim();
+      if (!val) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Answer is required.");
+        input.focus();
+        return;
+      }
+      if (/\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Answer must contain only alphabetical characters and cannot contain numbers.");
+        input.focus();
+        return;
+      }
+    });
+  });
+
+  // 4. Evidence caption
+  document.querySelectorAll(".evidence-caption-input").forEach(function (input) {
+    const parent = input.closest("form");
+    const errDiv = input.parentElement ? input.parentElement.querySelector(".field-error-message") : null;
+    if (!parent || !errDiv) return;
+
+    function validate() {
+      const val = input.value.trim();
+      if (val && /\d/.test(val)) {
+        setFieldError(input, errDiv, "Caption must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(input, errDiv, "");
+      return true;
+    }
+
+    input.addEventListener("input", validate);
+    input.addEventListener("change", validate);
+
+    parent.addEventListener("submit", function (e) {
+      const val = input.value.trim();
+      if (val && /\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Caption must contain only alphabetical characters and cannot contain numbers.");
+        input.focus();
+        return;
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="fx-page-header">
   <div>
@@ -130,9 +294,12 @@
               <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
             </div>
           {% else %}
-            <div class="input-group input-group-sm">
-              <input type="text" name="value" class="form-control" value="{% if r.response %}{{ r.response.value_text }}{% endif %}" placeholder="Enter response..." required maxlength="2000">
-              <button class="btn btn-outline-primary" type="submit">Save</button>
+            <div>
+              <div class="input-group input-group-sm">
+                <input type="text" name="value" class="form-control text-answer-input" value="{% if r.response %}{{ r.response.value_text }}{% endif %}" placeholder="Enter response..." required maxlength="2000">
+                <button class="btn btn-outline-primary" type="submit">Save</button>
+              </div>
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message text-answer-error" style="display: none;"></div>
             </div>
           {% endif %}
         </div>
@@ -169,7 +336,10 @@
         <form method="post" action="{% url 'checklists:inspection_upload_evidence' insp.pk r.item.pk %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap mb-2">
           {% csrf_token %}
           <input type="file" name="file" accept="image/*" capture="environment" class="form-control form-control-sm" style="max-width: 280px;" required>
-          <input type="text" name="description" placeholder="Caption / description (optional)" class="form-control form-control-sm" style="max-width: 220px;">
+          <div class="d-flex flex-column">
+            <input type="text" name="description" placeholder="Caption / description (optional)" class="form-control form-control-sm evidence-caption-input" style="max-width: 220px;">
+            <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message" style="display: none;"></div>
+          </div>
           <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
             {% icon 'upload' 12 %} Upload Photo
           </button>
@@ -208,10 +378,11 @@
               <div class="text-muted mt-0.5">Severity: {% status_badge r.finding.severity %} · Status: {% status_badge r.finding.status %}</div>
             </div>
           {% else %}
-            <form method="post" action="{% url 'checklists:inspection_add_finding' insp.pk r.item.pk %}" class="row g-2 align-items-end">
+            <form method="post" action="{% url 'checklists:inspection_add_finding' insp.pk r.item.pk %}" class="row g-2 align-items-start finding-form" novalidate>
               {% csrf_token %}
               <div class="col-sm-7">
-                <input type="text" name="description" class="form-control form-control-sm" placeholder="Describe the failure / defect..." required minlength="3">
+                <input type="text" name="description" class="form-control form-control-sm finding-desc-input" placeholder="Describe the failure / defect..." required minlength="3">
+                <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message" style="display: none;"></div>
               </div>
               <div class="col-sm-3">
                 <select name="severity" class="form-select form-select-sm">
@@ -245,6 +416,7 @@
     <div class="col-12">
       <label class="form-label small fw-semibold" for="id_summary">Technician Summary & Field Observations</label>
       <textarea name="summary" id="id_summary" rows="3" class="form-control" placeholder="Summarize inspection findings, equipment state, or additional observations..."></textarea>
+      <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message" id="summary-error" style="display: none;"></div>
     </div>
     <div class="col-12 d-flex justify-content-end gap-2">
       <a href="{% url 'checklists:inspection' insp.pk %}" class="btn btn-outline-secondary">Save Draft & Exit</a>
@@ -254,4 +426,168 @@
     </div>
   </form>
 </div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  function setFieldError(input, errorEl, msg) {
+    if (!input || !errorEl) return;
+    if (msg) {
+      input.classList.add("is-invalid");
+      input.setCustomValidity(msg);
+      errorEl.textContent = msg;
+      errorEl.style.display = "block";
+    } else {
+      input.classList.remove("is-invalid");
+      input.setCustomValidity("");
+      errorEl.textContent = "";
+      errorEl.style.display = "none";
+    }
+  }
+
+  // 1. Finding descriptions
+  document.querySelectorAll(".finding-form").forEach(function (form) {
+    const descInput = form.querySelector(".finding-desc-input");
+    const errDiv = form.querySelector(".field-error-message");
+    if (!descInput || !errDiv) return;
+
+    function validate() {
+      const val = descInput.value.trim();
+      if (!val) {
+        setFieldError(descInput, errDiv, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(descInput, errDiv, "Finding description must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(descInput, errDiv, "");
+      return true;
+    }
+
+    descInput.addEventListener("input", validate);
+    descInput.addEventListener("change", validate);
+
+    form.addEventListener("submit", function (e) {
+      const val = descInput.value.trim();
+      if (!val) {
+        e.preventDefault();
+        setFieldError(descInput, errDiv, "Finding description is required.");
+        descInput.focus();
+        return;
+      }
+      if (/\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(descInput, errDiv, "Finding description must contain only alphabetical characters and cannot contain numbers.");
+        descInput.focus();
+        return;
+      }
+    });
+  });
+
+  // 2. Technician Summary & Field Observations
+  const summaryEl = document.getElementById("id_summary");
+  const summaryErr = document.getElementById("summary-error");
+  const completeForm = summaryEl ? summaryEl.closest("form") : null;
+  if (summaryEl && summaryErr) {
+    function validateSummary() {
+      const val = summaryEl.value.trim();
+      if (!val) {
+        setFieldError(summaryEl, summaryErr, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(summaryEl, summaryErr, "Technician summary must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(summaryEl, summaryErr, "");
+      return true;
+    }
+
+    summaryEl.addEventListener("input", validateSummary);
+    summaryEl.addEventListener("change", validateSummary);
+
+    if (completeForm) {
+      completeForm.addEventListener("submit", function (e) {
+        const val = summaryEl.value.trim();
+        if (val && /\d/.test(val)) {
+          e.preventDefault();
+          setFieldError(summaryEl, summaryErr, "Technician summary must contain only alphabetical characters and cannot contain numbers.");
+          summaryEl.focus();
+          return;
+        }
+      });
+    }
+  }
+
+  // 3. Text item answers
+  document.querySelectorAll(".text-answer-input").forEach(function (input) {
+    const parent = input.closest("form");
+    const errDiv = parent ? parent.querySelector(".text-answer-error") : null;
+    if (!parent || !errDiv) return;
+
+    function validate() {
+      const val = input.value.trim();
+      if (!val) {
+        setFieldError(input, errDiv, "");
+        return true;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(input, errDiv, "Answer must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(input, errDiv, "");
+      return true;
+    }
+
+    input.addEventListener("input", validate);
+    input.addEventListener("change", validate);
+
+    parent.addEventListener("submit", function (e) {
+      const val = input.value.trim();
+      if (!val) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Answer is required.");
+        input.focus();
+        return;
+      }
+      if (/\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Answer must contain only alphabetical characters and cannot contain numbers.");
+        input.focus();
+        return;
+      }
+    });
+  });
+
+  // 4. Evidence caption
+  document.querySelectorAll(".evidence-caption-input").forEach(function (input) {
+    const parent = input.closest("form");
+    const errDiv = input.parentElement ? input.parentElement.querySelector(".field-error-message") : null;
+    if (!parent || !errDiv) return;
+
+    function validate() {
+      const val = input.value.trim();
+      if (val && /\d/.test(val)) {
+        setFieldError(input, errDiv, "Caption must contain only alphabetical characters and cannot contain numbers.");
+        return false;
+      }
+      setFieldError(input, errDiv, "");
+      return true;
+    }
+
+    input.addEventListener("input", validate);
+    input.addEventListener("change", validate);
+
+    parent.addEventListener("submit", function (e) {
+      const val = input.value.trim();
+      if (val && /\d/.test(val)) {
+        e.preventDefault();
+        setFieldError(input, errDiv, "Caption must contain only alphabetical characters and cannot contain numbers.");
+        input.focus();
+        return;
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

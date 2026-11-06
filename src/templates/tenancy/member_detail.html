@@ -127,7 +127,7 @@
             <form method="post" class="row g-2 align-items-end" novalidate>{% csrf_token %}
               <input type="hidden" name="action" value="assign_role">
               <div class="col-sm-5">
-                <label class="form-label small fw-semibold" for="id_role">Role</label>
+                <label class="form-label small fw-semibold" for="id_role">Role <span class="text-danger ms-1" title="Required">*</span></label>
                 {{ assign_form.role }}
                 {% for e in assign_form.role.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
               </div>

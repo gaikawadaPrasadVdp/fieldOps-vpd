@@ -653,8 +653,15 @@ class AssetStatusView(AssetBase):
 
     def post(self, request, pk, action):
         asset = _asset(request, pk, "asset.change_status")
+        reason = (request.POST.get("reason") or "").strip()
+        if not reason:
+            messages.error(request, "A reason is required for a status change.")
+            return redirect("assets:detail", pk=asset.pk)
+        if any(c.isdigit() for c in reason):
+            messages.error(request, "Reason must contain only alphabetical characters and cannot contain numbers.")
+            return redirect("assets:detail", pk=asset.pk)
         try:
-            services.change_status(asset, action=action, reason=request.POST.get("reason", ""),
+            services.change_status(asset, action=action, reason=reason,
                                    actor=request.user, request=request)
             messages.success(request, "Status updated.")
         except DomainError as exc:
@@ -670,15 +677,26 @@ class DocumentUploadView(AssetBase):
         asset = _asset(request, pk, "asset.document.manage")
         form = DocumentForm(request.POST, request.FILES)
         if not form.is_valid():
-            messages.error(request, "Choose a file to upload.")
+            error_msg = "Choose a file to upload."
+            for field in ["file", "doc_type", "title"]:
+                if field in form.errors and form.errors[field]:
+                    error_msg = str(form.errors[field][0])
+                    break
+            else:
+                for errs in form.errors.values():
+                    if errs:
+                        error_msg = str(errs[0])
+                        break
+            messages.error(request, error_msg)
             return _back(asset, "documents")
         d = form.cleaned_data
         try:
             services.add_document(asset, d["file"], title=d["title"], doc_type=d["doc_type"], actor=request.user,
                                   request=request)
             messages.success(request, "Document uploaded.")
-        except DomainError as exc:
-            messages.error(request, exc.message)
+        except (DomainError, ValidationError) as exc:
+            msg = exc.message if hasattr(exc, "message") else str(exc.messages[0] if hasattr(exc, "messages") else exc)
+            messages.error(request, msg)
         return _back(asset, "documents")
 
 
@@ -689,8 +707,12 @@ class DocumentRemoveView(AssetBase):
     def post(self, request, pk):
         doc = or404(selectors.get_document, request.membership, request.organization, pk)
         need(request, "asset.document.manage", doc.asset.site_id)
+        reason = (request.POST.get("reason") or "").strip()
+        if any(c.isdigit() for c in reason):
+            messages.error(request, "Reason must contain only alphabetical characters and cannot contain numbers.")
+            return _back(doc.asset, "documents")
         try:
-            services.remove_document(doc, reason=request.POST.get("reason", ""), actor=request.user, request=request)
+            services.remove_document(doc, reason=reason, actor=request.user, request=request)
             messages.success(request, "Document removed.")
         except DomainError as exc:
             messages.error(request, exc.message)

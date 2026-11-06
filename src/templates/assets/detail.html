@@ -303,7 +303,7 @@
               {% if d.attachment_id %}<a class="btn btn-sm btn-outline-primary" href="{% url 'files:download' d.attachment_id %}">Download</a>{% endif %}
               {% if can.asset_document_manage %}
                 <form method="post" action="{% url 'assets:document_remove' d.pk %}" class="d-inline-flex gap-1 ms-1 align-items-center">
-                  {% csrf_token %}<input class="form-control form-control-sm" style="width:9rem" name="reason" placeholder="Reason" aria-label="Reason for removing {{ d.title }}" required minlength="3"><button class="btn btn-sm btn-outline-danger">Remove</button>
+                  {% csrf_token %}<input class="form-control form-control-sm" style="width:9rem" name="reason" placeholder="Reason" aria-label="Reason for removing {{ d.title }}" required minlength="3" pattern="^[A-Za-z\s'-]+$" title="Reason must contain only alphabetical characters."><button class="btn btn-sm btn-outline-danger">Remove</button>
                 </form>
               {% endif %}
             </td>
@@ -316,14 +316,25 @@
   </div>
   {% if can.asset_document_manage %}
     <div class="fx-card-body border-top">
-      <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+      <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end" id="document-upload-form" novalidate>
         {% csrf_token %}
-        <div class="col-md-4"><label class="form-label small" for="id_file">File</label>{{ doc_form.file }}</div>
-        <div class="col-md-3"><label class="form-label small" for="id_title">Title</label>{{ doc_form.title }}</div>
-        <div class="col-md-3"><label class="form-label small" for="id_doc_type">Type</label>{{ doc_form.doc_type }}</div>
-        <div class="col-md-2"><button class="btn btn-primary w-100">Upload</button></div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" for="id_file">File <span class="text-danger ms-1" title="Required">*</span></label>
+          {{ doc_form.file }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold" for="id_title">Title</label>
+          {{ doc_form.title }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold" for="id_doc_type">Type <span class="text-danger ms-1" title="Required">*</span></label>
+          {{ doc_form.doc_type }}
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" type="submit">Upload</button>
+        </div>
       </form>
-      <div class="form-text">PDF, images, Office documents, text/CSV. Content type and size are validated on the server.</div>
+      <div class="form-text mt-2">Photographs (JPG, PNG, WebP), PDF documents, and other supported files. Content type and size are validated on the server.</div>
     </div>
   {% endif %}
 </div>
@@ -344,7 +355,7 @@
       {% if can.asset_meter_record and m.is_active and not terminal %}
         <form method="post" action="{% url 'assets:meter_reading' m.pk %}" class="row g-2 align-items-end">
           {% csrf_token %}
-          <div class="col-md-3"><label class="form-label small" for="v{{ m.pk }}">New reading ({{ m.unit }})</label><input id="v{{ m.pk }}" class="form-control" name="value" type="number" step="0.001" min="0" required></div>
+          <div class="col-md-3"><label class="form-label small" for="v{{ m.pk }}">New reading ({{ m.unit }}) <span class="text-danger ms-1" title="Required">*</span></label><input id="v{{ m.pk }}" class="form-control" name="value" type="number" step="0.001" min="0" required></div>
           <div class="col-md-3"><label class="form-label small" for="t{{ m.pk }}">Time (blank = now)</label><input id="t{{ m.pk }}" class="form-control" name="read_at" type="datetime-local"></div>
           <div class="col-md-4"><label class="form-label small" for="n{{ m.pk }}">Notes</label><input id="n{{ m.pk }}" class="form-control" name="notes" maxlength="300"></div>
           <div class="col-md-2"><button class="btn btn-primary w-100">Record</button></div>
@@ -361,8 +372,8 @@
     <div class="fx-card-body">
       <form method="post" action="{% url 'assets:meter_create' asset.pk %}" class="row g-2 align-items-end">
         {% csrf_token %}
-        <div class="col-sm-5"><label class="form-label small" for="id_name">Name</label>{{ meter_form.name }}</div>
-        <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit</label>{{ meter_form.unit }}</div>
+        <div class="col-sm-5"><label class="form-label small" for="id_name">Name <span class="text-danger ms-1" title="Required">*</span></label>{{ meter_form.name }}</div>
+        <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit <span class="text-danger ms-1" title="Required">*</span></label>{{ meter_form.unit }}</div>
         <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Add meter</button></div>
       </form>
     </div>
