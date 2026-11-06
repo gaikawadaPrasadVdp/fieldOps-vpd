@@ -13,7 +13,8 @@ class TenantPermissionMixin(LoginRequiredMixin):
     """identity -> active organization membership -> permission. Object ownership is enforced by the
     tenant-scoped default managers; state by services. Subclasses set ``required_permission``."""
 
-    required_permission: str | None = None
+    required_permission: str | tuple[str, ...] | list[str] | None = None
+    required_permissions: tuple[str, ...] | list[str] | None = None
     raise_exception = False
 
     def dispatch(self, request, *args, **kwargs):
@@ -23,8 +24,20 @@ class TenantPermissionMixin(LoginRequiredMixin):
             return self._render_tenant_error(request)
         if request.membership is None:
             return redirect("ui:choose_org")
-        code = self.required_permission
-        if code is None or not rbac.has_permission_anywhere(request.membership, code):
+
+        perms = []
+        if self.required_permission:
+            if isinstance(self.required_permission, (list, tuple)):
+                perms.extend(self.required_permission)
+            else:
+                perms.append(self.required_permission)
+        if getattr(self, "required_permissions", None):
+            if isinstance(self.required_permissions, (list, tuple)):
+                perms.extend(self.required_permissions)
+            else:
+                perms.append(self.required_permissions)
+
+        if not perms or not any(rbac.has_permission_anywhere(request.membership, p) for p in perms):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 

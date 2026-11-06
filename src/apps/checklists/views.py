@@ -40,7 +40,22 @@ def _template(request, pk):
 
 
 class TemplateListView(_View):
-    required_permission = "checklist.view"
+    required_permissions = (
+        "checklist.view",
+        "checklist.manage",
+        "checklist.execute",
+        "inspection.view",
+        "inspection.execute",
+    )
+
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        if m:
+            for p in self.required_permissions:
+                if rbac.has_permission_anywhere(m, p):
+                    self.required_permission = p
+                    break
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
         all_templates = selectors.templates_for(request.organization)
@@ -93,7 +108,22 @@ class TemplateCreateView(_View):
 
 
 class TemplateDetailView(_View):
-    required_permission = "checklist.view"
+    required_permissions = (
+        "checklist.view",
+        "checklist.manage",
+        "checklist.execute",
+        "inspection.view",
+        "inspection.execute",
+    )
+
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        if m:
+            for p in self.required_permissions:
+                if rbac.has_permission_anywhere(m, p):
+                    self.required_permission = p
+                    break
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, pk):
         t = _template(request, pk)
@@ -363,6 +393,7 @@ class InspectionSaveAnswerView(_View):
     def post(self, request, pk, item_id):
         insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
         need(request, "inspection.execute", insp.site_id)
+        item = or404(scoped_get, selectors.items_for(request.organization, insp.template), item_id, "Item")
         raw_val = request.POST.get("value", "").strip()
 
         # Parse boolean or text
@@ -370,6 +401,16 @@ class InspectionSaveAnswerView(_View):
             ans_val = True if raw_val == "PASS" else False
         else:
             ans_val = raw_val
+            if item.item_type == "TEXT":
+                if not ans_val:
+                    messages.error(request, "Answer is required.")
+                    return redirect("checklists:inspection_run", pk=insp.pk)
+                if any(character.isdigit() for character in ans_val):
+                    messages.error(request, "Answer must contain only alphabetical characters and cannot contain numbers.")
+                    return redirect("checklists:inspection_run", pk=insp.pk)
+                if not any(character.isalpha() for character in ans_val):
+                    messages.error(request, "Answer must contain alphabetical text.")
+                    return redirect("checklists:inspection_run", pk=insp.pk)
 
         try:
             services.save_responses(insp, {str(item_id): ans_val}, membership=request.membership,
@@ -399,6 +440,13 @@ class InspectionUploadEvidenceView(_View):
             return redirect("checklists:inspection_run", pk=insp.pk)
 
         desc = request.POST.get("description", "").strip()
+        if desc:
+            if any(character.isdigit() for character in desc):
+                messages.error(request, "Caption must contain only alphabetical characters and cannot contain numbers.")
+                return redirect("checklists:inspection_run", pk=insp.pk)
+            if not any(character.isalpha() for character in desc):
+                messages.error(request, "Caption must contain alphabetical text.")
+                return redirect("checklists:inspection_run", pk=insp.pk)
         try:
             services.add_response_evidence(insp, item, uploaded, description=desc,
                                            membership=request.membership, actor=request.user, request=request)
@@ -423,6 +471,15 @@ class InspectionAddFindingView(_View):
 
         desc = request.POST.get("description", "").strip()
         sev = request.POST.get("severity", "MEDIUM")
+        if not desc:
+            messages.error(request, "Finding description is required.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
+        if any(character.isdigit() for character in desc):
+            messages.error(request, "Finding description must contain only alphabetical characters and cannot contain numbers.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
+        if not any(character.isalpha() for character in desc):
+            messages.error(request, "Finding description must contain alphabetical text.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
         try:
             services.add_finding(insp, description=desc, severity=sev, item=item,
                                  membership=request.membership, actor=request.user, request=request)
@@ -443,7 +500,14 @@ class InspectionCompleteView(_View):
     def post(self, request, pk):
         insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
         need(request, "inspection.execute", insp.site_id)
-        summary = request.POST.get("summary", "")
+        summary = request.POST.get("summary", "").strip()
+        if summary:
+            if any(character.isdigit() for character in summary):
+                messages.error(request, "Technician summary must contain only alphabetical characters and cannot contain numbers.")
+                return redirect("checklists:inspection_run", pk=insp.pk)
+            if not any(character.isalpha() for character in summary):
+                messages.error(request, "Technician summary must contain alphabetical text.")
+                return redirect("checklists:inspection_run", pk=insp.pk)
 
         try:
             services.complete_inspection(insp, membership=request.membership, actor=request.user,
@@ -492,7 +556,11 @@ class FindingResolveView(_View):
     def post(self, request, pk):
         f = or404(selectors.get_finding, request.membership, request.organization, pk)
         need(request, "inspection.review", f.site_id)
-        form = ReasonForm({"reason": request.POST.get("reason", "")})
+        reason_val = request.POST.get("reason", "").strip()
+        if reason_val and any(character.isdigit() for character in reason_val):
+            messages.error(request, "Resolution notes must contain only alphabetical characters and cannot contain numbers.")
+            return redirect("checklists:inspection", pk=f.inspection_id)
+        form = ReasonForm({"reason": reason_val})
         if not form.is_valid():
             messages.error(request, "Enter the resolution notes.")
         else:

@@ -16,7 +16,7 @@ from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 
 from . import selectors, services
-from .models import Downtime, ServiceRequest
+from .models import Downtime, ServiceRequest, ServiceRequestComment
 from .workflow import ACTION_PERMISSIONS, REQUEST_STATUS, SYSTEM_ACTIONS
 
 
@@ -30,6 +30,27 @@ class DowntimeSerializer(serializers.ModelSerializer):
 
     def get_duration_seconds(self, obj) -> int | None:
         return int(obj.duration.total_seconds()) if obj.duration is not None else None
+
+
+class ServiceRequestCommentSerializer(serializers.ModelSerializer):
+    author_display = serializers.CharField(read_only=True)
+    author_id = serializers.UUIDField(source="author.id", read_only=True)
+    is_client = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceRequestComment
+        fields = [
+            "id", "request", "author_id", "author_display", "author_name",
+            "body", "is_internal", "is_client", "created_at"
+        ]
+        read_only_fields = [
+            "id", "request", "author_id", "author_display", "author_name",
+            "is_client", "created_at"
+        ]
+
+    def get_is_client(self, obj) -> bool:
+        from apps.ui.utils import is_client_membership
+        return bool(obj.author_membership and is_client_membership(obj.author_membership))
 
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
@@ -88,6 +109,14 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     asset = serializers.UUIDField()
     kind = serializers.ChoiceField(choices=ServiceRequest.Kind.choices, required=False)
     title = serializers.CharField(max_length=200)
+
+    def validate_title(self, value):
+        from apps.ui.forms import validate_alphabetical_description
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_alphabetical_description(value, field_label="Title")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)
@@ -129,6 +158,16 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
 
 class ServiceRequestPatchSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200, required=False)
+
+    def validate_title(self, value):
+        if value:
+            from apps.ui.forms import validate_alphabetical_description
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            try:
+                return validate_alphabetical_description(value, field_label="Title")
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.message)
+        return value
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)
@@ -222,6 +261,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "downtime:put": "incident.downtime.manage",
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
+        "comments": "incident.view_assigned", "delete_comment": "incident.view_assigned",
     }
 
     def _qs(self, request, scope="incident.view"):
@@ -402,3 +442,51 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         att = services.add_evidence(sr, d["file"], description=d.get("description", ""), actor=request.user,
                                     request=request)
         return Response(RequestEvidenceSerializer(att).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get", "post"])
+    def comments(self, request, pk=None):
+        sr = self._obj(request, pk)
+        m, org = request.membership, request.organization
+
+        if request.method.lower() == "get":
+            qs = selectors.comments_for(m, org, sr)
+            return Response(ServiceRequestCommentSerializer(qs, many=True).data)
+
+        # POST: create comment
+        body = request.data.get("body", "")
+        is_internal = bool(request.data.get("is_internal", False))
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(m):
+            is_internal = False
+        try:
+            comment = services.add_comment(
+                sr,
+                body=body,
+                actor=request.user,
+                membership=m,
+                is_internal=is_internal,
+                request=request,
+            )
+            return Response(ServiceRequestCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        except DomainError as exc:
+            return Response(
+                {"detail": exc.message, "code": getattr(exc, "code", "domain_error")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["delete"], url_path=r"comments/(?P<comment_id>[0-9a-f-]+)")
+    def delete_comment(self, request, pk=None, comment_id=None):
+        sr = self._obj(request, pk)
+        try:
+            services.delete_comment(
+                request.organization,
+                comment_id,
+                actor=request.user,
+                membership=request.membership,
+                request=request,
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except DomainError as exc:
+            code = getattr(exc, "code", "error")
+            status_code = status.HTTP_403_FORBIDDEN if "permission" in code else status.HTTP_400_BAD_REQUEST
+            return Response({"detail": exc.message, "code": code}, status=status_code)

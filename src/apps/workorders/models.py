@@ -231,6 +231,20 @@ class WorkOrder(TenantOwnedModel):
     def signoff(self):
         return getattr(self, "customer_signoff", None)
 
+    @property
+    def latest_coverage_check(self):
+        return self.coverage_checks.select_related("agreement__provider").first()
+
+    @property
+    def coverage_expiry_warning(self):
+        from django.apps import apps
+        if apps.is_installed("apps.contracts"):
+            from apps.contracts.services import check_coverage_expiry_mid_job
+            expires, msg = check_coverage_expiry_mid_job(self)
+            if expires:
+                return msg
+        return ""
+
     def __str__(self):
         return f"{self.order_number} · {self.title}"
 

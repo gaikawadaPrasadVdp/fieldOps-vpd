@@ -390,9 +390,6 @@ def blocked_reason(sch: MaintenanceSchedule) -> str:
         return "asset_terminal"
     if sch.trigger_type == Trigger.METER and not sch.meter.is_active:
         return "meter_inactive"
-    if MaintenanceCycle.objects.for_organization(sch.organization).filter(
-            schedule=sch).exclude(work_order__status__in=("CLOSED", "CANCELLED")).exists():
-        return "previous_order_open"
     return ""
 
 
@@ -469,15 +466,14 @@ def generate_cycle(schedule: MaintenanceSchedule, *, actor=None, now: datetime |
     reason = blocked_reason(sch)
     if reason:
         if manual:
-            code = "previous_cycle_open" if reason == "previous_order_open" else reason
-            raise Conflict(f"This schedule cannot generate work now ({reason.replace('_', ' ')}).", code=code)
+            raise Conflict(f"This schedule cannot generate work now ({reason.replace('_', ' ')}).", code=reason)
         return None
     sch.last_run_at = now
     due = evaluate(sch, now)
     if due is None and manual:
         if MaintenanceCycle.objects.for_organization(sch.organization).filter(schedule=sch).exclude(
                 work_order__status__in=("CLOSED", "CANCELLED")).exists():
-            raise Conflict("This schedule cannot generate work now (previous order open).", code="previous_cycle_open")
+            raise Conflict("The previous cycle's work order is still open: finish it before generating the next occurrence early.", code="previous_cycle_open")
         if sch.trigger_type == Trigger.TIME:
             due = rec.Due(sch.next_sequence, 0, due_date=sch.next_due_date)
         else:

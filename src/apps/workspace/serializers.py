@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 
-from .models import TravelLog, WorkNote
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 
 class TravelLogSerializer(serializers.ModelSerializer):
@@ -271,3 +271,90 @@ class JobReportDefectSerializer(serializers.Serializer):
 
 
 
+
+
+class ShiftSerializer(serializers.ModelSerializer):
+    duration_hours = serializers.DecimalField(max_digits=4, decimal_places=2, read_only=True)
+    site_name = serializers.CharField(source="site.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Shift
+        fields = [
+            "id",
+            "code",
+            "name",
+            "start_time",
+            "end_time",
+            "duration_hours",
+            "days_of_week",
+            "site_id",
+            "site_name",
+            "is_active",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ShiftWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shift
+        fields = [
+            "code",
+            "name",
+            "start_time",
+            "end_time",
+            "days_of_week",
+            "site",
+            "is_active",
+            "notes",
+        ]
+
+
+class TechnicianProfileSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="membership.user.full_name", read_only=True)
+    email = serializers.CharField(source="membership.user.email", read_only=True)
+    shift_name = serializers.CharField(source="shift.name", read_only=True, allow_null=True)
+    site_name = serializers.CharField(source="primary_site.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = TechnicianProfile
+        fields = [
+            "id",
+            "membership_id",
+            "full_name",
+            "email",
+            "shift_id",
+            "shift_name",
+            "primary_site_id",
+            "site_name",
+            "skills",
+            "certifications",
+            "hourly_rate",
+            "max_active_jobs",
+            "availability_status",
+            "emergency_contact",
+            "emergency_phone",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class TechnicianProfileWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TechnicianProfile
+        fields = [
+            "shift",
+            "primary_site",
+            "skills",
+            "certifications",
+            "hourly_rate",
+            "max_active_jobs",
+            "availability_status",
+            "emergency_contact",
+            "emergency_phone",
+            "notes",
+        ]

@@ -3,7 +3,7 @@ from django import forms
 from django.utils import timezone
 
 from apps.assets.models import Asset
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
 
 from .models import ServiceRequest
 
@@ -50,6 +50,23 @@ class RequestForm(BootstrapFormMixin, forms.Form):
                 if f in self.fields:
                     del self.fields[f]
 
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        validate_alphabetical_description(title, field_label="Title")
+        return title
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Description")
+        return description
+
+    def clean_impact_notes(self):
+        notes = (self.cleaned_data.get("impact_notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Impact notes")
+        return notes
+
     def clean(self):
         cleaned = super().clean()
         now = timezone.now()
@@ -87,6 +104,12 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
     priority = forms.ChoiceField(choices=[("", "(from severity)"), ("LOW", "Low"), ("MEDIUM", "Medium"),
                                           ("HIGH", "High"), ("URGENT", "Urgent")], required=False)
 
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        if title:
+            validate_alphabetical_description(title, field_label="Title")
+        return title
+
 
 class DowntimeForm(BootstrapFormMixin, forms.Form):
     started_at = dt_field("Downtime started", required=True)
@@ -96,3 +119,25 @@ class DowntimeForm(BootstrapFormMixin, forms.Form):
 class EvidenceForm(BootstrapFormMixin, forms.Form):
     file = forms.FileField()
     description = forms.CharField(max_length=200, required=False)
+
+
+class ServiceRequestCommentForm(BootstrapFormMixin, forms.Form):
+    body = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "rows": 3,
+            "placeholder": "Type your message or update...",
+        }),
+        max_length=5000,
+        required=True,
+        label="Message",
+    )
+    is_internal = forms.BooleanField(
+        required=False,
+        label="Internal note (staff only, hidden from client)",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def __init__(self, *args, is_staff=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not is_staff and "is_internal" in self.fields:
+            self.fields.pop("is_internal")

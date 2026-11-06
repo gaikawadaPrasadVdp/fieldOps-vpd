@@ -5,7 +5,7 @@ from django import forms
 from apps.assets.models import Asset
 from apps.incidents.models import ServiceRequest
 from apps.sites.models import Site
-from apps.ui.forms import BootstrapFormMixin, validate_phone_number
+from apps.ui.forms import BootstrapFormMixin, validate_phone_number, validate_alphabetical_description
 
 
 class _PortalAssetSelect(forms.Select):
@@ -127,6 +127,23 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
         if site and asset and asset.site_id != site.pk:
             self.add_error("asset", "The selected asset does not belong to the chosen site / location.")
         return cleaned_data
+
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        validate_alphabetical_description(title, field_label="Request Title / Subject")
+        return title
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Problem Description")
+        return description
+
+    def clean_impact_notes(self):
+        notes = (self.cleaned_data.get("impact_notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Impact Notes")
+        return notes
 
 
 class PortalAccountEditForm(BootstrapFormMixin, forms.Form):

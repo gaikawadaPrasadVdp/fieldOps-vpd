@@ -61,7 +61,8 @@ def get_portal_account(membership: Membership | None) -> PortalAccount | None:
     """Returns the portal account for the given membership, if any."""
     if membership is None:
         return None
-    return PortalAccount.objects.for_organization(membership.organization).filter(
+    return PortalAccount.objects.for_organization(membership.organization_id).filter(
+        organization_id=membership.organization_id,
         membership=membership,
     ).select_related("membership", "membership__user", "organization").first()
 

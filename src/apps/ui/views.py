@@ -35,14 +35,7 @@ PRD_MODULES = [
 
 
 def root(request):
-    """Public landing page for visitors; authenticated users are routed to their workspace."""
-    if request.user.is_authenticated:
-        if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-            return redirect("platform_admin:organizations")
-        membership = getattr(request, "membership", None)
-        if membership and is_client_membership(membership):
-            return redirect("portal:dashboard")
-        return redirect("ui:home")
+    """Public landing page for all visitors and authenticated users."""
     return render(request, "public/landing.html", {"active_page": "home"})
 
 

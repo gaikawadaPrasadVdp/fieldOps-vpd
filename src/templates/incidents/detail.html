@@ -368,7 +368,119 @@
             <dt>Criticality</dt>
             <dd>{% status_badge sr.asset.criticality %}</dd>
           {% endif %}
+          <dt>Warranty / AMC</dt>
+          <dd id="sr-coverage-status">
+            {% if sr.coverage and sr.coverage.best %}
+              {% if sr.coverage.eligible %}
+                <span class="badge bg-success text-white">Covered</span>
+                <span class="ms-1 fw-medium text-dark">{{ sr.coverage.best.agreement.get_kind_display }} {{ sr.coverage.best.agreement.reference }}</span>
+                {% if sr.coverage.best.agreement.provider %}<span class="text-muted">({{ sr.coverage.best.agreement.provider.name }})</span>{% endif %}
+                <div class="text-muted small mt-1">Valid through {{ sr.coverage.best.agreement.end_date|date:"d M Y" }}</div>
+              {% else %}
+                <span class="badge bg-warning text-dark">{{ sr.coverage.best.status|title }}</span>
+                <div class="text-muted small mt-1">{{ sr.coverage.reason }}</div>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-secondary text-white">Not Covered</span>
+              <div class="text-muted small mt-1">No active warranty or AMC agreement linked.</div>
+            {% endif %}
+          </dd>
         </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% elif tab == "comments" %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Communication Thread</span>
+        <span class="text-body-secondary small">{{ comments|length }} message{{ comments|length|pluralize }}</span>
+      </div>
+      <div class="fx-card-body p-3">
+        <div class="d-flex flex-column gap-3" id="comments-thread">
+          {% for c in comments %}
+            <div class="p-3 rounded border {% if c.is_internal %}bg-warning-subtle border-warning-subtle{% else %}bg-light border-light-subtle{% endif %} position-relative" id="comment-{{ c.pk }}">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom {% if c.is_internal %}border-warning-subtle{% else %}border-light-subtle{% endif %}">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="fx-avatar rounded-circle {% if c.is_internal %}bg-warning text-dark{% else %}bg-primary text-white{% endif %} d-flex align-items-center justify-content-center fw-bold small" style="width: 28px; height: 28px;">
+                    {{ c.author_display|slice:":1"|upper }}
+                  </div>
+                  <div>
+                    <span class="fw-semibold small text-dark">{{ c.author_display }}</span>
+                    {% if c.is_internal %}
+                      <span class="badge bg-warning text-dark border border-warning ms-1" style="font-size: 0.7rem;">
+                        {% icon 'lock' 11 %} Internal Note (Staff Only)
+                      </span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size: 0.7rem;">
+                        Client Visible
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="text-body-secondary small" title="{{ c.created_at }}">{{ c.created_at|date:"d M Y H:i" }}</span>
+                  {% if c.author_id == request.user.id or request.membership.membership_roles.all %}
+                    <form method="post" action="{% url 'incidents:comment_delete' sr.pk c.pk %}" class="d-inline m-0" onsubmit="return confirm('Delete this comment?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-link btn-sm text-danger p-0 border-0" title="Delete message" aria-label="Delete message">
+                        {% icon 'trash-2' 13 %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="text-body small" style="white-space: pre-wrap; word-break: break-word;">{{ c.body }}</div>
+            </div>
+          {% empty %}
+            {% include "components/_empty_state.html" with title="No messages yet" text="Start a conversation with the client or leave an internal staff note." %}
+          {% endfor %}
+        </div>
+      </div>
+      {% if sr.status != "CLOSED" and sr.status != "REJECTED" %}
+        <div class="fx-card-body border-top bg-body-tertiary">
+          <form method="post" action="{% url 'incidents:comments' sr.pk %}">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold small" for="id_comment_body">New Message or Note</label>
+              {{ comment_form.body }}
+              <div class="form-text small">Markdown and plain text are sanitized. Maximum 5,000 characters.</div>
+            </div>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                {% if comment_form.is_internal %}
+                  <div class="form-check form-switch">
+                    {{ comment_form.is_internal }}
+                    <label class="form-check-label small fw-medium" for="{{ comment_form.is_internal.id_for_label }}">
+                      {{ comment_form.is_internal.label }}
+                    </label>
+                  </div>
+                {% endif %}
+              </div>
+              <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btn-post-comment">
+                {% icon 'send' 14 %} Send Message
+              </button>
+            </div>
+          </form>
+        </div>
+      {% else %}
+        <div class="fx-card-body border-top text-body-secondary small text-center">
+          This service request is {{ sr.status|lower }}. New comments cannot be posted.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header">Communication Guidelines</div>
+      <div class="fx-card-body small">
+        <p class="mb-2"><strong>Client-Visible Messages:</strong> Visible to the customer in the Client Portal and sent as in-app updates.</p>
+        <p class="mb-2"><strong>Internal Notes:</strong> Strictly hidden from clients; visible only to internal technicians, supervisors, and operations dispatchers.</p>
+        <p class="text-muted mb-0">Use this thread to provide status clarifications, discuss scheduling details, or document diagnostic findings.</p>
       </div>
     </div>
   </div>

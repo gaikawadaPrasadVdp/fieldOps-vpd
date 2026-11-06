@@ -27,6 +27,64 @@ def validate_phone_number(value: str | None) -> str:
     return val
 
 
+def validate_alphabetical_description(value: str | None, field_label: str = "Description") -> str:
+    """Validates that a descriptive text field contains alphabetical text only and cannot contain numbers."""
+    if not value:
+        return ""
+    val = value.strip()
+    if not val:
+        return ""
+    if any(character.isdigit() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain alphabetical text.")
+    allowed_punctuation = set(".,;:!?'\"’“”()[]/\\-–—_&%\r\n\t")
+    if any(not (character.isalpha() or character.isspace() or character in allowed_punctuation) for character in val):
+        raise ValidationError(f"{field_label} can contain letters, spaces, and standard punctuation only.")
+    return val
+
+
+_NAME_ALPHABETICAL_RE = re.compile(r"^[A-Za-z\s'-]+$")
+
+
+def validate_alphabetical_name(value: str | None, field_label: str = "Name", min_len: int = 2, required: bool = True) -> str:
+    """Validates that a name field contains only alphabetical characters and spaces."""
+    if not value or not str(value).strip():
+        if required:
+            raise ValidationError(f"{field_label} is required.")
+        return ""
+    val = str(value).strip()
+    if len(val) < min_len:
+        raise ValidationError(f"{field_label} must be at least {min_len} characters.")
+    if any(character.isdigit() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not _NAME_ALPHABETICAL_RE.match(val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters.")
+    return val
+
+
+_EMAIL_STRICT_RE = re.compile(
+    r"^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$"
+)
+
+
+def validate_strict_email(value: str | None) -> str:
+    """Validates email format strictly: domain must start with a letter and have a valid extension (e.g. .com)."""
+    if not value:
+        raise ValidationError("Email address is required.")
+    val = value.strip().lower()
+    if not val:
+        raise ValidationError("Email address is required.")
+    if len(val) > 254:
+        raise ValidationError("Email address cannot exceed 254 characters.")
+    if not _EMAIL_STRICT_RE.match(val):
+        raise ValidationError(
+            "Enter a valid email address with a valid domain (e.g. user@gmail.com). "
+            "Domain names must start with a letter and have a valid extension (e.g. .com)."
+        )
+    return val
+
+
 class BootstrapFormMixin:
     """Gives widgets Bootstrap 5 classes so server-rendered forms look consistent."""
 
@@ -86,10 +144,7 @@ class ClientOnboardingForm(BootstrapFormMixin, forms.Form):
     )
 
     def clean_full_name(self):
-        val = (self.cleaned_data.get("full_name") or "").strip()
-        if not val or len(val) < 2:
-            raise forms.ValidationError("Full name must be at least 2 characters.")
-        return val
+        return validate_alphabetical_name(self.cleaned_data.get("full_name"), field_label="Full name")
 
     def clean_phone(self):
         return validate_phone_number(self.cleaned_data.get("phone"))

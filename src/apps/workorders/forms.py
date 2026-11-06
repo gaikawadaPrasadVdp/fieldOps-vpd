@@ -10,7 +10,7 @@ from apps.incidents.workflow import APPROVED
 from apps.rbac import services as rbac
 from apps.sites.models import Site
 from apps.tenancy.models import Membership
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
 
 from .assignment_rules import available_technicians
 from .models import WorkOrder
@@ -163,9 +163,20 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
 
     def clean_title(self):
         title = self.cleaned_data["title"].strip()
-        if not title or any(not (character.isalnum() or character.isspace() or character in "-_") for character in title):
-            raise ValidationError("Title can contain letters, numbers, hyphens, underscores, and spaces only.")
+        validate_alphabetical_description(title, field_label="Title")
         return title
+
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        if title:
+            validate_alphabetical_description(title, field_label="Title")
+        return title
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Description")
+        return description
 
 class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
     site = forms.ModelChoiceField(queryset=Site.objects.none())
@@ -248,6 +259,12 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
             if hours > available_hours:
                 self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
         return cleaned
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Description")
+        return description
 
 
 class PlanForm(BootstrapFormMixin, forms.Form):
@@ -386,17 +403,28 @@ class ReassignForm(AssignForm):
         reason = (self.cleaned_data.get("reason") or "").strip()
         if not reason:
             raise forms.ValidationError("Reason for reassignment is mandatory.")
+        validate_alphabetical_description(reason, field_label="Reason for reassignment")
         return reason
 
 
 class ReasonForm(BootstrapFormMixin, forms.Form):
-    reason = forms.CharField(max_length=500)
+    reason = forms.CharField(max_length=500, label="Reason")
+
+    def clean_reason(self):
+        reason = (self.cleaned_data.get("reason") or "").strip()
+        validate_alphabetical_description(reason, field_label="Reason")
+        return reason
 
 
 class WorkUpdateForm(BootstrapFormMixin, forms.Form):
     update = forms.CharField(min_length=5, max_length=1000, label="Work update",
                              help_text="Describe progress, findings, blockers, or the next step.",
                              widget=forms.Textarea(attrs={"rows": 4}))
+
+    def clean_update(self):
+        update = (self.cleaned_data.get("update") or "").strip()
+        validate_alphabetical_description(update, field_label="Work update")
+        return update
 
 
 class CompleteForm(BootstrapFormMixin, forms.Form):
@@ -410,6 +438,12 @@ class CompleteForm(BootstrapFormMixin, forms.Form):
         },
         widget=forms.Textarea(attrs={"rows": 4}),
     )
+
+    def clean_resolution_notes(self):
+        resolution_notes = (self.cleaned_data.get("resolution_notes") or "").strip()
+        validate_alphabetical_description(resolution_notes, field_label="Resolution notes")
+        return resolution_notes
+
 
 class ChecklistForm(BootstrapFormMixin, forms.Form):
     items = forms.CharField(label="Provisional checklist notes", help_text="Not used to validate completion.",
@@ -426,11 +460,22 @@ class ReviewForm(BootstrapFormMixin, forms.Form):
     approved = forms.BooleanField(required=False, label="Approve and close")
     notes = forms.CharField(max_length=1000, required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
+    def clean_notes(self):
+        notes = (self.cleaned_data.get("notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Review notes")
+        return notes
+
 
 class ClosureCommentForm(BootstrapFormMixin, forms.Form):
     comment = forms.CharField(min_length=1, max_length=1000,
                               widget=forms.Textarea(attrs={"rows": 3}),
                               help_text="This decision is appended to the work-order approval history.")
+
+    def clean_comment(self):
+        comment = (self.cleaned_data.get("comment") or "").strip()
+        validate_alphabetical_description(comment, field_label="Comment")
+        return comment
 
 
 class LaborForm(BootstrapFormMixin, forms.Form):
@@ -495,9 +540,10 @@ class LaborForm(BootstrapFormMixin, forms.Form):
 
             start_date = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
             cleaned_data["work_date"] = start_date
-        elif work_date and hours:
+        elif work_date is not None and hours is not None:
             if work_date > timezone.localdate():
                 self.add_error("work_date", "Work date cannot be in the future.")
+                self.add_error(None, "Work date cannot be in the future.")
         else:
             if not started_at:
                 self.add_error("started_at", "Enter the start record date and time.")
@@ -505,6 +551,11 @@ class LaborForm(BootstrapFormMixin, forms.Form):
                 self.add_error("ended_at", "Enter the end record date and time.")
 
         return cleaned_data
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        validate_alphabetical_description(description, field_label="Work performed")
+        return description
 
 
 class MaterialForm(BootstrapFormMixin, forms.Form):
@@ -517,7 +568,19 @@ class MaterialForm(BootstrapFormMixin, forms.Form):
     notes = forms.CharField(label="Usage notes", max_length=500, required=False,
                              widget=forms.Textarea(attrs={"rows": 3}))
 
+    def clean_notes(self):
+        notes = (self.cleaned_data.get("notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Usage notes")
+        return notes
+
 
 class EvidenceForm(BootstrapFormMixin, forms.Form):
     file = forms.FileField()
     description = forms.CharField(max_length=200, required=False)
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Description")
+        return description

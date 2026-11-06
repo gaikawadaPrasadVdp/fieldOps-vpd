@@ -1,6 +1,6 @@
 from django import forms
 
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
 
 from .models import Part, Warehouse
 
@@ -30,6 +30,15 @@ class WholeNumberField(forms.IntegerField):
                 pass
         return value
 
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        raw = str(value).strip()
+        label_prefix = f"{self.label} " if self.label else "Value "
+        if any(c.isalpha() for c in raw):
+            raise forms.ValidationError(f"{label_prefix}must contain only numbers and cannot contain letters.")
+        return super().to_python(value)
+
 
 def _level(label):
     return WholeNumberField(
@@ -44,10 +53,72 @@ class PartForm(BootstrapFormMixin, forms.Form):
     part_number = forms.CharField(max_length=60)
     name = forms.CharField(max_length=200)
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
-    unit = forms.CharField(max_length=20, initial="pcs")
+    unit = forms.CharField(max_length=20)
     min_stock = _level("Minimum stock")
     max_stock = _level("Maximum stock")
     reorder_quantity = _level("Reorder quantity")
+
+    def clean_part_number(self):
+        part_number = (self.cleaned_data.get("part_number") or "").strip()
+        if not part_number:
+            raise forms.ValidationError("Part number is required.")
+        if any(c.isalpha() for c in part_number) and not any(c.isdigit() for c in part_number):
+            raise forms.ValidationError("Part number must contain only numbers and cannot contain letters.")
+        if not any(c.isdigit() for c in part_number):
+            raise forms.ValidationError("Part number must contain numbers.")
+        allowed_separators = set("-./# ")
+        if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in part_number):
+            raise forms.ValidationError("Part number can contain only numbers and standard separators (-, ., /).")
+        return part_number
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        validate_alphabetical_description(name, field_label="Name")
+        return name
+
+    def clean_description(self):
+        desc = (self.cleaned_data.get("description") or "").strip()
+        if desc:
+            validate_alphabetical_description(desc, field_label="Description")
+        return desc
+
+    def clean_unit(self):
+        unit = (self.cleaned_data.get("unit") or "").strip()
+        if not unit:
+            raise forms.ValidationError("Unit is required.")
+        STANDARD_UNITS = {
+            "pcs", "pc", "piece", "pieces", "kg", "g", "mg", "l", "ltr", "liter", "liters",
+            "ml", "m", "mtr", "meter", "meters", "cm", "mm", "km", "box", "boxes", "set",
+            "sets", "pack", "packs", "pkg", "roll", "rolls", "unit", "units", "pair",
+            "pairs", "bag", "bags", "drum", "drums", "can", "cans", "bottle", "bottles",
+            "ft", "in", "gal", "qt", "pt", "oz", "lb", "nos", "no", "ea", "each",
+        }
+        if unit.lower() in STANDARD_UNITS:
+            return unit
+        allowed_separators = set("-./# ")
+        if any(c.isdigit() for c in unit) and not any(c.isalpha() for c in unit):
+            if any(not (c.isdigit() or c.isspace() or c in allowed_separators) for c in unit):
+                raise forms.ValidationError("Unit can contain only numbers and standard separators (-, ., /).")
+            return unit
+        raise forms.ValidationError("Unit must contain only numbers and cannot contain letters.")
+
+    def clean_min_stock(self):
+        val = self.cleaned_data.get("min_stock")
+        if val is not None and val < 0:
+            raise forms.ValidationError("Minimum stock must be a non-negative number (0 or greater).")
+        return val
+
+    def clean_max_stock(self):
+        val = self.cleaned_data.get("max_stock")
+        if val is not None and val < 0:
+            raise forms.ValidationError("Maximum stock must be a non-negative number (0 or greater).")
+        return val
+
+    def clean_reorder_quantity(self):
+        val = self.cleaned_data.get("reorder_quantity")
+        if val is not None and val < 0:
+            raise forms.ValidationError("Reorder quantity must be a non-negative number (0 or greater).")
+        return val
 
     def clean(self):
         cleaned_data = super().clean()
@@ -150,6 +221,25 @@ class RequestPartForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, parts=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["part"].queryset = parts
+
+    def clean_quantity(self):
+        raw_val = str(self.data.get("quantity") or "").strip()
+        if not raw_val:
+            raise forms.ValidationError("Quantity is required.")
+        if any(c.isalpha() for c in raw_val):
+            raise forms.ValidationError("Quantity must contain only numbers and cannot contain letters.")
+        if not raw_val.isdigit():
+            raise forms.ValidationError("Quantity must contain only numbers.")
+        val = int(raw_val)
+        if val <= 0:
+            raise forms.ValidationError("Quantity must be greater than zero.")
+        return val
+
+    def clean_notes(self):
+        notes = (self.cleaned_data.get("notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Notes")
+        return notes
 
 
 class ReserveForm(BootstrapFormMixin, forms.Form):
