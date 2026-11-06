@@ -2816,25 +2816,31 @@ a.fx-footer-location-link:focus-visible {
 .fx-login-submit-btn {
   width: 100%;
   height: 48px;
+  background: linear-gradient(180deg, #0B1F3B 0%, #08172C 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(245, 196, 81, 0.35), 0 4px 12px rgba(11, 31, 59, 0.2);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
 
-  width: auto;
+.fx-login-submit-btn:hover {
+  background: linear-gradient(180deg, #122847 0%, #0B1F3B 100%);
+  transform: translateY(-1.5px);
+  box-shadow: 0 10px 28px rgba(245, 196, 81, 0.42), 0 6px 16px rgba(11, 31, 59, 0.25);
+  color: #FFFFFF;
+}
 
-  max-width: 58px;
-
-  object-fit: contain;
-
-  display: block;
-
-  background: transparent !important;
-
-  border: none !important;
-
-  border-radius: 0 !important;
-
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
-
-  transition: transform 0.25s ease;
-
+.fx-login-submit-btn:active {
+  transform: translateY(0);
 }
 
 .fx-pub-brand-logo {
