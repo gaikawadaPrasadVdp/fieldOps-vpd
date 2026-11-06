@@ -79,6 +79,7 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
+router.register("requests", ServiceRequestViewSet, basename="requests")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
 router.register("warranties", AgreementViewSet, basename="warranty")
@@ -185,12 +186,12 @@ urlpatterns = [
     path("", include("apps.ui.urls")),
 ]
 
-from django.views.static import serve
-urlpatterns += [
-    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
-]
+if settings.DEBUG:
+    from django.views.static import serve
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
 
-handler400 = "apps.ui.views.bad_request"
 handler400 = "apps.ui.views.bad_request"
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"

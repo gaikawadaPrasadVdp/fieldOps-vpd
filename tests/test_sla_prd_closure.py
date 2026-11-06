@@ -57,6 +57,8 @@ class SLAPRDClosureTests(TestCase):
             owner_name="Owner Beta",
             actor=self.admin,
         )
+        self.owner_b.status = Membership.Status.ACTIVE
+        self.owner_b.save(update_fields=["status"])
 
         # 2. Staff user with SLA permissions
         self.staff_user = User.objects.create_user(

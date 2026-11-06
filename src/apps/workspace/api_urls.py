@@ -21,4 +21,10 @@ urlpatterns = [
     path("workspace/jobs/<uuid:pk>/verify-asset/", api_views.JobAssetVerifyAPIView.as_view(), name="api_job_verify_asset"),
     path("workspace/jobs/<uuid:pk>/defects/", api_views.JobReportDefectAPIView.as_view(), name="api_job_report_defect"),
     path("workspace/capacity/", api_views.TechnicianCapacityAPIView.as_view(), name="api_technician_capacity"),
+    path("workspace/shifts/", api_views.ShiftListCreateAPIView.as_view(), name="api_shifts"),
+    path("workspace/shifts/<uuid:pk>/", api_views.ShiftDetailAPIView.as_view(), name="api_shift_detail"),
+    path("workspace/technicians/", api_views.TechnicianProfileListAPIView.as_view(), name="api_technicians"),
+    path("workspace/technicians/<uuid:pk>/", api_views.TechnicianProfileDetailAPIView.as_view(), name="api_technician_detail"),
+    path("workspace/technicians/<uuid:pk>/availability/", api_views.TechnicianAvailabilityAPIView.as_view(), name="api_technician_availability"),
+    path("workspace/profile/availability/", api_views.TechnicianAvailabilityAPIView.as_view(), name="api_my_availability"),
 ]

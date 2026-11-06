@@ -32,11 +32,11 @@ def test_public_pages_render_for_anonymous_visitors(client, url):
     assert "FieldOps Nexus" in r.content.decode()
 
 
-def test_authenticated_user_redirected_from_root(client, owner_a):
+def test_authenticated_user_root_renders_public_page(client, owner_a):
     client.force_login(owner_a)
     r = client.get("/")
-    assert r.status_code == 302
-    assert r["Location"] == "/app/"
+    assert r.status_code == 200
+    assert "Launch ERP" in r.content.decode()
 
 
 @pytest.mark.parametrize("url", OWNER_PAGES)

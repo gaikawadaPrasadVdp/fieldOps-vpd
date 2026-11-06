@@ -7,6 +7,17 @@ app_name = "workspace"
 
 urlpatterns = [
     path("technician/dashboard/", RedirectView.as_view(url="/app/workspace/", permanent=False), name="technician_dashboard"),
+    path("workspace/shifts/", views.ShiftListView.as_view(), name="shift_list"),
+    path("workspace/shifts/new/", views.ShiftCreateView.as_view(), name="shift_create"),
+    path("workspace/shifts/<uuid:pk>/", views.ShiftEditView.as_view(), name="shift_edit"),
+    path("workspace/technicians/", views.TechnicianListView.as_view(), name="technician_list"),
+    path("workspace/technicians/<uuid:pk>/", views.TechnicianDetailView.as_view(), name="technician_detail"),
+    path("workspace/profile/", views.MyProfileView.as_view(), name="my_profile"),
+    path("shifts/", views.ShiftListView.as_view()),
+    path("shifts/new/", views.ShiftCreateView.as_view()),
+    path("shifts/<uuid:pk>/", views.ShiftEditView.as_view()),
+    path("technicians/", views.TechnicianListView.as_view()),
+    path("technicians/<uuid:pk>/", views.TechnicianDetailView.as_view()),
     path("workspace/", views.MyJobsView.as_view(), name="my_jobs"),
     path("workspace/my-jobs/", views.MyJobsView.as_view()),
     path("workspace/jobs/<uuid:pk>/", views.JobDetailView.as_view(), name="job_detail"),

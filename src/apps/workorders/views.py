@@ -367,10 +367,10 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         wo = self.get_object()
         from .checklist_adapter import get_checklist_status, get_checklist_summary
         result = get_checklist_status(wo)
+        summary = get_checklist_summary(wo)
         if not result.is_valid:
-            from apps.core.exceptions import Conflict
-            raise Conflict(result.message or "Checklist completion is required.", details=get_checklist_summary(wo))
-        return Response(get_checklist_summary(wo), status=status.HTTP_200_OK)
+            return Response(summary, status=status.HTTP_409_CONFLICT)
+        return Response(summary, status=status.HTTP_200_OK)
 
     @extend_schema(
         request=LaborInputSerializer,

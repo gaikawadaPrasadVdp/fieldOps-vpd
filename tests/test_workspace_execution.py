@@ -435,7 +435,7 @@ class WorkspaceExecutionTests(TestCase):
         client_other.force_authenticate(user=self.other_tech.user)
         client_other.credentials(HTTP_X_ORGANIZATION=str(self.org.pk))
         res_other = client_other.get(f"/api/v1/workspace/jobs/{wo.pk}/")
-        self.assertEqual(res_other.status_code, 400)
+        self.assertEqual(res_other.status_code, 403)
         self.assertIn("assigned", res_other.json()["error"]["message"])
 
     def test_requirement_2_site_and_asset_context_happy_and_negative(self):

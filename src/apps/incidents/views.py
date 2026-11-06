@@ -19,11 +19,11 @@ from apps.sites.views import form_page, need, or404
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import selectors, services
-from .forms import DowntimeForm, EvidenceForm, RequestForm
+from .forms import DowntimeForm, EvidenceForm, RequestForm, ServiceRequestCommentForm
 from .models import ServiceRequest
 from .workflow import ACTION_PERMISSIONS, BUTTON_STYLES, REASON_REQUIRED, REQUEST_STATUS, SYSTEM_ACTIONS, WORKFLOW_STATES
 
-TABS = [("overview", "Overview"), ("evidence", "Evidence"), ("history", "History")]
+TABS = [("overview", "Overview"), ("comments", "Communication"), ("evidence", "Evidence"), ("history", "History")]
 CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?", "confirm": "Confirm resolution of this request?", "reopen": "Reopen this request for rework?"}
 logger = logging.getLogger(__name__)
 
@@ -521,6 +521,9 @@ class RequestDetailView(IncidentBase):
         if tab == "evidence":
             ctx["evidence"] = selectors.evidence_for(org, sr)
             ctx["evidence_form"] = EvidenceForm()
+        elif tab == "comments":
+            ctx["comments"] = selectors.comments_for(m, org, sr)
+            ctx["comment_form"] = ServiceRequestCommentForm(is_staff=not is_client)
         elif tab == "history":
             ctx["history"] = selectors.history_for(org, sr)
         elif tab == "overview":
@@ -661,6 +664,57 @@ class RequestEvidenceView(_Post):
             services.add_evidence(sr, form.cleaned_data["file"], description=form.cleaned_data["description"],
                                   actor=request.user, request=request)
             return self.done(request, sr, "Evidence uploaded.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return self.done(request, sr)
+
+
+
+class RequestCommentCreateView(_Post):
+    tab = "comments"
+    required_permission = "incident.view_assigned"
+
+    def post(self, request, pk):
+        sr = _req(request, pk)
+        m = request.membership
+        body = (request.POST.get("body") or "").strip()
+        is_internal = request.POST.get("is_internal") in ("true", "True", "1", "on")
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(m):
+            is_internal = False
+        if not body:
+            messages.error(request, "Comment message cannot be empty.")
+            return self.done(request, sr)
+        try:
+            services.add_comment(
+                sr,
+                body=body,
+                actor=request.user,
+                membership=m,
+                is_internal=is_internal,
+                request=request,
+            )
+            return self.done(request, sr, "Internal note added." if is_internal else "Comment posted.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return self.done(request, sr)
+
+
+class RequestCommentDeleteView(_Post):
+    tab = "comments"
+    required_permission = "incident.view_assigned"
+
+    def post(self, request, pk, comment_id):
+        sr = _req(request, pk)
+        try:
+            services.delete_comment(
+                request.organization,
+                comment_id,
+                actor=request.user,
+                membership=request.membership,
+                request=request,
+            )
+            return self.done(request, sr, "Comment deleted.")
         except DomainError as exc:
             messages.error(request, exc.message)
             return self.done(request, sr)

@@ -33,6 +33,10 @@ from .serializers import (
     TravelLogSerializer,
     TravelLogWriteSerializer,
     WorkNoteSerializer,
+    ShiftSerializer,
+    ShiftWriteSerializer,
+    TechnicianProfileSerializer,
+    TechnicianProfileWriteSerializer,
     WorkNoteWriteSerializer,
     WorkOrderSignoffSerializer,
     JobAssetVerifySerializer,
@@ -791,3 +795,116 @@ class JobReportDefectAPIView(TenantAPIMixin, APIView):
 
 
 
+
+
+class ShiftListCreateAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "post": "user.update"}
+
+    def get(self, request):
+        shifts = selectors.shifts_for_org(request.organization)
+        serializer = ShiftSerializer(shifts, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = ShiftWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        shift = services.create_shift(
+            request.organization,
+            code=data["code"],
+            name=data["name"],
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            days_of_week=data.get("days_of_week"),
+            site=data.get("site"),
+            is_active=data.get("is_active", True),
+            notes=data.get("notes", ""),
+            actor=request.user,
+            request=request,
+        )
+        return Response(ShiftSerializer(shift).data, status=status.HTTP_201_CREATED)
+
+
+class ShiftDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "put": "user.update", "patch": "user.update", "delete": "user.update"}
+
+    def _get_shift(self, request, pk):
+        shift = selectors.get_shift(request.organization, pk)
+        if not shift:
+            raise NotFound(detail="Shift not found.")
+        return shift
+
+    def get(self, request, pk):
+        shift = self._get_shift(request, pk)
+        return Response(ShiftSerializer(shift).data)
+
+    def patch(self, request, pk):
+        shift = self._get_shift(request, pk)
+        serializer = ShiftWriteSerializer(shift, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_shift(shift, actor=request.user, request=request, **serializer.validated_data)
+        return Response(ShiftSerializer(updated).data)
+
+    def delete(self, request, pk):
+        shift = self._get_shift(request, pk)
+        shift.is_active = False
+        shift.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TechnicianProfileListAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view"}
+
+    def get(self, request):
+        from apps.tenancy.models import Membership
+        members = Membership.objects.filter(
+            organization=request.organization,
+            status=Membership.Status.ACTIVE,
+            membership_roles__role__system_key__in=["technician", "field_technician"],
+        ).distinct()
+        for m in members:
+            services.get_or_create_technician_profile(m)
+        profiles = selectors.technician_profiles_for_org(request.organization)
+        return Response(TechnicianProfileSerializer(profiles, many=True).data)
+
+
+class TechnicianProfileDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "put": "user.update", "patch": "user.update"}
+
+    def _get_profile(self, request, pk):
+        from apps.tenancy.models import Membership
+        membership = Membership.objects.filter(organization=request.organization, pk=pk).first()
+        if not membership:
+            raise NotFound(detail="Technician membership not found.")
+        profile, _ = services.get_or_create_technician_profile(membership)
+        return profile
+
+    def get(self, request, pk):
+        profile = self._get_profile(request, pk)
+        return Response(TechnicianProfileSerializer(profile).data)
+
+    def patch(self, request, pk):
+        profile = self._get_profile(request, pk)
+        serializer = TechnicianProfileWriteSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_technician_profile(profile, actor=request.user, request=request, **serializer.validated_data)
+        return Response(TechnicianProfileSerializer(updated).data)
+
+
+class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
+    permission_map = {"post": "work_order.view_assigned"}
+
+    def post(self, request, pk=None):
+        from apps.tenancy.models import Membership
+        if pk:
+            membership = Membership.objects.filter(organization=request.organization, pk=pk).first()
+            if not membership:
+                raise NotFound(detail="Technician not found.")
+        else:
+            membership = request.membership
+
+        new_status = request.data.get("availability_status") or request.data.get("status")
+        if not new_status:
+            return Response({"error": "status is required."}, status=status.HTTP_400_BAD_REQUEST)
+        profile = services.set_technician_availability(membership, new_status, actor=request.user, request=request)
+        return Response(TechnicianProfileSerializer(profile).data)

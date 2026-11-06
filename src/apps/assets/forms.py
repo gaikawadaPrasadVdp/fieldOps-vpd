@@ -44,7 +44,7 @@ class AssetForm(BootstrapFormMixin, forms.Form):
                                       label="Commissioning date")
     owner = _OwnerChoice(queryset=Membership.objects.none(), required=False, label="Owner / custodian",
                          empty_label="(none)")
-    warranty_ref = forms.CharField(max_length=200, required=False, label="Warranty reference",
+    warranty_ref = forms.CharField(max_length=200, required=False, label="Warranty validation",
                                    help_text="Free-text reference; coverage tracking arrives with the warranty module.")
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
     reason = forms.CharField(max_length=500, required=False, label="Reason for location change",

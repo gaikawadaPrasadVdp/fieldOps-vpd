@@ -229,6 +229,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.core.tasks.process_integration_events",
         "schedule": 30,
     },
+    "archive-report-snapshots": {
+        "task": "apps.dashboards.tasks.archive_periodic_report_snapshots",
+        "schedule": 60 * 60 * 24,
+    },
 }
 
 # --- Email ------------------------------------------------------------------------------------

@@ -1,0 +1,147 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Technician Profile: {{ member.user.full_name|default:member.user.email }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="small text-uppercase text-secondary fw-semibold mb-1">OPERATIONS &bull; TECHNICIAN PROFILE</p>
+      <h1 class="h3 mb-0">{{ member.user.full_name|default:member.user.email }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'workspace:technician_list' %}" class="btn btn-outline-secondary btn-sm">&larr; Back to Technicians</a>
+      <a href="{% url 'tenancy:member_detail' member.pk %}" class="btn btn-outline-primary btn-sm">User Account Details</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-light py-2">
+          <h5 class="card-title mb-0 small text-uppercase fw-bold text-secondary">Profile & Shift Configuration</h5>
+        </div>
+        <div class="card-body p-4">
+          {% if can_edit %}
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger mb-3">
+              {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.availability_status.id_for_label }}">Availability Status</label>
+                {{ form.availability_status }}
+                {% if form.availability_status.errors %}<div class="text-danger small mt-1">{{ form.availability_status.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.shift.id_for_label }}">Assigned Shift</label>
+                {{ form.shift }}
+                {% if form.shift.errors %}<div class="text-danger small mt-1">{{ form.shift.errors.0 }}</div>{% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.primary_site.id_for_label }}">Primary Site Scope</label>
+                {{ form.primary_site }}
+                {% if form.primary_site.errors %}<div class="text-danger small mt-1">{{ form.primary_site.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.max_active_jobs.id_for_label }}">Max Active Work Orders</label>
+                {{ form.max_active_jobs }}
+                {% if form.max_active_jobs.errors %}<div class="text-danger small mt-1">{{ form.max_active_jobs.errors.0 }}</div>{% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.hourly_rate.id_for_label }}">Hourly Labor Rate (USD)</label>
+                {{ form.hourly_rate }}
+                {% if form.hourly_rate.errors %}<div class="text-danger small mt-1">{{ form.hourly_rate.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" for="{{ form.emergency_phone.id_for_label }}">Emergency Phone</label>
+                {{ form.emergency_phone }}
+                {% if form.emergency_phone.errors %}<div class="text-danger small mt-1">{{ form.emergency_phone.errors.0 }}</div>{% endif %}
+              </div>
+
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.skills_text.id_for_label }}">{{ form.skills_text.label }}</label>
+                {{ form.skills_text }}
+                {% if form.skills_text.errors %}<div class="text-danger small mt-1">{{ form.skills_text.errors.0 }}</div>{% endif %}
+                <div class="form-text small">{{ form.skills_text.help_text }}</div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.certifications_text.id_for_label }}">{{ form.certifications_text.label }}</label>
+                {{ form.certifications_text }}
+                {% if form.certifications_text.errors %}<div class="text-danger small mt-1">{{ form.certifications_text.errors.0 }}</div>{% endif %}
+                <div class="form-text small">{{ form.certifications_text.help_text }}</div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.emergency_contact.id_for_label }}">Emergency Contact Person</label>
+                {{ form.emergency_contact }}
+                {% if form.emergency_contact.errors %}<div class="text-danger small mt-1">{{ form.emergency_contact.errors.0 }}</div>{% endif %}
+              </div>
+
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.notes.id_for_label }}">Operational Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="text-danger small mt-1">{{ form.notes.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <button type="submit" class="btn btn-primary px-4">Update Profile</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <span class="text-muted small d-block">Availability</span>
+              <span class="badge bg-primary">{{ profile.availability_status }}</span>
+            </div>
+            <div class="col-md-6">
+              <span class="text-muted small d-block">Shift</span>
+              <span class="fw-semibold">{{ profile.shift.name|default:"Not assigned" }}</span>
+            </div>
+            <div class="col-12">
+              <span class="text-muted small d-block">Skills</span>
+              <div>{{ profile.skills|join:", "|default:"None" }}</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 small text-uppercase fw-bold text-secondary">Active Assignments ({{ active_jobs.count }})</h5>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for job in active_jobs %}
+          <a href="{% url 'workorders:detail' job.pk %}" class="list-group-item list-group-item-action p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold text-primary">{{ job.order_number }}</span>
+              <span class="badge bg-secondary-subtle text-secondary">{{ job.status }}</span>
+            </div>
+            <div class="small text-dark fw-medium">{{ job.title }}</div>
+            <div class="small text-muted mt-1">
+              Site: {{ job.site.name }} &bull; Priority: {{ job.priority }}
+            </div>
+          </a>
+          {% empty %}
+          <div class="p-4 text-center text-muted">
+            No active jobs currently assigned.
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
