@@ -68,7 +68,7 @@ document.addEventListener("change", function (e) {
   var action = sel.form.getAttribute("action") || window.location.pathname;
   var url = action + (action.indexOf("?") === -1 ? "?" : "&") + params.toString();
   if (sel.form.id === "asset-modal-form" && window.htmx && document.getElementById("assetModalContent")) {
-    window.htmx.ajax("GET", url, {target: "#assetModalContent", swap: "innerHTML"});
+    window.htmx.ajax("GET", url, { target: "#assetModalContent", swap: "innerHTML" });
   } else {
     window.location.href = url;
   }
@@ -165,7 +165,7 @@ window.fxToast = function (message, type) {
   toast.className = 'alert alert-' + type + ' fx-toast-message alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm';
   toast.setAttribute('role', 'alert');
   toast.setAttribute('data-auto-dismiss', timeoutMs.toString());
-  
+
   toast.innerHTML = '<div class="d-flex align-items-center gap-2 flex-grow-1">' +
     iconHtml +
     '<span class="fx-toast-text">' + message + '</span>' +
@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tz && document.cookie.indexOf('user_timezone=' + tz) === -1) {
       document.cookie = 'user_timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
     }
-  } catch (e) {}
+  } catch (e) { }
 })();
 
 
@@ -527,13 +527,13 @@ document.addEventListener("click", function (e) {
     }
   }
 
-  try { input.focus(); } catch (err) {}
+  try { input.focus(); } catch (err) { }
 });
 
 /* ==========================================================================
    Universal Form Validation & Feedback System
    ========================================================================== */
-(function() {
+(function () {
   function getFieldLabel(field) {
     if (!field) return "This field";
     var id = field.id;
@@ -541,7 +541,7 @@ document.addEventListener("click", function (e) {
       var labelEl = document.querySelector('label[for="' + id + '"]');
       if (labelEl) {
         var clone = labelEl.cloneNode(true);
-        clone.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        clone.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var text = clone.textContent.trim().replace(/:$/, "");
         if (text) return text;
       }
@@ -551,7 +551,7 @@ document.addEventListener("click", function (e) {
       var l = parent.querySelector("label");
       if (l) {
         var c = l.cloneNode(true);
-        c.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        c.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var t = c.textContent.trim().replace(/:$/, "");
         if (t) return t;
       }
@@ -1495,19 +1495,29 @@ document.addEventListener("click", function (e) {
       toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
     }
   });
-
+  // Prevent decimal/exponent characters on integer/whole-number inputs with step="1"
+  document.addEventListener("keydown", function (e) {
+    if (e.target && e.target.matches && e.target.matches('input[type="number"][step="1"]')) {
+      if (['.', 'e', 'E', '+', ','].includes(e.key)) {
+        e.preventDefault();
+      }
+      if (e.target.min && parseFloat(e.target.min) >= 0 && e.key === '-') {
+        e.preventDefault();
+      }
+    }
+  });
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps
-  document.addEventListener("htmx:beforeRequest", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.add("is-active");
-  });
-  document.addEventListener("htmx:afterRequest", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.remove("is-active");
-  });
-  document.addEventListener("htmx:requestError", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.remove("is-active");
-  });
+document.addEventListener("htmx:beforeRequest", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.add("is-active");
+});
+document.addEventListener("htmx:afterRequest", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.remove("is-active");
+});
+document.addEventListener("htmx:requestError", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.remove("is-active");
+});

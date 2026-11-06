@@ -9,7 +9,19 @@
     <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}" />
     <link rel="apple-touch-icon" href="{% static 'images/logo-icon.png' %}" />
     <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=4.5" />
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=4.6" />
+    <style>
+      /* Hide spin buttons / counter controls on number inputs */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+    </style>
     {% block extra_css %}{% endblock %}
   </head>
   <body
@@ -34,7 +46,7 @@
     </dialog>
     <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'lib/htmx.min.js' %}"></script>
-    <script src="{% static 'js/app.js' %}?v=4.5"></script>
+    <script src="{% static 'js/app.js' %}?v=4.6"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

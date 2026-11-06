@@ -21,13 +21,6 @@ class WholeNumberField(forms.IntegerField):
     """Integer field for whole numbers without decimals.
     Prepares Decimal/float values from model instances without trailing decimals (e.g. 10 instead of 10.000).
     """
-    def __init__(self, *args, min_value=1, **kwargs):
-        attrs = {"step": "1"}
-        if min_value is not None:
-            attrs["min"] = str(min_value)
-        widget = kwargs.pop("widget", None) or forms.NumberInput(attrs=attrs)
-        super().__init__(*args, min_value=min_value, widget=widget, **kwargs)
-
     def prepare_value(self, value):
         if value is not None and value != "":
             try:
@@ -86,7 +79,7 @@ class WarehouseForm(BootstrapFormMixin, forms.Form):
 class ReceiveForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Choose a warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = WholeNumberField(min_value=1, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
     reference = forms.CharField(max_length=100, required=False, label="Reference (PO / delivery note)")
     reason = forms.CharField(max_length=300, required=False)
 
@@ -97,7 +90,7 @@ class ReceiveForm(BootstrapFormMixin, forms.Form):
 
 
 class AdjustForm(BootstrapFormMixin, forms.Form):
-    delta = WholeNumberField(min_value=None, label="Adjustment (+ / -)", widget=forms.NumberInput(attrs={"step": "1"}))
+    delta = forms.DecimalField(label="Adjustment (+ / -)", **QTY)
     reason = forms.CharField(max_length=300)
 
     def clean_delta(self):
@@ -131,7 +124,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
     source = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="From warehouse")
     target = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="To warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = WholeNumberField(min_value=1, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
     reason = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, warehouses=None, parts=None, **kwargs):
@@ -151,7 +144,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
 
 class RequestPartForm(BootstrapFormMixin, forms.Form):
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = WholeNumberField(min_value=1, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
     notes = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, parts=None, **kwargs):
@@ -161,7 +154,7 @@ class RequestPartForm(BootstrapFormMixin, forms.Form):
 
 class ReserveForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Warehouse")
-    quantity = WholeNumberField(min_value=1, required=False, help_text="Blank = everything still uncovered", label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, required=False, help_text="Blank = everything still uncovered", **QTY)
 
     def __init__(self, *args, warehouses=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -170,7 +163,7 @@ class ReserveForm(BootstrapFormMixin, forms.Form):
 
 class IssueForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Warehouse")
-    quantity = WholeNumberField(min_value=1, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
 
     def __init__(self, *args, warehouses=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -178,12 +171,12 @@ class IssueForm(BootstrapFormMixin, forms.Form):
 
 
 class QuantityForm(BootstrapFormMixin, forms.Form):
-    quantity = WholeNumberField(min_value=1, required=False, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, required=False, **QTY)
     reason = forms.CharField(max_length=300, required=False)
 
 
 class ScrapForm(BootstrapFormMixin, forms.Form):
-    quantity = WholeNumberField(min_value=1, label="Quantity")
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
     reason = forms.CharField(max_length=300, label="Reason (scrap / damage / expiration)")
 
     def clean_reason(self):
