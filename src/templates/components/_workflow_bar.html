@@ -7,7 +7,7 @@
   {% for t in transitions %}
     <form method="post" action="{{ t.url }}" class="m-0 d-inline-flex align-items-center gap-1">{% csrf_token %}
       {% if t.reason %}
-        <input class="form-control form-control-sm" style="width:14rem" name="reason" required minlength="3" maxlength="500" placeholder="Reason (required)" aria-label="Reason for {{ t.label }}">
+        <input class="form-control form-control-sm" style="width:14rem" name="reason" required minlength="3" maxlength="500" placeholder="Reason (required)" aria-label="Reason for {{ t.label }}" pattern="^[^0-9]+$" title="Reason must contain only alphabetical characters and cannot contain numbers.">
       {% endif %}
       <button class="btn btn-sm btn-{{ t.style|default:'primary' }} d-inline-flex align-items-center gap-1 shadow-sm" {% if t.confirm %}data-confirm="{{ t.confirm }}"{% endif %}>
         {% if t.icon %}{% icon t.icon 14 %}{% endif %} {{ t.label }}

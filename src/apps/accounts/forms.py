@@ -19,9 +19,16 @@ class EmailAuthenticationForm(AuthenticationForm):
 class ProfileForm(BootstrapFormMixin, forms.ModelForm):
     full_name = forms.CharField(
         max_length=150,
+        min_length=2,
         required=True,
         label="Full name",
-        widget=forms.TextInput(attrs={"placeholder": "e.g. Dinuka Wijesinghe"}),
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Dinuka Wijesinghe",
+            "required": "required",
+            "minlength": "2",
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Full name must contain only alphabetical characters.",
+        }),
     )
     phone = forms.CharField(
         max_length=32,
@@ -36,12 +43,8 @@ class ProfileForm(BootstrapFormMixin, forms.ModelForm):
         fields = ["full_name", "phone"]
 
     def clean_full_name(self):
-        name = (self.cleaned_data.get("full_name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Full name is required.")
-        if len(name) < 2:
-            raise forms.ValidationError("Full name must be at least 2 characters.")
-        return name
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("full_name"), field_label="Full name")
 
     def clean_phone(self):
         return validate_phone_number(self.cleaned_data.get("phone"))

@@ -130,14 +130,20 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
 
     def clean_title(self):
         title = (self.cleaned_data.get("title") or "").strip()
-        validate_alphabetical_description(title, field_label="Title")
+        validate_alphabetical_description(title, field_label="Request Title / Subject")
         return title
 
     def clean_description(self):
         description = (self.cleaned_data.get("description") or "").strip()
         if description:
-            validate_alphabetical_description(description, field_label="Problem description")
+            validate_alphabetical_description(description, field_label="Problem Description")
         return description
+
+    def clean_impact_notes(self):
+        notes = (self.cleaned_data.get("impact_notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Impact Notes")
+        return notes
 
 
 class PortalAccountEditForm(BootstrapFormMixin, forms.Form):

@@ -217,6 +217,8 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
     reason = (reason or "").strip()
     if not reason:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
+    if source == "manual" and any(c.isdigit() for c in reason):
+        raise ValidationFailed("Reason must contain only alphabetical characters and cannot contain numbers.", code="invalid_reason")
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     previous, new = ASSET_STATUS.apply(asset, action)
     asset.save(update_fields=["status", "updated_at"])
@@ -349,9 +351,21 @@ def update_category(cat: AssetCategory, *, actor, request=None, name=None, descr
 
 
 @transaction.atomic
-def add_document(asset: Asset, uploaded, *, title: str = "", doc_type: str = "OTHER", actor, request=None):
+def add_document(asset: Asset, uploaded, *, title: str = "", doc_type: str = "PHOTO", actor, request=None):
     if doc_type not in AssetDocument.DocType.values:
         raise ValidationFailed("Unknown document type.", code="invalid_doc_type")
+    name = getattr(uploaded, "name", "")
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if doc_type == "PHOTO" and ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        raise ValidationFailed(
+            "Selected document type is Photograph. Please upload a valid image file (.jpg, .jpeg, .png, .webp).",
+            code="invalid_file_type"
+        )
+    if doc_type == "PDF" and ext != "pdf":
+        raise ValidationFailed(
+            "Selected document type is PDF. Please upload a valid PDF file (.pdf).",
+            code="invalid_file_type"
+        )
     title = (title or "").strip() or getattr(uploaded, "name", "Document")
     doc = AssetDocument(organization=asset.organization, asset=asset, title=title[:150], doc_type=doc_type,
                         uploaded_by=actor)
