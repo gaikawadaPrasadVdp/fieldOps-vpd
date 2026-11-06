@@ -1,0 +1,97 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Work Shifts | Operations{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="small text-uppercase text-secondary fw-semibold mb-1">OPERATIONS &bull; WORKSPACE</p>
+      <h1 class="h3 mb-0">Technician Shifts</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'workspace:technician_list' %}" class="btn btn-outline-secondary btn-sm">
+        View Technicians
+      </a>
+      {% if can_manage %}
+      <a href="{% url 'workspace:shift_create' %}" class="btn btn-primary btn-sm">
+        + Create Shift
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Shift Name</th>
+            <th>Code</th>
+            <th>Hours</th>
+            <th>Duration</th>
+            <th>Working Days</th>
+            <th>Site Scope</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for shift in shifts %}
+          <tr>
+            <td>
+              <span class="fw-semibold text-dark">{{ shift.name }}</span>
+              {% if shift.notes %}
+              <div class="small text-muted text-truncate" style="max-width: 250px;">{{ shift.notes }}</div>
+              {% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ shift.code }}</span></td>
+            <td>{{ shift.start_time|time:"H:i" }} &ndash; {{ shift.end_time|time:"H:i" }}</td>
+            <td>{{ shift.duration_hours }} hrs</td>
+            <td>
+              <div class="d-flex gap-1">
+                <span class="badge {% if 0 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">M</span>
+                <span class="badge {% if 1 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">T</span>
+                <span class="badge {% if 2 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">W</span>
+                <span class="badge {% if 3 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">T</span>
+                <span class="badge {% if 4 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">F</span>
+                <span class="badge {% if 5 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">S</span>
+                <span class="badge {% if 6 in shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">S</span>
+              </div>
+            </td>
+            <td>
+              {% if shift.site %}
+              <span class="text-secondary">{{ shift.site.name }}</span>
+              {% else %}
+              <span class="text-muted small">Organization-wide</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if shift.is_active %}
+              <span class="badge bg-success-subtle text-success">Active</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if can_manage %}
+              <a href="{% url 'workspace:shift_edit' shift.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
+              {% else %}
+              <span class="text-muted small">View only</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-4 text-muted">
+              No work shifts configured. {% if can_manage %}<a href="{% url 'workspace:shift_create' %}">Create the first shift</a>.{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

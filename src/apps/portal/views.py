@@ -271,6 +271,7 @@ class RequestDetailView(LoginRequiredMixin, View):
                 "work_order": wo,
                 "technician_name": tech_name,
                 "sla_commitment": selectors.get_client_sla_indicator(sr),
+                "comments": sr.comments.filter(is_internal=False).select_related("author").order_by("created_at"),
             },
         )
 
@@ -364,6 +365,46 @@ class RequestReopenView(LoginRequiredMixin, View):
         except DomainError as exc:
             messages.error(request, exc.message)
 
+        return redirect("portal:request_detail", pk=pk)
+
+
+class PortalCommentCreateView(LoginRequiredMixin, View):
+    """Client / Requester view to add a message to the communication thread."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.tenant_error:
+            return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
+        if request.membership is None:
+            return render(request, "errors/tenant.html", {"code": "no_membership"}, status=403)
+        self.account = selectors.get_portal_account(request.membership)
+        if not self.account or not self.account.is_enabled:
+            return render(request, "errors/tenant.html", {"code": "portal_access_disabled"}, status=403)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        try:
+            sr = selectors.get_client_request(request.membership, pk)
+        except DomainError:
+            raise Http404("Service request not found.")
+        body = (request.POST.get("body") or "").strip()
+        if not body:
+            messages.error(request, "Message cannot be empty.")
+            return redirect("portal:request_detail", pk=pk)
+        from apps.incidents import services as incident_services
+        try:
+            incident_services.add_comment(
+                sr,
+                body=body,
+                actor=request.user,
+                membership=request.membership,
+                is_internal=False,
+                request=request,
+            )
+            messages.success(request, "Your message has been sent to our service team.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
         return redirect("portal:request_detail", pk=pk)
 
 

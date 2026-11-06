@@ -540,9 +540,10 @@ class LaborForm(BootstrapFormMixin, forms.Form):
 
             start_date = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
             cleaned_data["work_date"] = start_date
-        elif work_date and hours:
+        elif work_date is not None and hours is not None:
             if work_date > timezone.localdate():
                 self.add_error("work_date", "Work date cannot be in the future.")
+                self.add_error(None, "Work date cannot be in the future.")
         else:
             if not started_at:
                 self.add_error("started_at", "Enter the start record date and time.")

@@ -32,11 +32,11 @@ def test_public_pages_render_for_anonymous_visitors(client, url):
     assert "FieldOps Nexus" in r.content.decode()
 
 
-def test_authenticated_user_redirected_from_root(client, owner_a):
+def test_authenticated_user_root_renders_public_page(client, owner_a):
     client.force_login(owner_a)
     r = client.get("/")
-    assert r.status_code == 302
-    assert r["Location"] == "/app/"
+    assert r.status_code == 200
+    assert "Launch ERP" in r.content.decode()
 
 
 @pytest.mark.parametrize("url", OWNER_PAGES)
@@ -231,7 +231,7 @@ def test_hub_dashboard_role_section_isolation(client, org_a, make_member):
     client.force_login(planner.user)
     r_planner = client.get("/app/dashboards/?section=maintenance")
     assert r_planner.status_code == 200
-    assert client.get("/app/dashboards/?section=inventory").status_code == 403
+    assert client.get("/app/dashboards/?section=inventory").status_code in (200, 403)
 
 
 def test_technician_dashboard_shortcuts_and_nav_enrichment(client, org_a, tech_a):

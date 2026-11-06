@@ -11,7 +11,7 @@ from apps.files.models import Attachment
 from apps.rbac import services as rbac
 from apps.sites.selectors import scoped_get
 
-from .models import Downtime, ServiceRequest, ServiceRequestHistory
+from .models import Downtime, ServiceRequest, ServiceRequestComment, ServiceRequestHistory
 
 ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "all": "-created_at", "": "-created_at", "title": "title", "-title": "-title",
              "name": "title", "-name": "-title", "number": "number", "-number": "-number",
@@ -106,3 +106,13 @@ def evidence_for(org, sr: ServiceRequest):
     return Attachment.objects.for_organization(org).filter(
         content_type=ContentType.objects.get_for_model(ServiceRequest), object_id=str(sr.pk)).select_related(
         "uploaded_by")
+
+
+def comments_for(membership, org, sr: ServiceRequest):
+    qs = ServiceRequestComment.objects.for_organization(org).filter(request=sr).select_related(
+        "author", "author_membership__user"
+    ).order_by("created_at", "id")
+    from apps.ui.utils import is_client_membership
+    if is_client_membership(membership):
+        return qs.filter(is_internal=False)
+    return qs

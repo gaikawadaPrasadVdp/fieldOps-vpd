@@ -463,6 +463,12 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
             raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
     _record(wo, actor=actor, action="created", request=request)
     _sla().on_work_order_created(wo)
+    if wo.asset_id:
+        try:
+            from apps.contracts import services as contracts
+            contracts.record_check(wo, actor=actor, request=request)
+        except Exception:
+            pass
     return wo
 
 
@@ -582,6 +588,12 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
     _record(wo, actor=actor, action="updated", before=before, request=request)
     if before.get("priority") != wo.priority:
         _sla().on_work_order_updated(wo, before.get("priority"), actor=actor, request=request)
+    if wo.asset_id:
+        try:
+            from apps.contracts import services as contracts
+            contracts.record_check(wo, actor=actor, request=request)
+        except Exception:
+            pass
     return wo
 
 

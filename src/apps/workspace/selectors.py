@@ -6,7 +6,7 @@ from django.db.models import QuerySet
 from apps.sites.models import SiteContact
 from apps.workorders.models import WorkOrder
 
-from .models import TravelLog, WorkNote
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 if TYPE_CHECKING:
     from apps.tenancy.models import Membership, Organization
@@ -352,7 +352,11 @@ def daily_capacity_summary(
     total_hours_dec = labor_qs.aggregate(s=Sum("hours"))["s"] or Decimal("0.00")
     total_hours = float(total_hours_dec)
 
-    standard_capacity = 8.0
+    profile = getattr(membership, "technician_profile", None)
+    if profile and profile.shift and profile.shift.is_active:
+        standard_capacity = float(profile.shift.duration_hours)
+    else:
+        standard_capacity = 8.0
     util_pct = round((total_hours / standard_capacity) * 100.0, 1) if standard_capacity > 0 else 0.0
     progress_pct = min(100.0, util_pct)
     remaining_hours = max(0.0, round(standard_capacity - total_hours, 2))
@@ -384,3 +388,46 @@ def daily_capacity_summary(
     }
 
 
+
+
+def get_technician_profile(membership: Membership) -> TechnicianProfile | None:
+    """Retrieve the technician profile for a membership, or None."""
+    return TechnicianProfile.objects.filter(
+        organization=membership.organization,
+        membership=membership,
+    ).select_related("shift", "primary_site", "membership__user").first()
+
+
+def technician_profiles_for_org(
+    org: Organization,
+    site=None,
+    status: str | None = None,
+) -> QuerySet[TechnicianProfile]:
+    """List all technician profiles in an organization with optional site or status filters."""
+    qs = TechnicianProfile.objects.filter(organization=org).select_related(
+        "membership__user", "shift", "primary_site"
+    )
+    if site:
+        qs = qs.filter(primary_site=site)
+    if status:
+        qs = qs.filter(availability_status=status)
+    return qs.order_by("membership__user__full_name", "membership__user__email")
+
+
+def shifts_for_org(
+    org: Organization,
+    site=None,
+    is_active: bool | None = None,
+) -> QuerySet[Shift]:
+    """List configured shifts for an organization."""
+    qs = Shift.objects.filter(organization=org).select_related("site")
+    if site is not None:
+        qs = qs.filter(site=site)
+    if is_active is not None:
+        qs = qs.filter(is_active=is_active)
+    return qs.order_by("name")
+
+
+def get_shift(org: Organization, shift_id: any) -> Shift | None:
+    """Get a single shift by ID scoped to the organization."""
+    return Shift.objects.filter(organization=org, pk=shift_id).select_related("site").first()

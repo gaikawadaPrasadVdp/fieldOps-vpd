@@ -15,6 +15,20 @@ def is_client_membership(membership) -> bool:
     if membership is None:
         return False
 
+    # Staff / internal roles are never client personas
+    try:
+        from apps.rbac.models import MembershipRole
+        role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))
+        staff_roles = {
+            "owner", "admin", "service_dispatcher", "operations_manager", "asset_manager",
+            "maintenance_planner", "supervisor", "stores_manager", "stores_inventory",
+            "service_manager", "auditor", "compliance", "technician"
+        }
+        if role_keys & staff_roles:
+            return False
+    except Exception:
+        pass
+
     # 1. Active portal account via selector
     try:
         from apps.portal.selectors import is_portal_account_active
@@ -48,10 +62,10 @@ def is_client_membership(membership) -> bool:
     except Exception:
         pass
 
-    # 4. User email or job title prefix
+    # 4. User email prefix
     user = getattr(membership, "user", None)
     email = getattr(user, "email", "")
-    if email and email.lower().startswith("client.requester@"):
+    if email and any(email.lower().startswith(pfx) for pfx in ("client.requester@", "client.", "customer.portal@")):
         return True
 
     # 5. Permission fallback

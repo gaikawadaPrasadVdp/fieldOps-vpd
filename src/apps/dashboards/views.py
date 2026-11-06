@@ -62,7 +62,6 @@ class DashboardHubView(TenantPermissionMixin, View):
                 or rbac.has_permission_anywhere(membership, "inventory.reconcile")
                 or rbac.has_permission_anywhere(membership, "inventory.warehouse.manage")
                 or rbac.has_permission_anywhere(membership, "inventory.adjust")
-                or rbac.has_permission_anywhere(membership, "audit.view")
                 or rbac.is_owner(membership)
             )
         return False
@@ -334,3 +333,87 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
             "date_to": end_dt.date().isoformat(),
         }
         return render(request, self.template_name, context)
+
+
+import json
+from django.http import Http404, JsonResponse
+from django.contrib import messages
+from django.shortcuts import redirect
+from .models import ReportSnapshot
+from . import services
+
+
+class SnapshotListView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+    template_name = "dashboards/snapshots_list.html"
+
+    def get(self, request):
+        sec_filter = request.GET.get("section")
+        type_filter = request.GET.get("type")
+        snapshots = services.get_snapshot_history(
+            request.organization,
+            snapshot_type=type_filter,
+            section=sec_filter,
+            limit=50,
+        )
+        return render(
+            request,
+            self.template_name,
+            {
+                "snapshots": snapshots,
+                "sections": ReportSnapshot.Section.choices,
+                "types": ReportSnapshot.SnapshotType.choices,
+                "selected_section": sec_filter,
+                "selected_type": type_filter,
+            },
+        )
+
+    def post(self, request):
+        sec = request.POST.get("section") or ReportSnapshot.Section.OPERATIONS
+        stype = request.POST.get("snapshot_type") or ReportSnapshot.SnapshotType.DAILY
+        start_str = request.POST.get("period_start")
+        end_str = request.POST.get("period_end")
+        notes = request.POST.get("notes", "")
+
+        try:
+            start_date = datetime.date.fromisoformat(start_str) if start_str else timezone.localdate() - datetime.timedelta(days=1)
+            end_date = datetime.date.fromisoformat(end_str) if end_str else timezone.localdate() - datetime.timedelta(days=1)
+            snap = services.create_report_snapshot(
+                request.organization,
+                snapshot_type=stype,
+                section=sec,
+                period_start=start_date,
+                period_end=end_date,
+                actor=request.user,
+                notes=notes,
+                request=request,
+            )
+            messages.success(request, f"Snapshot generated for {snap.get_section_display()} ({snap.period_start} to {snap.period_end}).")
+        except Exception as exc:
+            messages.error(request, f"Failed to generate snapshot: {exc}")
+
+        return redirect("dashboards:snapshot_list")
+
+
+class SnapshotDetailView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+    template_name = "dashboards/snapshot_detail.html"
+
+    def get(self, request, pk):
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).select_related("site", "created_by").first()
+        if not snapshot:
+            raise Http404("Snapshot not found.")
+        return render(request, self.template_name, {"snapshot": snapshot})
+
+
+class SnapshotExportView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+
+    def get(self, request, pk):
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).first()
+        if not snapshot:
+            raise Http404("Snapshot not found.")
+        response = JsonResponse(snapshot.metrics, json_dumps_params={"indent": 2})
+        filename = f"snapshot_{snapshot.section}_{snapshot.period_start}_{snapshot.period_end}.json"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response

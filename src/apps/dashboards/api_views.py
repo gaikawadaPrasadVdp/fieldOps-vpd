@@ -143,3 +143,56 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
             "data": data,
         }
         return Response(response_payload, status=status.HTTP_200_OK)
+
+
+from .models import ReportSnapshot
+from .serializers import ReportSnapshotSerializer, GenerateSnapshotSerializer
+from . import services
+
+
+class SnapshotListAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "report.view", "post": "report.view"}
+
+    def get(self, request):
+        snapshot_type = request.query_params.get("snapshot_type")
+        section = request.query_params.get("section")
+        snapshots = services.get_snapshot_history(
+            request.organization,
+            snapshot_type=snapshot_type,
+            section=section,
+        )
+        return Response(ReportSnapshotSerializer(snapshots, many=True).data)
+
+    def post(self, request):
+        serializer = GenerateSnapshotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        site = None
+        if data.get("site_id"):
+            from apps.sites.models import Site
+            site = Site.objects.filter(organization=request.organization, pk=data["site_id"]).first()
+
+        snapshot = services.create_report_snapshot(
+            request.organization,
+            snapshot_type=data["snapshot_type"],
+            section=data["section"],
+            period_start=data["period_start"],
+            period_end=data["period_end"],
+            site=site,
+            actor=request.user,
+            notes=data.get("notes", ""),
+            request=request,
+        )
+        return Response(ReportSnapshotSerializer(snapshot).data, status=status.HTTP_201_CREATED)
+
+
+class SnapshotDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "report.view"}
+
+    def get(self, request, pk):
+        from rest_framework.exceptions import NotFound
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).first()
+        if not snapshot:
+            raise NotFound("Report snapshot not found.")
+        return Response(ReportSnapshotSerializer(snapshot).data)

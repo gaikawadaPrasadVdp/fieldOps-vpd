@@ -17,7 +17,7 @@
 
   <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>
 
-  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% else %}{{ operation }}{% endif %}</h1>
+  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% elif operation == 'Reassign' %}Reassign technician{% else %}{{ operation }}{% endif %}</h1>
 
   {% if operation == 'Complete' %}
 
@@ -72,7 +72,7 @@
     {% if 'expected_version' not in form.fields %}<input type="hidden" name="expected_version"
       value="{{ expected_version }}">{% endif %}
 
-    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone." {% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary"
+    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone." {% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% elif operation == 'Reassign' %}Save &amp; Reassign{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary"
         href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
 
   </form>

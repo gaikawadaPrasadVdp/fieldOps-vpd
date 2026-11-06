@@ -12,7 +12,7 @@ from apps.rbac import services as rbac
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff
 
-from .models import TravelLog, WorkNote
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 from . import selectors
 
 if TYPE_CHECKING:
@@ -38,6 +38,10 @@ def start_job(work_order: WorkOrder, *, membership: Membership, actor: User, req
     """Technician starts the assigned work order (calls M06 start transition)."""
     assert_can_execute_job(work_order, membership)
     order = wo_services.start_work_order(work_order, membership=membership, actor=actor, request=request)
+    profile = getattr(membership, "technician_profile", None)
+    if profile and profile.availability_status == TechnicianProfile.AvailabilityStatus.AVAILABLE:
+        profile.availability_status = TechnicianProfile.AvailabilityStatus.ON_JOB
+        profile.save(update_fields=["availability_status", "updated_at"])
     audit.record(
         action="workspace.job_started",
         organization=order.organization,
@@ -349,7 +353,7 @@ def complete_job_with_signoff(
         except Exception as exc:
             raise ValidationFailed(f"Invalid digital signature image data: {exc}", code="invalid_signature") from exc
     else:
-        raise ValidationFailed("Digital signature image is required.", code="signature_required")
+        raise ValidationFailed("Digital signature is required.", code="signature_required")
 
     # If final photo evidence was provided, attach it as completion evidence
     if final_photo_file:
@@ -749,3 +753,216 @@ def report_auxiliary_defect(
     return sr
 
 
+
+
+# ==============================================================================
+# TechnicianProfile and Shift Services (PRD §4.2, D-054)
+# ==============================================================================
+
+@transaction.atomic
+def create_shift(
+    org: Organization,
+    *,
+    code: str,
+    name: str,
+    start_time: any,
+    end_time: any,
+    days_of_week: list[int] | None = None,
+    site=None,
+    is_active: bool = True,
+    notes: str = "",
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+) -> Shift:
+    """Create a new technician shift within the organization."""
+    code = (code or "").strip().upper()
+    name = (name or "").strip()
+    if not code:
+        raise ValidationFailed("Shift code is required.", code="shift_code_required")
+    if not name:
+        raise ValidationFailed("Shift name is required.", code="shift_name_required")
+    if Shift.objects.filter(organization=org, code=code).exists():
+        raise ValidationFailed(f"Shift with code '{code}' already exists.", code="duplicate_shift_code")
+
+    shift = Shift(
+        organization=org,
+        code=code,
+        name=name,
+        start_time=start_time,
+        end_time=end_time,
+        days_of_week=days_of_week or [0, 1, 2, 3, 4],
+        site=site,
+        is_active=is_active,
+        notes=notes or "",
+    )
+    shift.full_clean()
+    shift.save()
+
+    if actor:
+        audit.record(
+            action="workspace.shift_created",
+            organization=org,
+            actor=actor,
+            target=shift,
+            metadata={"code": code, "name": name, "notes": f"Created shift {code} ({name})"},
+            request=request,
+        )
+    return shift
+
+
+@transaction.atomic
+def update_shift(
+    shift: Shift,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> Shift:
+    """Update attributes on an existing shift."""
+    for field, val in kwargs.items():
+        if hasattr(shift, field):
+            setattr(shift, field, val)
+    shift.full_clean()
+    shift.save()
+
+    if actor:
+        audit.record(
+            action="workspace.shift_updated",
+            organization=shift.organization,
+            actor=actor,
+            target=shift,
+            metadata={"code": shift.code, "name": shift.name, "notes": f"Updated shift {shift.code}"},
+            request=request,
+        )
+    return shift
+
+
+@transaction.atomic
+def get_or_create_technician_profile(
+    membership: Membership,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> tuple[TechnicianProfile, bool]:
+    """Retrieve or create a TechnicianProfile for the given membership."""
+    profile = TechnicianProfile.objects.filter(
+        organization=membership.organization,
+        membership=membership,
+    ).first()
+    created = False
+    if profile is None:
+        profile = TechnicianProfile(
+            organization=membership.organization,
+            membership=membership,
+            **kwargs,
+        )
+        profile.full_clean()
+        profile.save()
+        created = True
+        if actor:
+            audit.record(
+                action="workspace.technician_profile_created",
+                organization=membership.organization,
+                actor=actor,
+                target=profile,
+                metadata={"member_id": str(membership.pk), "notes": f"Created technician profile for {membership.user.email}"},
+                request=request,
+            )
+    return profile, created
+
+
+@transaction.atomic
+def update_technician_profile(
+    profile: TechnicianProfile,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> TechnicianProfile:
+    """Update an existing technician profile."""
+    for field, val in kwargs.items():
+        if hasattr(profile, field):
+            setattr(profile, field, val)
+    profile.full_clean()
+    profile.save()
+
+    if actor:
+        audit.record(
+            action="workspace.technician_profile_updated",
+            organization=profile.organization,
+            actor=actor,
+            target=profile,
+            metadata={"member_id": str(profile.membership_id), "notes": f"Updated technician profile for {profile.membership.user.email}"},
+            request=request,
+        )
+    return profile
+
+
+@transaction.atomic
+def set_technician_availability(
+    membership: Membership,
+    status: str,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+) -> TechnicianProfile:
+    """Set the availability status of a technician (AVAILABLE, ON_JOB, ON_LEAVE, OFF_DUTY)."""
+    if status not in TechnicianProfile.AvailabilityStatus.values:
+        raise ValidationFailed(f"Invalid availability status '{status}'.", code="invalid_status")
+
+    profile, _ = get_or_create_technician_profile(membership, actor=actor, request=request)
+    old_status = profile.availability_status
+    profile.availability_status = status
+    profile.save(update_fields=["availability_status", "updated_at"])
+
+    if actor:
+        audit.record(
+            action="workspace.technician_availability_changed",
+            organization=profile.organization,
+            actor=actor,
+            target=profile,
+            metadata={
+                "old_status": old_status,
+                "new_status": status,
+                "notes": f"Changed technician availability from {old_status} to {status}",
+            },
+            request=request,
+        )
+    return profile
+
+
+def check_technician_shift_eligibility(membership: Membership, dt=None) -> tuple[bool, str]:
+    """Check if the technician is actively scheduled on shift at the specified datetime."""
+    from zoneinfo import ZoneInfo
+
+    profile = getattr(membership, "technician_profile", None)
+    if not profile or not profile.shift or not profile.shift.is_active:
+        return True, "No active shift restriction configured."
+
+    shift = profile.shift
+    tz_str = "UTC"
+    if shift.site and shift.site.timezone:
+        tz_str = shift.site.timezone
+    elif hasattr(membership.organization, "timezone") and membership.organization.timezone:
+        tz_str = membership.organization.timezone
+
+    zone = ZoneInfo(tz_str)
+    now = timezone.localtime(dt or timezone.now(), zone)
+    weekday = now.weekday()  # 0=Mon..6=Sun
+
+    if shift.days_of_week and weekday not in shift.days_of_week:
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        return False, f"Technician is not scheduled on {day_names[weekday]}."
+
+    current_time = now.time()
+    if shift.start_time <= shift.end_time:
+        in_hours = shift.start_time <= current_time <= shift.end_time
+    else:
+        # Overnight shift (e.g. 22:00 to 06:00)
+        in_hours = current_time >= shift.start_time or current_time <= shift.end_time
+
+    if not in_hours:
+        return False, f"Time is outside technician shift ({shift.start_time:%H:%M}–{shift.end_time:%H:%M})."
+
+    return True, "On shift."

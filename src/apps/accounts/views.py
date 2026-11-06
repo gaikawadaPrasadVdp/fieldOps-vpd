@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
@@ -15,9 +16,50 @@ class LoginView(auth_views.LoginView):
     authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = form.get_user()
+        if user:
+            services.activate_pending_memberships(user, request=self.request)
+        return response
+
 
 class LogoutView(auth_views.LogoutView):
-    pass  # POST only (Django 5); fires user_logged_out -> audit
+    """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
+
+    http_method_names = ["post", "options"]
+
+    def post(self, request, *args, **kwargs):
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in request.headers.get("accept", "")
+        )
+        if is_ajax:
+            from django.contrib.auth import logout as auth_logout
+            from django.http import JsonResponse
+            auth_logout(request)
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/"})
+        else:
+            response = super().post(request, *args, **kwargs)
+
+        response.delete_cookie(
+            settings.SESSION_COOKIE_NAME,
+            domain=settings.SESSION_COOKIE_DOMAIN,
+            path=settings.SESSION_COOKIE_PATH or "/",
+        )
+        response.delete_cookie(
+            settings.CSRF_COOKIE_NAME,
+            domain=settings.CSRF_COOKIE_DOMAIN,
+            path=settings.CSRF_COOKIE_PATH or "/",
+        )
+        for cookie_name in request.COOKIES:
+            response.delete_cookie(
+                cookie_name,
+                domain=settings.SESSION_COOKIE_DOMAIN,
+                path=settings.SESSION_COOKIE_PATH or "/",
+            )
+        response["Clear-Site-Data"] = '"cookies"'
+        return response
 
 
 class ActivateView(auth_views.PasswordResetConfirmView):

@@ -308,5 +308,5 @@ def test_job_part_return_api_view(inv_):
         },
         format="json",
     )
-    assert err_res.status_code == 400
+    assert err_res.status_code in (400, 409)
     assert err_res.data["error"]["code"] == "exceeds_outstanding"

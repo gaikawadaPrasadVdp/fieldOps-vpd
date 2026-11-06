@@ -23,6 +23,14 @@
         {% icon 'grid' 15 %} <span>Dashboard</span>
       </a>
     </div>
+    <div class="pt-3 border-top d-flex justify-content-between align-items-center small">
+        <span class="text-secondary">Signed in as <strong>{{ request.user.email }}</strong></span>
+        <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-link text-decoration-none text-danger p-0">
+            Sign out
+          </button>
+        </form>
+      </div>
   </header>
 
   <!-- Error Content Section -->

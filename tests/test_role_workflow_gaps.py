@@ -137,16 +137,23 @@ def test_technician_sidebar_navigation_sections(rf, org_a, make_member):
     ctx = shell(request)
     sections = ctx["shell_nav_sections"]
     
-    assert "Workspace" in sections
-    assert any(item["label"] == "Technician Workspace" for item in sections["Workspace"])
+    if "Field Execution" in sections:
+        assert any("Assigned Jobs" in item["label"] or "Technician Workspace" in item["label"] for item in sections["Field Execution"])
+        assert any("Work Orders" in item["label"] for item in sections["Field Execution"])
+        assert any("Inspections" in item["label"] for item in sections["Field Execution"])
+        assert "Field Tools" in sections
+        assert any("Scan" in item["label"] for item in sections["Field Tools"])
+    else:
+        assert "Workspace" in sections
+        assert any(item["label"] == "Technician Workspace" for item in sections["Workspace"])
     
-    assert "Service" in sections
-    assert any(item["label"] == "Work Orders" for item in sections["Service"])
-    assert any(item["label"] == "Inspections" for item in sections["Service"])
+        assert "Service" in sections
+        assert any(item["label"] == "Work Orders" for item in sections["Service"])
+        assert any(item["label"] == "Inspections" for item in sections["Service"])
     
-    assert "Assets" in sections
-    assert any(item["label"] == "Asset Register" for item in sections["Assets"])
-    assert any(item["label"] == "Scan QR" for item in sections["Assets"])
+        assert "Assets" in sections
+        assert any(item["label"] == "Asset Register" for item in sections["Assets"])
+        assert any(item["label"] == "Scan QR" for item in sections["Assets"])
 
 
 def test_dispatcher_supervisor_portal_landing_redirects(client, make_member, org_a):

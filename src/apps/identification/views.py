@@ -138,24 +138,65 @@ class LabelPrintView(LabelBase):
         )
 
 
+def _handle_scan_incident_creation(request, asset, form):
+    data = form.cleaned_data
+    from apps.incidents import services as incident_services
+    sr = incident_services.create_request(
+        request.organization,
+        asset=asset,
+        reporter=request.membership,
+        title=data["title"],
+        description=data.get("description", ""),
+        severity=data["severity"],
+        service_impact=data["service_impact"],
+        failure_category=data.get("failure_category", ""),
+        override_duplicate=data.get("override_duplicate", False),
+        override_reason=data.get("override_reason", ""),
+        actor=request.user,
+        request=request,
+    )
+    attachment = request.FILES.get("attachment")
+    if attachment:
+        incident_services.add_evidence(
+            sr,
+            attachment,
+            description=f"Evidence uploaded via QR scan report ({asset.asset_tag})",
+            actor=request.user,
+            request=request,
+        )
+    messages.success(request, f"Incident {sr.number} reported successfully for {asset.name}.")
+    if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+        return redirect("portal:request_detail", pk=str(sr.pk))
+    return redirect("incidents:detail", pk=sr.pk)
+
+
 class ScanView(LabelBase):
-    """Camera and manual scan interface."""
+    """Camera and manual scan interface with direct Scan-to-Report mode."""
 
     required_permission = "asset.view"
 
     def get(self, request):
-        return render(request, "identification/scan.html")
+        action = request.GET.get("action", "")
+        return render(request, "identification/scan.html", {
+            "is_report_mode": action == "report",
+        })
 
     def post(self, request):
         token = request.POST.get("token", "").strip()
         work_order_id = request.POST.get("work_order") or request.GET.get("work_order")
+        action = request.POST.get("action") or request.GET.get("action")
         if not token:
             messages.error(request, "Please enter a code or link.")
-            return render(request, "identification/scan.html")
+            return render(request, "identification/scan.html", {
+                "is_report_mode": action == "report",
+            })
         from django.urls import reverse
-        url = reverse("identification:resolve", kwargs={"token": token})
-        if work_order_id:
-            url += f"?work_order={work_order_id}"
+        if action == "report":
+            url = reverse("identification:resolve_report", kwargs={"token": token})
+        else:
+            url = reverse("identification:resolve", kwargs={"token": token})
+            if work_order_id:
+                url += f"?work_order={work_order_id}"
         return redirect(url)
 
 
@@ -171,6 +212,11 @@ class ResolveView(LabelBase):
             )
         except (NotFound, PermissionDenied, DomainError):
             return render(request, "identification/not_found.html", {"throttled": False}, status=404)
+
+        action = request.GET.get("action")
+        if action == "report" or request.GET.get("report") == "1":
+            from django.urls import reverse
+            return redirect(reverse("identification:resolve_report", kwargs={"token": token}))
 
         work_order_id = request.GET.get("work_order")
         if work_order_id:
@@ -200,6 +246,16 @@ class ResolveView(LabelBase):
                 return redirect("workspace:job_detail", pk=my_wo.pk)
             return redirect("assets:detail", pk=asset.pk)
 
+        from apps.incidents import selectors as incident_selectors
+        can_report = (
+            is_active
+            and asset.status not in TERMINAL_STATES
+            and (
+                rbac.has_permission(request.membership, "incident.create", asset.site_id)
+                or incident_selectors.is_owned_asset_reporter(request.membership)
+            )
+        )
+        from .forms import ScanIncidentReportForm
         return render(
             request,
             "identification/resolved.html",
@@ -208,6 +264,201 @@ class ResolveView(LabelBase):
                 "identifier": ident,
                 "revoked": not is_active,
                 "res": {"asset_inactive": asset.status in TERMINAL_STATES},
-                "can_report": False,
+                "can_report": can_report,
+                "form": ScanIncidentReportForm() if can_report else None,
             },
         )
+
+    def post(self, request, token):
+        try:
+            ident, asset, is_active = services.resolve_token(
+                request.membership, token, actor=request.user, request=request
+            )
+        except (NotFound, PermissionDenied, DomainError):
+            return render(request, "identification/not_found.html", {"throttled": False}, status=404)
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced.")
+            return redirect("identification:resolve", token=token)
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot report an incident for a {asset.status.lower()} asset.")
+            return redirect("identification:resolve", token=token)
+
+        from apps.incidents import selectors as incident_selectors
+        can_report = (
+            rbac.has_permission(request.membership, "incident.create", asset.site_id)
+            or incident_selectors.is_owned_asset_reporter(request.membership)
+        )
+        if not can_report:
+            messages.error(request, "You do not have permission to report incidents for this asset.")
+            return render(
+                request,
+                "identification/resolved.html",
+                {"asset": asset, "identifier": ident, "can_report": False},
+                status=403,
+            )
+
+        from .forms import ScanIncidentReportForm
+        form = ScanIncidentReportForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(
+                request,
+                "identification/resolved.html",
+                {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": False,
+                    "res": {"asset_inactive": False},
+                    "can_report": True,
+                    "form": form,
+                },
+                status=400,
+            )
+
+        try:
+            return _handle_scan_incident_creation(request, asset, form)
+        except DomainError as exc:
+            form.add_error(None, exc.message)
+            return render(
+                request,
+                "identification/resolved.html",
+                {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": False,
+                    "res": {"asset_inactive": False},
+                    "can_report": True,
+                    "form": form,
+                },
+                status=400,
+            )
+
+
+class ResolveReportView(LabelBase):
+    """Direct QR scan-to-incident reporting page."""
+
+    required_permission = "asset.view"
+
+    def _resolve(self, request, token):
+        try:
+            return services.resolve_token(
+                request.membership, token, actor=request.user, request=request
+            )
+        except (NotFound, PermissionDenied, DomainError):
+            return None, None, False
+
+    def get(self, request, token):
+        ident, asset, is_active = self._resolve(request, token)
+        if ident is None or asset is None:
+            return render(request, "identification/not_found.html", {"throttled": False}, status=404)
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced. Reporting an incident requires an active label.")
+            return render(
+                request,
+                "identification/resolved.html",
+                {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": True,
+                    "res": {"asset_inactive": asset.status in TERMINAL_STATES},
+                    "can_report": False,
+                },
+                status=400,
+            )
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot report an incident for a {asset.status.lower()} asset.")
+            return render(
+                request,
+                "identification/resolved.html",
+                {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": False,
+                    "res": {"asset_inactive": True},
+                    "can_report": False,
+                },
+                status=400,
+            )
+
+        from apps.incidents import selectors as incident_selectors
+        can_report = (
+            rbac.has_permission(request.membership, "incident.create", asset.site_id)
+            or incident_selectors.is_owned_asset_reporter(request.membership)
+        )
+        if not can_report:
+            messages.error(request, "You do not have permission to report incidents for this asset.")
+            return render(
+                request,
+                "identification/resolved.html",
+                {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": False,
+                    "res": {"asset_inactive": False},
+                    "can_report": False,
+                },
+                status=403,
+            )
+
+        from .forms import ScanIncidentReportForm
+        return render(
+            request,
+            "identification/scan_report.html",
+            {
+                "asset": asset,
+                "identifier": ident,
+                "form": ScanIncidentReportForm(),
+                "can_report": True,
+            },
+        )
+
+    def post(self, request, token):
+        ident, asset, is_active = self._resolve(request, token)
+        if ident is None or asset is None:
+            return render(request, "identification/not_found.html", {"throttled": False}, status=404)
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced.")
+            return redirect("identification:resolve", token=token)
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot report an incident for a {asset.status.lower()} asset.")
+            return redirect("identification:resolve", token=token)
+
+        from apps.incidents import selectors as incident_selectors
+        can_report = (
+            rbac.has_permission(request.membership, "incident.create", asset.site_id)
+            or incident_selectors.is_owned_asset_reporter(request.membership)
+        )
+        if not can_report:
+            messages.error(request, "You do not have permission to report incidents for this asset.")
+            return render(
+                request,
+                "identification/resolved.html",
+                {"asset": asset, "identifier": ident, "can_report": False},
+                status=403,
+            )
+
+        from .forms import ScanIncidentReportForm
+        form = ScanIncidentReportForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(
+                request,
+                "identification/scan_report.html",
+                {"asset": asset, "identifier": ident, "form": form, "can_report": True},
+                status=400,
+            )
+
+        try:
+            return _handle_scan_incident_creation(request, asset, form)
+        except DomainError as exc:
+            form.add_error(None, exc.message)
+            return render(
+                request,
+                "identification/scan_report.html",
+                {"asset": asset, "identifier": ident, "form": form, "can_report": True},
+                status=400,
+            )

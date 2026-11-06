@@ -305,9 +305,6 @@
               </button>
             </form>
             {% endif %} {% if can.confirm and sr.status == "RESOLVED" %}
-<<<<<<< Updated upstream
-            <form class="d-inline" method="post" action="{% url 'incidents:transition' sr.pk 'confirm' %}">
-=======
             {% if is_portal_client %}
             <a
               class="btn btn-sm btn-outline-success"
@@ -321,7 +318,6 @@
               method="post"
               action="{% url 'incidents:transition' sr.pk 'confirm' %}"
             >
->>>>>>> Stashed changes
               {% csrf_token %}<button class="btn btn-sm btn-outline-success">
                 Confirm resolution
               </button>

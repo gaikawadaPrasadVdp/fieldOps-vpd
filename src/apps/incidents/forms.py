@@ -120,8 +120,24 @@ class EvidenceForm(BootstrapFormMixin, forms.Form):
     file = forms.FileField()
     description = forms.CharField(max_length=200, required=False)
 
-    def clean_description(self):
-        desc = (self.cleaned_data.get("description") or "").strip()
-        if desc:
-            validate_alphabetical_description(desc, field_label="Description")
-        return desc
+
+class ServiceRequestCommentForm(BootstrapFormMixin, forms.Form):
+    body = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "rows": 3,
+            "placeholder": "Type your message or update...",
+        }),
+        max_length=5000,
+        required=True,
+        label="Message",
+    )
+    is_internal = forms.BooleanField(
+        required=False,
+        label="Internal note (staff only, hidden from client)",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def __init__(self, *args, is_staff=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not is_staff and "is_internal" in self.fields:
+            self.fields.pop("is_internal")

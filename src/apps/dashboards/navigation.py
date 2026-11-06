@@ -14,6 +14,18 @@ register(
 
 register(
     NavItem(
+        label="KPI Snapshots",
+        url_name="dashboards:snapshot_list",
+        permission="report.view",
+        icon="archive",
+        section="Analytics",
+        order=15,
+        match_prefix="/app/dashboards/snapshots",
+    )
+)
+
+register(
+    NavItem(
         label="My Work Cockpit",
         url_name="dashboards:my_work",
         permission="work_order.view_assigned",
