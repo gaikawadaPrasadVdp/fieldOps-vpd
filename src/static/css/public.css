@@ -229,13 +229,7 @@ body.fx-public-site {
   .landing-reveal-left, .landing-reveal-left.is-visible,
 
   .landing-reveal-scale, .landing-reveal-scale.is-visible {
-<<<<<<< HEAD
     opacity: 0.8 !important;
-=======
-
-    opacity: 1 !important;
-
->>>>>>> 15479cf0fb2e1303f4253f4c7a65299e241ae843
     transform: none !important;
 
     transition: none !important;
@@ -406,10 +400,15 @@ body.fx-public-site {
 
 }
 
-.fx-pub-brand-emblem,
+.fx-pub-brand-emblem, .fx-pub-brand-text {
 
-.fx-brand-img {
+  display: inline-flex;
 
+  align-items: center;
+
+  gap: 0.5rem;
+
+}
 /* Desktop Navigation Menu */
 .fx-pub-nav-desktop {
   display: none;

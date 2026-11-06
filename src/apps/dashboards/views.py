@@ -57,7 +57,9 @@ class DashboardHubView(TenantPermissionMixin, View):
             )
         elif sec == "inventory":
             return (
-                rbac.has_permission_anywhere(membership, "inventory.reconcile")
+                rbac.has_permission_anywhere(membership, "inventory.view")
+                or rbac.has_permission_anywhere(membership, "inventory.part.view")
+                or rbac.has_permission_anywhere(membership, "inventory.reconcile")
                 or rbac.has_permission_anywhere(membership, "inventory.warehouse.manage")
                 or rbac.has_permission_anywhere(membership, "inventory.adjust")
                 or rbac.is_owner(membership)
