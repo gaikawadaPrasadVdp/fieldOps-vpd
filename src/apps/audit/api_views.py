@@ -112,7 +112,11 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         return Response({"reports": reports_list})
 
     @extend_schema(parameters=FILTER_PARAMS + [query_param("export_format", "csv | xlsx | pdf (default csv)")],
-                   responses=OpenApiTypes.BINARY)
+                   responses={
+                       (200, "text/csv"): OpenApiTypes.BINARY,
+                       (200, "application/pdf"): OpenApiTypes.BINARY,
+                       (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+                   })
     @action(detail=False, methods=["get"])
     def export(self, request):
         fmt = (request.query_params.get("export_format") or request.query_params.get("format") or "csv").lower()
@@ -134,7 +138,7 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         return resp
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID)],
-                   responses=OpenApiTypes.BINARY)
+                   responses={(200, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=False, methods=["get"])
     def evidence(self, request):
         """Per-work-order evidence package (ZIP); same scope rules as the UI download."""

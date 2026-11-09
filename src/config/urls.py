@@ -47,6 +47,7 @@ from apps.sites.api_views import (
     CalendarViewSet,
     ContactViewSet,
     HolidayViewSet,
+    ShiftViewSet,
     SiteViewSet,
     ZoneViewSet,
     ShiftViewSet,
@@ -59,7 +60,7 @@ from apps.sla.api_views import (
     SLATrackingViewSet,
 )
 from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet, PlatformUserViewSet
-from apps.workorders.views import WorkOrderViewSet, TechnicianProfileViewSet
+from apps.workorders.views import TechnicianProfileViewSet, WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
 router = SimpleRouter()
@@ -112,6 +113,8 @@ router.register("work-orders", WorkOrderViewSet, basename="work-order")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
 router.register("inspections", InspectionViewSet, basename="inspection")
 router.register("findings", FindingViewSet, basename="finding")
+router.register("shifts", ShiftViewSet, basename="shift")
+router.register("technician-profiles", TechnicianProfileViewSet, basename="technician-profile")
 router.register("integration-events", IntegrationEventViewSet, basename="integration-event")
 router.register("webhooks", WebhookEndpointViewSet, basename="webhook")
 

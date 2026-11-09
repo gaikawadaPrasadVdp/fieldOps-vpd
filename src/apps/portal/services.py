@@ -65,17 +65,17 @@ def verify_portal_access(membership: Membership | None) -> PortalAccount:
     has_view = (
         rbac.has_permission(membership, "portal.request.view")
         or rbac.has_permission_anywhere(membership, "portal.request.view")
-        or membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
+        or membership.membership_roles.filter(role__system_key="client_requester").exists()
     )
     if not has_view:
         raise PermissionDenied("Account lacks portal access permissions.")
 
     account = get_portal_account(membership)
     if account is None:
-        raise PermissionDenied("Portal account is not registered.")
+        raise PermissionDenied("No portal account registered for this membership.")
 
     if not account.is_enabled:
-        raise PermissionDenied("Portal account is disabled or suspended.")
+        raise PermissionDenied("Portal account has been disabled by an administrator.")
 
     if account.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization portal access blocked.")

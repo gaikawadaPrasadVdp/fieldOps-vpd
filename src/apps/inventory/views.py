@@ -475,7 +475,7 @@ def line_ops(membership, wo, line) -> dict:
         "reserve": open_ and has("inventory.reserve") and line.remaining_to_issue - held > 0
         and wo.status in ("PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"),
         "release": open_ and has("inventory.reserve") and held > 0,
-        "issue": open_ and has("inventory.issue") and line.remaining_to_issue > 0
+        "issue": open_ and has("inventory.issue") and line.status != "REQUESTED" and line.remaining_to_issue > 0
         and wo.status in ("PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"),
         "consume": open_ and has("inventory.consume") and line.outstanding > 0
         and wo.status in ("IN_PROGRESS", "ON_HOLD", "COMPLETED", "SUPERVISOR_REVIEW"),
@@ -535,7 +535,11 @@ class PartRequestView(TenantPermissionMixin, View):
         need(request, "inventory.request", wo.site_id)
         form = RequestPartForm(request.POST, parts=selectors.parts_for(org).order_by("part_number"))
         if not form.is_valid():
-            messages.error(request, "Choose a part and enter a valid whole number quantity above zero.")
+            error_msgs = [str(err) for errs in form.errors.values() for err in errs]
+            msg = " ".join(error_msgs)
+            if "quantity" in form.errors and "valid whole number quantity" not in msg.lower():
+                msg = f"Choose a part and enter a valid whole number quantity above zero. {msg}".strip()
+            messages.error(request, msg or "Choose a part and enter a valid whole number quantity above zero.")
         else:
             d = form.cleaned_data
             try:

@@ -60,24 +60,29 @@ def assert_consistent(wh, part):
 
 def test_two_concurrent_issues_of_the_last_unit_exactly_one_succeeds(inv_):
     p = inv_
-    inv.receive(p["wh"], p["part"], 1, actor=p["stores"].user)
-    lines = [inv.request_part(wo, p["part"], 1, actor=p["tech"].user, membership=p["tech"])
+    inv.receive(p["wh"], p["part"], 3, actor=p["stores"].user)
+    lines = [inv.request_part(wo, p["part"], 2, actor=p["tech"].user, membership=p["tech"])
              for wo in started_work_orders(p, 2)]
-    results = run_parallel([lambda ln=ln: inv.issue(ln, p["wh"], 1, actor=p["stores"].user) for ln in lines])
+    for ln in lines:
+        inv.reserve(ln, p["wh"], 1, actor=p["stores"].user)  # reserved=2, available=1
+    results = run_parallel([lambda ln=ln: inv.issue(ln, p["wh"], 2, actor=p["stores"].user) for ln in lines])
     assert sorted(results) == ["insufficient_available", "ok"]
     b = assert_consistent(p["wh"], p["part"])
-    assert b.on_hand == 0  # never -1
+    assert (b.on_hand, b.available) == (1, 0)  # loser still holds its reservation of 1, available=0
     assert StockMovement.objects.filter(movement_type="ISSUE").count() == 1
 
 
 def test_many_concurrent_issues_never_oversell(inv_):
     p = inv_
-    inv.receive(p["wh"], p["part"], 3, actor=p["stores"].user)
-    lines = [inv.request_part(wo, p["part"], 1, actor=p["tech"].user, membership=p["tech"])
+    inv.receive(p["wh"], p["part"], 9, actor=p["stores"].user)
+    lines = [inv.request_part(wo, p["part"], 2, actor=p["tech"].user, membership=p["tech"])
              for wo in started_work_orders(p, 6)]
-    results = run_parallel([lambda ln=ln: inv.issue(ln, p["wh"], 1, actor=p["stores"].user) for ln in lines])
+    for ln in lines:
+        inv.reserve(ln, p["wh"], 1, actor=p["stores"].user)  # reserved=6, available=3
+    results = run_parallel([lambda ln=ln: inv.issue(ln, p["wh"], 2, actor=p["stores"].user) for ln in lines])
     assert results.count("ok") == 3 and results.count("insufficient_available") == 3
-    assert assert_consistent(p["wh"], p["part"]).on_hand == 0
+    b = assert_consistent(p["wh"], p["part"])
+    assert (b.on_hand, b.available) == (3, 0)
 
 
 def test_concurrent_reservations_never_exceed_available(inv_):
@@ -95,6 +100,7 @@ def test_concurrent_issues_on_the_same_line_respect_the_requirement(inv_):
     p = inv_
     inv.receive(p["wh"], p["part"], 10, actor=p["stores"].user)
     line = inv.request_part(started_work_orders(p, 1)[0], p["part"], 1, actor=p["tech"].user, membership=p["tech"])
+    inv.reserve(line, p["wh"], 1, actor=p["stores"].user)
     results = run_parallel([lambda: inv.issue(line, p["wh"], 1, actor=p["stores"].user) for _ in range(4)])
     assert results.count("ok") == 1 and results.count("exceeds_requirement") == 3
     assert assert_consistent(p["wh"], p["part"]).on_hand == 9
@@ -132,6 +138,6 @@ def test_concurrent_issue_and_release_on_one_line_stay_consistent(inv_):
     inv.reserve(line, p["wh"], 3, actor=p["stores"].user)
     results = run_parallel([lambda: inv.issue(line, p["wh"], 2, actor=p["stores"].user),
                             lambda: inv.release(line, 3, actor=p["stores"].user)])
-    assert results.count("ok") >= 1  # whichever order the locks were taken in, the books balance
+    assert sorted(results) in (["exceeds_reserved", "ok"], ["ok", "reservation_required"])
     b = assert_consistent(p["wh"], p["part"])
-    assert b.on_hand == 3  # the issue of 2 always happens; the release only succeeds if it ran first or fits
+    assert b.on_hand in (3, 5)  # 3 if issue ran first, 5 if release reverted status to REQUESTED first

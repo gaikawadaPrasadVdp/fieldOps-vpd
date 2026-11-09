@@ -21,6 +21,17 @@ class WholeNumberField(forms.IntegerField):
     """Integer field for whole numbers without decimals.
     Prepares Decimal/float values from model instances without trailing decimals (e.g. 10 instead of 10.000).
     """
+    default_error_messages = {
+        "invalid": "Value must contain only numbers.",
+    }
+
+    def __init__(self, *args, min_value=1, **kwargs):
+        attrs = {"step": "1"}
+        if min_value is not None:
+            attrs["min"] = str(min_value)
+        widget = kwargs.pop("widget", None) or forms.NumberInput(attrs=attrs)
+        super().__init__(*args, min_value=min_value, widget=widget, **kwargs)
+
     def prepare_value(self, value):
         if value is not None and value != "":
             try:
@@ -37,7 +48,10 @@ class WholeNumberField(forms.IntegerField):
         label_prefix = f"{self.label} " if self.label else "Value "
         if any(c.isalpha() for c in raw):
             raise forms.ValidationError(f"{label_prefix}must contain only numbers and cannot contain letters.")
-        return super().to_python(value)
+        try:
+            return super().to_python(value)
+        except forms.ValidationError:
+            raise forms.ValidationError(f"{label_prefix}must contain only numbers.")
 
 
 def _level(label):
@@ -62,13 +76,11 @@ class PartForm(BootstrapFormMixin, forms.Form):
         part_number = (self.cleaned_data.get("part_number") or "").strip()
         if not part_number:
             raise forms.ValidationError("Part number is required.")
-        if any(c.isalpha() for c in part_number) and not any(c.isdigit() for c in part_number):
-            raise forms.ValidationError("Part number must contain only numbers and cannot contain letters.")
-        if not any(c.isdigit() for c in part_number):
-            raise forms.ValidationError("Part number must contain numbers.")
-        allowed_separators = set("-./# ")
+        if not any(c.isalnum() for c in part_number):
+            raise forms.ValidationError("Part number must contain letters or numbers.")
+        allowed_separators = set("-./#_ ")
         if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in part_number):
-            raise forms.ValidationError("Part number can contain only numbers and standard separators (-, ., /).")
+            raise forms.ValidationError("Part number can contain only letters, numbers, and standard separators (-, ., /, #, _).")
         return part_number
 
     def clean_name(self):
@@ -86,21 +98,12 @@ class PartForm(BootstrapFormMixin, forms.Form):
         unit = (self.cleaned_data.get("unit") or "").strip()
         if not unit:
             raise forms.ValidationError("Unit is required.")
-        STANDARD_UNITS = {
-            "pcs", "pc", "piece", "pieces", "kg", "g", "mg", "l", "ltr", "liter", "liters",
-            "ml", "m", "mtr", "meter", "meters", "cm", "mm", "km", "box", "boxes", "set",
-            "sets", "pack", "packs", "pkg", "roll", "rolls", "unit", "units", "pair",
-            "pairs", "bag", "bags", "drum", "drums", "can", "cans", "bottle", "bottles",
-            "ft", "in", "gal", "qt", "pt", "oz", "lb", "nos", "no", "ea", "each",
-        }
-        if unit.lower() in STANDARD_UNITS:
-            return unit
-        allowed_separators = set("-./# ")
-        if any(c.isdigit() for c in unit) and not any(c.isalpha() for c in unit):
-            if any(not (c.isdigit() or c.isspace() or c in allowed_separators) for c in unit):
-                raise forms.ValidationError("Unit can contain only numbers and standard separators (-, ., /).")
-            return unit
-        raise forms.ValidationError("Unit must contain only numbers and cannot contain letters.")
+        if not any(c.isalnum() for c in unit):
+            raise forms.ValidationError("Unit must contain letters or numbers.")
+        allowed_separators = set("-./#_ ")
+        if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in unit):
+            raise forms.ValidationError("Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).")
+        return unit
 
     def clean_min_stock(self):
         val = self.cleaned_data.get("min_stock")
@@ -150,7 +153,7 @@ class WarehouseForm(BootstrapFormMixin, forms.Form):
 class ReceiveForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Choose a warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=1, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
+    quantity = WholeNumberField(min_value=1, label="Quantity")
     reference = forms.CharField(max_length=100, required=False, label="Reference (PO / delivery note)")
     reason = forms.CharField(max_length=300, required=False)
 
@@ -161,7 +164,7 @@ class ReceiveForm(BootstrapFormMixin, forms.Form):
 
 
 class AdjustForm(BootstrapFormMixin, forms.Form):
-    delta = forms.DecimalField(label="Adjustment (+ / -)", **QTY)
+    delta = WholeNumberField(min_value=None, label="Adjustment (+ / -)", widget=forms.NumberInput(attrs={"step": "1"}))
     reason = forms.CharField(max_length=300)
 
     def clean_delta(self):
@@ -195,7 +198,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
     source = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="From warehouse")
     target = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="To warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
+    quantity = WholeNumberField(min_value=1, label="Quantity")
     reason = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, warehouses=None, parts=None, **kwargs):
@@ -215,7 +218,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
 
 class RequestPartForm(BootstrapFormMixin, forms.Form):
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
+    quantity = WholeNumberField(min_value=1, label="Quantity")
     notes = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, parts=None, **kwargs):
@@ -244,7 +247,7 @@ class RequestPartForm(BootstrapFormMixin, forms.Form):
 
 class ReserveForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Warehouse")
-    quantity = forms.DecimalField(min_value=0.001, required=False, help_text="Blank = everything still uncovered", **QTY)
+    quantity = WholeNumberField(min_value=1, required=False, help_text="Blank = everything still uncovered", label="Quantity")
 
     def __init__(self, *args, warehouses=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -253,7 +256,7 @@ class ReserveForm(BootstrapFormMixin, forms.Form):
 
 class IssueForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Warehouse")
-    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
+    quantity = WholeNumberField(min_value=1, label="Quantity")
 
     def __init__(self, *args, warehouses=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -261,12 +264,12 @@ class IssueForm(BootstrapFormMixin, forms.Form):
 
 
 class QuantityForm(BootstrapFormMixin, forms.Form):
-    quantity = forms.DecimalField(min_value=0.001, required=False, **QTY)
+    quantity = WholeNumberField(min_value=1, required=False, label="Quantity")
     reason = forms.CharField(max_length=300, required=False)
 
 
 class ScrapForm(BootstrapFormMixin, forms.Form):
-    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
+    quantity = WholeNumberField(min_value=1, label="Quantity")
     reason = forms.CharField(max_length=300, label="Reason (scrap / damage / expiration)")
 
     def clean_reason(self):

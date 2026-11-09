@@ -111,10 +111,10 @@ class WebhookEndpoint(TenantOwnedModel):
 
     class Meta:
         ordering = ["name"]
-        indexes = [
-            models.Index(
-                fields=["organization", "is_active"],
-                name="core_webhoo_organiz_6dd066_idx",
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "target_url"],
+                name="uniq_webhook_endpoint_per_org",
             )
         ]
 

@@ -54,4 +54,4 @@ def axes_username(request, credentials=None) -> str | None:
                         value = payload.get("username") or payload.get("email")
             except Exception:
                 pass
-    return value.strip().lower() if isinstance(value, str) and value.strip() else None
+    return value.strip().lower()[:254] if isinstance(value, str) and value.strip() else None

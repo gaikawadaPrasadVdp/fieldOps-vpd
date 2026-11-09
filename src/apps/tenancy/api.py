@@ -32,9 +32,15 @@ class TenantAPIMixin:
     required_permission: str | None = None
 
     def initial(self, request, *args, **kwargs):
-        if getattr(self, "action_map", None) and request.method.lower() not in self.action_map:
-            if request.method.lower() != "options":
-                raise DRFMethodNotAllowed(request.method)
+        method = request.method.lower()
+        if method != "options":
+            if getattr(self, "action_map", None):
+                if method not in self.action_map:
+                    raise DRFMethodNotAllowed(request.method)
+            else:
+                allowed = {m.lower() for m in self.allowed_methods}
+                if method not in allowed:
+                    raise DRFMethodNotAllowed(request.method)
         super().initial(request, *args, **kwargs)
 
     def get_permissions(self):
@@ -84,22 +90,6 @@ class HasOrgPermission(permissions.BasePermission):
             return False  # unmapped action -> deny
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
-        if code.startswith("portal.request."):
-            has_perm = (
-                rbac.has_permission(membership, code)
-                or rbac.has_permission_anywhere(membership, code)
-                or membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
-            )
-            if not has_perm:
-                return False
-            try:
-                from apps.portal.models import PortalAccount
-                account = PortalAccount.objects.filter(membership=membership, organization=membership.organization).first()
-                if account is None or not account.is_enabled:
-                    return False
-            except Exception:
-                return False
-            return True
         return rbac.has_permission_anywhere(membership, code)
 
 

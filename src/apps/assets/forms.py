@@ -91,6 +91,7 @@ class AssetForm(BootstrapFormMixin, forms.Form):
         self.fields["site"].widget.attrs["required"] = "required"
         self.fields["asset_tag"].widget.attrs["required"] = "required"
         self.fields["name"].widget.attrs["required"] = "required"
+        self.fields["name"].widget.attrs.pop("maxlength", None)
         self.fields["category"].empty_label = "Select Category..."
         self.fields["site"].empty_label = "Select Site..."
         site_qs = sites.filter(status="ACTIVE").order_by("code")

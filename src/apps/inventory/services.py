@@ -310,22 +310,23 @@ def _audit_movement(action: str, movement: StockMovement, *, actor, request, **e
                            "quantity": str(movement.quantity), "part": movement.part.part_number,
                            "warehouse": movement.warehouse.code, **extra}, request=request)
     try:
-        from apps.core.outbox import publish_integration_event
-        publish_integration_event(
-            movement.organization,
-            event_type=f"inventory.{movement.movement_type.lower()}",
-            aggregate_type="stock_movement",
-            aggregate_id=str(movement.pk),
-            payload={
-                "part": movement.part.part_number,
-                "warehouse": movement.warehouse.code,
-                "quantity": str(movement.quantity),
-                "on_hand_delta": str(movement.on_hand_delta),
-                "reserved_delta": str(movement.reserved_delta),
-                "on_hand_after": str(movement.on_hand_after),
-                "movement_type": movement.movement_type,
-            },
-        )
+        with transaction.atomic():
+            from apps.core.outbox import publish_integration_event
+            publish_integration_event(
+                movement.organization,
+                event_type=f"inventory.{movement.movement_type.lower()}",
+                aggregate_type="stock_movement",
+                aggregate_id=str(movement.pk),
+                payload={
+                    "part": movement.part.part_number,
+                    "warehouse": movement.warehouse.code,
+                    "quantity": str(movement.quantity),
+                    "on_hand_delta": str(movement.on_hand_delta),
+                    "reserved_delta": str(movement.reserved_delta),
+                    "on_hand_after": str(movement.on_hand_after),
+                    "movement_type": movement.movement_type,
+                },
+            )
     except Exception:
         pass
 
@@ -632,6 +633,8 @@ def issue(line: WorkOrderPart, warehouse: Warehouse, quantity, *, actor, request
     if q > line.remaining_to_issue:
         raise Conflict("Cannot issue more than the requirement.", code="exceeds_requirement",
                        details={"remaining": str(line.remaining_to_issue)})
+    if line.status == REQUESTED:
+        raise Conflict("Reserve stock for this part line before issuing.", code="reservation_required")
     res = _reservation(line)
     held = res.quantity if res else ZERO
     from_hold = min(held, q)

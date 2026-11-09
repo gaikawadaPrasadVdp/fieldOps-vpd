@@ -40,7 +40,7 @@ class CategoryWriteSerializer(serializers.Serializer):
 class AssetSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    zone_name = serializers.CharField(source="zone.name", read_only=True, default=None)
+    zone_name = serializers.CharField(source="zone.name", read_only=True, default=None, allow_null=True)
     owner_name = serializers.SerializerMethodField()
     parent = serializers.SerializerMethodField()
     available_actions = serializers.SerializerMethodField()
@@ -118,10 +118,10 @@ class StatusHistorySerializer(serializers.Serializer):
 
 class LocationHistorySerializer(serializers.Serializer):
     id = serializers.UUIDField()
-    from_site = serializers.CharField(source="from_site.code", default=None)
-    from_zone = serializers.CharField(source="from_zone.name", default=None)
+    from_site = serializers.CharField(source="from_site.code", default=None, allow_null=True)
+    from_zone = serializers.CharField(source="from_zone.name", default=None, allow_null=True)
     to_site = serializers.CharField(source="to_site.code")
-    to_zone = serializers.CharField(source="to_zone.name", default=None)
+    to_zone = serializers.CharField(source="to_zone.name", default=None, allow_null=True)
     reason = serializers.CharField()
     moved_by = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
@@ -176,7 +176,7 @@ class MeterWriteSerializer(serializers.Serializer):
 
 
 class ReadingSerializer(serializers.ModelSerializer):
-    recorded_by = serializers.EmailField(source="recorded_by.email", read_only=True, default=None)
+    recorded_by = serializers.EmailField(source="recorded_by.email", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = AssetMeterReading
@@ -243,6 +243,16 @@ class TreeNodeSerializer(serializers.Serializer):
     link_id = serializers.UUIDField(allow_null=True)
     depth = serializers.IntegerField()
     children = serializers.ListField(child=serializers.DictField())
+
+
+class TreePathItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    asset_tag = serializers.CharField()
+
+
+class AssetTreeResponseSerializer(serializers.Serializer):
+    path = TreePathItemSerializer(many=True)
+    tree = TreeNodeSerializer()
 
 
 def tree_node(n: dict) -> dict:
@@ -439,7 +449,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         doc.refresh_from_db()
         return Response(DocumentSerializer(doc).data)
 
-    @extend_schema(responses=TreeNodeSerializer)
+    @extend_schema(responses=AssetTreeResponseSerializer)
     @action(detail=True, methods=["get"])
     def tree(self, request, pk=None):
         """This asset with all of its descendants, plus the chain of ancestors (root first)."""

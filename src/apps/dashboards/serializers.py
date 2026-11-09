@@ -5,7 +5,9 @@ from .models import ReportSnapshot
 
 class ReportSnapshotSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source="created_by.display_name", read_only=True, allow_null=True)
+    created_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     site_name = serializers.CharField(source="site.name", read_only=True, allow_null=True)
+    site_id = serializers.UUIDField(read_only=True, allow_null=True)
 
     class Meta:
         model = ReportSnapshot

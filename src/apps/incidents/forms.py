@@ -34,8 +34,8 @@ class RequestForm(BootstrapFormMixin, forms.Form):
                                        help_text="e.g. Mechanical, Electrical, Hydraulic, etc.")
     assigned_team = forms.CharField(max_length=100, required=False, label="Assigned team",
                                     help_text="Optional maintenance team to route to")
-    occurred_at = dt_field("When did it happen?", required=True)
-    downtime_started_at = dt_field("Downtime started", required=True)
+    occurred_at = dt_field("When did it happen? (blank = now)")
+    downtime_started_at = dt_field("Downtime started (if the asset is down)")
     override_duplicate = forms.BooleanField(required=False, widget=forms.HiddenInput())
     override_reason = forms.CharField(max_length=500, required=False, label="Override reason",
                                       widget=forms.Textarea(attrs={"rows": 2}),

@@ -108,10 +108,10 @@
           setLiveError(partNumberEl, "");
           return;
         }
-        if (/[a-zA-Z]/.test(val)) {
-          setLiveError(partNumberEl, "Part number must contain only numbers and cannot contain letters.");
-        } else if (!/\d/.test(val)) {
-          setLiveError(partNumberEl, "Part number must contain numbers.");
+        if (!/[a-zA-Z0-9]/.test(val)) {
+          setLiveError(partNumberEl, "Part number must contain letters or numbers.");
+        } else if (/[^a-zA-Z0-9\-./#_\s]/.test(val)) {
+          setLiveError(partNumberEl, "Part number can contain only letters, numbers, and standard separators (-, ., /, #, _).");
         } else {
           setLiveError(partNumberEl, "");
         }
@@ -120,7 +120,7 @@
       partNumberEl.addEventListener("change", validatePartNumber);
     }
 
-    // Unit validation: Only numbers allowed (rejects letters like ppfdsbdhg)
+    // Unit validation: Letters, numbers, and standard separators allowed
     if (unitEl && partNumberEl) {
       function validateUnit() {
         const val = unitEl.value.trim();
@@ -128,12 +128,12 @@
           setLiveError(unitEl, "");
           return true;
         }
-        if (/[a-zA-Z]/.test(val)) {
-          setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
+        if (!/[a-zA-Z0-9]/.test(val)) {
+          setLiveError(unitEl, "Unit must contain letters or numbers.");
           return false;
         }
-        if (!/\d/.test(val)) {
-          setLiveError(unitEl, "Unit must contain numbers.");
+        if (/[^a-zA-Z0-9\-./#_\s]/.test(val)) {
+          setLiveError(unitEl, "Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).");
           return false;
         }
         setLiveError(unitEl, "");
@@ -224,15 +224,15 @@
         }
         if (partNumberEl) {
           const val = partNumberEl.value.trim();
-          if (/[a-zA-Z]/.test(val)) {
+          if (!val || !/[a-zA-Z0-9]/.test(val)) {
             e.preventDefault();
-            setLiveError(partNumberEl, "Part number must contain only numbers and cannot contain letters.");
+            setLiveError(partNumberEl, val ? "Part number must contain letters or numbers." : "Part number is required.");
             partNumberEl.focus();
             return;
           }
-          if (!val || !/\d/.test(val)) {
+          if (/[^a-zA-Z0-9\-./#_\s]/.test(val)) {
             e.preventDefault();
-            setLiveError(partNumberEl, "Part number must contain numbers.");
+            setLiveError(partNumberEl, "Part number can contain only letters, numbers, and standard separators (-, ., /, #, _).");
             partNumberEl.focus();
             return;
           }
@@ -245,15 +245,15 @@
             unitEl.focus();
             return;
           }
-          if (/[a-zA-Z]/.test(uVal)) {
+          if (!/[a-zA-Z0-9]/.test(uVal)) {
             e.preventDefault();
-            setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
+            setLiveError(unitEl, "Unit must contain letters or numbers.");
             unitEl.focus();
             return;
           }
-          if (!/\d/.test(uVal)) {
+          if (/[^a-zA-Z0-9\-./#_\s]/.test(uVal)) {
             e.preventDefault();
-            setLiveError(unitEl, "Unit must contain numbers.");
+            setLiveError(unitEl, "Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).");
             unitEl.focus();
             return;
           }
