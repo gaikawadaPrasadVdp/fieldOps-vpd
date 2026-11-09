@@ -57,6 +57,11 @@ class PlatformOrganizationCreateSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=2, required=False, allow_blank=True)
 
 
+class PlatformOrganizationStatusSerializer(serializers.Serializer):
+    active = serializers.BooleanField(required=True, help_text="True to activate, False to suspend the organization")
+    reason = serializers.CharField(required=False, allow_blank=True, default="", help_text="Reason for the status change")
+
+
 
 def _resolve_role_ids(org, role_str, role_ids=None):
     if role_ids:
@@ -145,6 +150,7 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
         hard, msg = services.delete_organization(org, actor=request.user, request=request)
         return Response({"success": True, "hard_deleted": hard, "message": msg}, status=status.HTTP_200_OK)
 
+    @extend_schema(request=PlatformOrganizationStatusSerializer, responses=OrganizationSerializer, summary="Update organization status")
     @action(detail=True, methods=["post"])
     def set_status(self, request, pk=None):
         org = self._get_org(pk)

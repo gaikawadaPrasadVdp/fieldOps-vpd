@@ -76,6 +76,7 @@ class PlanPatchSerializer(PlanWriteSerializer):
 class ScheduleWriteSerializer(serializers.Serializer):
     trigger_type = serializers.ChoiceField(choices=MaintenanceSchedule.Trigger.choices)
     frequency = serializers.ChoiceField(choices=MaintenanceSchedule.Frequency.choices, required=False)
+    interval = serializers.IntegerField(required=False, min_value=1)
     interval_count = serializers.IntegerField(required=False, min_value=1)
     start_date = serializers.DateField(required=False)
     meter = serializers.UUIDField(required=False)
@@ -85,6 +86,12 @@ class ScheduleWriteSerializer(serializers.Serializer):
     window_start_time = serializers.TimeField(required=False)
     window_hours = serializers.IntegerField(required=False, min_value=1, max_value=24)
     reminder_days = serializers.IntegerField(required=False, min_value=0, max_value=60)
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, "copy") else dict(data)
+        if "interval" in data and "interval_count" not in data:
+            data["interval_count"] = data["interval"]
+        return super().to_internal_value(data)
 
 
 class SchedulePatchSerializer(ScheduleWriteSerializer):

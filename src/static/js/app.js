@@ -68,7 +68,7 @@ document.addEventListener("change", function (e) {
   var action = sel.form.getAttribute("action") || window.location.pathname;
   var url = action + (action.indexOf("?") === -1 ? "?" : "&") + params.toString();
   if (sel.form.id === "asset-modal-form" && window.htmx && document.getElementById("assetModalContent")) {
-    window.htmx.ajax("GET", url, {target: "#assetModalContent", swap: "innerHTML"});
+    window.htmx.ajax("GET", url, { target: "#assetModalContent", swap: "innerHTML" });
   } else {
     window.location.href = url;
   }
@@ -165,7 +165,7 @@ window.fxToast = function (message, type) {
   toast.className = 'alert alert-' + type + ' fx-toast-message alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm';
   toast.setAttribute('role', 'alert');
   toast.setAttribute('data-auto-dismiss', timeoutMs.toString());
-  
+
   toast.innerHTML = '<div class="d-flex align-items-center gap-2 flex-grow-1">' +
     iconHtml +
     '<span class="fx-toast-text">' + message + '</span>' +
@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tz && document.cookie.indexOf('user_timezone=' + tz) === -1) {
       document.cookie = 'user_timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
     }
-  } catch (e) {}
+  } catch (e) { }
 })();
 
 
@@ -474,7 +474,7 @@ document.body.addEventListener("htmx:afterSettle", setupResponsiveTables);
    Universal Password Visibility Toggle
    ========================================================================== */
 document.addEventListener("click", function (e) {
-  var toggleBtn = e.target.closest(".fx-password-toggle");
+  var toggleBtn = e.target.closest(".fx-password-toggle, #fx-pw-toggle");
   if (!toggleBtn) return;
   e.preventDefault();
   e.stopPropagation();
@@ -482,7 +482,7 @@ document.addEventListener("click", function (e) {
   var targetId = toggleBtn.getAttribute("data-target");
   var input = targetId ? document.getElementById(targetId) : null;
   if (!input) {
-    var group = toggleBtn.closest(".input-group");
+    var group = toggleBtn.closest(".fx-input-wrapper, .input-group");
     if (group) {
       input = group.querySelector("input[type='password'], input[type='text']");
     }
@@ -493,21 +493,30 @@ document.addEventListener("click", function (e) {
       input = prev;
     }
   }
+  if (!input) {
+    input = document.getElementById("id_password");
+  }
   if (!input) return;
 
   var isPassword = (input.type === "password");
   input.type = isPassword ? "text" : "password";
 
-  var showIcon = toggleBtn.querySelector(".fx-pw-show");
-  var hideIcon = toggleBtn.querySelector(".fx-pw-hide");
+  var showIcon = toggleBtn.querySelector(".fx-pw-show, #fx-pw-icon-eye");
+  var hideIcon = toggleBtn.querySelector(".fx-pw-hide, #fx-pw-icon-eye-off");
   if (showIcon && hideIcon) {
     if (isPassword) {
+      // Switched to visible text: show hide-icon (eye-off)
+      showIcon.style.display = "none";
       showIcon.classList.add("d-none");
+      hideIcon.style.display = "inline-flex";
       hideIcon.classList.remove("d-none");
       toggleBtn.setAttribute("aria-label", "Hide password");
       toggleBtn.setAttribute("title", "Hide password");
     } else {
+      // Switched to hidden password: show show-icon (eye)
+      showIcon.style.display = "inline-flex";
       showIcon.classList.remove("d-none");
+      hideIcon.style.display = "none";
       hideIcon.classList.add("d-none");
       toggleBtn.setAttribute("aria-label", "Show password");
       toggleBtn.setAttribute("title", "Show password");
@@ -527,13 +536,13 @@ document.addEventListener("click", function (e) {
     }
   }
 
-  try { input.focus(); } catch (err) {}
+  try { input.focus(); } catch (err) { }
 });
 
 /* ==========================================================================
    Universal Form Validation & Feedback System
    ========================================================================== */
-(function() {
+(function () {
   function getFieldLabel(field) {
     if (!field) return "This field";
     var id = field.id;
@@ -541,7 +550,7 @@ document.addEventListener("click", function (e) {
       var labelEl = document.querySelector('label[for="' + id + '"]');
       if (labelEl) {
         var clone = labelEl.cloneNode(true);
-        clone.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        clone.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var text = clone.textContent.trim().replace(/:$/, "");
         if (text) return text;
       }
@@ -551,7 +560,7 @@ document.addEventListener("click", function (e) {
       var l = parent.querySelector("label");
       if (l) {
         var c = l.cloneNode(true);
-        c.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        c.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var t = c.textContent.trim().replace(/:$/, "");
         if (t) return t;
       }
@@ -2079,23 +2088,7 @@ document.addEventListener("click", function (e) {
     }
   });
 
-  // Enterprise Login Password Visibility Toggle
-  document.addEventListener("click", function (e) {
-    var toggle = e.target.closest("#fx-pw-toggle");
-    if (!toggle) return;
-    e.preventDefault();
-    var pwInput = document.getElementById("id_password");
-    var eyeIcon = document.getElementById("fx-pw-icon-eye");
-    var eyeOffIcon = document.getElementById("fx-pw-icon-eye-off");
-    if (pwInput) {
-      var isPassword = pwInput.getAttribute("type") === "password";
-      pwInput.setAttribute("type", isPassword ? "text" : "password");
-      // if (eyeIcon) eyeIcon.style.display = isPassword ? "none" : "block";
-      // if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? "block" : "none";
-      // toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
-    }
-  });
-
+  // Enterprise Login Password Visibility Toggle handled by universal .fx-password-toggle
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps
@@ -2156,7 +2149,7 @@ document.addEventListener("click", function (e) {
       return;
     }
     var next = encodeURIComponent(path + window.location.search);
-    window.location.href = "/accounts/login/?next=" + next;
+    window.location.href = "/accounts/login/?logged_out=1&next=" + next;
   }
 
   // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
@@ -2214,21 +2207,28 @@ document.addEventListener("click", function (e) {
 
       elem.disabled = true;
 
-      // Broadcast to other tabs immediately
-      broadcastLogout();
+      var bodyParams = new URLSearchParams();
+      if (csrfToken) {
+        bodyParams.append("csrfmiddlewaretoken", csrfToken);
+      }
 
-      // Explicit POST API call (visible in DevTools Fetch/XHR tab)
+      // Explicit POST API call with credentials & CSRF body
       fetch(logoutUrl, {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "X-CSRFToken": csrfToken,
           "X-Requested-With": "XMLHttpRequest",
           "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
+        body: bodyParams.toString(),
       })
         .finally(function () {
+          // Broadcast to other tabs AFTER the server has completed logout
+          broadcastLogout();
           clearClientCookies();
-          window.location.href = "/accounts/login/";
+          window.location.href = "/accounts/login/?logged_out=1";
         });
     }
   });

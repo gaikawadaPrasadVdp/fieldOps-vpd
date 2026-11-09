@@ -5,14 +5,16 @@
 <div class="fx-page-header">
   <div>
     <h1>Checklists &amp; Inspections</h1>
-    <div class="text-body-secondary">Standardized quality control checklists, field verification protocols, and exception findings.</div>
+    <div class="text-body-secondary">Standardized quality control checklists, field verification protocols, and
+      exception findings.</div>
   </div>
   <div class="d-flex align-items-center gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'checklists:inspections' %}">
       {% icon 'clipboard' 14 %} Executed Inspections
     </a>
     {% if can_manage %}
-    <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-1" id="btn-new-checklist" hx-get="{% url 'checklists:create' %}" hx-target="#checklistModalContent" hx-swap="innerHTML">
+    <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-1" id="btn-new-checklist"
+      hx-get="{% url 'checklists:create' %}" hx-target="#checklistModalContent" hx-swap="innerHTML">
       {% icon 'plus' 14 %} New Checklist
     </button>
     <noscript><a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'checklists:create' %}">{% icon 'plus' 14 %} New Checklist</a></noscript>
@@ -38,19 +40,15 @@
 
 <div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
   <form method="get" id="checklist-filter-form" class="d-flex flex-wrap align-items-center gap-2"
-        hx-get="{% url 'checklists:list' %}"
-        hx-trigger="input changed delay:300ms, change"
-        hx-target="#checklist-list-card"
-        hx-select="#checklist-list-card"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-indicator="#global-loading-indicator">
+    hx-get="{% url 'checklists:list' %}" hx-trigger="input changed delay:300ms, change" hx-target="#checklist-list-card"
+    hx-select="#checklist-list-card" hx-swap="outerHTML" hx-push-url="true" hx-indicator="#global-loading-indicator">
     <div class="flex-grow-1" style="min-width: 220px; max-width: 360px;">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light border-end-0">
           {% icon 'search' 14 %}
         </span>
-        <input class="form-control form-control-sm border-start-0 bg-light" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Search templates..." aria-label="Search checklists">
+        <input class="form-control form-control-sm border-start-0 bg-light" type="search" name="q"
+          value="{{ filters.q|default:'' }}" placeholder="Search templates..." aria-label="Search checklists">
       </div>
     </div>
     <div style="min-width: 150px;">
@@ -69,14 +67,15 @@
         <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
       </select>
     </div>
-    <div>
+    <div class="col-12 col-md-2 d-flex justify-content-end">
       <a href="{% url 'checklists:list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
 </div>
 
 <div class="card border-0 shadow-sm bg-white overflow-hidden" id="checklist-list-card" style="border-radius:10px;"
-     hx-get="{% url 'checklists:list' %}" hx-trigger="checklistSaved from:body" hx-target="#checklist-list-card" hx-select="#checklist-list-card" hx-swap="outerHTML" hx-include="#checklist-filter-form" hx-disinherit="*">
+  hx-get="{% url 'checklists:list' %}" hx-trigger="checklistSaved from:body" hx-target="#checklist-list-card"
+  hx-select="#checklist-list-card" hx-swap="outerHTML" hx-include="#checklist-filter-form" hx-disinherit="*">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0" id="checklist-table">
       <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
@@ -95,7 +94,8 @@
         {% for t in page %}
         <tr style="border-bottom: 1px solid #f1f5f9;">
           <td style="padding: 0.75rem 1rem;">
-            <a class="fw-semibold text-decoration-none text-dark d-block" href="{% url 'checklists:detail' t.pk %}" style="color: #0B1F3A;">
+            <a class="fw-semibold text-decoration-none text-dark d-block" href="{% url 'checklists:detail' t.pk %}"
+              style="color: #0B1F3A;">
               {{ t.name }}
             </a>
             {% if t.description %}<div class="small text-muted text-truncate" style="max-width: 320px;">{{ t.description }}</div>{% endif %}
@@ -109,9 +109,10 @@
           </td>
           <td style="padding: 0.75rem 1rem;">
             {% if t.is_required %}
-              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Must pass before work order can close">Mandatory</span>
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+              title="Must pass before work order can close">Mandatory</span>
             {% else %}
-              <span class="badge bg-light text-secondary border">Optional</span>
+            <span class="badge bg-light text-secondary border">Optional</span>
             {% endif %}
           </td>
           <td style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ t.created_at|date:"M d, Y H:i" }}</td>
@@ -119,7 +120,8 @@
             <span class="fw-semibold text-dark">{{ t.items.count }}</span> <span class="small text-muted">item{{ t.items.count|pluralize }}</span>
           </td>
           <td style="padding: 0.75rem 1rem;" class="text-end">
-            <a class="btn btn-sm btn-outline-secondary py-1 px-2" href="{% url 'checklists:detail' t.pk %}">Configure</a>
+            <a class="btn btn-sm btn-outline-secondary py-1 px-2"
+              href="{% url 'checklists:detail' t.pk %}">Configure</a>
           </td>
         </tr>
         {% empty %}
@@ -133,9 +135,9 @@
     </table>
   </div>
   {% if page %}
-    <div class="border-top p-2 bg-light">
-      {% include "components/_pagination.html" %}
-    </div>
+  <div class="border-top p-2 bg-light">
+    {% include "components/_pagination.html" %}
+  </div>
   {% endif %}
 </div>
 

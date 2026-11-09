@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import uuid
 
 from drf_spectacular.utils import OpenApiTypes, extend_schema, inline_serializer
@@ -14,6 +15,8 @@ from apps.core.exceptions import Conflict, DomainError
 from apps.tenancy.api import TenantAPIMixin
 from apps.workorders.models import WorkOrder
 from apps.workorders.serializers import LaborSerializer, WorkOrderSerializer
+
+logger = logging.getLogger(__name__)
 
 from . import selectors, services
 from .serializers import (
@@ -329,6 +332,12 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
             )
         except DomainError as exc:
             return _workspace_error_response(exc)
+        except Exception as exc:
+            logger.exception("Unexpected error recording work note on job %s: %s", pk, exc)
+            return Response(
+                {"error": {"code": "work_note_failed", "message": str(exc), "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(WorkNoteSerializer(note_entry).data, status=status.HTTP_201_CREATED)
 

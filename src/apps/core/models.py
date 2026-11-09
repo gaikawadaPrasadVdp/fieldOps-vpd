@@ -92,3 +92,32 @@ class IntegrationEvent(TenantOwnedModel):
 
     def __str__(self):
         return f"{self.event_type} ({self.aggregate_type}:{self.aggregate_id}) - {self.status}"
+
+
+class WebhookEndpoint(TenantOwnedModel):
+    name = models.CharField(max_length=120)
+    target_url = models.URLField(max_length=500)
+    secret_token = models.CharField(
+        blank=True,
+        help_text="Secret key used to compute HMAC SHA-256 signature",
+        max_length=128,
+    )
+    event_pattern = models.CharField(
+        default="*",
+        help_text="Wildcard or exact event pattern, e.g. work_order.* or asset.alert",
+        max_length=100,
+    )
+    is_active = models.BooleanField(db_index=True, default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "target_url"],
+                name="uniq_webhook_endpoint_per_org",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.target_url})"
+

@@ -23,12 +23,15 @@
 
   <div class="fx-login-container">
     <!-- Mobile Brand Header -->
-    <div class="d-lg-none d-flex align-items-center gap-2 mb-4 pb-2 w-100 border-bottom">
-      <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
-        <div class="fx-pub-brand-badge" style="width:34px; height:34px;">
-          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img">
+    <div class="d-md-none d-flex align-items-center justify-content-between mb-4 pb-2 w-100 border-bottom border-secondary border-opacity-10 fx-mobile-brand-header">
+      <a href="{% url 'ui:root' %}" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+        <div style="width: 36px; height: 36px; flex-shrink: 0;">
+          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" style="width: 100%; height: 100%; object-fit: contain; display: block;">
         </div>
-        <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
+        <div class="d-flex flex-column">
+          <span class="fw-bold fs-5 text-dark lh-1">FieldOps <span style="color:#C9A227;">Nexus</span></span>
+          <span class="text-uppercase fw-semibold" style="color:#C9A227; letter-spacing:0.12em; font-size:0.65rem; margin-top: 3px;">Enterprise Platform</span>
+        </div>
       </a>
     </div>
 
@@ -63,14 +66,29 @@
       <h1 class="fx-login-title">Welcome Back</h1>
       <p class="fx-login-subtitle">Sign in with your enterprise credentials.</p>
 
-      <!-- Login Form -->
-      <form method="post" novalidate>{% csrf_token %}
-        {% if form.non_field_errors %}
-        <div class="alert alert-danger py-2 px-3 small mb-3" style="border-radius: 8px;">
-          {% for err in form.non_field_errors %}{{ err }}{% endfor %}
-        </div>
-        {% endif %}
+      <!-- Clean Error Alert (Inside card, below title & subtitle, above Email Address) -->
+      {% if form.errors %}
+      <div id="fx-login-error-alert" class="fx-login-error-alert" role="alert" aria-live="polite">
+        <svg class="fx-login-error-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span class="fx-login-error-text">Invalid email or password. Please check your credentials and try again.</span>
+      </div>
+      {% else %}
+      <div id="fx-login-error-alert" class="fx-login-error-alert d-none" role="alert" aria-live="polite" style="display: none;">
+        <svg class="fx-login-error-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span class="fx-login-error-text">Invalid email or password. Please check your credentials and try again.</span>
+      </div>
+      {% endif %}
 
+      <!-- Login Form -->
+      <form method="post" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
         <!-- Email Address -->
         <div class="fx-login-group">
           <label for="id_username" class="fx-login-label">
@@ -84,14 +102,11 @@
                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7" />
               </svg>
             </span>
-            <input type="email" name="username" id="id_username"
-              class="fx-login-input {% if form.username.errors %}is-invalid{% endif %}"
+            <input type="text" inputmode="email" name="username" id="id_username"
+              class="fx-login-input"
               value="{{ form.username.value|default:'' }}" required autocomplete="email" autofocus
               placeholder="name@organization.com">
           </div>
-          {% if form.username.errors %}
-          <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.username.errors.0 }}</div>
-          {% endif %}
         </div>
 
         <!-- Password -->
@@ -108,7 +123,7 @@
               </svg>
             </span>
             <input type="password" name="password" id="id_password"
-              class="fx-login-input {% if form.password.errors %}is-invalid{% endif %}" required
+              class="fx-login-input" required
               autocomplete="current-password" placeholder="Enter your password">
             <button type="button" class="fx-pw-toggle-btn fx-password-toggle" id="fx-pw-toggle" data-target="id_password" aria-label="Toggle password visibility">
               <span class="fx-pw-show">
@@ -129,9 +144,6 @@
               </span>
             </button>
           </div>
-          {% if form.password.errors %}
-          <div class="text-danger small mt-1" style="font-size: 12px;">{{ form.password.errors.0 }}</div>
-          {% endif %}
         </div>
 
         <!-- Remember Me  Row -->
@@ -146,7 +158,7 @@
         <input type="hidden" name="next" value="{{ next }}">
 
         <!-- Sign In Button -->
-        <button type="submit" class="fx-login-submit-btn btn-primary">
+        <button type="submit" class="fx-login-submit-btn">
           <span>Sign In to FieldOps Nexus</span>
           <span class="fx-btn-gold-arrow" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -180,4 +192,70 @@
   </div>
 </main>
 
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  // Password visibility toggle
+  var toggle = document.getElementById("fx-pw-toggle");
+  var input = document.getElementById("id_password");
+  if (toggle && input) {
+    toggle.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var isPass = (input.type === "password");
+      input.type = isPass ? "text" : "password";
+
+      var showIcon = toggle.querySelector(".fx-pw-show");
+      var hideIcon = toggle.querySelector(".fx-pw-hide");
+      if (showIcon && hideIcon) {
+        if (isPass) {
+          showIcon.classList.add("d-none");
+          showIcon.style.display = "none";
+          hideIcon.classList.remove("d-none");
+          hideIcon.style.display = "inline-flex";
+          toggle.setAttribute("aria-label", "Hide password");
+          toggle.setAttribute("title", "Hide password");
+        } else {
+          showIcon.classList.remove("d-none");
+          showIcon.style.display = "inline-flex";
+          hideIcon.classList.add("d-none");
+          hideIcon.style.display = "none";
+          toggle.setAttribute("aria-label", "Show password");
+          toggle.setAttribute("title", "Show password");
+        }
+      }
+      try { input.focus(); } catch (err) {}
+    });
+  }
+
+  // Client-side empty validation & clean error presentation
+  var form = document.getElementById("fx-login-form");
+  var alertEl = document.getElementById("fx-login-error-alert");
+  if (form) {
+    form.addEventListener("submit", function(e) {
+      var u = document.getElementById("id_username");
+      var p = document.getElementById("id_password");
+      if (!u || !p) return;
+      var uVal = u.value.trim();
+      var pVal = p.value;
+      if (!uVal || !pVal) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (alertEl) {
+          alertEl.classList.remove("d-none");
+          alertEl.style.display = "flex";
+          alertEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        if (!uVal) {
+          u.focus();
+        } else {
+          p.focus();
+        }
+        return false;
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

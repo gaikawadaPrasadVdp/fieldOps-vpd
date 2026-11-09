@@ -269,6 +269,8 @@ def test_neg_auditor_and_non_admin_mutation_boundaries(p3, make_member, owner_a,
             elif 200 <= resp.status_code < 300:
                 if template == "/api/v1/notifications/read-all/" and method == "post":
                     continue  # intentional MEMBER_ONLY self-service endpoint for caller's own notifications
+                if template == "/api/v1/auth/logout/" and method == "post":
+                    continue  # intentional self-service session logout for any authenticated user
                 allowed_auditor_violations.append((method.upper(), template, resp.status_code, resp.content[:120]))
 
     # Also test Platform Admin routes as Tenant Owner (must be 403, never 200/500)

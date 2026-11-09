@@ -301,6 +301,33 @@ def test_csrf_is_enforced_on_inventory_posts(ui):
     assert not StockMovement.objects.exists()
 
 
+def test_part_request_rejects_decimal_quantities_and_requires_whole_numbers(ui):
+    from apps.inventory.forms import RequestPartForm
+    from apps.inventory.models import Part, WorkOrderPart
+
+    parts_qs = Part.objects.filter(pk=ui["part"].pk)
+    for bad_qty in ("0.004", "1.5", "0.5", "0", "-1"):
+        form = RequestPartForm({"part": str(ui["part"].pk), "quantity": bad_qty}, parts=parts_qs)
+        assert not form.is_valid(), f"Expected {bad_qty} to be invalid"
+        assert "quantity" in form.errors
+
+    form = RequestPartForm({"part": str(ui["part"].pk), "quantity": "3"}, parts=parts_qs)
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["quantity"] == 3
+
+    wo = wo_in_progress(ui)
+    planner = ui["cl"]["planner"]
+    r = planner.post(f"/app/work-orders/{wo.pk}/parts/request/", {"part": str(ui["part"].pk), "quantity": "0.004"})
+    assert r.status_code == 302
+    messages = follow_flash(planner, r)
+    assert any("valid whole number quantity" in m for m in messages)
+    assert not WorkOrderPart.objects.filter(work_order=wo).exists()
+
+    r2 = planner.post(f"/app/work-orders/{wo.pk}/parts/request/", {"part": str(ui["part"].pk), "quantity": "2"})
+    assert r2.status_code == 302
+    assert WorkOrderPart.objects.filter(work_order=wo, quantity_requested=2).exists()
+
+
 def test_stock_movements_sorting(ui):
     stores = ui["cl"]["stores"]
     wh1 = ui["wh"]
@@ -347,7 +374,7 @@ def test_quantity_rejects_decimals_across_inventory_ui(ui):
     # 1. Decimal inputs in receive stock must return 400 Bad Request
     resp_receive = c.post("/app/inventory/stock/receive/", {**base, "quantity": "9.999999"})
     assert resp_receive.status_code == 400
-    assert "Enter a whole number." in resp_receive.content.decode()
+    assert "must contain only numbers" in resp_receive.content.decode()
 
     # 2. Receive page renders input with step="1" and min="1"
     get_receive = c.get("/app/inventory/stock/receive/")
@@ -362,7 +389,7 @@ def test_quantity_rejects_decimals_across_inventory_ui(ui):
         {"source": str(ui["wh"].pk), "target": str(ui["wh2"].pk), "part": str(ui["part"].pk), "quantity": "4.5"}
     )
     assert resp_transfer.status_code == 400
-    assert "Enter a whole number." in resp_transfer.content.decode()
+    assert "must contain only numbers" in resp_transfer.content.decode()
 
 
 def test_reservations_page_sorting_and_filtering(ui):

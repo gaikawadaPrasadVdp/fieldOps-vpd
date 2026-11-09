@@ -2549,6 +2549,18 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   box-shadow: 0 0 0 1px var(--fx-accent);
 }
 
+/* Number Inputs: Remove counter/stepper spin buttons across all browsers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Modern Form Controls */
 .form-control, .form-select {
   border-radius: 6px;

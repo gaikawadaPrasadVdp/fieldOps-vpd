@@ -14,6 +14,15 @@ def send_invitation_email(user_id: str, org_id: str, new_account: bool):
 
     user = get_user_model().objects.get(pk=user_id)
     org = Organization.objects.get(pk=org_id)
+
+    # Safety guard for QA/smoke testing: suppress outbound SMTP delivery for reserved test domains
+    email_lower = user.email.lower()
+    email_backend = getattr(settings, "EMAIL_BACKEND", "").lower()
+    if "locmem" not in email_backend and any(
+        email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")
+    ):
+        return
+
     ctx = {
         "user": user, "organization": org, "new_account": new_account,
         "action_url": services.activation_url(user) if new_account and not user.has_usable_password()

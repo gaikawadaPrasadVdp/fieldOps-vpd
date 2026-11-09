@@ -80,3 +80,9 @@ def organization_members(org):
         .select_related("user")
         .prefetch_related("membership_roles__role", "membership_roles__site")
     )
+
+
+def is_organization_member(user, org) -> bool:
+    if not user or not org:
+        return False
+    return Membership.objects.unscoped().filter(user=user, organization=org).exists()

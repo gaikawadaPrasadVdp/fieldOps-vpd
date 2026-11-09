@@ -74,7 +74,6 @@ class RequestIdMiddleware:
         except Exception as exc:
             if exc.__class__.__name__ in ("RequestDataTooBig", "SuspiciousOperation"):
                 from django.http import JsonResponse
-                flogging.request_id_var.reset(token)
                 resp = JsonResponse(
                     {
                         "error": {

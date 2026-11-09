@@ -9,14 +9,17 @@
     <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}" />
     <link rel="apple-touch-icon" href="{% static 'images/logo-icon.png' %}" />
     <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=5.1" />
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=4.6" />
     <style>
-      /* Ensure that within any field container, strictly only a single error message is visible */
-      div.field-error-message ~ div.field-error-message,
-      div.invalid-feedback ~ div.invalid-feedback,
-      div.field-error-message ~ div.invalid-feedback,
-      div.invalid-feedback ~ div.field-error-message {
-        display: none !important;
+      /* Hide spin buttons / counter controls on number inputs */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
       }
     </style>
     {% block extra_css %}{% endblock %}

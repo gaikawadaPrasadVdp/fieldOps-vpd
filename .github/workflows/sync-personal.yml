@@ -1,0 +1,24 @@
+name: Sync Organization Dev to Personal Main
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Organization Dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Push to Personal Repository
+        env:
+          PERSONAL_REPO_TOKEN: ${{ secrets.update_vpd }}
+        run: |
+          git push --force https://x-access-token:${PERSONAL_REPO_TOKEN}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main

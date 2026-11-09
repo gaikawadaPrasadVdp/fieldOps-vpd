@@ -1,0 +1,89 @@
+import json
+import pytest
+from django.test import Client
+from apps.accounts.models import User
+from apps.audit.models import AuditLog
+
+pytestmark = pytest.mark.django_db
+
+
+def test_logout_standard_post_clears_session_and_cookies(client):
+    """Test standard POST logout invalidates session, deletes cookies, and redirects."""
+    user = User.objects.create_user(email="logout.user@nexus.test", password="Password@123")
+    client.force_login(user)
+
+    # Verify user is authenticated
+    resp_before = client.get("/accounts/profile/")
+    assert resp_before.status_code == 200
+
+    # Perform standard POST logout
+    resp = client.post("/accounts/logout/")
+    assert resp.status_code == 302
+    assert "/accounts/login" in resp.url
+
+    # Check cookies are marked for deletion
+    assert resp.cookies["sessionid"]["max-age"] == 0 or resp.cookies["sessionid"].value == ""
+
+    # Verify user is no longer authenticated
+    resp_after = client.get("/accounts/profile/")
+    assert resp_after.status_code == 302
+    assert "/accounts/login" in resp_after.url
+
+
+def test_logout_ajax_fetch_returns_json_and_logs_out(client, owner_a, org_a):
+    """Test Fetch/AJAX POST logout (used by app.js cross-tab sync) returns JSON and logs out."""
+    client.force_login(owner_a)
+
+    # Perform AJAX logout
+    resp = client.post(
+        "/accounts/logout/",
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        HTTP_ACCEPT="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.content.decode("utf-8"))
+    assert data["status"] == "logged_out"
+    assert data["redirect_url"] == "/accounts/login/"
+
+    # Check audit log recorded the logout
+    audit_exists = AuditLog.objects.filter(action="auth.logout", actor=owner_a).exists()
+    assert audit_exists, "AuditLog for auth.logout was not recorded"
+
+    # Verify session is dead
+    resp_after = client.get("/app/")
+    assert resp_after.status_code == 302
+    assert "/accounts/login" in resp_after.url
+
+
+def test_logout_get_method_rejected(client, owner_a):
+    """GET /accounts/logout/ must be rejected with 405 Method Not Allowed."""
+    client.force_login(owner_a)
+
+    resp = client.get("/accounts/logout/")
+    assert resp.status_code == 405
+
+
+def test_cross_tab_auth_sync_code_and_markup_present(client, owner_a):
+    """Verify templates and static JavaScript have the cross-tab logout synchronization logic wired up."""
+    client.force_login(owner_a)
+
+    # Check dashboard markup contains the logout button with proper ids
+    resp = client.get("/app/")
+    assert resp.status_code == 200
+    html = resp.content.decode("utf-8")
+    assert 'id="fx-logout-form"' in html
+    assert 'id="fx-logout-btn"' in html
+    assert "app.js" in html
+
+    # Verify app.js contains the BroadcastChannel and storage listeners
+    from django.contrib.staticfiles import finders
+    app_js_path = finders.find("js/app.js")
+    assert app_js_path is not None
+    with open(app_js_path, "r", encoding="utf-8") as f:
+        js_code = f.read()
+
+    assert "nexus_auth_sync" in js_code, "BroadcastChannel name missing"
+    assert "nexus_logout_event" in js_code, "localStorage sync key missing"
+    assert "broadcastLogout()" in js_code, "broadcastLogout function missing"
+    assert "redirectToLogin()" in js_code, "redirectToLogin handler missing"
+    assert 'window.addEventListener("storage"' in js_code or "window.addEventListener('storage'" in js_code

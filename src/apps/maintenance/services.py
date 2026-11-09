@@ -264,8 +264,9 @@ def _validate_schedule(plan: MaintenancePlan, data: dict) -> dict:
     if kind == Trigger.TIME:
         if data.get("frequency") not in MaintenanceSchedule.Frequency.values:
             raise ValidationFailed("Choose a frequency.", code="invalid_frequency")
+        count_val = data.get("interval_count") if data.get("interval_count") is not None else data.get("interval")
         try:
-            count = int(data.get("interval_count"))
+            count = int(count_val)
         except (TypeError, ValueError) as exc:
             raise ValidationFailed("The interval must be a whole number.", code="invalid_interval") from exc
         if not 1 <= count <= 1000:
@@ -326,6 +327,25 @@ def create_schedule(plan: MaintenancePlan, *, actor, request=None, **data) -> Ma
     _check_asset(plan.organization, plan.asset)
     fields = _validate_schedule(plan, data)
     sch = MaintenanceSchedule(organization=plan.organization, plan=plan, **fields)
+
+    # Pre-check duplicate schedule before database insertion to avoid misinterpreting constraint errors
+    if sch.trigger_type == Trigger.TIME:
+        dup = MaintenanceSchedule.objects.filter(
+            plan=plan,
+            trigger_type=Trigger.TIME,
+            frequency=sch.frequency,
+            interval_count=sch.interval_count,
+        ).exists()
+    else:
+        dup = MaintenanceSchedule.objects.filter(
+            plan=plan,
+            trigger_type=Trigger.METER,
+            meter=sch.meter,
+            interval_value=sch.interval_value,
+        ).exists()
+    if dup:
+        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule")
+
     try:
         with transaction.atomic():
             _resync(sch, timezone.now())
