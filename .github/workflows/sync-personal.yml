@@ -19,6 +19,6 @@ jobs:
 
       - name: Push to Personal Repository
         env:
-          PERSONAL_REPO_TOKEN: ${{ secrets.UPDATE_VPD }}
+          UPDATE_VPD: ${{ secrets.UPDATE_VPD }}
         run: |
-          git push https://x-access-token:${PERSONAL_REPO_TOKEN}@github.com/gaikawadaPrasadVdp/fieldOps-hpe.git HEAD:main
+          git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-hpe.git HEAD:main
