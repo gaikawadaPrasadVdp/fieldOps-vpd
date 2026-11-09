@@ -24,6 +24,30 @@ def ensure_reportsnapshot_table(apps, schema_editor):
                 site_id uuid NULL REFERENCES sites_site(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED
             );
 
+            -- Ensure columns exist in case the table pre-existed with an older schema
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS created_by_id uuid NULL REFERENCES accounts_user(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES tenancy_organization(id) DEFERRABLE INITIALLY DEFERRED;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS site_id uuid NULL REFERENCES sites_site(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS notes text NOT NULL DEFAULT '';
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS metrics jsonb NOT NULL DEFAULT '{}'::jsonb;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS period_start date;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS period_end date;
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS snapshot_type varchar(20) NOT NULL DEFAULT 'DAILY';
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS section varchar(50) NOT NULL DEFAULT 'OPERATIONS';
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();
+            ALTER TABLE dashboards_reportsnapshot
+                ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
+
             CREATE INDEX IF NOT EXISTS dashboards_reportsnapshot_created_by_id_idx
                 ON dashboards_reportsnapshot (created_by_id);
             CREATE INDEX IF NOT EXISTS dashboards_reportsnapshot_organization_id_idx
