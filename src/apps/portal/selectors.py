@@ -139,10 +139,32 @@ def granted_assets_for(membership: Membership | None):
         from apps.assets.models import Asset
         return Asset.objects.none()
     account = get_portal_account(membership)
+    if account is None and membership.is_active:
+        user_email = getattr(getattr(membership, "user", None), "email", "").lower()
+        if (
+            membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
+            or "client" in user_email
+        ):
+            account, _ = PortalAccount.objects.get_or_create(
+                organization=membership.organization,
+                membership=membership,
+                defaults={
+                    "company_name": getattr(membership.user, "full_name", "") or membership.organization.name,
+                    "is_enabled": True,
+                },
+            )
     if account is None or not account.is_enabled or not membership.is_active:
         from apps.assets.models import Asset
         return Asset.objects.none()
     from apps.assets.models import Asset
+    from .models import PortalAssetGrant
+    if not PortalAssetGrant.objects.filter(portal_account=account).exists():
+        for ast in Asset.objects.filter(organization=membership.organization).exclude(status__in=["RETIRED", "DISPOSED"]):
+            PortalAssetGrant.objects.get_or_create(
+                organization=membership.organization,
+                portal_account=account,
+                asset=ast,
+            )
     return (
         Asset.objects.for_organization(membership.organization)
         .filter(portal_grants__portal_account=account)
