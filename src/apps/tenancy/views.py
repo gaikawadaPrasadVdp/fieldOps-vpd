@@ -69,7 +69,10 @@ class MemberInviteView(TenantPermissionMixin, View):
         return render(request, "tenancy/member_invite.html", {"form": InviteForm(org=request.organization, membership=request.membership)})
 
     def post(self, request):
-        form = InviteForm(request.POST, org=request.organization, membership=request.membership)
+        post_data = request.POST.copy()
+        form = InviteForm(post_data, org=request.organization, membership=request.membership)
+        if "password" not in post_data:
+            form.fields["password"].required = False
         if form.is_valid():
             try:
                 raw_password = (form.cleaned_data.get("password") or "").strip() or None

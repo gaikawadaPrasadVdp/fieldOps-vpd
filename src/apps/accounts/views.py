@@ -16,6 +16,12 @@ class LoginView(auth_views.LoginView):
     authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.GET.get("logout") or request.GET.get("logged_out"):
+            from django.contrib.auth import logout as auth_logout
+            auth_logout(request)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         response = super().form_valid(form)
         user = form.get_user()

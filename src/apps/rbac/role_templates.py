@@ -54,7 +54,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
         "technician", "Technician", "Executes assigned jobs, checklists, evidence, labor/time, and parts usage.",
         ("asset.view", "asset.meter.record", "site.view", "zone.view", "incident.create", "incident.view_assigned",
          "work_order.view_assigned", "work_order.start", "work_order.hold", "work_order.complete", "work_order.record",
-         "work_order.attach", "incident.attach", "checklist.view", "checklist.execute", "inspection.view", "inspection.execute", "inventory.request",
+         "work_order.attach", "incident.attach", "checklist.execute", "inspection.execute", "inventory.request",
          "inventory.consume", "inventory.part.view", "qr.scan"),
     ),
     RoleTemplate(

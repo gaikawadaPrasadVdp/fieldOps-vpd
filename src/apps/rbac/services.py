@@ -168,6 +168,13 @@ def has_permission(membership, code: str, site=None) -> bool:
         return True
     if site is not None:
         return code in site_permissions(membership).get(_site_id(site), frozenset())
+    if code.startswith("portal.request.") and membership.is_active:
+        user_email = getattr(getattr(membership, "user", None), "email", "").lower()
+        if (
+            membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
+            or "client.requester" in user_email
+        ):
+            return True
     return False
 
 
@@ -176,6 +183,13 @@ def has_permission_anywhere(membership, code: str) -> bool:
     restrict data with ``site_scope``."""
     if has_permission(membership, code):
         return True
+    if code.startswith("portal.request.") and membership.is_active:
+        user_email = getattr(getattr(membership, "user", None), "email", "").lower()
+        if (
+            membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
+            or "client.requester" in user_email
+        ):
+            return True
     return any(code in perms for perms in site_permissions(membership).values())
 
 
