@@ -1077,522 +1077,188 @@
 
 <!-- =========================================================================
 
-     4. Core Modules Grid (8 Photographic Cards)
+     4. Platform Section – Product & Modules (Two-Category Grid)
 
      ========================================================================= -->
 
-<section id="modules" class="fx-modules-section">
+<section id="modules" class="fx-modules-section fx-platform-section">
 
   <div class="container-xl px-4">
 
+    <!-- Section Header -->
     <div class="text-center max-w-2xl mx-auto mb-5 landing-reveal">
 
       <div class="fx-eyebrow justify-content-center">
-
         <span class="fx-eyebrow-bar"></span>
-
-        <span>Connected Architecture</span>
-
+        <span>FieldOps Nexus Platform</span>
         <span class="fx-eyebrow-bar"></span>
-
       </div>
 
-      <h2 class="fx-section-title">Core Modules</h2>
+      <h2 class="fx-section-title">Explore the Platform</h2>
 
       <p class="fx-section-desc">
-
-        Eight core modules that work in harmony with each other or with your own
-
-        existing system
-
+        Discover the connected products and modules that power every FieldOps Nexus operation.
       </p>
 
     </div>
 
+    <!-- Platform Cards Grid (Product & Modules) -->
     <div class="fx-module-grid">
 
-      <!-- 1. Organization Management -->
+      <!-- ── Product Cards (1–4) ── -->
 
-      <a
-
-        href="{% url 'ui:public_module' 'organization-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Asset Management -->
+      <a href="{% url 'ui:public_product' 'asset-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-organization.jpg' %}"
-
-            alt="Organization Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-assets.jpg' %}" alt="Asset Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
-          <span class="module-card-icon-badge">{% icon 'building' 18 %}</span>
-
-          <span class="module-card-num-badge">01</span>
-
-        </div>
-
-        <div class="module-card-body">
-
-          <div>
-
-            <h3 class="module-card-title">Organization Management</h3>
-
-            <p class="module-card-desc">
-
-              Bring sites, teams, and multi-tenant structures into one connected
-
-              view.
-
-            </p>
-
-          </div>
-
-          <span class="module-card-action">
-
-            <span>View Module</span>
-
-            {% icon 'arrow-up-right' 13 %}
-
-          </span>
-
-        </div>
-
-      </a>
-
-      <!-- 2. Asset Management -->
-
-      <a
-
-        href="{% url 'ui:public_product' 'asset-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
-        <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-assets.jpg' %}"
-
-            alt="Asset Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
-          <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'boxes' 18 %}</span>
-
-          <span class="module-card-num-badge">02</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Asset Management</h3>
-
-            <p class="module-card-desc">
-
-              Know the condition, telemetry readings, and full history of every
-
-              critical asset.
-
-            </p>
-
+            <p class="module-card-desc">Know the condition, telemetry readings, and full history of every critical asset.</p>
           </div>
-
           <span class="module-card-action">
-
-            <span>View Module</span>
-
+            <span>View Product</span>
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 3. Service Management -->
-
-      <a
-
-        href="{% url 'ui:public_product' 'service-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Service Management -->
+      <a href="{% url 'ui:public_product' 'service-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-service.jpg' %}"
-
-            alt="Service Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-service.jpg' %}" alt="Service Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'wrench' 18 %}</span>
-
-          <span class="module-card-num-badge">03</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Service Management</h3>
-
-            <p class="module-card-desc">
-
-              Deliver consistent service from automated intake to triage and
-
-              fast resolution.
-
-            </p>
-
+            <p class="module-card-desc">Deliver consistent service from automated intake to triage and fast resolution.</p>
           </div>
-
           <span class="module-card-action">
-
-            <span>View Module</span>
-
+            <span>View Product</span>
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 4. Work Order Management -->
-
-      <a
-
-        href="{% url 'ui:public_product' 'work-order-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Work Order Management -->
+      <a href="{% url 'ui:public_product' 'work-order-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-work-orders.jpg' %}"
-
-            alt="Work Order Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-work-orders.jpg' %}" alt="Work Order Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
-          <span class="module-card-icon-badge"
-
-            >{% icon 'clipboard-list' 18 %}</span
-
-          >
-
-          <span class="module-card-num-badge">04</span>
-
+          <span class="module-card-icon-badge">{% icon 'clipboard-list' 18 %}</span>
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Work Order Management</h3>
-
-            <p class="module-card-desc">
-
-              Plan, assign, and track work orders with end-to-end task
-
-              checklists.
-
-            </p>
-
+            <p class="module-card-desc">Plan, assign, and track work orders with end-to-end task checklists.</p>
           </div>
-
           <span class="module-card-action">
-
-            <span>View Module</span>
-
+            <span>View Product</span>
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 5. Inventory Management -->
-
-      <a
-
-        href="{% url 'ui:public_product' 'inventory-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Inventory Management -->
+      <a href="{% url 'ui:public_product' 'inventory-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-inventory.jpg' %}"
-
-            alt="Inventory Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-inventory.jpg' %}" alt="Inventory Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'package' 18 %}</span>
-
-          <span class="module-card-num-badge">05</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Inventory Management</h3>
-
-            <p class="module-card-desc">
-
-              Keep essential parts and stock moving with double-entry ledger
-
-              safety.
-
-            </p>
-
+            <p class="module-card-desc">Keep essential parts and stock moving with double-entry ledger safety.</p>
           </div>
-
           <span class="module-card-action">
-
-            <span>View Module</span>
-
+            <span>View Product</span>
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 6. Workforce Management -->
+      <!-- ── Modules Cards (5–8) ── -->
 
-      <a
-
-        href="{% url 'ui:public_module' 'workforce-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Workforce Management -->
+      <a href="{% url 'ui:public_module' 'workforce-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-workforce.jpg' %}"
-
-            alt="Workforce Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-workforce.jpg' %}" alt="Workforce Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'user' 18 %}</span>
-
-          <span class="module-card-num-badge">06</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Workforce Management</h3>
-
-            <p class="module-card-desc">
-
-              Give every field technician the live context and mobile tools to
-
-              do their best work.
-
-            </p>
-
+            <p class="module-card-desc">Give every field technician the live context and mobile tools to do their best work.</p>
           </div>
-
           <span class="module-card-action">
-
             <span>View Module</span>
-
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 7. Maintenance Management -->
-
-      <a
-
-        href="{% url 'ui:public_module' 'maintenance-management' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Maintenance Management -->
+      <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-maintenance.jpg' %}"
-
-            alt="Maintenance Management"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-maintenance.jpg' %}" alt="Maintenance Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'settings' 18 %}</span>
-
-          <span class="module-card-num-badge">07</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
             <h3 class="module-card-title">Maintenance Management</h3>
-
-            <p class="module-card-desc">
-
-              Stay ahead of downtime with automated preventive maintenance
-
-              schedules.
-
-            </p>
-
+            <p class="module-card-desc">Stay ahead of downtime with automated preventive maintenance schedules.</p>
           </div>
-
           <span class="module-card-action">
-
             <span>View Module</span>
-
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
-
       </a>
 
-      <!-- 8. Analytics & Reporting -->
-
-      <a
-
-        href="{% url 'ui:public_module' 'analytics-reporting' %}"
-
-        class="module-card landing-reveal"
-
-      >
-
+      <!-- Analytics & Reporting -->
+      <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-
-          <img
-
-            src="{% static 'images/module-analytics.jpg' %}"
-
-            alt="Analytics & Reporting"
-
-            class="module-card-img"
-
-            loading="lazy"
-
-          />
-
+          <img src="{% static 'images/module-analytics.jpg' %}" alt="Analytics &amp; Reporting" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
-
           <span class="module-card-icon-badge">{% icon 'bar-chart' 18 %}</span>
-
-          <span class="module-card-num-badge">08</span>
-
         </div>
-
         <div class="module-card-body">
-
           <div>
-
-            <h3 class="module-card-title">Analytics & Reporting</h3>
-
-            <p class="module-card-desc">
-
-              Turn operational telemetry and execution logs into confident
-
-              executive decisions.
-
-            </p>
-
+            <h3 class="module-card-title">Analytics &amp; Reporting</h3>
+            <p class="module-card-desc">Turn operational telemetry and execution logs into confident executive decisions.</p>
           </div>
-
           <span class="module-card-action">
-
             <span>View Module</span>
-
             {% icon 'arrow-up-right' 13 %}
-
           </span>
-
         </div>
+      </a>
 
+      <!-- Audit & Traceability -->
+      <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/audit-traceability.jpg' %}" alt="Audit &amp; Traceability" class="module-card-img" loading="lazy" />
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'shield' 18 %}</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Audit &amp; Traceability</h3>
+            <p class="module-card-desc">Maintain a complete, timestamped history of every operational activity and sign-off.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
       </a>
 
     </div>

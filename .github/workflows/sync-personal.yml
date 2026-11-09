@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -19,6 +19,6 @@ jobs:
 
       - name: Push to Personal Repository
         env:
-          PERSONAL_REPO_TOKEN: ${{ secrets.update_vpd }}
+          UPDATE_VPD: ${{ secrets.UPDATE_VPD}}
         run: |
-          git push --force https://x-access-token:${PERSONAL_REPO_TOKEN}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
+          git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
