@@ -11,9 +11,10 @@ from .models import Notification
              retry_backoff=True, max_retries=5)
 def send_notification_email(notification_ids: list[str]):
     for n in Notification.objects.filter(pk__in=notification_ids).select_related("recipient", "organization"):
-        email_lower = n.recipient.email.lower()
-        if any(email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")):
-            continue
+        if settings.EMAIL_BACKEND != "django.core.mail.backends.locmem.EmailBackend":
+            email_lower = n.recipient.email.lower()
+            if any(email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")):
+                continue
         with tenant_context(n.organization):
             link = f"\n\n{settings.SITE_BASE_URL.rstrip('/')}{n.link}" if n.link else ""
             send_mail(

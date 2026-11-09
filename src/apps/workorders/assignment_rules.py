@@ -120,6 +120,13 @@ def validate_assignment(work_order, technician):
         raise Conflict("Technician already has an overlapping active assignment.",
                        code="technician_conflict")
 
+    wo_profile = getattr(technician, "workorder_technician_profile", None)
+    if wo_profile and not wo_profile.is_dispatchable:
+        raise ValidationFailed(
+            "Technician is not currently available for dispatch.",
+            code="technician_not_dispatchable",
+        )
+
     profile = getattr(technician, "technician_profile", None)
     if profile:
         if profile.availability_status == "ON_LEAVE":

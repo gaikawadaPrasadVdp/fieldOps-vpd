@@ -444,7 +444,7 @@ class TechnicianProfile(TenantOwnedModel):
     membership = models.OneToOneField(
         "tenancy.Membership",
         on_delete=models.CASCADE,
-        related_name="technician_profile",
+        related_name="workorder_technician_profile",
     )
     primary_shift = models.ForeignKey(
         "sites.Shift",
