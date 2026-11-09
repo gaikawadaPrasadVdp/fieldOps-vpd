@@ -2082,8 +2082,7 @@ document.addEventListener("click", function (e) {
     }
   });
 
-
-
+  // Enterprise Login Password Visibility Toggle handled by universal .fx-password-toggle
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps

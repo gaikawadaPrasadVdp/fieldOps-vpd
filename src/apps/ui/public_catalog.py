@@ -5,6 +5,102 @@ for Product, Solutions, and Modules detail pages.
 """
 
 DETAIL_PAGES = {
+    "platform-overview": {
+        "title": "Platform Overview",
+        "subtitle": "ENTERPRISE OPERATIONS PLATFORM",
+        "tagline": "Explore the complete FieldOps Nexus enterprise platform.",
+        "description": "Unified, end-to-end operational visibility connecting service intake, asset management, automated scheduling, inventory control, and executive analytics into one seamless platform.",
+        "image_path": "images/operational-visibility.jpg",
+        "overlay_label": "FieldOps Nexus Enterprise Architecture Active",
+        "metrics": [
+            ["100%", "Operational Connectivity", "Single source of truth uniting dispatch, assets, inventory, and field personnel"],
+            ["60%", "Resolution Acceleration", "Streamlined triage, automatic routing, and technician workspace empowerment"],
+            ["SOC 2", "Certified Reliability", "Enterprise multi-site security, role-based governance, and immutable audit logs"],
+        ],
+        "features": [
+            {"title": "Unified Service Lifecycle", "desc": "From incident notification and customer intake to verified field sign-off and billing handover.", "icon": "activity"},
+            {"title": "Asset & Telemetry Grid", "desc": "Continuous condition monitoring, parent-child component trees, and predictive downtime prevention.", "icon": "boxes"},
+            {"title": "Intelligent Dispatch Engine", "desc": "Rule-based work order routing factoring technician location, skillset, certifications, and vehicle stock.", "icon": "calendar"},
+            {"title": "Executive Control Room", "desc": "Live SLA compliance radars, asset uptime heatmaps, and multi-facility operational analytics.", "icon": "bar-chart"},
+        ],
+        "deep_dive": {
+            "title": "Enterprise-Wide Operational Alignment",
+            "p1": "Traditional industrial and service enterprises suffer from disjointed point solutions where technicians, planners, and management view conflicting operational truths. FieldOps Nexus unifies these perspectives into a single resilient system.",
+            "p2": "Built for high-tempo industrial, commercial, and utility infrastructure, every status update, telemetry reading, and approval event propagates in real time across the complete operational chain.",
+        }
+    },
+    "core-capabilities": {
+        "title": "Core Capabilities",
+        "subtitle": "CONNECTED OPERATIONS ENGINE",
+        "tagline": "Discover the essential tools for connected operations.",
+        "description": "High-velocity field execution tools engineered for reliability, accuracy, and operational excellence across modern industrial and enterprise facilities.",
+        "image_path": "images/fieldops-workflow-visual.jpg",
+        "overlay_label": "FieldOps Nexus Core Capabilities Active",
+        "metrics": [
+            ["8-Stage", "Service Flow Orchestration", "Standardized process execution from initial triage to verified supervisor closure"],
+            ["Zero", "Data Desynchronization", "Instant propagation across mobile technician devices, supervisor consoles, and customer portals"],
+            ["99.9%", "Platform High Availability", "Mission-critical system uptime ensuring uninterrupted field operations round-the-clock"],
+        ],
+        "features": [
+            {"title": "End-to-End Orchestration", "desc": "Coordinated workflows linking work order generation, parts reservation, and dispatch scheduling.", "icon": "clipboard-list"},
+            {"title": "Mobile Field Mobility", "desc": "Offline-capable technician interface with digital inspection checklists and QR scanning.", "icon": "smartphone"},
+            {"title": "Inventory & Ledger Control", "desc": "Multi-warehouse part balancing with automated replenishment and consumption logging.", "icon": "package"},
+            {"title": "Audit & Traceability", "desc": "Immutable cryptographic event histories ensuring comprehensive regulatory compliance.", "icon": "lock"},
+        ],
+        "deep_dive": {
+            "title": "Built for High-Stakes Operations",
+            "p1": "FieldOps Nexus combines flexible operational modeling with rigorous governance controls. Field teams gain the agility to execute work safely while executives maintain complete oversight of costs, quality, and SLA commitments.",
+            "p2": "Automated escalation ladders, multi-tier approval gates, and integrated parts tracking ensure that no service ticket or work order stalls without administrative visibility.",
+        }
+    },
+    "enterprise-architecture": {
+        "title": "Enterprise Architecture",
+        "subtitle": "SCALABLE SYSTEMS & INTEGRATION ARCHITECTURE",
+        "tagline": "Understand the platform architecture and system integration.",
+        "description": "Enterprise-grade multi-tenant foundation designed for seamless integration with legacy ERPs, SCADA telemetry, and mission-critical enterprise ecosystems.",
+        "image_path": "images/connected-data.jpg",
+        "overlay_label": "Enterprise Multi-Site Architecture Active",
+        "metrics": [
+            ["REST & Webhooks", "Open Integration API", "Bi-directional connectors for SAP, Oracle, NetSuite, SCADA, and IoT sensors"],
+            ["Multi-Tenant", "Hierarchical Isolation", "Granular organization structures, regional subsidiaries, and isolated plant jurisdictions"],
+            ["Sub-Second", "Event Synchronization", "High-throughput operational messaging delivering low-latency field telemetry"],
+        ],
+        "features": [
+            {"title": "Multi-Tier Org Hierarchy", "desc": "Model holding companies, operating divisions, and physical plant locations with granular inheritance.", "icon": "building"},
+            {"title": "Bi-Directional ERP Connectors", "desc": "Seamless sync of purchase orders, vendor invoices, asset registries, and inventory levels.", "icon": "cpu"},
+            {"title": "Role-Based Security & SSO", "desc": "SAML 2.0 / OAuth2 authentication with fine-grained access control boundaries and audit enforcement.", "icon": "shield-check"},
+            {"title": "Edge Telemetry Ingestion", "desc": "Direct connector framework for IoT gateways, vibration monitors, and PLC hardware historians.", "icon": "activity"},
+        ],
+        "deep_dive": {
+            "title": "Interoperable, Scalable Infrastructure",
+            "p1": "FieldOps Nexus is architected from the ground up for modern enterprise IT landscapes. Its modular services decouple data capture from workflow business logic, allowing frictionless integration into existing digital ecosystems.",
+            "p2": "Whether connecting to on-premise industrial SCADA networks or cloud ERP platforms, FieldOps Nexus ensures secure, encrypted, and audit-ready data flow across all boundary lines.",
+        }
+    },
+    "integrations": {
+        "title": "Integrations",
+        "subtitle": "CONNECTED ENTERPRISE ECOSYSTEM",
+        "tagline": "Connect operational systems and enterprise applications.",
+        "description": "Bridge field operations with corporate IT, supply chain ERPs, and facility IoT networks through resilient, high-performance connectors and webhooks.",
+        "image_path": "images/connected-data.jpg",
+        "overlay_label": "Integration Hub & Webhook Gateway Active",
+        "metrics": [
+            ["50+", "Pre-Built Connectors", "Turnkey integrations for leading ERP, CRM, IoT, and supply chain software solutions"],
+            ["100%", "Audit Traceability", "Complete payload logging, replay capabilities, and end-to-end cryptographic verification"],
+            ["Real-Time", "Webhook Event Bus", "Sub-second event dispatching to external microservices and automated messaging systems"],
+        ],
+        "features": [
+            {"title": "ERP & Financial Sync", "desc": "Keep general ledgers, asset capitalization, and contractor purchase orders synchronized with SAP and NetSuite.", "icon": "database"},
+            {"title": "SCADA & IoT Telemetry", "desc": "Ingest live operational hours, temperature readings, and cycle counts directly from equipment sensors.", "icon": "cpu"},
+            {"title": "Customer CRM & Helpdesk", "desc": "Connect incoming support tickets from Salesforce and Zendesk directly into dispatch triage queues.", "icon": "users"},
+            {"title": "Custom Webhook Web", "desc": "Build bespoke automated workflows with secure payload signing and automatic retry logic.", "icon": "git-branch"},
+        ],
+        "deep_dive": {
+            "title": "Unbroken Operational Flow Between Systems",
+            "p1": "Data silos cause delayed work orders, inaccurate inventory balances, and compliance risks. FieldOps Nexus acts as the central operational exchange between field technicians and enterprise back-office applications.",
+            "p2": "Our robust webhook gateway and REST API enable IT teams to extend and customize operational flows without modifying core application code, safeguarding system stability and upgrade paths.",
+        }
+    },
     "organization-management": {
         "title": "Organization Management",
         "subtitle": "ENTERPRISE HIERARCHY & SITE CONFIGURATION",
@@ -583,6 +679,10 @@ DETAIL_PAGES = {
 
 
 PRODUCT_SLUGS = {
+    "platform-overview",
+    "core-capabilities",
+    "enterprise-architecture",
+    "integrations",
     "asset-management",
     "service-management",
     "work-order-management",

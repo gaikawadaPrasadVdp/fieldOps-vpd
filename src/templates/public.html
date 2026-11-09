@@ -2,15 +2,15 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=4.5">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=8.5">
 {% endblock %}
 
 {% block body_class %}fx-auth-split-body{% endblock %}
 
 {% block body %}
-<div class="d-flex min-vh-100 flex-column flex-lg-row overflow-hidden">
-  <!-- Left Enterprise Branding Panel (Desktop) -->
-  <aside class="col-lg-5 col-xl-5 d-none d-lg-flex flex-column justify-content-between p-5 text-white position-relative overflow-hidden"
+<div class="d-flex min-vh-100 flex-column flex-md-row overflow-x-hidden fx-auth-layout-root">
+  <!-- Left Enterprise Branding Panel (Desktop & Tablet) -->
+  <aside class="col-md-5 col-lg-5 col-xl-5 d-none d-md-flex flex-column justify-content-between p-3 p-md-4 p-xl-5 text-white position-relative overflow-hidden fx-auth-aside"
          style="background: #0B1F3A; border-right: 1px solid rgba(255,255,255,0.08);">
     
     <!-- Background Dot Grid Pattern & Dark Bottom Gradient -->
@@ -28,51 +28,51 @@
     </svg>
 
     <!-- Top Brand Badge -->
-    <div class="position-relative z-1">
-      <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white">
-        <div class="fx-pub-brand-badge" style="width:36px; height:36px;">
-          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img">
+    <div class="position-relative z-1 mb-3">
+      <a href="{% url 'ui:root' %}" class="d-inline-flex align-items-center gap-3 text-decoration-none text-white">
+        <div class="fx-auth-logo-box" style="width: 48px; height: 48px; flex-shrink: 0;">
+          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" style="width: 100%; height: 100%; object-fit: contain; display: block;">
         </div>
-        <div>
-          <div class="fw-bold fs-5 text-white lh-1">FieldOps Nexus</div>
-          <div class="small text-uppercase fw-semibold" style="color:#F5C451; letter-spacing:0.12em; font-size:0.68rem;">Enterprise Platform</div>
+        <div class="d-flex flex-column justify-content-center">
+          <span class="fw-bold fs-4 text-white lh-1 fx-auth-brand-name">FieldOps Nexus</span>
+          <span class="text-uppercase fw-semibold fx-auth-brand-sub" style="color:#F5C451; letter-spacing:0.14em; font-size:0.72rem; margin-top: 5px;">Enterprise Platform</span>
         </div>
       </a>
     </div>
 
     <!-- Center Hero Copy & Capabilities -->
-    <div class="position-relative z-1 my-auto py-4">
-      <div class="text-uppercase fw-bold mb-3 small" style="color:#F5C451; letter-spacing:0.16em; font-size:0.75rem;">
+    <div class="position-relative z-1 my-auto py-3 py-lg-4">
+      <div class="text-uppercase fw-bold mb-2 mb-lg-3 small fx-auth-tagline-pre" style="color:#F5C451; letter-spacing:0.16em; font-size:0.75rem;">
         Enterprise Platform
       </div>
-      <h1 class="display-6 fw-bold mb-3 text-white lh-sm">
+      <h1 class="display-6 fw-bold mb-3 text-white lh-sm fx-auth-hero-title">
         Field Operations.<br>
         Asset Management.<br>
         <span style="color:#F5C451;">One Platform.</span>
       </h1>
-      <p class="text-white-50 mb-4 small lh-base" style="max-width: 440px;">
+      <p class="text-white-50 mb-3 mb-lg-4 small lh-base fx-auth-hero-desc" style="max-width: 440px;">
         Manage assets, maintenance, field service, inventory and operational workflows across your entire organization.
       </p>
 
-      <div class="d-flex flex-column gap-2 small text-light">
+      <div class="d-flex flex-column gap-2 small text-light fx-auth-features-list">
         <div class="d-flex align-items-center gap-2">
-          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451; flex-shrink: 0;"></div>
           <span style="color:#CBD5E1;">Asset lifecycle management &amp; telemetry tracking</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451; flex-shrink: 0;"></div>
           <span style="color:#CBD5E1;">Preventive maintenance automated schedules</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451; flex-shrink: 0;"></div>
           <span style="color:#CBD5E1;">Real-time field technician dispatch &amp; checklists</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451; flex-shrink: 0;"></div>
           <span style="color:#CBD5E1;">SLA monitoring and automated breach escalations</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451;"></div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#F5C451; flex-shrink: 0;"></div>
           <span style="color:#CBD5E1;">Complete audit, compliance, and double-entry stock</span>
         </div>
       </div>
