@@ -50,6 +50,7 @@ from apps.sites.api_views import (
     ShiftViewSet,
     SiteViewSet,
     ZoneViewSet,
+    ShiftViewSet,
 )
 from apps.sla.api_views import (
     EscalationViewSet,
@@ -71,6 +72,8 @@ router.register("audit-logs", AuditLogViewSet, basename="auditlog")
 router.register("notifications", NotificationViewSet, basename="notification")
 router.register("sites", SiteViewSet, basename="site")
 router.register("zones", ZoneViewSet, basename="zone")
+router.register("shifts", ShiftViewSet, basename="shift")
+router.register("technician-profiles", TechnicianProfileViewSet, basename="technician-profile")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
@@ -195,11 +198,10 @@ urlpatterns = [
     path("", include("apps.ui.urls")),
 ]
 
-if settings.DEBUG:
-    from django.views.static import serve
-    urlpatterns += [
-        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
-    ]
+from apps.files.views import protected_media_serve
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", protected_media_serve),
+]
 
 handler400 = "apps.ui.views.bad_request"
 handler403 = "apps.ui.views.forbidden"

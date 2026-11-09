@@ -148,12 +148,14 @@ def get_snapshot_history(
     *,
     snapshot_type: str | None = None,
     section: str | None = None,
-    limit: int = 30,
+    limit: int | None = 30,
 ):
     """Retrieve historical report snapshots scoped to the organization."""
-    qs = ReportSnapshot.objects.filter(organization=organization).select_related("site", "created_by")
+    qs = ReportSnapshot.objects.filter(organization=organization).select_related("site", "created_by").order_by("-created_at")
     if snapshot_type:
         qs = qs.filter(snapshot_type=snapshot_type)
     if section:
         qs = qs.filter(section=section)
-    return qs[:limit]
+    if limit is not None:
+        return qs[:limit]
+    return qs

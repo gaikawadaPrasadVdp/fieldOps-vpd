@@ -148,3 +148,40 @@ class TimezoneMiddleware:
             return self.get_response(request)
         finally:
             timezone.deactivate()
+
+
+class SecurityCacheControlMiddleware:
+    """
+    Prevents browsers and intermediate proxies from caching sensitive authenticated views.
+    Ensures back-button navigation after logout immediately forces a fresh request
+    to the server, which redirects unauthenticated requests to the login screen
+    rather than showing stale dashboard or tenant data from bfcache/disk cache.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        path = request.path_info or request.path or ""
+
+        static_url = getattr(settings, "STATIC_URL", "/static/")
+        media_url = getattr(settings, "MEDIA_URL", "/media/")
+        if (static_url and path.startswith(static_url)) or (media_url and path.startswith(media_url)):
+            return response
+
+        user = getattr(request, "user", None)
+        is_authenticated = bool(user and getattr(user, "is_authenticated", False))
+
+        if (
+            is_authenticated
+            or path.startswith("/app/")
+            or path.startswith("/api/")
+            or path.startswith("/portal/")
+            or path.startswith("/accounts/")
+        ):
+            response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+            response["Pragma"] = "no-cache"
+            response["Expires"] = "0"
+
+        return response

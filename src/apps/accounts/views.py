@@ -64,7 +64,10 @@ class LogoutView(auth_views.LogoutView):
                 domain=settings.SESSION_COOKIE_DOMAIN,
                 path=settings.SESSION_COOKIE_PATH or "/",
             )
-        response["Clear-Site-Data"] = '"cookies"'
+        response["Clear-Site-Data"] = '"cache", "cookies"'
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
         return response
 
 

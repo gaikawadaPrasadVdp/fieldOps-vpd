@@ -60,6 +60,55 @@ def publish_integration_event(
     return event
 
 
+def dispatch_webhooks(event: IntegrationEvent) -> None:
+    from apps.core.models import WebhookEndpoint
+    import fnmatch
+    import hashlib
+    import hmac
+    import json
+    import urllib.request
+
+    endpoints = WebhookEndpoint.objects.filter(
+        organization=event.organization,
+        is_active=True,
+    )
+    payload_data = {
+        "event_id": str(event.pk),
+        "event_type": event.event_type,
+        "aggregate_type": event.aggregate_type,
+        "aggregate_id": event.aggregate_id,
+        "payload": event.payload,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
+    payload_bytes = json.dumps(payload_data).encode("utf-8")
+
+    for ep in endpoints:
+        pattern = ep.event_pattern or "*"
+        if pattern == "*" or fnmatch.fnmatch(event.event_type, pattern):
+            headers = {
+                "Content-Type": "application/json",
+            }
+            if ep.secret_token:
+                sig = hmac.new(
+                    ep.secret_token.encode("utf-8"),
+                    payload_bytes,
+                    hashlib.sha256,
+                ).hexdigest()
+                headers["X-FieldOps-Signature"] = sig
+
+            req = urllib.request.Request(
+                ep.target_url,
+                data=payload_bytes,
+                headers=headers,
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    pass
+            except Exception as exc:
+                logger.warning("Webhook dispatch failed to %s: %s", ep.target_url, exc)
+
+
 def deliver_event(event: IntegrationEvent) -> bool:
     """Deliver a single integration event to registered handlers.
     Returns True on success, raises exception on failure.
@@ -67,6 +116,7 @@ def deliver_event(event: IntegrationEvent) -> bool:
     handlers = get_handlers(event.event_type)
     for handler in handlers:
         handler(event)
+    dispatch_webhooks(event)
     return True
 
 

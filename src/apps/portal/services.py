@@ -94,7 +94,6 @@ def verify_portal_request_create_access(membership: Membership | None) -> Portal
     has_create = (
         rbac.has_permission(membership, "portal.request.create")
         or rbac.has_permission_anywhere(membership, "portal.request.create")
-        or membership.membership_roles.filter(role__system_key="client_requester").exists()
     )
     if not has_create:
         raise PermissionDenied("Account lacks request creation permission.")
@@ -112,7 +111,6 @@ def verify_portal_request_confirm_access(membership: Membership | None) -> Porta
     has_confirm = (
         rbac.has_permission(membership, "portal.request.confirm")
         or rbac.has_permission_anywhere(membership, "portal.request.confirm")
-        or membership.membership_roles.filter(role__system_key="client_requester").exists()
     )
     if not has_confirm:
         raise PermissionDenied("Account lacks request confirmation permission.")
@@ -298,7 +296,6 @@ def check_closure_confirmation_eligibility(membership: Membership, sr: ServiceRe
     has_confirm = (
         rbac.has_permission(membership, "portal.request.confirm")
         or rbac.has_permission_anywhere(membership, "portal.request.confirm")
-        or membership.membership_roles.filter(role__system_key="client_requester").exists()
     )
     if not has_confirm:
         return False, "User lacks portal.request.confirm permission."

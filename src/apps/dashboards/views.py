@@ -350,17 +350,20 @@ class SnapshotListView(TenantPermissionMixin, View):
     def get(self, request):
         sec_filter = request.GET.get("section")
         type_filter = request.GET.get("type")
-        snapshots = services.get_snapshot_history(
+        from django.core.paginator import Paginator
+        qs = services.get_snapshot_history(
             request.organization,
             snapshot_type=type_filter,
             section=sec_filter,
-            limit=50,
+            limit=None,
         )
+        page = Paginator(qs, 20).get_page(request.GET.get("page"))
         return render(
             request,
             self.template_name,
             {
-                "snapshots": snapshots,
+                "page": page,
+                "snapshots": page,
                 "sections": ReportSnapshot.Section.choices,
                 "types": ReportSnapshot.SnapshotType.choices,
                 "selected_section": sec_filter,

@@ -87,3 +87,46 @@ def test_cross_tab_auth_sync_code_and_markup_present(client, owner_a):
     assert "broadcastLogout()" in js_code, "broadcastLogout function missing"
     assert "redirectToLogin()" in js_code, "redirectToLogin handler missing"
     assert 'window.addEventListener("storage"' in js_code or "window.addEventListener('storage'" in js_code
+
+
+def test_authenticated_views_include_cache_prevention_headers(client, owner_a):
+    """Authenticated views must include no-store, no-cache, and private headers to prevent bfcache leaks."""
+    client.force_login(owner_a)
+    resp = client.get("/app/")
+    assert resp.status_code == 200
+
+    cache_control = resp.headers.get("Cache-Control", "")
+    assert "no-store" in cache_control, "Cache-Control must contain no-store"
+    assert "no-cache" in cache_control, "Cache-Control must contain no-cache"
+    assert "must-revalidate" in cache_control, "Cache-Control must contain must-revalidate"
+    assert resp.headers.get("Pragma") == "no-cache"
+    assert resp.headers.get("Expires") == "0"
+
+
+def test_post_logout_back_navigation_denied(client, owner_a):
+    """After logging out, requests to authenticated pages must redirect to login, preventing back-button bypass."""
+    client.force_login(owner_a)
+    resp_dash = client.get("/app/")
+    assert resp_dash.status_code == 200
+
+    # User logs out
+    resp_logout = client.post("/accounts/logout/")
+    assert resp_logout.status_code == 302
+
+    # Attempting to access dashboard simulates back button requesting page from server
+    resp_back = client.get("/app/")
+    assert resp_back.status_code == 302
+    assert "/accounts/login" in resp_back.headers.get("Location")
+
+
+def test_app_js_includes_bfcache_and_history_replace():
+    """app.js must handle bfcache pageshow events and use location.replace on logout."""
+    from django.contrib.staticfiles import finders
+    app_js_path = finders.find("js/app.js")
+    assert app_js_path is not None
+    with open(app_js_path, "r", encoding="utf-8") as f:
+        js_code = f.read()
+
+    assert "window.location.replace" in js_code, "app.js must use location.replace for clean logout history"
+    assert "pageshow" in js_code, "app.js must listen to pageshow for bfcache detection"
+    assert "event.persisted" in js_code, "app.js must inspect event.persisted"

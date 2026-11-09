@@ -42,6 +42,37 @@ class ProviderWriteSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
+    def validate_name(self, value):
+        from apps.ui.forms import validate_business_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_business_name(value, field_label="Provider name")
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_contact_name(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_alphabetical_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_alphabetical_name(value, field_label="Contact name", min_len=2, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_notes(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_safe_text
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_safe_text(value, field_label="Notes", max_len=500, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
 
 class ProviderPatchSerializer(ProviderWriteSerializer):
     name = serializers.CharField(max_length=150, required=False)

@@ -41,10 +41,15 @@ class RequestForm(BootstrapFormMixin, forms.Form):
                                       widget=forms.Textarea(attrs={"rows": 2}),
                                       help_text="Mandatory reason if creating a duplicate incident")
 
-    def __init__(self, *args, assets=None, editing=False, **kwargs):
+    def __init__(self, *args, assets=None, editing=False, is_client=False, **kwargs):
         super().__init__(*args, **kwargs)
         if assets is not None:
             self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
+        if is_client:
+            self.fields["occurred_at"].required = False
+            self.fields["downtime_started_at"].required = False
+            self.fields["occurred_at"].label = "When did it happen? (blank = now)"
+            self.fields["downtime_started_at"].label = "Downtime started (if the asset is down)"
         if editing:
             for f in ("override_duplicate", "override_reason"):
                 if f in self.fields:

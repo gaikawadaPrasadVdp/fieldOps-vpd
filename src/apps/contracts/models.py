@@ -27,6 +27,12 @@ class ServiceProvider(TenantOwnedModel):
         ordering = ["name"]
         constraints = [models.UniqueConstraint(Lower("name"), "organization", name="uniq_provider_name_per_org")]
 
+    def clean(self):
+        super().clean()
+        from apps.ui.forms import validate_business_name
+        if self.name:
+            validate_business_name(self.name, field_label="Provider name")
+
     def __str__(self):
         return self.name
 
