@@ -150,7 +150,7 @@ class WarehouseForm(BootstrapFormMixin, forms.Form):
 class ReceiveForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Choose a warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    quantity = forms.DecimalField(min_value=1, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
     reference = forms.CharField(max_length=100, required=False, label="Reference (PO / delivery note)")
     reason = forms.CharField(max_length=300, required=False)
 
@@ -195,7 +195,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
     source = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="From warehouse")
     target = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="To warehouse")
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
     reason = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, warehouses=None, parts=None, **kwargs):
@@ -215,7 +215,7 @@ class TransferForm(BootstrapFormMixin, forms.Form):
 
 class RequestPartForm(BootstrapFormMixin, forms.Form):
     part = _PartChoice(queryset=Part.objects.none(), empty_label="Choose a part")
-    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
     notes = forms.CharField(max_length=300, required=False)
 
     def __init__(self, *args, parts=None, **kwargs):
@@ -253,7 +253,7 @@ class ReserveForm(BootstrapFormMixin, forms.Form):
 
 class IssueForm(BootstrapFormMixin, forms.Form):
     warehouse = _WarehouseChoice(queryset=Warehouse.objects.none(), empty_label="Warehouse")
-    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
 
     def __init__(self, *args, warehouses=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -266,7 +266,7 @@ class QuantityForm(BootstrapFormMixin, forms.Form):
 
 
 class ScrapForm(BootstrapFormMixin, forms.Form):
-    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    quantity = forms.DecimalField(min_value=0.001, error_messages={"invalid": "Quantity must contain only numbers."}, **QTY)
     reason = forms.CharField(max_length=300, label="Reason (scrap / damage / expiration)")
 
     def clean_reason(self):
