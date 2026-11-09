@@ -29,32 +29,31 @@ def test_part_form_name_alphabetical_validation():
 
 
 def test_part_form_part_number_validation():
-    # Letters in part number must be rejected (image scenario: azsxxddffdwqsdsds / gwfwae)
-    form_bad_letters = PartForm(data={
-        "part_number": "gwfwae",
-        "name": "Mechanical Seal",
-        "unit": "1",
-    })
-    assert not form_bad_letters.is_valid()
-    assert "part_number" in form_bad_letters.errors
-    assert "Part number must contain only numbers and cannot contain letters." in str(form_bad_letters.errors["part_number"])
-
-    # Symbols without digits rejected
+    # Symbols without letters or digits rejected
     form_bad_sym = PartForm(data={
         "part_number": "--- ...",
         "name": "Mechanical Seal",
-        "unit": "1",
+        "unit": "EA",
     })
     assert not form_bad_sym.is_valid()
     assert "part_number" in form_bad_sym.errors
-    assert "Part number must contain numbers." in str(form_bad_sym.errors["part_number"])
+    assert "Part number must contain letters or numbers." in str(form_bad_sym.errors["part_number"])
 
-    # Digits and valid separators accepted
-    for valid_pn in ["231115656665654", "123456", "100-20", "500/2", "99.1"]:
+    # Invalid characters rejected
+    form_bad_char = PartForm(data={
+        "part_number": "SEAL@100",
+        "name": "Mechanical Seal",
+        "unit": "EA",
+    })
+    assert not form_bad_char.is_valid()
+    assert "part_number" in form_bad_char.errors
+
+    # Digits, letters (alphanumeric), and valid separators accepted
+    for valid_pn in ["231115656665654", "123456", "100-20", "500/2", "99.1", "FT-UI-100", "FLT-9"]:
         form_valid = PartForm(data={
             "part_number": valid_pn,
             "name": "Mechanical Seal",
-            "unit": "1",
+            "unit": "EA",
         })
         assert form_valid.is_valid(), f"Failed on {valid_pn}: {form_valid.errors}"
 
@@ -94,15 +93,24 @@ def test_part_form_stock_levels_validation():
 
 
 def test_part_form_unit_and_description_validation():
-    # Letters in unit rejected (image scenario: ppfdsbdhg)
-    form_bad_unit = PartForm(data={
-        "part_number": "12345",
-        "name": "Mechanical Seal",
-        "unit": "ppfdsbdhg",
-    })
-    assert not form_bad_unit.is_valid()
-    assert "unit" in form_bad_unit.errors
-    assert "Unit must contain only numbers and cannot contain letters." in str(form_bad_unit.errors["unit"])
+    # Valid alphanumeric units (e.g. EA, pcs, 1) accepted
+    for valid_unit in ["EA", "pcs", "1", "box-10"]:
+        form_good_unit = PartForm(data={
+            "part_number": "FT-UI-100",
+            "name": "Mechanical Seal",
+            "unit": valid_unit,
+        })
+        assert form_good_unit.is_valid(), f"Failed on {valid_unit}: {form_good_unit.errors}"
+
+    # Symbols without letters/digits or invalid characters in unit rejected
+    for bad_unit in ["---", "EA@"]:
+        form_bad_unit = PartForm(data={
+            "part_number": "12345",
+            "name": "Mechanical Seal",
+            "unit": bad_unit,
+        })
+        assert not form_bad_unit.is_valid()
+        assert "unit" in form_bad_unit.errors
 
     # Digits in description rejected
     form_bad_desc = PartForm(data={

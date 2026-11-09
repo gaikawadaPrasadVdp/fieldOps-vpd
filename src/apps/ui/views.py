@@ -948,11 +948,32 @@ def bad_request(request, exception=None):
         return HttpResponse("Bad request.", status=400)
 
 
+def _api_error_json(request, code: str, message: str, status: int):
+    from django.http import JsonResponse
+
+    req_id = getattr(request, "request_id", "-")
+    return JsonResponse(
+        {
+            "error": {
+                "code": code,
+                "message": message,
+                "details": {},
+                "request_id": req_id,
+            }
+        },
+        status=status,
+    )
+
+
 def forbidden(request, exception=None):
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(request, "permission_denied", "Permission denied.", 403)
     return render(request, "errors/403.html", status=403)
 
 
 def not_found(request, exception=None):
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(request, "not_found", "Not found.", 404)
     return render(request, "errors/404.html", status=404)
 
 
@@ -963,5 +984,12 @@ def server_error(request):
     exc_type, exc_value, exc_tb = sys.exc_info()
     if exc_value:
         logger.error("Internal Server Error on %s: %s", request.path, exc_value, exc_info=(exc_type, exc_value, exc_tb))
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(
+            request,
+            "server_error",
+            "Server error. Please quote the X-Request-ID header when reporting this.",
+            500,
+        )
     return HttpResponse("Server error. Please quote the X-Request-ID header when reporting this.", status=500)
 

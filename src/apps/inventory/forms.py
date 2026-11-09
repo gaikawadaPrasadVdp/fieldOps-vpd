@@ -76,13 +76,11 @@ class PartForm(BootstrapFormMixin, forms.Form):
         part_number = (self.cleaned_data.get("part_number") or "").strip()
         if not part_number:
             raise forms.ValidationError("Part number is required.")
-        if any(c.isalpha() for c in part_number):
-            raise forms.ValidationError("Part number must contain only numbers and cannot contain letters.")
-        if not any(c.isdigit() for c in part_number):
-            raise forms.ValidationError("Part number must contain numbers.")
-        allowed_separators = set("-./# ")
-        if any(not (c.isdigit() or c.isspace() or c in allowed_separators) for c in part_number):
-            raise forms.ValidationError("Part number can contain only numbers and standard separators (-, ., /).")
+        if not any(c.isalnum() for c in part_number):
+            raise forms.ValidationError("Part number must contain letters or numbers.")
+        allowed_separators = set("-./#_ ")
+        if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in part_number):
+            raise forms.ValidationError("Part number can contain only letters, numbers, and standard separators (-, ., /, #, _).")
         return part_number
 
     def clean_name(self):
@@ -100,13 +98,11 @@ class PartForm(BootstrapFormMixin, forms.Form):
         unit = (self.cleaned_data.get("unit") or "").strip()
         if not unit:
             raise forms.ValidationError("Unit is required.")
-        if any(c.isalpha() for c in unit):
-            raise forms.ValidationError("Unit must contain only numbers and cannot contain letters.")
-        if not any(c.isdigit() for c in unit):
-            raise forms.ValidationError("Unit must contain numbers.")
-        allowed_separators = set("-./# ")
-        if any(not (c.isdigit() or c.isspace() or c in allowed_separators) for c in unit):
-            raise forms.ValidationError("Unit can contain only numbers and standard separators (-, ., /).")
+        if not any(c.isalnum() for c in unit):
+            raise forms.ValidationError("Unit must contain letters or numbers.")
+        allowed_separators = set("-./#_ ")
+        if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in unit):
+            raise forms.ValidationError("Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).")
         return unit
 
     def clean_min_stock(self):

@@ -304,6 +304,22 @@ def _validate_schedule(plan: MaintenancePlan, data: dict) -> dict:
     return out
 
 
+def _is_duplicate_schedule_error(exc: IntegrityError) -> bool:
+    diag = getattr(getattr(exc, "__cause__", None), "diag", None)
+    constraint = (getattr(diag, "constraint_name", None) or "").lower()
+    if constraint in ("uniq_time_schedule_per_plan", "uniq_meter_schedule_per_plan"):
+        return True
+    msg = str(exc).lower()
+    if "uniq_time_schedule_per_plan" in msg or "uniq_meter_schedule_per_plan" in msg:
+        return True
+    if "unique constraint failed" in msg and (
+        ("plan_id" in msg and "frequency" in msg and "interval_count" in msg)
+        or ("plan_id" in msg and "meter_id" in msg and "interval_value" in msg)
+    ):
+        return True
+    return False
+
+
 @transaction.atomic
 def create_schedule(plan: MaintenancePlan, *, actor, request=None, **data) -> MaintenanceSchedule:
     plan = MaintenancePlan.objects.select_for_update(of=("self",)).select_related("asset", "site").get(pk=plan.pk)
@@ -315,7 +331,9 @@ def create_schedule(plan: MaintenancePlan, *, actor, request=None, **data) -> Ma
             _resync(sch, timezone.now())
             sch.save()
     except IntegrityError as exc:
-        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        if _is_duplicate_schedule_error(exc):
+            raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        raise
     audit.record("maintenance.schedule_created", actor=actor, organization=plan.organization, target=sch,
                  after={**audit.snapshot(sch, SCHEDULE_FIELDS), "plan": plan.name}, request=request)
     return sch
@@ -344,7 +362,9 @@ def update_schedule(sch: MaintenanceSchedule, *, actor, request=None, **data) ->
                 resolution = _resync(sch, timezone.now())
             sch.save()
     except IntegrityError as exc:
-        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        if _is_duplicate_schedule_error(exc):
+            raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        raise
     after = audit.snapshot(sch, SCHEDULE_FIELDS)
     if after != before or resolution:
         audit.record("maintenance.schedule_updated", actor=actor, organization=sch.organization, target=sch,

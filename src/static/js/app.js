@@ -1498,6 +1498,10 @@ document.addEventListener("click", function (e) {
         setFieldError(nameEl, "Asset name must be at least 2 characters.");
         return false;
       }
+      if (val.length > 200) {
+        setFieldError(nameEl, "Asset name cannot exceed 200 characters.");
+        return false;
+      }
       if (/\d/.test(val)) {
         setFieldError(nameEl, "Asset name must contain only alphabetical characters and cannot contain numbers.");
         return false;
@@ -1513,7 +1517,9 @@ document.addEventListener("click", function (e) {
     if (nameEl) {
       nameEl.addEventListener("input", function () {
         var val = this.value;
-        if (/\d/.test(val)) {
+        if (val.trim().length > 200) {
+          setFieldError(this, "Asset name cannot exceed 200 characters.");
+        } else if (/\d/.test(val)) {
           setFieldError(this, "Asset name must contain only alphabetical characters and cannot contain numbers.");
         } else if (!/^[a-zA-Z\s'-]*$/.test(val)) {
           setFieldError(this, "Asset name must contain only alphabetical characters.");

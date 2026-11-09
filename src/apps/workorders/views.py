@@ -25,6 +25,7 @@ from .serializers import (
     ExpectedVersionSerializer,
     LaborInputSerializer,
     MaterialInputSerializer,
+    MaterialSerializer,
     PlanSerializer,
     ReassignSerializer,
     ProvisionalChecklistSerializer,
@@ -382,6 +383,12 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         return self._action(pk, services.record_labor, LaborInputSerializer)
 
     @extend_schema(
+        methods=["GET"],
+        responses={200: MaterialSerializer(many=True)},
+        description="List parts/materials used.",
+    )
+    @extend_schema(
+        methods=["POST"],
         request=MaterialInputSerializer,
         responses={201: inline_serializer("WorkOrderMaterialRecordResponse", fields={"id": serializers.CharField(), "work_order": serializers.CharField()})},
         description="Record parts/materials used."
@@ -390,7 +397,6 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def materials(self, request, pk=None):
         if request.method == "GET":
             wo = self.get_object()
-            from .serializers import MaterialSerializer
             qs = wo.material_entries.all().order_by("-created_at")
             page = self.paginate_queryset(qs)
             if page is not None:
@@ -415,6 +421,14 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         wo = self.get_object()
         return Response(WorkOrderEventSerializer(wo.events.all(), many=True).data)
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                "WorkOrderClosureResponse",
+                fields={"blockers": serializers.ListField(child=serializers.CharField())},
+            )
+        }
+    )
     @action(detail=True, methods=["get"])
     def closure(self, request, pk=None):
         wo = self.get_object()

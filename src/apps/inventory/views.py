@@ -475,7 +475,7 @@ def line_ops(membership, wo, line) -> dict:
         "reserve": open_ and has("inventory.reserve") and line.remaining_to_issue - held > 0
         and wo.status in ("PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"),
         "release": open_ and has("inventory.reserve") and held > 0,
-        "issue": open_ and has("inventory.issue") and line.remaining_to_issue > 0
+        "issue": open_ and has("inventory.issue") and line.status != "REQUESTED" and line.remaining_to_issue > 0
         and wo.status in ("PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"),
         "consume": open_ and has("inventory.consume") and line.outstanding > 0
         and wo.status in ("IN_PROGRESS", "ON_HOLD", "COMPLETED", "SUPERVISOR_REVIEW"),

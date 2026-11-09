@@ -217,11 +217,14 @@ def test_full_flow_through_ui_pages_and_workspace(ui):
         assert tech.post(f"/app/inventory/part-lines/{line.pk}/{act}/", {"warehouse": str(ui["wh"].pk),
                                                                           "quantity": "1"}).status_code == 403, act
     assert StockMovement.objects.filter(movement_type__in=["ISSUE", "RESERVE", "RETURN"]).count() == 0
-    # 2. stores reserve and issue from the WO parts page
+    # 2. stores reserve and issue from the WO parts page (DEF-015: Issue appears after Reserve)
     page = stores.get(f"/app/work-orders/{wo.pk}/parts/").content.decode()
-    assert "Reserve" in page and "Issue" in page and "Request a part" in page
+    assert "Reserve" in page and "Request a part" in page
+    assert "Reserve stock" in page or 'btn-outline-primary">Reserve<' in page
     assert stores.post(f"/app/inventory/part-lines/{line.pk}/reserve/", {"warehouse": str(ui["wh"].pk),
                                                                           "quantity": "3"}).status_code == 302
+    page_after_reserve = stores.get(f"/app/work-orders/{wo.pk}/parts/").content.decode()
+    assert "Issue" in page_after_reserve
     bal = StockBalance.objects.get()
     assert (bal.on_hand, bal.reserved) == (10, 3)
     assert stores.post(f"/app/inventory/part-lines/{line.pk}/issue/", {"warehouse": str(ui["wh"].pk),
@@ -276,6 +279,7 @@ def test_safe_next_redirect_and_unknown_actions(ui):
     inv.receive(ui["wh"], ui["part"], 5, actor=ui["stores"].user)
     wo = wo_in_progress(ui)
     line = inv.request_part(wo, ui["part"], 2, actor=ui["tech"].user, membership=ui["tech"])
+    inv.reserve(line, ui["wh"], actor=ui["stores"].user)
     s = ui["cl"]["stores"]
     r = s.post(f"/app/inventory/part-lines/{line.pk}/issue/", {"warehouse": str(ui["wh"].pk), "quantity": "1",
                                                                 "next": "https://evil.example/phish"})
