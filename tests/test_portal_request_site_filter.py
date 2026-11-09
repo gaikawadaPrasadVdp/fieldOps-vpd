@@ -154,7 +154,7 @@ def test_portal_request_create_view_submits_with_site(client, org_a, site_a1, ma
         "asset": str(asset_1.pk),
         "severity": "HIGH",
         "service_impact": "PARTIAL_OUTAGE",
-        "impact_notes": "Line operates at 50% capacity",
+        "impact_notes": "Line operates at half capacity",
     }
     res_post = client.post("/app/portal/requests/new/", post_data)
     form_errors = res_post.context["form"].errors if res_post.context else None
