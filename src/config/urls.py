@@ -50,7 +50,6 @@ from apps.sites.api_views import (
     ShiftViewSet,
     SiteViewSet,
     ZoneViewSet,
-    ShiftViewSet,
 )
 from apps.sla.api_views import (
     EscalationViewSet,
@@ -113,7 +112,6 @@ router.register("work-orders", WorkOrderViewSet, basename="work-order")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
 router.register("inspections", InspectionViewSet, basename="inspection")
 router.register("findings", FindingViewSet, basename="finding")
-router.register("technician-profiles", TechnicianProfileViewSet, basename="technician-profile")
 router.register("integration-events", IntegrationEventViewSet, basename="integration-event")
 router.register("webhooks", WebhookEndpointViewSet, basename="webhook")
 
