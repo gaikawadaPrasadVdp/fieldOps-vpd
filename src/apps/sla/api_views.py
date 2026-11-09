@@ -557,17 +557,28 @@ def _ensure_sample_breach(org):
         site = Site.objects.create(organization=org, name="Primary Site", code="SITE-01")
     profile = SLAProfile.objects.filter(organization=org).first()
     if not profile:
-        profile = SLAProfile.objects.create(organization=org, name="Standard SLA", is_default=True)
+        profile = SLAProfile.objects.create(organization=org, name="Standard SLA", applies_to="WORK_ORDER")
     wo = WorkOrder.objects.filter(organization=org).first()
     tracking = SLATracking.objects.filter(organization=org).first()
-    if not tracking:
+    if not tracking and wo:
+        now = timezone.now()
         tracking = SLATracking.objects.create(
             organization=org,
             site=site,
             profile=profile,
             work_order=wo,
+            priority="HIGH",
+            response_minutes=60,
+            resolution_minutes=240,
+            warning_percent=80,
+            started_at=now,
+            response_due_at=now,
+            resolution_due_at=now,
             status=SLATracking.Status.BREACHED,
         )
+    if not tracking:
+        return None
+    now = timezone.now()
     return SLABreach.objects.create(
         organization=org,
         tracking=tracking,
@@ -576,8 +587,8 @@ def _ensure_sample_breach(org):
         target_kind="RESPONSE",
         priority="HIGH",
         severity="MAJOR",
-        breached_at=timezone.now(),
-        detected_at=timezone.now(),
+        breached_at=now,
+        detected_at=now,
         status=SLABreach.Status.OPEN,
     )
 
