@@ -1556,6 +1556,82 @@ body.fx-public-site {
 }
 
 /* ==========================================================================
+   Platform Section – Product & Modules Two-Category Layout
+   ========================================================================== */
+.fx-platform-section {
+  padding: 5rem 0 4rem;
+}
+.fx-platform-category {
+  margin-bottom: 3rem;
+}
+.fx-platform-category-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.fx-platform-category-label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.fx-platform-category-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.9rem;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.fx-platform-pill-product {
+  background-color: #0B1F3A;
+  color: #F5C451;
+  border: 1px solid rgba(245, 196, 81, 0.35);
+}
+.fx-platform-pill-modules {
+  background-color: #EEF2F7;
+  color: #0B1F3A;
+  border: 1px solid #CBD5E1;
+}
+.fx-platform-category-desc {
+  font-size: 13px;
+  color: #64748B;
+  line-height: 1.4;
+}
+.fx-platform-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #CBD5E1 20%, #CBD5E1 80%, transparent);
+  margin: 0 0 2.75rem;
+}
+.fx-module-grid-4 {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+@media (min-width: 992px) {
+  .fx-module-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 991.98px) {
+  .fx-module-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 575.98px) {
+  .fx-module-grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .fx-platform-category-label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* ==========================================================================
    Section 5: 7-Step Interactive Workflow Timeline (Step-Locked Section)
    ========================================================================== */
 .fx-workflow-timeline-section {
