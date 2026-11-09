@@ -672,6 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('touchmove', (e) => {
 
+      if (window.innerWidth < 768) return; // Allow natural vertical scrolling through vertical timeline on mobile
+
       if (!isUserInWorkflowSection()) return;
 
       if (!e.touches || e.touches.length === 0) return;

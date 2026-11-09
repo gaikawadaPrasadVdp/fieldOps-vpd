@@ -1567,7 +1567,7 @@ body.fx-public-site {
 }
 
 /* ==========================================================================
-   Section 5: 7-Step Interactive Workflow Timeline (Step-Locked Section)
+   Section 5: 7-Step Interactive Workflow Timeline
    ========================================================================== */
 .fx-workflow-timeline-section {
   position: relative;
@@ -1655,7 +1655,7 @@ body.fx-public-site {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 1. Upcoming Steps (Light grey icons, borders, and labels) */
+/* 1. Upcoming Steps */
 .fx-timeline-step.upcoming .fx-timeline-icon-box,
 .fx-timeline-step:not(.active):not(.completed) .fx-timeline-icon-box {
   border-color: #E2E8F0;
@@ -1684,7 +1684,7 @@ body.fx-public-site {
   color: #0B1F3B;
 }
 
-/* 2. Active Step (Dark navy background with an orange border and subtle glow) */
+/* 2. Active Step */
 .fx-timeline-step.active .fx-timeline-icon-box {
   border: 2px solid #F5C451;
   background-color: #0B1F3B;
@@ -1710,7 +1710,7 @@ body.fx-public-site {
   font-weight: 700;
 }
 
-/* 3. Completed Steps (Orange progress line and highlighted icons) */
+/* 3. Completed Steps */
 .fx-timeline-step.completed .fx-timeline-icon-box {
   border: 1.5px solid #F5C451;
   background-color: #FFFFFF;
@@ -1752,6 +1752,11 @@ body.fx-public-site {
   transition: color 0.25s ease;
 }
 
+/* Description paragraph inside step: hidden on desktop/tablet, visible on mobile vertical layout */
+.fx-timeline-desc {
+  display: none;
+}
+
 .fx-workflow-desc-pill {
   display: inline-flex;
   align-items: center;
@@ -1774,46 +1779,204 @@ body.fx-public-site {
   transform: translateY(2px);
 }
 
-/* Responsive adjustments for mobile & small tablets */
-@media (max-width: 767px) {
+/* ==========================================================================
+   Tablet Responsiveness (768px – 991.98px)
+   ========================================================================== */
+@media (min-width: 768px) and (max-width: 991.98px) {
   .fx-workflow-timeline-section {
-    height: 250vh;
-  }
-  .fx-workflow-sticky-wrap {
-    top: 56px;
-    height: calc(100vh - 56px);
-    max-height: calc(100vh - 56px);
-    padding: 0.5rem 0;
+    min-height: auto;
+    padding: 4rem 0;
   }
   .fx-timeline-container {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding: 1rem 0.5rem;
-    gap: 0.75rem;
-    scrollbar-width: none;
-  }
-  .fx-timeline-container::-webkit-scrollbar {
-    display: none;
-  }
-  .fx-timeline-step {
-    flex: 0 0 110px;
-    scroll-snap-align: center;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    padding: 0 0.25rem;
+    margin-top: 1.25rem;
   }
   .fx-timeline-icon-box {
     width: 48px;
     height: 48px;
+    border-radius: 12px;
+  }
+  .fx-timeline-icon-box svg {
+    width: 18px;
+    height: 18px;
   }
   .fx-timeline-track {
-    display: none;
+    top: 24px;
+    left: calc(100% / 14);
+    right: calc(100% / 14);
+    height: 2.5px;
+  }
+  .fx-timeline-label-wrap {
+    margin-top: 0.65rem;
+  }
+  .fx-timeline-idx {
+    font-size: 10px;
+    letter-spacing: 0.1em;
   }
   .fx-timeline-title {
-    font-size: 11.5px;
+    font-size: 11px;
+    line-height: 1.25;
+    max-width: 88px;
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box {
+    transform: translateY(-4px) scale(1.05);
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box::after {
+    inset: -4px;
+    border-radius: 15px;
   }
   .fx-workflow-desc-pill {
-    font-size: 11.5px;
-    padding: 6px 16px;
+    font-size: 12px;
+    padding: 6px 18px;
+    max-width: 95%;
+  }
+}
+
+/* ==========================================================================
+   Mobile Responsiveness (< 768px: 390px, 360px, etc.)
+   Clean Vertical Timeline
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .fx-workflow-timeline-section {
+    min-height: auto;
+    height: auto;
+    padding: 3rem 0;
+    overflow: visible;
+  }
+
+  .fx-timeline-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 440px;
+    margin: 1.5rem auto 0;
+    padding: 0 1rem;
+    overflow: visible;
+  }
+
+  .fx-timeline-track {
+    display: none !important;
+  }
+
+  .fx-timeline-step {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    position: relative;
+    padding-bottom: 1.85rem;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .fx-timeline-step:last-child {
+    padding-bottom: 0;
+  }
+
+  /* Connecting vertical line between steps */
+  .fx-timeline-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 23px; /* Center of 48px icon: (48 / 2) - (2 / 2) = 23px */
+    top: 48px;
+    bottom: 0;
+    width: 2px;
+    background-color: #E2E8F0;
+    z-index: 1;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Completed steps have gold connecting line to next step */
+  .fx-timeline-step.completed:not(:last-child)::after {
+    background: linear-gradient(180deg, #F5C451 0%, #F59E0B 100%);
+    box-shadow: 0 0 6px rgba(245, 196, 81, 0.4);
+  }
+
+  .fx-timeline-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin: 0;
+    flex-shrink: 0;
+    z-index: 2;
+    background-color: #FFFFFF;
+  }
+
+  .fx-timeline-icon-box svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .fx-timeline-step.active .fx-timeline-icon-box {
+    transform: scale(1.05);
+    border: 2px solid #F5C451;
+    background-color: #0B1F3B;
+    color: #F5C451;
+    box-shadow: 0 0 16px rgba(245, 196, 81, 0.4), 0 4px 12px rgba(11, 31, 58, 0.2);
+  }
+
+  .fx-timeline-step.active .fx-timeline-icon-box::after {
+    inset: -4px;
+    border-radius: 15px;
+  }
+
+  .fx-timeline-label-wrap {
+    margin-top: 0;
+    margin-left: 1.15rem;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .fx-timeline-idx {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 2px;
+  }
+
+  .fx-timeline-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0B1F3A;
+    max-width: none;
+    margin: 0;
+    line-height: 1.35;
+  }
+
+  .fx-timeline-step.upcoming .fx-timeline-title {
+    color: #64748B;
+    font-weight: 600;
+  }
+
+  .fx-timeline-step.active .fx-timeline-title {
+    color: #0B1F3A;
+    font-weight: 700;
+  }
+
+  .fx-timeline-desc {
+    display: block;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #64748B;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+
+  .fx-timeline-step.active .fx-timeline-desc {
+    color: #1E293B;
+    font-weight: 500;
+  }
+
+  .fx-timeline-step.completed .fx-timeline-desc {
+    color: #64748B;
+  }
+
+  .fx-workflow-desc-pill {
+    display: none !important;
   }
 }
 
@@ -5606,475 +5769,417 @@ a.fx-footer-location-link:focus-visible {
 }
 
 /* ==========================================================================
-
-   Section 5: 7-Step Interactive Workflow Timeline (Step-Locked Section)
-
+   Section 5: 7-Step Interactive Workflow Timeline
    ========================================================================== */
-
 .fx-workflow-timeline-section {
-
   position: relative;
-
   min-height: calc(100vh - 68px);
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   background-color: #FFFFFF;
-
   padding: 4.5rem 0;
-
   scroll-margin-top: 68px;
-
   overflow: hidden;
-
 }
 
 .fx-workflow-inner-content {
-
   width: 100%;
-
 }
 
 .fx-timeline-container {
-
   position: relative;
-
   display: grid;
-
   grid-template-columns: repeat(7, 1fr);
-
   gap: 0;
-
   padding-left: 0;
-
   margin-top: 1.5rem;
-
 }
 
 .fx-timeline-track {
-
   position: absolute;
-
   top: 30px;
-
   bottom: auto;
-
   left: calc(100% / 14);
-
   right: calc(100% / 14);
-
   width: auto;
-
   height: 3px;
-
   background-color: #E2E8F0;
-
   border-radius: 3px;
-
   overflow: hidden;
-
   z-index: 1;
-
 }
 
 .fx-timeline-fill {
-
   width: 100%;
-
   height: 100%;
-
   background: linear-gradient(90deg, #F5C451 0%, #F59E0B 60%, #E5A910 100%);
-
   box-shadow: 0 0 10px rgba(245, 196, 81, 0.6);
-
   transform-origin: left;
-
   transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-
   will-change: transform;
-
 }
 
 .fx-timeline-step {
-
   position: relative;
-
   display: flex;
-
   flex-direction: column;
-
   align-items: center;
-
   text-align: center;
-
   gap: 0;
-
   padding: 0;
-
   cursor: pointer;
-
   user-select: none;
-
   outline: none;
-
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
   z-index: 2;
-
 }
 
 .fx-timeline-step:focus-visible .fx-timeline-icon-box {
-
   outline: 2px solid #F5C451;
-
   outline-offset: 4px;
-
 }
 
 .fx-timeline-icon-box {
-
   position: relative;
-
   z-index: 10;
-
   margin: 0 auto;
-
   width: 60px;
-
   height: 60px;
-
   flex-shrink: 0;
-
   border-radius: 14px;
-
   border: 1.5px solid #E2E8F0;
-
   background-color: #FFFFFF;
-
   color: #94A3B8;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-
 }
 
-/* 1. Upcoming Steps (Light grey icons, borders, and labels) */
-
+/* 1. Upcoming Steps */
 .fx-timeline-step.upcoming .fx-timeline-icon-box,
-
 .fx-timeline-step:not(.active):not(.completed) .fx-timeline-icon-box {
-
   border-color: #E2E8F0;
-
   background-color: #FFFFFF;
-
   color: #94A3B8;
-
   box-shadow: none;
-
   transform: translateY(0) scale(1);
-
 }
-
 .fx-timeline-step.upcoming .fx-timeline-idx,
-
 .fx-timeline-step:not(.active):not(.completed) .fx-timeline-idx {
-
   color: #94A3B8;
-
   font-weight: 700;
-
 }
-
 .fx-timeline-step.upcoming .fx-timeline-title,
-
 .fx-timeline-step:not(.active):not(.completed) .fx-timeline-title {
-
   color: #94A3B8;
-
   font-weight: 500;
-
 }
 
 /* Hover feedback */
-
 .fx-timeline-step:hover .fx-timeline-icon-box {
-
   transform: translateY(-2px);
-
   box-shadow: 0 4px 12px rgba(11, 31, 58, 0.08);
-
 }
-
 .fx-timeline-step:hover .fx-timeline-title {
-
   color: #0B1F3B;
-
 }
 
-/* 2. Active Step (Dark navy background with an orange border and subtle glow) */
-
+/* 2. Active Step */
 .fx-timeline-step.active .fx-timeline-icon-box {
-
   border: 2px solid #F5C451;
-
   background-color: #0B1F3B;
-
   color: #F5C451;
-
   box-shadow: 0 0 24px rgba(245, 196, 81, 0.45), 0 8px 24px rgba(11, 31, 58, 0.2);
-
   transform: translateY(-6px) scale(1.08);
-
 }
-
 .fx-timeline-step.active .fx-timeline-icon-box::after {
-
   content: "";
-
   position: absolute;
-
   inset: -6px;
-
   border-radius: 18px;
-
   border: 2px solid rgba(245, 196, 81, 0.4);
-
   animation: fx-pulse-ring 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-
   pointer-events: none;
-
 }
-
 .fx-timeline-step.active .fx-timeline-idx {
-
   color: #D97706;
-
   font-weight: 800;
-
 }
-
 .fx-timeline-step.active .fx-timeline-title {
-
   color: #0B1F3B;
-
   font-weight: 700;
-
 }
 
-/* 3. Completed Steps (Orange progress line and highlighted icons) */
-
+/* 3. Completed Steps */
 .fx-timeline-step.completed .fx-timeline-icon-box {
-
   border: 1.5px solid #F5C451;
-
   background-color: #FFFFFF;
-
   color: #0B1F3B;
-
   box-shadow: 0 2px 10px rgba(245, 196, 81, 0.15);
-
   transform: translateY(0) scale(1);
-
 }
-
 .fx-timeline-step.completed:hover .fx-timeline-icon-box {
-
   background-color: #FFFDF5;
-
   transform: translateY(-2px);
-
 }
-
 .fx-timeline-step.completed .fx-timeline-idx {
-
   color: #D97706;
-
   font-weight: 700;
-
 }
-
 .fx-timeline-step.completed .fx-timeline-title {
-
   color: #0B1F3B;
-
   font-weight: 700;
-
 }
 
 .fx-timeline-label-wrap {
-
   margin-top: 1rem;
-
   transition: transform 0.2s ease;
-
 }
-
 .fx-timeline-idx {
-
   font-size: 11px;
-
   font-weight: 700;
-
   letter-spacing: 0.15em;
-
   transition: color 0.25s ease;
-
+}
+.fx-timeline-title {
+  font-size: 13.5px;
+  line-height: 1.3;
+  margin-top: 2px;
+  margin-bottom: 0;
+  max-width: 140px;
+  margin-left: auto;
+  margin-right: auto;
+  transition: color 0.25s ease;
 }
 
-.fx-timeline-title {
-
-  font-size: 13.5px;
-
-  line-height: 1.3;
-
-  margin-top: 2px;
-
-  margin-bottom: 0;
-
-  max-width: 140px;
-
-  margin-left: auto;
-
-  margin-right: auto;
-
-  transition: color 0.25s ease;
-
+/* Description paragraph inside step: hidden on desktop/tablet, visible on mobile vertical layout */
+.fx-timeline-desc {
+  display: none;
 }
 
 .fx-workflow-desc-pill {
-
   display: inline-flex;
-
   align-items: center;
-
   justify-content: center;
-
   gap: 8px;
-
   background: #FDF9EC;
-
   color: #8C6700;
-
   border: 1px solid #F3E5B5;
-
   box-shadow: 0 2px 10px rgba(245, 196, 81, 0.12);
-
   font-size: 13px;
-
   min-height: 40px;
-
   padding: 8px 24px;
-
   border-radius: 9999px;
-
   font-weight: 600;
-
   transition: all 0.22s ease;
-
   max-width: 90%;
-
 }
-
 .fx-workflow-desc-pill.is-updating {
-
   opacity: 0.4;
-
   transform: translateY(2px);
-
 }
 
-/* Responsive adjustments for mobile & small tablets */
-
-@media (max-width: 767px) {
-
+/* ==========================================================================
+   Tablet Responsiveness (768px – 991.98px)
+   ========================================================================== */
+@media (min-width: 768px) and (max-width: 991.98px) {
   .fx-workflow-timeline-section {
-
-    height: 250vh;
-
+    min-height: auto;
+    padding: 4rem 0;
   }
+  .fx-timeline-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    padding: 0 0.25rem;
+    margin-top: 1.25rem;
+  }
+  .fx-timeline-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+  .fx-timeline-icon-box svg {
+    width: 18px;
+    height: 18px;
+  }
+  .fx-timeline-track {
+    top: 24px;
+    left: calc(100% / 14);
+    right: calc(100% / 14);
+    height: 2.5px;
+  }
+  .fx-timeline-label-wrap {
+    margin-top: 0.65rem;
+  }
+  .fx-timeline-idx {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .fx-timeline-title {
+    font-size: 11px;
+    line-height: 1.25;
+    max-width: 88px;
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box {
+    transform: translateY(-4px) scale(1.05);
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box::after {
+    inset: -4px;
+    border-radius: 15px;
+  }
+  .fx-workflow-desc-pill {
+    font-size: 12px;
+    padding: 6px 18px;
+    max-width: 95%;
+  }
+}
 
-  .fx-workflow-sticky-wrap {
-
-    top: 56px;
-
-    height: calc(100vh - 56px);
-
-    max-height: calc(100vh - 56px);
-
-    padding: 0.5rem 0;
-
+/* ==========================================================================
+   Mobile Responsiveness (< 768px: 390px, 360px, etc.)
+   Clean Vertical Timeline
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .fx-workflow-timeline-section {
+    min-height: auto;
+    height: auto;
+    padding: 3rem 0;
+    overflow: visible;
   }
 
   .fx-timeline-container {
-
     display: flex;
-
-    overflow-x: auto;
-
-    scroll-snap-type: x mandatory;
-
-    -webkit-overflow-scrolling: touch;
-
-    padding: 1rem 0.5rem;
-
-    gap: 0.75rem;
-
-    scrollbar-width: none;
-
-  }
-
-  .fx-timeline-container::-webkit-scrollbar {
-
-    display: none;
-
-  }
-
-  .fx-timeline-step {
-
-    flex: 0 0 110px;
-
-    scroll-snap-align: center;
-
-  }
-
-  .fx-timeline-icon-box {
-
-    width: 48px;
-
-    height: 48px;
-
+    flex-direction: column;
+    max-width: 440px;
+    margin: 1.5rem auto 0;
+    padding: 0 1rem;
+    overflow: visible;
   }
 
   .fx-timeline-track {
+    display: none !important;
+  }
 
-    display: none;
+  .fx-timeline-step {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    position: relative;
+    padding-bottom: 1.85rem;
+    width: 100%;
+    cursor: pointer;
+  }
 
+  .fx-timeline-step:last-child {
+    padding-bottom: 0;
+  }
+
+  /* Connecting vertical line between steps */
+  .fx-timeline-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 23px; /* Center of 48px icon: (48 / 2) - (2 / 2) = 23px */
+    top: 48px;
+    bottom: 0;
+    width: 2px;
+    background-color: #E2E8F0;
+    z-index: 1;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Completed steps have gold connecting line to next step */
+  .fx-timeline-step.completed:not(:last-child)::after {
+    background: linear-gradient(180deg, #F5C451 0%, #F59E0B 100%);
+    box-shadow: 0 0 6px rgba(245, 196, 81, 0.4);
+  }
+
+  .fx-timeline-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin: 0;
+    flex-shrink: 0;
+    z-index: 2;
+    background-color: #FFFFFF;
+  }
+
+  .fx-timeline-icon-box svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .fx-timeline-step.active .fx-timeline-icon-box {
+    transform: scale(1.05);
+    border: 2px solid #F5C451;
+    background-color: #0B1F3B;
+    color: #F5C451;
+    box-shadow: 0 0 16px rgba(245, 196, 81, 0.4), 0 4px 12px rgba(11, 31, 58, 0.2);
+  }
+
+  .fx-timeline-step.active .fx-timeline-icon-box::after {
+    inset: -4px;
+    border-radius: 15px;
+  }
+
+  .fx-timeline-label-wrap {
+    margin-top: 0;
+    margin-left: 1.15rem;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .fx-timeline-idx {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 2px;
   }
 
   .fx-timeline-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0B1F3A;
+    max-width: none;
+    margin: 0;
+    line-height: 1.35;
+  }
 
-    font-size: 11.5px;
+  .fx-timeline-step.upcoming .fx-timeline-title {
+    color: #64748B;
+    font-weight: 600;
+  }
 
+  .fx-timeline-step.active .fx-timeline-title {
+    color: #0B1F3A;
+    font-weight: 700;
+  }
+
+  .fx-timeline-desc {
+    display: block;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #64748B;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+
+  .fx-timeline-step.active .fx-timeline-desc {
+    color: #1E293B;
+    font-weight: 500;
+  }
+
+  .fx-timeline-step.completed .fx-timeline-desc {
+    color: #64748B;
   }
 
   .fx-workflow-desc-pill {
-
-    font-size: 11.5px;
-
-    padding: 6px 16px;
-
+    display: none !important;
   }
-
 }
 
 /* ==========================================================================
