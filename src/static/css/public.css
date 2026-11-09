@@ -2814,27 +2814,62 @@ a.fx-footer-location-link:focus-visible {
 
 /* Sign In Submit Button */
 .fx-login-submit-btn {
-  width: 100%;
-  height: 48px;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 50px !important;
+  background: #0B1F3B !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(245, 196, 81, 0.35) !important;
+  border-radius: 12px !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  padding: 0 1.25rem !important;
+  cursor: pointer !important;
+  box-shadow: 0 8px 24px rgba(11, 31, 59, 0.22), 0 2px 6px rgba(245, 196, 81, 0.2) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  margin-top: 0.5rem !important;
+}
 
-  width: auto;
+.fx-login-submit-btn:hover {
+  background: #102A4E !important;
+  border-color: #F5C451 !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 12px 28px rgba(11, 31, 59, 0.28), 0 4px 12px rgba(245, 196, 81, 0.35) !important;
+}
 
-  max-width: 58px;
+.fx-login-submit-btn:active {
+  transform: translateY(0) !important;
+}
 
-  object-fit: contain;
+.fx-login-submit-btn span:first-child {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
 
-  display: block;
+.fx-login-submit-btn .fx-btn-gold-arrow {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #F5C451;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
 
-  background: transparent !important;
-
-  border: none !important;
-
-  border-radius: 0 !important;
-
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
-
-  transition: transform 0.25s ease;
-
+.fx-login-submit-btn:hover .fx-btn-gold-arrow {
+  transform: translateY(-50%) translateX(3px);
 }
 
 .fx-pub-brand-logo {
@@ -7953,71 +7988,7 @@ a.fx-footer-location-link:focus-visible {
 
 }
 
-/* Sign In Submit Button */
 
-.fx-login-submit-btn {
-
-  width: 100%;
-
-  height: 48px;
-
-  background: linear-gradient(180deg, #0B1F3B 0%, #08172C 100%);
-
-  color: #FFFFFF;
-
-  border: none;
-
-  border-radius: 10px;
-
-  font-size: 0.95rem;
-
-  font-weight: 700;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  gap: 0.65rem;
-
-  cursor: pointer;
-
-  box-shadow: 0 8px 24px rgba(245, 196, 81, 0.35), 0 4px 12px rgba(11, 31, 59, 0.2);
-
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-
-  text-decoration: none;
-
-}
-
-.fx-login-submit-btn:hover {
-
-  background: linear-gradient(180deg, #122847 0%, #0B1F3B 100%);
-
-  transform: translateY(-1.5px);
-
-  box-shadow: 0 10px 28px rgba(245, 196, 81, 0.42), 0 6px 16px rgba(11, 31, 59, 0.25);
-
-  color: #FFFFFF;
-
-}
-
-.fx-login-submit-btn:active {
-
-  transform: translateY(0);
-
-}
-
-.fx-btn-gold-arrow {
-
-  color: #F5C451;
-
-  display: inline-flex;
-
-  align-items: center;
-
-}
 
 .fx-login-divider {
 
@@ -8141,6 +8112,282 @@ a.fx-footer-location-link:focus-visible {
 
   text-decoration: none;
 
+}
+
+/* ==========================================================================
+   Sign-In Page: Error Alert & Complete Responsiveness
+   ========================================================================== */
+
+/* 1. Authentication Error Alert */
+.fx-login-error-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.35rem;
+  color: #B91C1C;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fxAlertFadeIn 0.22s ease-out;
+}
+
+@keyframes fxAlertFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fx-login-error-icon {
+  flex-shrink: 0;
+  color: #DC2626;
+  margin-top: 2px;
+}
+
+.fx-login-error-text {
+  flex: 1;
+  font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Ensure no error messages appear beside or below input fields */
+.fx-login-card .field-error-message,
+.fx-login-card .invalid-feedback,
+.fx-login-card .text-danger:not(.fx-req) {
+  display: none !important;
+}
+
+/* 2. Layout & Base Setup */
+.fx-auth-split-body {
+  overflow-x: hidden;
+}
+
+.fx-auth-layout-root {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* 3. Tablet Responsiveness (768px to 1024px) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .fx-auth-aside {
+    padding: 2.25rem 1.5rem !important;
+  }
+  .fx-auth-logo-box {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .fx-auth-brand-name {
+    font-size: 1.25rem !important;
+  }
+  .fx-auth-brand-sub {
+    font-size: 0.65rem !important;
+  }
+  .fx-auth-hero-title {
+    font-size: 1.6rem !important;
+    line-height: 1.22 !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .fx-auth-hero-desc {
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+    margin-bottom: 1rem !important;
+  }
+  .fx-auth-features-list {
+    font-size: 0.78rem !important;
+    gap: 0.45rem !important;
+  }
+  .fx-login-wrap {
+    padding: 2rem 1.25rem;
+  }
+  .fx-login-container {
+    max-width: 420px;
+    width: 100%;
+  }
+  .fx-login-card {
+    padding: 2.25rem 1.75rem 2rem;
+    border-radius: 18px;
+  }
+  .fx-login-title {
+    font-size: 1.85rem;
+  }
+  .fx-login-subtitle {
+    font-size: 0.925rem;
+    margin-bottom: 1.5rem;
+  }
+  .fx-card-gold-accent {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .fx-auth-aside {
+    padding: 3rem 2.25rem !important;
+  }
+  .fx-auth-hero-title {
+    font-size: 2rem !important;
+    line-height: 1.25 !important;
+  }
+  .fx-auth-hero-desc {
+    font-size: 0.875rem !important;
+  }
+  .fx-auth-features-list {
+    font-size: 0.85rem !important;
+  }
+  .fx-login-wrap {
+    padding: 2.5rem 1.75rem;
+  }
+  .fx-login-container {
+    max-width: 460px;
+  }
+  .fx-login-card {
+    padding: 2.75rem 2.25rem 2.25rem;
+  }
+  .fx-login-title {
+    font-size: 2rem;
+  }
+}
+
+/* 4. Mobile Responsiveness (< 768px) */
+@media (max-width: 767.98px) {
+  .fx-login-wrap {
+    padding: 2rem 1.25rem;
+    min-height: 100vh;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .fx-login-container {
+    width: 100%;
+    max-width: 440px;
+  }
+  .fx-mobile-brand-header {
+    width: 100%;
+  }
+  .fx-login-card {
+    width: 100%;
+    padding: 2.25rem 1.65rem 2rem;
+    border-radius: 18px;
+  }
+  .fx-login-title {
+    font-size: 1.85rem;
+  }
+  .fx-login-subtitle {
+    font-size: 0.925rem;
+    margin-bottom: 1.5rem;
+  }
+  .fx-card-gold-accent {
+    width: 115px;
+    height: 115px;
+  }
+  .fx-login-input {
+    height: 48px;
+    font-size: 0.925rem;
+  }
+  .fx-login-submit-btn {
+    height: 48px !important;
+    font-size: 0.925rem !important;
+  }
+}
+
+/* 5. Mobile Narrow Screens (<= 430px, 390px, 375px) */
+@media (max-width: 430px) {
+  .fx-login-wrap {
+    padding: 1.5rem 1rem;
+  }
+  .fx-login-card {
+    padding: 2rem 1.35rem 1.75rem;
+    border-radius: 16px;
+  }
+  .fx-login-title {
+    font-size: 1.75rem;
+  }
+  .fx-login-subtitle {
+    font-size: 0.875rem;
+    margin-bottom: 1.35rem;
+  }
+  .fx-card-gold-accent {
+    width: 100px;
+    height: 100px;
+  }
+  .fx-login-error-alert {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.825rem;
+    margin-bottom: 1.2rem;
+  }
+  .fx-login-input {
+    height: 48px;
+    padding: 0 2.4rem 0 2.5rem;
+    font-size: 0.875rem;
+  }
+  .fx-login-submit-btn {
+    height: 48px !important;
+    font-size: 0.875rem !important;
+    padding: 0 1rem !important;
+  }
+  .fx-login-submit-btn .fx-btn-gold-arrow {
+    right: 1rem;
+  }
+}
+
+/* 6. Ultra-narrow Mobile (<= 330px, e.g. 320px) */
+@media (max-width: 330px) {
+  .fx-login-wrap {
+    padding: 1rem 0.5rem;
+  }
+  .fx-login-card {
+    padding: 1.5rem 0.85rem 1.35rem;
+    border-radius: 14px;
+  }
+  .fx-login-title {
+    font-size: 1.45rem;
+  }
+  .fx-login-subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .fx-card-gold-accent {
+    width: 80px;
+    height: 80px;
+  }
+  .fx-login-error-alert {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .fx-login-input {
+    height: 44px;
+    padding: 0 2.2rem 0 2.25rem;
+    font-size: 0.8125rem;
+    border-radius: 10px;
+  }
+  .fx-pw-toggle-btn {
+    right: 8px;
+  }
+  .fx-login-submit-btn {
+    height: 44px !important;
+    font-size: 0.8125rem !important;
+    padding: 0 0.65rem !important;
+    border-radius: 10px !important;
+  }
+  .fx-login-submit-btn .fx-btn-gold-arrow {
+    display: none;
+  }
+  .fx-return-link {
+    font-size: 0.78rem;
+    margin-top: 1.15rem;
+  }
 }
 
 /* ==========================================================================
@@ -13643,3 +13890,649 @@ a.fx-footer-location-link:focus-visible {
 
 }
 
+
+
+/* ==========================================================================
+   FieldOps Nexus - Premium 2x2 Dropdown Mega-Menus (Product, Solutions, Modules)
+   ========================================================================== */
+
+.fx-mega-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  width: calc(100% - 48px);
+  max-width: 1200px;
+  background-color: #08172F !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 28px 70px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  z-index: 1050;
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
+  box-sizing: border-box;
+}
+
+/* Invisible bridge so mouse transition between header and menu never flickers */
+.fx-mega-menu::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 0;
+  right: 0;
+  height: 16px;
+  pointer-events: auto;
+}
+
+.fx-mega-menu.is-active {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateX(-50%) translateY(0) !important;
+  pointer-events: auto !important;
+}
+
+.fx-mega-menu-inner {
+  padding: 24px 28px !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+.fx-mega-2col-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+@media (min-width: 1024px) {
+  .fx-mega-2col-layout {
+    grid-template-columns: 1fr 340px;
+    gap: 28px;
+    align-items: stretch;
+  }
+}
+
+.fx-mega-items-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Section label above 2x2 grid */
+.fx-mega-sec-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #F5C451;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.fx-mega-sec-label span:first-child {
+  color: #F5C451;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+
+.fx-mega-sec-label .line {
+  width: 36px;
+  height: 2px;
+  background: #F5C451;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* 2x2 Grid of item cards */
+.fx-mega-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .fx-mega-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    grid-auto-rows: 1fr;
+  }
+}
+
+/* Individual Item Card */
+.fx-mega-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: rgba(14, 30, 56, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  min-height: 86px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.fx-mega-card:hover {
+  background: rgba(18, 38, 70, 0.95);
+  border-color: #F5C451;
+  box-shadow: 0 0 18px rgba(245, 196, 81, 0.32), inset 0 0 12px rgba(245, 196, 81, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Icon container */
+.fx-mega-card-icon {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 12px;
+  background: #081528;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F5C451;
+  flex-shrink: 0;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.fx-mega-card:hover .fx-mega-card-icon {
+  border-color: rgba(245, 196, 81, 0.5);
+  background: #0B1D38;
+  transform: scale(1.04);
+}
+
+/* Card Text Body */
+.fx-mega-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.fx-mega-card-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.3;
+  margin-bottom: 3px;
+  transition: color 0.18s ease;
+}
+
+.fx-mega-card-desc {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #94A3B8;
+  margin: 0;
+  transition: color 0.18s ease;
+}
+
+.fx-mega-card:hover .fx-mega-card-desc {
+  color: #CBD5E1;
+}
+
+/* Right Chevron Arrow */
+.fx-mega-card-arrow {
+  color: #94A3B8;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+}
+
+.fx-mega-card:hover .fx-mega-card-arrow {
+  color: #F5C451;
+  transform: translateX(4px);
+}
+
+/* Featured Right Card */
+.fx-mega-feat-card {
+  background: rgba(13, 28, 54, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 22px 20px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.fx-mega-feat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fx-mega-feat-pill .bar {
+  width: 14px;
+  height: 2px;
+  background: #F5C451;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.fx-mega-feat-pill .txt {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #F5C451;
+  text-transform: uppercase;
+}
+
+.fx-mega-feat-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.3;
+  margin: 0 0 6px 0;
+}
+
+.fx-mega-feat-card p {
+  font-size: 12.5px;
+  color: #94A3B8;
+  line-height: 1.45;
+  margin: 0 0 12px 0;
+}
+
+/* Device Preview SVG inside Featured Card */
+.fx-mega-device-wrap {
+  width: 100%;
+  position: relative;
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.fx-mega-device-svg {
+  width: 100%;
+  max-width: 290px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+}
+
+
+/* =========================================================================
+   Product, Solutions & Modules Dropdown Spacing Refinement (Compact & Balanced Layout)
+   ========================================================================= */
+#mega-product .fx-mega-menu-inner,
+#mega-solutions .fx-mega-menu-inner,
+#mega-modules .fx-mega-menu-inner {
+  padding: 20px 28px !important;
+}
+
+#mega-product .fx-mega-2col-layout,
+#mega-solutions .fx-mega-2col-layout,
+#mega-modules .fx-mega-2col-layout {
+  align-items: center !important;
+  gap: 28px !important;
+}
+
+#mega-product .fx-mega-items-col,
+#mega-solutions .fx-mega-items-col,
+#mega-modules .fx-mega-items-col {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+}
+
+#mega-product .fx-mega-sec-label,
+#mega-solutions .fx-mega-sec-label,
+#mega-modules .fx-mega-sec-label {
+  margin-bottom: 0 !important;
+}
+
+#mega-product .fx-mega-cards-grid,
+#mega-solutions .fx-mega-cards-grid,
+#mega-modules .fx-mega-cards-grid {
+  gap: 14px !important;
+}
+
+#mega-product .fx-mega-feat-card,
+#mega-solutions .fx-mega-feat-card,
+#mega-modules .fx-mega-feat-card {
+  padding: 18px 20px 14px 20px !important;
+}
+
+#mega-product .fx-mega-device-svg,
+#mega-solutions .fx-mega-device-svg,
+#mega-modules .fx-mega-device-svg {
+  max-width: 250px !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ARTICLE READING MODAL — FieldOps Nexus Resources Page
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Overlay backdrop */
+/* =========================================================================
+   Article Reading Modal Styles (Premium Enterprise Layout)
+   ========================================================================= */
+.fx-article-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(11, 31, 59, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.fx-article-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.fx-article-overlay[hidden] {
+  display: none !important;
+}
+
+/* Modal box - White background, large rounded corners, centered */
+.fx-article-modal {
+  background: #FFFFFF;
+  border-radius: 28px;
+  max-width: 860px;
+  width: 100%;
+  max-height: 88vh;
+  overflow: hidden;
+  box-shadow: 0 28px 80px rgba(11, 31, 59, 0.35), 0 4px 16px rgba(11, 31, 59, 0.12);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(14px);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fx-article-overlay.is-open .fx-article-modal {
+  transform: translateY(0);
+}
+
+/* Scrollable inner area */
+.fx-modal-scroll-inner {
+  overflow-y: auto;
+  padding: 38px 44px 44px;
+  flex: 1;
+  scroll-behavior: smooth;
+}
+
+.fx-modal-scroll-inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fx-modal-scroll-inner::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 10px;
+}
+
+.fx-modal-scroll-inner::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+
+/* Close button - Top right minimal X button */
+.fx-modal-close {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  z-index: 20;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.fx-modal-close:hover {
+  background: #0B1F3B;
+  border-color: #0B1F3B;
+  color: #FFFFFF;
+  transform: scale(1.08);
+}
+
+.fx-modal-close:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+/* Category badge */
+.fx-modal-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.fx-modal-category-badge svg {
+  color: #92400E;
+}
+
+/* Article title in dark navy */
+.fx-modal-title {
+  font-size: clamp(1.45rem, 2.6vw, 1.95rem);
+  font-weight: 800;
+  color: #0B1F3B;
+  line-height: 1.28;
+  margin: 0 0 14px;
+  padding-right: 48px;
+}
+
+/* Metadata row */
+.fx-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748B;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-bottom: 22px;
+}
+
+.fx-modal-meta svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.fx-modal-meta-dot {
+  color: #CBD5E1;
+  font-size: 14px;
+}
+
+/* Large article cover image */
+.fx-modal-cover-img {
+  display: block;
+  width: 100%;
+  height: 310px;
+  object-fit: cover;
+  border-radius: 18px;
+  margin-bottom: 22px;
+  background: #0B1F3B;
+}
+
+/* Article Lead Description */
+.fx-modal-desc {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: #1E293B;
+  margin-bottom: 18px;
+}
+
+/* Extended Article Body */
+.fx-modal-extended-text {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: #475569;
+  margin-bottom: 22px;
+}
+
+/* Key Takeaways Box inside Modal */
+.fx-modal-takeaways-box {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #F5C451;
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 22px;
+}
+
+.fx-modal-takeaways-box .fx-takeaways-heading {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0B1F3B;
+  margin-bottom: 0.85rem;
+}
+
+.fx-modal-takeaways-box .fx-takeaways-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fx-modal-takeaways-box .fx-takeaways-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.fx-modal-footer-meta {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.fx-modal-badge {
+  display: inline-block;
+  background-color: #0B1F3B;
+  color: #FFFFFF;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Resource Card Clean Reset ────────────────────────────────────────── */
+.fx-card-expand-btn {
+  display: none !important;
+}
+
+.fx-collapse-trigger {
+  display: none !important;
+}
+
+.fx-card-expanded-content {
+  display: none !important;
+}
+
+.fx-resource-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  cursor: pointer !important;
+  border-radius: 16px !important;
+  border: 1px solid #E2E8F0 !important;
+  background: #FFFFFF !important;
+  transition: all 0.25s ease !important;
+}
+
+.fx-resource-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 16px 36px rgba(11, 31, 59, 0.09), 0 4px 12px rgba(11, 31, 59, 0.04) !important;
+  border-color: #CBD5E1 !important;
+}
+
+.fx-resource-card-body {
+  padding: 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-grow: 1 !important;
+}
+
+.fx-card-footer {
+  margin-top: auto !important;
+  padding-top: 1.1rem !important;
+  border-top: 1px solid #F1F5F9 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+/* Responsive Modal adjustments */
+@media (max-width: 768px) {
+  .fx-modal-scroll-inner {
+    padding: 28px 24px 32px;
+  }
+  .fx-modal-cover-img {
+    height: 220px;
+  }
+  .fx-modal-title {
+    padding-right: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fx-article-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .fx-article-modal {
+    border-radius: 24px 24px 0 0;
+    max-height: 95vh;
+  }
+  .fx-modal-scroll-inner {
+    padding: 24px 18px 28px;
+  }
+  .fx-modal-cover-img {
+    height: 190px;
+    border-radius: 14px;
+  }
+  .fx-modal-title {
+    font-size: 1.3rem;
+    padding-right: 32px;
+  }
+}

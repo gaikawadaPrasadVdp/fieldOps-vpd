@@ -503,12 +503,16 @@ document.addEventListener("click", function (e) {
   if (showIcon && hideIcon) {
     if (isPassword) {
       showIcon.classList.add("d-none");
+      showIcon.style.display = "none";
       hideIcon.classList.remove("d-none");
+      hideIcon.style.display = "inline-flex";
       toggleBtn.setAttribute("aria-label", "Hide password");
       toggleBtn.setAttribute("title", "Hide password");
     } else {
       showIcon.classList.remove("d-none");
+      showIcon.style.display = "inline-flex";
       hideIcon.classList.add("d-none");
+      hideIcon.style.display = "none";
       toggleBtn.setAttribute("aria-label", "Show password");
       toggleBtn.setAttribute("title", "Show password");
     }
@@ -2073,23 +2077,7 @@ document.addEventListener("click", function (e) {
     }
   });
 
-  // Enterprise Login Password Visibility Toggle
-  document.addEventListener("click", function (e) {
-    var toggle = e.target.closest("#fx-pw-toggle");
-    if (!toggle) return;
-    e.preventDefault();
-    var pwInput = document.getElementById("id_password");
-    var eyeIcon = document.getElementById("fx-pw-icon-eye");
-    var eyeOffIcon = document.getElementById("fx-pw-icon-eye-off");
-    if (pwInput) {
-      var isPassword = pwInput.getAttribute("type") === "password";
-      pwInput.setAttribute("type", isPassword ? "text" : "password");
-      // if (eyeIcon) eyeIcon.style.display = isPassword ? "none" : "block";
-      // if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? "block" : "none";
-      // toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
-    }
-  });
-
+  // Enterprise Login Password Visibility Toggle handled by universal .fx-password-toggle
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps
