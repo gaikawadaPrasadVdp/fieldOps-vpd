@@ -375,8 +375,7 @@
                 <select name="meter_id" class="form-select form-select-sm" required id="id_meter_select">
                   {% for m in meters %}
                   <option value="{{ m.id }}">
-                    {{ m.name }} ({{ m.unit }}){% if m.latest_value is not None %} — Current: {{ m.latest_value }}{%
-                    endif %}
+                    {{ m.name }} ({{ m.unit }}){% if m.latest_value is not None %} — Current: {{ m.latest_value }}{% endif %}
                   </option>
                   {% endfor %}
                 </select>
@@ -696,8 +695,7 @@
                     {% for line in consumable_parts %}
                     <option value="{{ line.pk }}" data-max="{{ line.outstanding }}" data-unit="{{ line.part.unit }}"
                       data-name="{{ line.part.name }}" data-code="{{ line.part.part_number }}"
-                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{%
-                      endif %}>
+                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{% endif %}>
                       {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{
                       line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
                     </option>
@@ -713,8 +711,7 @@
                   </div>
                   <div class="d-flex justify-content-between mt-1">
                     <span class="text-secondary">Available Outstanding:</span>
-                    <span class="fw-bold text-primary" id="summary-outstanding">{% with first_part=consumable_parts.0
-                      %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
+                    <span class="fw-bold text-primary" id="summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
                   </div>
                 </div>
 
@@ -753,8 +750,7 @@
                     {% for line in consumable_parts %}
                     <option value="{{ line.pk }}" data-max="{{ line.outstanding }}" data-unit="{{ line.part.unit }}"
                       data-name="{{ line.part.name }}" data-code="{{ line.part.part_number }}"
-                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{%
-                      endif %}>
+                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{% endif %}>
                       {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{
                       line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
                     </option>
@@ -770,9 +766,7 @@
                   </div>
                   <div class="d-flex justify-content-between mt-1">
                     <span class="text-secondary">Returnable Outstanding:</span>
-                    <span class="fw-bold text-warning-emphasis" id="return-summary-outstanding">{% with
-                      first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{
-                      first_part.part.unit }}{% endwith %}</span>
+                    <span class="fw-bold text-warning-emphasis" id="return-summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
                   </div>
                 </div>
 
@@ -781,14 +775,9 @@
                     <label for="return-part-quantity-input" class="form-label small fw-semibold">Quantity to Return
                       *</label>
                     <div class="input-group input-group-sm">
-                      <<<<<<< Updated upstream <input type="number" step="1" min="1" name="quantity"
-                        id="return-part-quantity-input" class="form-control form-control-sm" required placeholder="1"
-                        value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'0' }}{% endwith %}">
-                        =======
-                        <input type="number" step="1" min="1" name="quantity" id="return-part-quantity-input"
-                          class="form-control form-control-sm" required placeholder="1"
-                          value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
-                        >>>>>>> Stashed changes
+                      <input type="number" step="1" min="1" name="quantity" id="return-part-quantity-input"
+                        class="form-control form-control-sm" required placeholder="1"
+                        value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
                         <span class="input-group-text" id="return-part-unit-label">{{
                           consumable_parts.0.part.unit|default:"ea" }}</span>
                     </div>
@@ -924,8 +913,7 @@
                     <span class="fw-bold text-dark">{{ m.item_name }}</span>
                     {% if m.part_reference %}<span class="badge bg-light text-muted border ms-1">{{ m.part_reference
                       }}</span>{% endif %}
-                    {% if m.notes %}<div class="text-secondary" style="font-size: 0.8rem;">{{ m.notes }}</div>{% endif
-                    %}
+                    {% if m.notes %}<div class="text-secondary" style="font-size: 0.8rem;">{{ m.notes }}</div>{% endif %}
                   </div>
                   <span class="badge bg-primary-subtle text-primary">{{ m.quantity }} {{ m.unit|default:"ea" }}</span>
                 </div>

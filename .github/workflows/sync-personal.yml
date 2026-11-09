@@ -1,10 +1,10 @@
-
 name: Sync Organization Dev to Personal Main
 
 on:
   push:
     branches:
       - dev
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
   sync:
@@ -19,6 +19,6 @@ jobs:
 
       - name: Push to Personal Repository
         env:
-          PERSONAL_REPO_TOKEN: ${{ secrets.UPDATE_VPD }}
+          PERSONAL_REPO_TOKEN: ${{ secrets.update_vpd }}
         run: |
-          git push https://x-access-token:${PERSONAL_REPO_TOKEN}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
+          git push --force https://x-access-token:${PERSONAL_REPO_TOKEN}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
