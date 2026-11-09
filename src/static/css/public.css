@@ -1555,6 +1555,17 @@ body.fx-public-site {
   color: #A8841E;
 }
 
+@media (max-width: 991.98px) {
+  .fx-module-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 575.98px) {
+  .fx-module-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ==========================================================================
    Section 5: 7-Step Interactive Workflow Timeline (Step-Locked Section)
    ========================================================================== */
