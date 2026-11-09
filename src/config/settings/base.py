@@ -102,6 +102,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
     "apps.core.middleware.TimezoneMiddleware",
+    "apps.core.middleware.SecurityCacheControlMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 

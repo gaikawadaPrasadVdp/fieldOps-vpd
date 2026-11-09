@@ -85,20 +85,21 @@ class HasOrgPermission(permissions.BasePermission):
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
         if code.startswith("portal.request."):
-            if rbac.has_permission_anywhere(membership, code):
-                return True
-            if membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists():
-                return True
-            user_email = getattr(getattr(membership, "user", None), "email", "").lower()
-            if "client" in user_email or "requester" in user_email:
-                return True
+            has_perm = (
+                rbac.has_permission(membership, code)
+                or rbac.has_permission_anywhere(membership, code)
+                or membership.membership_roles.filter(role__system_key__in=("client_requester", "client")).exists()
+            )
+            if not has_perm:
+                return False
             try:
                 from apps.portal.models import PortalAccount
-                if PortalAccount.objects.filter(membership=membership, is_enabled=True).exists():
-                    return True
+                account = PortalAccount.objects.filter(membership=membership, organization=membership.organization).first()
+                if account is None or not account.is_enabled:
+                    return False
             except Exception:
-                pass
-            return False
+                return False
+            return True
         return rbac.has_permission_anywhere(membership, code)
 
 

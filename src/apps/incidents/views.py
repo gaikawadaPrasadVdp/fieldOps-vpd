@@ -172,8 +172,10 @@ class RequestCreateView(IncidentBase):
         return scope.filter(qs.distinct(), "site_id")
 
     def get(self, request):
+        is_client = selectors.is_owned_asset_reporter(request.membership)
         form = RequestForm(assets=self._assets(request, request.GET.get("asset")),
-                           initial={"asset": request.GET.get("asset")})
+                           initial={"asset": request.GET.get("asset")},
+                           is_client=is_client)
         return render(request, "incidents/create.html", {
             "title": "Report an incident / request",
             "form": form,
@@ -185,8 +187,9 @@ class RequestCreateView(IncidentBase):
         })
 
     def post(self, request):
+        is_client = selectors.is_owned_asset_reporter(request.membership)
         if request.POST.get("action") == "link_duplicate":
-            form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")))
+            form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")), is_client=is_client)
             if not form.is_valid():
                 return render(request, "incidents/create.html", {
                     "title": "Report an incident / request", "form": form,
@@ -257,7 +260,8 @@ class RequestCreateView(IncidentBase):
                 return redirect("incidents:detail", pk=linked.pk)
             return redirect(f"/app/incidents/{existing_sr.pk}/?duplicate_review=1")
 
-        form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")))
+        is_client = selectors.is_owned_asset_reporter(request.membership)
+        form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")), is_client=is_client)
         if form.is_valid():
             d = dict(form.cleaned_data)
             asset = d.pop("asset")

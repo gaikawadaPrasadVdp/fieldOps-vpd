@@ -2143,7 +2143,7 @@ document.addEventListener("click", function (e) {
       return;
     }
     var next = encodeURIComponent(path + window.location.search);
-    window.location.href = "/accounts/login/?logged_out=1&next=" + next;
+    window.location.replace("/accounts/login/?logged_out=1&next=" + next);
   }
 
   // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
@@ -2177,6 +2177,36 @@ document.addEventListener("click", function (e) {
       localStorage.setItem(LOGOUT_STORAGE_KEY, Date.now().toString());
     } catch (e) {}
   }
+
+  // Page load timestamp for detecting stale bfcache restorations
+  window.__fx_page_loaded_at = Date.now();
+
+  // If successfully loaded an authenticated workspace page, clear any old logout marker
+  var currentPath = window.location.pathname;
+  if (currentPath.startsWith("/app/") || currentPath.startsWith("/portal/")) {
+    try {
+      localStorage.removeItem(LOGOUT_STORAGE_KEY);
+    } catch (e) {}
+  }
+
+  // Handle back/forward navigation and bfcache restoration
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) {
+      // Restored from browser back/forward cache (bfcache) - force reload from server
+      window.location.reload();
+      return;
+    }
+    // Check if user navigated back to an authenticated page after a logout occurred
+    var p = window.location.pathname;
+    if (p.startsWith("/app/") || p.startsWith("/portal/")) {
+      try {
+        var lastLogout = localStorage.getItem(LOGOUT_STORAGE_KEY);
+        if (lastLogout && parseInt(lastLogout, 10) > (window.__fx_page_loaded_at || 0)) {
+          window.location.replace("/accounts/login/?logged_out=1");
+        }
+      } catch (e) {}
+    }
+  });
 
   // 4. Handle Sign out button click / form submission with explicit API fetch
   document.addEventListener("click", function (e) {
@@ -2222,7 +2252,7 @@ document.addEventListener("click", function (e) {
           // Broadcast to other tabs AFTER the server has completed logout
           broadcastLogout();
           clearClientCookies();
-          window.location.href = "/accounts/login/?logged_out=1";
+          window.location.replace("/accounts/login/?logged_out=1");
         });
     }
   });

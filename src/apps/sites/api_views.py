@@ -435,3 +435,31 @@ class ContactViewSet(TenantAPIMixin, viewsets.ViewSet):
         services.remove_contact(self._contact(request, pk, "site.contact.manage"), actor=request.user,
                                 request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShiftSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import Shift
+        model = Shift
+        fields = ["id", "site", "name", "code", "start_time", "end_time", "days_of_week", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ShiftViewSet(TenantAPIMixin, viewsets.ModelViewSet):
+    from .models import Shift
+    serializer_class = ShiftSerializer
+    permission_map = {
+        "list": "site.view", "retrieve": "site.view", "create": "site.create",
+        "update": "site.update", "partial_update": "site.update", "destroy": "site.create",
+    }
+
+    def get_queryset(self):
+        from .models import Shift
+        qs = Shift.objects.filter(site__organization=self.request.organization)
+        site_id = self.request.query_params.get("site")
+        if site_id:
+            qs = qs.filter(site_id=site_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self.request.organization)

@@ -59,17 +59,17 @@
     <div style="min-width: 150px;">
       <select class="form-select form-select-sm bg-light" name="status" aria-label="Status">
         <option value="">All statuses</option>
-        <option value="DRAFT" {% if filters.status=="DRAFT" %}selected{% endif %}>Draft</option>
-        <option value="ACTIVE" {% if filters.status=="ACTIVE" %}selected{% endif %}>Active</option>
-        <option value="INACTIVE" {% if filters.status=="INACTIVE" %}selected{% endif %}>Inactive</option>
+        <option value="DRAFT" {% if filters.status == "DRAFT" %}selected{% endif %}>Draft</option>
+        <option value="ACTIVE" {% if filters.status == "ACTIVE" %}selected{% endif %}>Active</option>
+        <option value="INACTIVE" {% if filters.status == "INACTIVE" %}selected{% endif %}>Inactive</option>
       </select>
     </div>
     <div style="min-width: 160px;">
       <select class="form-select form-select-sm bg-light" name="ordering" aria-label="Sort order">
-        <option value="" {% if not filters.ordering or filters.ordering=='all' %}selected{% endif %}>All</option>
-        <option value="-created_at" {% if filters.ordering=="-created_at" %}selected{% endif %}>Newest First</option>
-        <option value="created_at" {% if filters.ordering=="created_at" %}selected{% endif %}>Oldest First</option>
-        <option value="name" {% if filters.ordering=="name" %}selected{% endif %}>Name (A–Z)</option>
+        <option value="" {% if not filters.ordering or filters.ordering == 'all' %}selected{% endif %}>All</option>
+        <option value="-created_at" {% if filters.ordering == "-created_at" %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+        <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
       </select>
     </div>
     <div class="col-12 col-md-2 d-flex justify-content-end">

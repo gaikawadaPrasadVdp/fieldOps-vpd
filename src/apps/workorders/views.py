@@ -421,3 +421,43 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         blockers = services.closure_blockers(wo)
         return Response({"blockers": blockers})
 
+
+
+from rest_framework import serializers, viewsets, status
+from rest_framework.response import Response
+from apps.tenancy.api import TenantAPIMixin
+from .models import TechnicianProfile
+
+class TechnicianProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TechnicianProfile
+        fields = ["id", "membership", "skills", "certifications", "daily_capacity_hours", "primary_shift", "is_dispatchable", "notes", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+class TechnicianProfileViewSet(TenantAPIMixin, viewsets.ModelViewSet):
+    serializer_class = TechnicianProfileSerializer
+    permission_map = {
+        "list": "work_order.view", "retrieve": "work_order.view", "create": "work_order.assign",
+        "update": "work_order.assign", "partial_update": "work_order.assign", "destroy": "work_order.assign",
+    }
+
+    def get_queryset(self):
+        return TechnicianProfile.objects.filter(membership__organization=self.request.organization)
+
+    def create(self, request, *args, **kwargs):
+        membership_id = request.data.get("membership")
+        profile, created = TechnicianProfile.objects.update_or_create(
+            membership_id=membership_id,
+            defaults={
+                "organization": request.organization,
+                "skills": request.data.get("skills", []),
+                "certifications": request.data.get("certifications", []),
+                "daily_capacity_hours": request.data.get("daily_capacity_hours", "8.00"),
+                "primary_shift_id": request.data.get("primary_shift"),
+                "is_dispatchable": request.data.get("is_dispatchable", True),
+                "notes": request.data.get("notes", ""),
+            }
+        )
+        serializer = self.get_serializer(profile)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status_code)
