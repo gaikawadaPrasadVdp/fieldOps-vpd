@@ -261,7 +261,8 @@ def record_work_note(
         metadata={"note_id": str(entry.pk), "note_preview": note_clean[:80]},
         request=request,
     )
-    return entry
+    # Refresh with select_related so author.user is fully available for serialization
+    return WorkNote.objects.select_related("author__user").get(pk=entry.pk)
 
 
 @transaction.atomic
