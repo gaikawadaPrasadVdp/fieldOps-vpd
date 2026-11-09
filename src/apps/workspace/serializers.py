@@ -43,7 +43,7 @@ class PauseJobSerializer(serializers.Serializer):
 
 
 class WorkNoteSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source="author.user.display_name", read_only=True)
+    author_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = WorkNote
@@ -57,9 +57,29 @@ class WorkNoteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_author_name(self, obj) -> str:
+        author = getattr(obj, "author", None)
+        user = getattr(author, "user", None) if author else None
+        if user:
+            return getattr(user, "display_name", None) or getattr(user, "full_name", None) or getattr(user, "email", "")
+        return ""
+
 
 class WorkNoteWriteSerializer(serializers.Serializer):
-    body = serializers.CharField(min_length=1, max_length=2000)
+    body = serializers.CharField(required=False, allow_blank=True)
+    note = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    text = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        val = attrs.get("body") or attrs.get("note") or attrs.get("notes") or attrs.get("text") or ""
+        val = val.strip()
+        if not val:
+            raise serializers.ValidationError({"body": ["This field may not be blank."]})
+        if len(val) > 2000:
+            raise serializers.ValidationError({"body": ["This field may not exceed 2000 characters."]})
+        attrs["body"] = val
+        return attrs
 
 
 class CompleteJobSerializer(serializers.Serializer):

@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -21,6 +21,31 @@ class TokenObtain(LoginThrottleMixin, TokenObtainPairView):
 class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
     authentication_classes: list = []
     permission_classes: list = []
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=False, allow_blank=True, help_text="Optional refresh token to blacklist")
+
+
+class LogoutView(APIView):
+    """Logs out the user, discarding or blacklisting credentials."""
+
+    @extend_schema(
+        summary="User logout",
+        request=LogoutSerializer,
+        responses={200: serializers.DictField()},
+        description="Logs out the current session and blacklists the refresh token if provided.",
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh") if isinstance(request.data, dict) else None
+        if refresh_token:
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass
+        return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
 
 
 class MeOrganizationSerializer(serializers.Serializer):

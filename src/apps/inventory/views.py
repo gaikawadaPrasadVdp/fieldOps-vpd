@@ -535,11 +535,7 @@ class PartRequestView(TenantPermissionMixin, View):
         need(request, "inventory.request", wo.site_id)
         form = RequestPartForm(request.POST, parts=selectors.parts_for(org).order_by("part_number"))
         if not form.is_valid():
-            error_msgs = []
-            for field, errs in form.errors.items():
-                for err in errs:
-                    error_msgs.append(str(err))
-            messages.error(request, " ".join(error_msgs) if error_msgs else "Choose a part and enter a valid quantity.")
+            messages.error(request, "Choose a part and enter a valid whole number quantity above zero.")
         else:
             d = form.cleaned_data
             try:
