@@ -17,8 +17,7 @@
       hx-get="{% url 'checklists:create' %}" hx-target="#checklistModalContent" hx-swap="innerHTML">
       {% icon 'plus' 14 %} New Checklist
     </button>
-    <noscript><a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'checklists:create' %}">{%
-        icon 'plus' 14 %} New Checklist</a></noscript>
+    <noscript><a class="btn btn-primary d-inline-flex align-items-center gap-1" href="{% url 'checklists:create' %}">{% icon 'plus' 14 %} New Checklist</a></noscript>
     {% endif %}
   </div>
 </div>
@@ -26,20 +25,16 @@
 <!-- KPI Metric Cards -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    {% include "components/_kpi_card.html" with title="Total Templates" value=kpis.total|default:"0" tone="primary"
-    icon="file-text" subtitle="Registered protocols" %}
+    {% include "components/_kpi_card.html" with title="Total Templates" value=kpis.total|default:"0" tone="primary" icon="file-text" subtitle="Registered protocols" %}
   </div>
   <div class="col-6 col-md-3">
-    {% include "components/_kpi_card.html" with title="Active Protocols" value=kpis.active|default:"0" tone="success"
-    icon="check-circle" subtitle="Ready for technicians" %}
+    {% include "components/_kpi_card.html" with title="Active Protocols" value=kpis.active|default:"0" tone="success" icon="check-circle" subtitle="Ready for technicians" %}
   </div>
   <div class="col-6 col-md-3">
-    {% include "components/_kpi_card.html" with title="Field Inspections" value=kpis.inspections|default:"0" tone="info"
-    icon="clipboard" subtitle="Executed instances" %}
+    {% include "components/_kpi_card.html" with title="Field Inspections" value=kpis.inspections|default:"0" tone="info" icon="clipboard" subtitle="Executed instances" %}
   </div>
   <div class="col-6 col-md-3">
-    {% include "components/_kpi_card.html" with title="Open Findings" value=kpis.open_findings|default:"0" tone="danger"
-    icon="alert-triangle" subtitle="Pending supervisor review" %}
+    {% include "components/_kpi_card.html" with title="Open Findings" value=kpis.open_findings|default:"0" tone="danger" icon="alert-triangle" subtitle="Pending supervisor review" %}
   </div>
 </div>
 
@@ -59,17 +54,17 @@
     <div style="min-width: 150px;">
       <select class="form-select form-select-sm bg-light" name="status" aria-label="Status">
         <option value="">All statuses</option>
-        <option value="DRAFT" {% if filters.status=="DRAFT" %}selected{% endif %}>Draft</option>
-        <option value="ACTIVE" {% if filters.status=="ACTIVE" %}selected{% endif %}>Active</option>
-        <option value="INACTIVE" {% if filters.status=="INACTIVE" %}selected{% endif %}>Inactive</option>
+        <option value="DRAFT" {% if filters.status == "DRAFT" %}selected{% endif %}>Draft</option>
+        <option value="ACTIVE" {% if filters.status == "ACTIVE" %}selected{% endif %}>Active</option>
+        <option value="INACTIVE" {% if filters.status == "INACTIVE" %}selected{% endif %}>Inactive</option>
       </select>
     </div>
     <div style="min-width: 160px;">
       <select class="form-select form-select-sm bg-light" name="ordering" aria-label="Sort order">
-        <option value="" {% if not filters.ordering or filters.ordering=='all' %}selected{% endif %}>All</option>
-        <option value="-created_at" {% if filters.ordering=="-created_at" %}selected{% endif %}>Newest First</option>
-        <option value="created_at" {% if filters.ordering=="created_at" %}selected{% endif %}>Oldest First</option>
-        <option value="name" {% if filters.ordering=="name" %}selected{% endif %}>Name (A–Z)</option>
+        <option value="" {% if not filters.ordering or filters.ordering == 'all' %}selected{% endif %}>All</option>
+        <option value="-created_at" {% if filters.ordering == "-created_at" %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if filters.ordering == "created_at" %}selected{% endif %}>Oldest First</option>
+        <option value="name" {% if filters.ordering == "name" %}selected{% endif %}>Name (A–Z)</option>
       </select>
     </div>
     <div class="col-12 col-md-2 d-flex justify-content-end">
@@ -103,8 +98,7 @@
               style="color: #0B1F3A;">
               {{ t.name }}
             </a>
-            {% if t.description %}<div class="small text-muted text-truncate" style="max-width: 320px;">{{ t.description
-              }}</div>{% endif %}
+            {% if t.description %}<div class="small text-muted text-truncate" style="max-width: 320px;">{{ t.description }}</div>{% endif %}
           </td>
           <td style="padding: 0.75rem 1rem;">
             <span class="badge bg-light text-secondary border font-monospace">v{{ t.version }}</span>
@@ -121,11 +115,9 @@
             <span class="badge bg-light text-secondary border">Optional</span>
             {% endif %}
           </td>
-          <td style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ t.created_at|date:"M d, Y H:i"
-            }}</td>
+          <td style="padding: 0.75rem 1rem;" class="small text-nowrap text-secondary">{{ t.created_at|date:"M d, Y H:i" }}</td>
           <td style="padding: 0.75rem 1rem;">
-            <span class="fw-semibold text-dark">{{ t.items.count }}</span> <span class="small text-muted">item{{
-              t.items.count|pluralize }}</span>
+            <span class="fw-semibold text-dark">{{ t.items.count }}</span> <span class="small text-muted">item{{ t.items.count|pluralize }}</span>
           </td>
           <td style="padding: 0.75rem 1rem;" class="text-end">
             <a class="btn btn-sm btn-outline-secondary py-1 px-2"
@@ -135,8 +127,7 @@
         {% empty %}
         <tr>
           <td colspan="8" class="py-4">
-            {% include "components/_empty_state.html" with title="No checklists yet" text="Create a checklist template
-            to establish standardized field inspection steps." %}
+            {% include "components/_empty_state.html" with title="No checklists yet" text="Create a checklist template to establish standardized field inspection steps." %}
           </td>
         </tr>
         {% endfor %}

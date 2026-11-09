@@ -331,7 +331,7 @@ class RequestEditView(IncidentBase):
             "failure_category": sr.failure_category,
             "assigned_team": sr.assigned_team,
             "occurred_at": sr.occurred_at,
-            "downtime_started_at": dt.started_at if dt else sr.occurred_at,
+            "downtime_started_at": dt.started_at if dt else None,
         }
         form = RequestForm(
             initial=initial,

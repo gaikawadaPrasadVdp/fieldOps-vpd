@@ -258,7 +258,7 @@ class PartViewSet(TenantAPIMixin, viewsets.ViewSet):
                                         request=request)
         return Response(PartSerializer(part).data)
 
-    @extend_schema(responses=BalanceSerializer)
+    @extend_schema(responses=BalanceSerializer(many=True))
     @action(detail=True, methods=["get"])
     def stock(self, request, pk=None):
         """Balances of this part over the warehouses the caller may see."""
@@ -346,7 +346,7 @@ class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         return Response(BalanceSerializer(selectors.get_balance(request.membership, request.organization, pk)).data)
 
-    @extend_schema(responses=MovementSerializer)
+    @extend_schema(responses=MovementSerializer(many=True))
     @action(detail=True, methods=["get"])
     def movements(self, request, pk=None):
         bal = selectors.get_balance(request.membership, request.organization, pk)
@@ -553,7 +553,7 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
         services.cancel_line(line, actor=request.user, membership=request.membership, request=request)
         return self._out(request, line)
 
-    @extend_schema(responses=MovementSerializer)
+    @extend_schema(responses=MovementSerializer(many=True))
     @action(detail=True, methods=["get"])
     def movements(self, request, pk=None):
         line = self._line(request, pk)

@@ -5,6 +5,7 @@ scope (404) -> permission for the object's site (403) -> service. Configuration 
 monitor needs ``sla.process``."""
 
 from datetime import datetime
+import uuid
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_field
@@ -599,17 +600,7 @@ class SLABreachViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {"list": "sla.view", "retrieve": "sla.view", "acknowledge": "sla.acknowledge"}
 
     def _breach(self, request, pk, code=None) -> SLABreach:
-        try:
-            breach = selectors.get_breach(request.membership, request.organization, pk)
-        except Exception:
-            if not SLABreach.objects.filter(organization=request.organization).exists():
-                try:
-                    _ensure_sample_breach(request.organization)
-                except Exception:
-                    pass
-            breach = selectors.breaches_for(request.membership, request.organization).first()
-            if not breach:
-                raise
+        breach = selectors.get_breach(request.membership, request.organization, pk)
         if code:
             require_permission(request.membership, code, breach.site_id)
         return breach
@@ -666,6 +657,16 @@ class EscalationViewSet(TenantAPIMixin, viewsets.ViewSet):
             "profile", "notify_role"
         )
 
+    def _get_rule(self, request, pk):
+        try:
+            rule_pk = uuid.UUID(str(pk))
+        except (ValueError, TypeError) as exc:
+            raise NotFound("Escalation rule not found.") from exc
+        rule = self._queryset(request).filter(pk=rule_pk).first()
+        if not rule:
+            raise NotFound("Escalation rule not found.")
+        return rule
+
     @extend_schema(
         parameters=[
             query_param("profile", "Filter by SLA profile UUID", OpenApiTypes.UUID),
@@ -679,7 +680,10 @@ class EscalationViewSet(TenantAPIMixin, viewsets.ViewSet):
         qs = self._queryset(request)
         profile_param = (request.query_params.get("profile") or "").strip()
         if profile_param:
-            qs = qs.filter(profile_id=profile_param)
+            try:
+                qs = qs.filter(profile_id=uuid.UUID(profile_param))
+            except (ValueError, TypeError):
+                qs = qs.none()
         target_kind = (request.query_params.get("target_kind") or "").strip().upper()
         if target_kind:
             qs = qs.filter(target_kind=target_kind)
@@ -693,9 +697,7 @@ class EscalationViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses=EscalationRuleSerializer)
     def retrieve(self, request, pk=None):
-        rule = self._queryset(request).filter(pk=pk).first()
-        if not rule:
-            raise NotFound("Escalation rule not found.")
+        rule = self._get_rule(request, pk)
         return Response(EscalationRuleSerializer(rule).data)
 
     @extend_schema(request=EscalationRuleCreateSerializer, responses={201: EscalationRuleSerializer})
@@ -722,9 +724,7 @@ class EscalationViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses={204: None})
     def destroy(self, request, pk=None):
-        rule = self._queryset(request).filter(pk=pk).first()
-        if not rule:
-            raise NotFound("Escalation rule not found.")
+        rule = self._get_rule(request, pk)
         services.delete_rule(rule, actor=request.user, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

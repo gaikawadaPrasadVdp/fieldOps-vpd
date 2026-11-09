@@ -16,10 +16,12 @@ def send_invitation_email(user_id: str, org_id: str, new_account: bool):
     org = Organization.objects.get(pk=org_id)
 
     # Safety guard for QA/smoke testing: suppress outbound SMTP delivery for reserved test domains
-    if settings.EMAIL_BACKEND != "django.core.mail.backends.locmem.EmailBackend":
-        email_lower = user.email.lower()
-        if any(email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")):
-            return
+    email_lower = user.email.lower()
+    email_backend = getattr(settings, "EMAIL_BACKEND", "").lower()
+    if "locmem" not in email_backend and any(
+        email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")
+    ):
+        return
 
     ctx = {
         "user": user, "organization": org, "new_account": new_account,

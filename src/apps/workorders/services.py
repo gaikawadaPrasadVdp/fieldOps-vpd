@@ -198,22 +198,23 @@ def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=
                  before=before, after=_snapshot(wo), metadata=metadata or {}, request=request)
     _notify_transition(wo, action, actor)
     try:
-        from apps.core.outbox import publish_integration_event
-        publish_integration_event(
-            wo.organization,
-            event_type=f"work_order.{action}",
-            aggregate_type="work_order",
-            aggregate_id=str(wo.pk),
-            payload={
-                "order_number": wo.order_number,
-                "status": wo.status,
-                "site_id": str(wo.site_id),
-                "asset_id": str(wo.asset_id) if wo.asset_id else None,
-                "assigned_to": str(wo.assigned_to_id) if wo.assigned_to_id else None,
-                "action": action,
-            },
-            metadata=metadata or {},
-        )
+        with transaction.atomic():
+            from apps.core.outbox import publish_integration_event
+            publish_integration_event(
+                wo.organization,
+                event_type=f"work_order.{action}",
+                aggregate_type="work_order",
+                aggregate_id=str(wo.pk),
+                payload={
+                    "order_number": wo.order_number,
+                    "status": wo.status,
+                    "site_id": str(wo.site_id),
+                    "asset_id": str(wo.asset_id) if wo.asset_id else None,
+                    "assigned_to": str(wo.assigned_to_id) if wo.assigned_to_id else None,
+                    "action": action,
+                },
+                metadata=metadata or {},
+            )
     except Exception:
         pass
 
@@ -465,8 +466,9 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     _sla().on_work_order_created(wo)
     if wo.asset_id:
         try:
-            from apps.contracts import services as contracts
-            contracts.record_check(wo, actor=actor, request=request)
+            with transaction.atomic():
+                from apps.contracts import services as contracts
+                contracts.record_check(wo, actor=actor, request=request)
         except Exception:
             pass
     return wo
@@ -590,8 +592,9 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
         _sla().on_work_order_updated(wo, before.get("priority"), actor=actor, request=request)
     if wo.asset_id:
         try:
-            from apps.contracts import services as contracts
-            contracts.record_check(wo, actor=actor, request=request)
+            with transaction.atomic():
+                from apps.contracts import services as contracts
+                contracts.record_check(wo, actor=actor, request=request)
         except Exception:
             pass
     return wo

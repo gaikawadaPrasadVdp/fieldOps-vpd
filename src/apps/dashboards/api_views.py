@@ -153,6 +153,14 @@ from . import services
 class SnapshotListAPIView(TenantAPIMixin, APIView):
     permission_map = {"get": "report.view", "post": "report.view"}
 
+    @extend_schema(
+        summary="List dashboard report snapshots",
+        parameters=[
+            query_param("snapshot_type", "Filter by snapshot type (DAILY, WEEKLY, MONTHLY)"),
+            query_param("section", "Filter by dashboard section"),
+        ],
+        responses={200: ReportSnapshotSerializer(many=True)},
+    )
     def get(self, request):
         snapshot_type = request.query_params.get("snapshot_type")
         section = request.query_params.get("section")
@@ -163,6 +171,11 @@ class SnapshotListAPIView(TenantAPIMixin, APIView):
         )
         return Response(ReportSnapshotSerializer(snapshots, many=True).data)
 
+    @extend_schema(
+        summary="Generate a dashboard report snapshot",
+        request=GenerateSnapshotSerializer,
+        responses={201: ReportSnapshotSerializer},
+    )
     def post(self, request):
         serializer = GenerateSnapshotSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -190,6 +203,10 @@ class SnapshotListAPIView(TenantAPIMixin, APIView):
 class SnapshotDetailAPIView(TenantAPIMixin, APIView):
     permission_map = {"get": "report.view"}
 
+    @extend_schema(
+        summary="Retrieve a dashboard report snapshot",
+        responses={200: ReportSnapshotSerializer},
+    )
     def get(self, request, pk):
         from rest_framework.exceptions import NotFound
         snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).first()
