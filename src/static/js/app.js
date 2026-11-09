@@ -68,7 +68,7 @@ document.addEventListener("change", function (e) {
   var action = sel.form.getAttribute("action") || window.location.pathname;
   var url = action + (action.indexOf("?") === -1 ? "?" : "&") + params.toString();
   if (sel.form.id === "asset-modal-form" && window.htmx && document.getElementById("assetModalContent")) {
-    window.htmx.ajax("GET", url, {target: "#assetModalContent", swap: "innerHTML"});
+    window.htmx.ajax("GET", url, { target: "#assetModalContent", swap: "innerHTML" });
   } else {
     window.location.href = url;
   }
@@ -165,7 +165,7 @@ window.fxToast = function (message, type) {
   toast.className = 'alert alert-' + type + ' fx-toast-message alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm';
   toast.setAttribute('role', 'alert');
   toast.setAttribute('data-auto-dismiss', timeoutMs.toString());
-  
+
   toast.innerHTML = '<div class="d-flex align-items-center gap-2 flex-grow-1">' +
     iconHtml +
     '<span class="fx-toast-text">' + message + '</span>' +
@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tz && document.cookie.indexOf('user_timezone=' + tz) === -1) {
       document.cookie = 'user_timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
     }
-  } catch (e) {}
+  } catch (e) { }
 })();
 
 
@@ -527,13 +527,13 @@ document.addEventListener("click", function (e) {
     }
   }
 
-  try { input.focus(); } catch (err) {}
+  try { input.focus(); } catch (err) { }
 });
 
 /* ==========================================================================
    Universal Form Validation & Feedback System
    ========================================================================== */
-(function() {
+(function () {
   function getFieldLabel(field) {
     if (!field) return "This field";
     var id = field.id;
@@ -541,7 +541,7 @@ document.addEventListener("click", function (e) {
       var labelEl = document.querySelector('label[for="' + id + '"]');
       if (labelEl) {
         var clone = labelEl.cloneNode(true);
-        clone.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        clone.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var text = clone.textContent.trim().replace(/:$/, "");
         if (text) return text;
       }
@@ -551,7 +551,7 @@ document.addEventListener("click", function (e) {
       var l = parent.querySelector("label");
       if (l) {
         var c = l.cloneNode(true);
-        c.querySelectorAll(".text-danger, .badge, small").forEach(function(el) { el.remove(); });
+        c.querySelectorAll(".text-danger, .badge, small").forEach(function (el) { el.remove(); });
         var t = c.textContent.trim().replace(/:$/, "");
         if (t) return t;
       }
@@ -2089,141 +2089,29 @@ document.addEventListener("click", function (e) {
       // toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
     }
   });
-
+  // Prevent decimal/exponent characters on integer/whole-number inputs with step="1"
+  document.addEventListener("keydown", function (e) {
+    if (e.target && e.target.matches && e.target.matches('input[type="number"][step="1"]')) {
+      if (['.', 'e', 'E', '+', ','].includes(e.key)) {
+        e.preventDefault();
+      }
+      if (e.target.min && parseFloat(e.target.min) >= 0 && e.key === '-') {
+        e.preventDefault();
+      }
+    }
+  });
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps
-  document.addEventListener("htmx:beforeRequest", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.add("is-active");
-  });
-  document.addEventListener("htmx:afterRequest", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.remove("is-active");
-  });
-  document.addEventListener("htmx:requestError", function () {
-    var l = document.getElementById("global-loading-indicator");
-    if (l) l.classList.remove("is-active");
-  });
-
-
-/* Cross-Tab Authentication Synchronization
-   Instant multi-tab logout without manual page refresh via BroadcastChannel & localStorage events. */
-(function () {
-  var AUTH_CHANNEL_NAME = "nexus_auth_sync";
-  var LOGOUT_STORAGE_KEY = "nexus_logout_event";
-
-  function clearClientCookies() {
-    try {
-      sessionStorage.clear();
-      var cookies = document.cookie.split(";");
-      for (var i = 0; i < cookies.length; i++) {
-        var cookie = cookies[i];
-        var eqPos = cookie.indexOf("=");
-        var name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        if (name) {
-          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
-        }
-      }
-    } catch (e) {}
-  }
-
-  function redirectToLogin() {
-    clearClientCookies();
-    var path = window.location.pathname;
-    // Do not redirect if already on login, activate, or public landing
-    if (
-      path.startsWith("/accounts/login") ||
-      path.startsWith("/accounts/activate") ||
-      path.startsWith("/accounts/password-reset") ||
-      path === "/" ||
-      path.startsWith("/product") ||
-      path.startsWith("/solutions") ||
-      path.startsWith("/modules") ||
-      path.startsWith("/features") ||
-      path.startsWith("/resources") ||
-      path.startsWith("/about") ||
-      path.startsWith("/contact") ||
-      path.startsWith("/register")
-    ) {
-      return;
-    }
-    var next = encodeURIComponent(path + window.location.search);
-    window.location.href = "/accounts/login/?next=" + next;
-  }
-
-  // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
-  if (typeof window.BroadcastChannel === "function") {
-    try {
-      var authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
-      authChannel.onmessage = function (event) {
-        if (event.data && event.data.type === "LOGOUT") {
-          redirectToLogin();
-        }
-      };
-    } catch (e) {}
-  }
-
-  // 2. Storage event listener (fallback for all browsers/webviews; fires in other tabs)
-  window.addEventListener("storage", function (event) {
-    if (event.key === LOGOUT_STORAGE_KEY) {
-      redirectToLogin();
-    }
-  });
-
-  // 3. Broadcast logout notification to other open tabs
-  function broadcastLogout() {
-    if (typeof window.BroadcastChannel === "function") {
-      try {
-        var ch = new BroadcastChannel(AUTH_CHANNEL_NAME);
-        ch.postMessage({ type: "LOGOUT", timestamp: Date.now() });
-      } catch (e) {}
-    }
-    try {
-      localStorage.setItem(LOGOUT_STORAGE_KEY, Date.now().toString());
-    } catch (e) {}
-  }
-
-  // 4. Handle Sign out button click / form submission with explicit API fetch
-  document.addEventListener("click", function (e) {
-    var elem = e.target.closest("#fx-logout-btn, button, a");
-    if (!elem) return;
-
-    var form = elem.form || elem.closest("form");
-    var isLogoutForm = form && form.action && form.action.indexOf("/accounts/logout/") !== -1;
-    var isLogoutBtn = elem.id === "fx-logout-btn" || (elem.textContent && elem.textContent.trim().toLowerCase() === "sign out");
-
-    if (isLogoutForm || isLogoutBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      var logoutUrl = (form && form.action) ? form.action : "/accounts/logout/";
-      var csrfInput = form ? form.querySelector("input[name='csrfmiddlewaretoken']") : null;
-      var csrfToken = csrfInput ? csrfInput.value : "";
-      if (!csrfToken) {
-        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-        if (match) csrfToken = match[1];
-      }
-
-      elem.disabled = true;
-
-      // Broadcast to other tabs immediately
-      broadcastLogout();
-
-      // Explicit POST API call (visible in DevTools Fetch/XHR tab)
-      fetch(logoutUrl, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": csrfToken,
-          "X-Requested-With": "XMLHttpRequest",
-          "Accept": "application/json",
-        },
-      })
-        .finally(function () {
-          clearClientCookies();
-          window.location.href = "/accounts/login/";
-        });
-    }
-  });
-})();
+document.addEventListener("htmx:beforeRequest", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.add("is-active");
+});
+document.addEventListener("htmx:afterRequest", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.remove("is-active");
+});
+document.addEventListener("htmx:requestError", function () {
+  var l = document.getElementById("global-loading-indicator");
+  if (l) l.classList.remove("is-active");
+});
