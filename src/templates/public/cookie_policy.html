@@ -1,0 +1,135 @@
+{% extends "public/legal_base.html" %}
+{% load static ui_tags %}
+
+{% block legal_title %}Cookie &amp; Session Policy{% endblock %}
+{% block breadcrumb_active %}Cookie Policy{% endblock %}
+{% block hero_heading %}Cookie &amp; Session Policy{% endblock %}
+
+{% block legal_content %}
+<div class="border-bottom pb-4 mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h2 class="h4 fw-bold text-dark mb-1">FieldOps Nexus Cookie &amp; Session Management Policy</h2>
+      <p class="small text-muted mb-0">Version 2.2 &bull; Effective: October 2026 &bull; Technical Reference: SEC-COOK-2026</p>
+    </div>
+    <span class="badge px-3 py-2 fw-semibold" style="background-color: rgba(11,31,59,0.08); color: #0B1F3B; border: 1px solid rgba(11,31,59,0.15);">
+      SEC-COOK-2026
+    </span>
+  </div>
+</div>
+
+<div class="lead text-dark mb-4" style="font-size: 1.05rem; line-height: 1.7;">
+  This Cookie Policy explains how FieldOps Nexus uses cookies, session identifiers, and local browser storage to provide secure, authenticated enterprise services and maintain strict tenant boundaries.
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-4 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">1</span>
+  What Cookies Are
+</h3>
+<p>
+  Cookies are small text strings placed on your device by a web server when you visit or navigate web applications. They allow the platform to remember your authenticated session across requests, prevent cross-site request forgery, and enforce active organizational tenant isolation without requiring you to re-authenticate on every page navigation.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">2</span>
+  Types of Cookies Used on FieldOps Nexus
+</h3>
+<p>
+  Because FieldOps Nexus is a business-critical enterprise SaaS platform, we prioritize security, performance, and tenant privacy over commercial tracking. We deploy <strong>strictly necessary operational cookies</strong>.
+</p>
+
+<div class="table-responsive my-4">
+  <table class="table table-bordered table-sm align-middle small mb-0">
+    <thead class="table-light">
+      <tr>
+        <th style="width: 18%; color: #0B1F3B;">Cookie Identifier</th>
+        <th style="width: 14%; color: #0B1F3B;">Category</th>
+        <th style="width: 15%; color: #0B1F3B;">Duration</th>
+        <th style="width: 25%; color: #0B1F3B;">Security Attributes</th>
+        <th style="color: #0B1F3B;">Purpose &amp; Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sessionid</code></td>
+        <td><span class="badge bg-primary">Essential</span></td>
+        <td>14 days (or browser close)</td>
+        <td><code>HttpOnly; SameSite=Lax; Secure</code></td>
+        <td>Maintains the authenticated user session, tenant organization ID, and RBAC security role across requests.</td>
+      </tr>
+      <tr>
+        <td><code>csrftoken</code></td>
+        <td><span class="badge bg-primary">Essential</span></td>
+        <td>1 year</td>
+        <td><code>SameSite=Lax; Secure</code></td>
+        <td>Cryptographic protection token preventing Cross-Site Request Forgery attacks on state-changing forms (dispatches, work orders, logins).</td>
+      </tr>
+      <tr>
+        <td><code>messages</code></td>
+        <td><span class="badge bg-secondary">Functional</span></td>
+        <td>Session</td>
+        <td><code>HttpOnly; SameSite=Lax</code></td>
+        <td>Stores transient UI notification alerts and validation feedback across page redirects.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">3</span>
+  Essential &amp; Functional Cookies
+</h3>
+<p>
+  The cookies listed above are strictly necessary for the technical operation of the ERP. Without <code>sessionid</code> and <code>csrftoken</code>:
+</p>
+<ul>
+  <li>Users cannot securely log into the system or access tenant-specific asset management dashboards.</li>
+  <li>Role permissions and multi-site organization switches cannot be securely validated.</li>
+  <li>Web browsers cannot post safety checklist evaluations, inventory transactions, or incident reports without security rejection.</li>
+</ul>
+<p>
+  All session tokens are configured with <code>HttpOnly</code> flags to prevent client-side script inspection (mitigating XSS vector extraction) and <code>SameSite=Lax</code> to protect cross-origin requests.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">4</span>
+  Analytics &amp; Tracking Policy
+</h3>
+<p>
+  <strong>Zero Commercial Ad Trackers:</strong> FieldOps Nexus does not utilize third-party commercial advertising networks, social media pixels, cross-site trackers, or behavioral remarketing cookies.
+</p>
+<p>
+  <strong>Internal Server-Side Telemetry:</strong> Operational performance indicators (such as database query latency, worker queue backlog, and HTTP 5xx error rates) are monitored server-side through internal audit logs and encrypted metrics pipelines. No tracking cookies are injected into end-user browsers for operational monitoring.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">5</span>
+  Cookie Preferences &amp; Browser Management
+</h3>
+<p>
+  You have the ability to control and manage cookies through your web browser preferences:
+</p>
+<ul>
+  <li><strong>Chrome:</strong> Settings &rarr; Privacy and security &rarr; Third-party cookies</li>
+  <li><strong>Firefox:</strong> Settings &rarr; Privacy &amp; Security &rarr; Enhanced Tracking Protection</li>
+  <li><strong>Safari:</strong> Preferences &rarr; Privacy &rarr; Prevent cross-site tracking</li>
+  <li><strong>Edge:</strong> Settings &rarr; Cookies and site permissions</li>
+</ul>
+<p class="small text-muted">
+  <em>Important Operational Note:</em> Blocking or disabling strictly necessary session cookies will prevent login to FieldOps Nexus and disrupt all field service and technician workflows.
+</p>
+
+<div class="alert mt-4 mb-4 border" style="background-color: rgba(245,196,81,0.08); border-color: rgba(245,196,81,0.3) !important;">
+  <div class="d-flex align-items-start gap-2">
+    <span class="text-warning mt-1">{% icon 'alert-circle' 16 %}</span>
+    <div class="small">
+      <strong class="text-dark">Enterprise Legal Note:</strong> Deployment of any future third-party analytics integrations or optional telemetry services is subject to prior review and written approval by company legal oversight in accordance with HPE Delivery Oversight guidelines.
+    </div>
+  </div>
+</div>
+
+<p class="mb-0">
+  For inquiries regarding session security or cookie management, contact the security engineering team at <a href="mailto:compliance@fieldopsnexus.com" class="fw-semibold text-decoration-none" style="color: #0B1F3B;">compliance@fieldopsnexus.com</a>.
+</p>
+{% endblock %}
+

@@ -64,14 +64,13 @@ def test_non_platform_admin_blocked_from_create_organization_ui(client, owner_a)
 def test_platform_admin_can_delete_organization_ui(client, platform_admin, org_b):
     client.force_login(platform_admin)
     delete_url = reverse("platform_admin:organization_delete", kwargs={"org_id": org_b.pk})
-    response = client.post(delete_url)
+    response = client.post(delete_url, {"days": "7", "reason": "Decommission test"})
     assert response.status_code == 302
     assert response.url == reverse("platform_admin:organizations")
 
-    # Due to seeded roles/audit, it should be safely decommissioned
     org_b.refresh_from_db()
-    assert org_b.status == Organization.Status.SUSPENDED
-    assert "Deleted/Decommissioned" in org_b.suspended_reason
+    assert org_b.is_scheduled_for_deletion is True
+    assert org_b.deletion_reason == "Decommission test" 
 
 
 def test_non_platform_admin_blocked_from_delete_organization_ui(client, owner_a, org_b):
@@ -207,10 +206,69 @@ def test_platform_admin_sidebar_has_no_tenant_modules(client, platform_admin):
 
     # Must contain platform governance items
     assert "Organizations" in content
-    assert "Platform audit" in content
+    assert "Platform Audit Trail" in content or "Platform audit" in content
 
-    # Must NOT contain tenant operational modules in the sidebar
+    # Must NOT contain tenant operational modules or incident dashboard in the platform console
+    assert "Incident Dashboard" not in content
     assert "Work Orders" not in content
     assert "Incident &amp; Requests" not in content
     assert "Asset Lifecycle" not in content
+
+
+def test_platform_audit_strictly_excludes_tenant_operational_events(client, platform_admin, org_a):
+    from apps.audit import services as audit
+    from apps.audit.models import AuditLog
+
+    # Create governance / auth events (allowed)
+    audit.record("auth.login", actor=platform_admin, target_repr="Platform Admin Login")
+    audit.record("organization.created", actor=platform_admin, organization=org_a, target_repr=org_a.name)
+
+    # Create tenant operational events (strictly forbidden for platform admin to see)
+    audit.record("incident.created", organization=org_a, target_repr="SR-SECRET-TENANT-INCIDENT")
+    audit.record("work_order.created", organization=org_a, target_repr="WO-SECRET-TENANT-JOB")
+    audit.record("asset.created", organization=org_a, target_repr="ASSET-SECRET-TENANT-DEVICE")
+
+    client.force_login(platform_admin)
+    res = client.get(reverse("platform_admin:audit"))
+    assert res.status_code == 200
+    content = res.content.decode()
+
+    # Platform governance and auth logs MUST be present
+    assert "auth.login" in content
+    assert "organization.created" in content
+
+    # Tenant operational logs MUST NEVER appear in platform audit
+    assert "incident.created" not in content
+    assert "SR-SECRET-TENANT-INCIDENT" not in content
+    assert "work_order.created" not in content
+    assert "WO-SECRET-TENANT-JOB" not in content
+    assert "asset.created" not in content
+    assert "ASSET-SECRET-TENANT-DEVICE" not in content
+
+
+def test_platform_audit_category_and_search_filters(client, platform_admin, org_a):
+    from apps.audit import services as audit
+
+    audit.record("auth.login", actor=platform_admin, target_repr="Filter Test Login")
+    audit.record("organization.created", actor=platform_admin, organization=org_a, target_repr="Filter Test Org")
+
+    client.force_login(platform_admin)
+
+    # Category: auth
+    res_auth = client.get(reverse("platform_admin:audit"), {"category": "auth"})
+    assert res_auth.status_code == 200
+    assert "Filter Test Login" in res_auth.content.decode()
+    assert "Filter Test Org" not in res_auth.content.decode()
+
+    # Category: org
+    res_org = client.get(reverse("platform_admin:audit"), {"category": "org"})
+    assert res_org.status_code == 200
+    assert "Filter Test Org" in res_org.content.decode()
+    assert "Filter Test Login" not in res_org.content.decode()
+
+    # Search keyword
+    res_search = client.get(reverse("platform_admin:audit"), {"q": "Filter Test Login"})
+    assert res_search.status_code == 200
+    assert "Filter Test Login" in res_search.content.decode()
+    assert "Filter Test Org" not in res_search.content.decode()
 

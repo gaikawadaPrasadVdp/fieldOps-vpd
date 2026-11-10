@@ -21,7 +21,7 @@ from apps.core.exceptions import Conflict, ValidationFailed
 from apps.core.sequences import next_number
 from apps.files import services as files
 
-from .models import Downtime, ServiceRequest, ServiceRequestHistory
+from .models import Downtime, ServiceRequest, ServiceRequestComment, ServiceRequestHistory
 from .workflow import (
     ACTION_PERMISSIONS,
     ACTIVE_INCIDENT_STATUSES,
@@ -53,11 +53,12 @@ SNAPSHOT = [
     "failure_category", "assigned_team", "occurred_at",
 ]
 _EDITABLE = {
-    "title", "description", "severity", "service_impact", "impact_notes",
-    "failure_category", "assigned_team", "occurred_at",
+    "asset", "kind", "title", "description", "severity", "service_impact", "impact_notes",
+    "failure_category", "assigned_team", "occurred_at", "downtime_started_at",
 }
 _SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "CRITICAL"}
 _FUTURE_SLACK = timedelta(minutes=5)
+_MAX_PAST_DAYS = timedelta(days=90)
 
 
 def _sla():
@@ -74,9 +75,13 @@ def _clean_title(title: str) -> str:
     return title
 
 
-def _check_time(value, what: str):
-    if value is not None and value > timezone.now() + _FUTURE_SLACK:
-        raise ValidationFailed(f"{what} cannot be in the future.", code="future_time")
+def _check_time(value, what: str, max_past: timedelta | None = None):
+    if value is not None:
+        now = timezone.now()
+        if value > now + _FUTURE_SLACK:
+            raise ValidationFailed(f"{what} cannot be in the future.", code="future_time")
+        if max_past is not None and value < now - max_past:
+            raise ValidationFailed(f"{what} cannot be more than 90 days in the past.", code="past_time_limit")
 
 
 def _history(sr, *, from_status, to_status, action, reason, actor, source):
@@ -246,9 +251,14 @@ def create_request(org, *, asset, reporter, title: str, description: str = "", k
                 code="override_reason_required",
             )
 
-    occurred_at = occurred_at or timezone.now()
-    _check_time(occurred_at, "The time of the failure")
-    _check_time(downtime_started_at, "The downtime start")
+    occurred_at = occurred_at or downtime_started_at or timezone.now()
+    _check_time(occurred_at, "The time of the failure", max_past=_MAX_PAST_DAYS)
+    _check_time(downtime_started_at, "The downtime start", max_past=_MAX_PAST_DAYS)
+    if downtime_started_at is not None and occurred_at is not None and downtime_started_at < occurred_at:
+        raise ValidationFailed(
+            "The downtime start cannot be before the incident occurred.",
+            code="downtime_start_before_occurred",
+        )
     prefix = "INC" if kind == "INCIDENT" else "SR"
 
     with transaction.atomic():
@@ -286,6 +296,20 @@ def create_request(org, *, asset, reporter, title: str, description: str = "", k
         if downtime_started_at is not None:
             _write_downtime(sr, started_at=downtime_started_at, ended_at=None, actor=actor, request=request)
         _sla().on_request_created(sr)  # M11: the SLA starts from the persisted created_at
+
+        # Automatic warranty / AMC coverage check
+        try:
+            with transaction.atomic():
+                from apps.contracts import services as contracts
+                ref_date = occurred_at.date() if occurred_at else None
+                cov_res = contracts.evaluate(org, locked_asset, on=ref_date, work_type="CORRECTIVE")
+                audit.record("incident.coverage_evaluated", actor=actor, organization=org, target=sr,
+                             after={"eligible": cov_res.eligible, "covered": cov_res.covered,
+                                    "agreement": cov_res.best.agreement.reference if cov_res.best else None,
+                                    "reason": cov_res.reason[:500]}, request=request)
+        except Exception:
+            pass
+
         return sr
 
 
@@ -384,9 +408,28 @@ def update_request(sr: ServiceRequest, *, actor, request=None, **changes) -> Ser
     if "assigned_team" in changes:
         sr.assigned_team = (changes["assigned_team"] or "").strip()[:100]
     if "occurred_at" in changes:
-        _check_time(changes["occurred_at"], "The time of the failure")
+        _check_time(changes["occurred_at"], "The time of the failure", max_past=_MAX_PAST_DAYS)
         sr.occurred_at = changes["occurred_at"]
+    if "asset" in changes and changes["asset"]:
+        new_asset = changes["asset"]
+        if new_asset.organization_id != sr.organization_id:
+            raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
+        if new_asset.status in ("RETIRED", "DISPOSED"):
+            raise Conflict("Retired or disposed assets cannot have requests.", code="asset_terminal")
+        sr.asset = new_asset
+        sr.site = new_asset.site
+    if "kind" in changes and changes["kind"]:
+        if changes["kind"] not in ServiceRequest.Kind.values:
+            raise ValidationFailed("Unknown request type.", code="invalid_kind")
+        sr.kind = changes["kind"]
     sr.save()
+    if "downtime_started_at" in changes:
+        dt_started = changes["downtime_started_at"]
+        dt = Downtime.objects.for_organization(sr.organization).filter(request=sr).first()
+        if dt_started is not None:
+            _write_downtime(sr, started_at=dt_started, ended_at=dt.ended_at if dt else None, actor=actor, request=request)
+        elif dt and not dt.ended_at:
+            dt.delete()
     after = audit.snapshot(sr, SNAPSHOT)
     if after != before and before.get("severity") != after.get("severity"):
         _sla().on_request_updated(sr)  # M11: a new severity re-targets the open SLA
@@ -521,11 +564,13 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
 # --- hooks called by the work-order lifecycle (M06) --------------------------------------------------------------------
 
 
+@transaction.atomic
 def on_work_order_started(sr: ServiceRequest, *, actor, request=None):
     if sr.status == WORK_ORDER_CREATED:
         _apply(sr, "start_service", reason="Work started", actor=actor, source="work_order", request=request)
 
 
+@transaction.atomic
 def on_work_order_completed(sr: ServiceRequest, *, actor, request=None):
     if sr.status == IN_SERVICE:
         sr = _apply(sr, "resolve", reason="Work completed", actor=actor, source="work_order", request=request)
@@ -533,17 +578,20 @@ def on_work_order_completed(sr: ServiceRequest, *, actor, request=None):
         _notify_reporter(sr, "resolve", "")
 
 
+@transaction.atomic
 def on_work_order_reworked(sr: ServiceRequest, *, actor, request=None):
     if sr.status == RESOLVED:
         _apply(sr, "resume_service", reason="Returned for rework", actor=actor, source="work_order", request=request)
 
 
+@transaction.atomic
 def on_work_order_cancelled(sr: ServiceRequest, *, actor, request=None):
     if sr.status == WORK_ORDER_CREATED:
         _apply(sr, "work_order_cancelled", reason="Work order cancelled", actor=actor, source="work_order",
                request=request)
 
 
+@transaction.atomic
 def on_work_order_closed(sr: ServiceRequest, *, actor, request=None):
     """Called when an associated work order is closed. If client has confirmed, closes request."""
     if sr.status == "CONFIRMED":
@@ -613,3 +661,155 @@ def add_evidence(sr: ServiceRequest, uploaded, *, description: str = "", actor, 
     audit.record("incident.evidence_added", actor=actor, organization=sr.organization, target=sr,
                  metadata={"file": att.original_name, "attachment": str(att.pk)}, request=request)
     return att
+
+
+# --- comments & communication thread -------------------------------------------------------------------------
+
+
+def _notify_comment(sr: ServiceRequest, comment: ServiceRequestComment, *, actor):
+    """Notifies relevant participants of a new comment without duplicate alerts."""
+    from apps.notifications import services as notifications
+    from apps.ui.utils import is_client_membership
+
+    recipients = set()
+    # If it is a client-visible comment
+    if not comment.is_internal:
+        if sr.reported_by and sr.reported_by.user_id:
+            recipients.add(sr.reported_by.user)
+    else:
+        # If internal staff note, only notify reporter if reporter is internal staff
+        if sr.reported_by and sr.reported_by.user_id and not is_client_membership(sr.reported_by):
+            recipients.add(sr.reported_by.user)
+
+    # If linked work order has assigned technician, notify them
+    wo = sr.linked_work_order
+    if wo and getattr(wo, "assigned_to", None) and getattr(wo.assigned_to, "user", None):
+        recipients.add(wo.assigned_to.user)
+
+    # Exclude actor themselves
+    actor_id = getattr(actor, "pk", getattr(actor, "id", None))
+    recipients = [u for u in recipients if str(getattr(u, "pk", getattr(u, "id", None))) != str(actor_id)]
+
+    for user in recipients:
+        from apps.tenancy.models import Membership
+        m = Membership.objects.for_organization(sr.organization).filter(
+            user=user, status=Membership.Status.ACTIVE
+        ).first()
+        if not m:
+            continue
+        is_client = is_client_membership(m)
+        link = f"/app/portal/requests/{sr.pk}/" if is_client else f"/app/incidents/{sr.pk}/?tab=comments"
+        note_type = "internal note" if comment.is_internal else "comment"
+        notifications.notify(
+            sr.organization,
+            [user],
+            title=f"New {note_type} on {sr.number}",
+            body=comment.body[:160],
+            link=link,
+            source="incident.comment_added",
+        )
+
+
+@transaction.atomic
+def add_comment(
+    sr: ServiceRequest,
+    *,
+    body: str,
+    actor,
+    membership=None,
+    is_internal: bool = False,
+    request=None,
+) -> ServiceRequestComment:
+    """Adds a client-visible comment or an internal staff note to a service request."""
+    import html
+    from apps.core.exceptions import ValidationFailed
+    from apps.ui.utils import is_client_membership
+
+    body = (body or "").strip()
+    if not body:
+        raise ValidationFailed("Comment message cannot be empty.", code="empty_comment")
+    if len(body) > 5000:
+        raise ValidationFailed("Comment message cannot exceed 5,000 characters.", code="comment_too_long")
+
+    # Sanitize: body is stored as clean text; escape raw HTML characters to prevent XSS injection
+    sanitized_body = html.escape(body)
+
+    # Permission check for internal notes: Clients are strictly forbidden from creating internal notes
+    is_client = bool(membership and is_client_membership(membership))
+    if is_client and is_internal:
+        raise ValidationFailed("Clients cannot create internal staff notes.", code="client_internal_note_forbidden")
+
+    # Author display name snapshot
+    author_name = ""
+    if actor and getattr(actor, "is_authenticated", False):
+        author_name = getattr(actor, "display_name", None) or getattr(actor, "get_full_name", lambda: None)() or getattr(actor, "email", "")
+    elif membership and getattr(membership, "user", None):
+        author_name = getattr(membership.user, "display_name", None) or getattr(membership.user, "get_full_name", lambda: None)() or getattr(membership.user, "email", "")
+
+    comment = ServiceRequestComment(
+        organization=sr.organization,
+        request=sr,
+        author=actor if (actor and getattr(actor, "is_authenticated", False)) else None,
+        author_membership=membership,
+        author_name=author_name or "Anonymous",
+        body=sanitized_body,
+        is_internal=is_internal,
+    )
+    comment.save()
+
+    audit.record(
+        "incident.comment_added",
+        actor=actor,
+        organization=sr.organization,
+        target=sr,
+        metadata={
+            "comment_id": str(comment.pk),
+            "is_internal": is_internal,
+            "snippet": sanitized_body[:60],
+        },
+        request=request,
+    )
+
+    _notify_comment(sr, comment, actor=actor)
+    return comment
+
+
+@transaction.atomic
+def delete_comment(org, comment_id, *, actor, membership, request=None):
+    """Deletes a comment if authorized (author or supervisor/manager/admin)."""
+    from apps.core.exceptions import NotFound, PermissionDenied
+    from apps.rbac import services as rbac
+    from apps.ui.utils import is_client_membership
+
+    comment = ServiceRequestComment.objects.for_organization(org).filter(pk=comment_id).first()
+    if not comment:
+        raise NotFound("Comment not found.", code="comment_not_found")
+
+    actor_id = getattr(actor, "pk", getattr(actor, "id", None))
+    is_author = comment.author_id and str(comment.author_id) == str(actor_id)
+    is_staff = not is_client_membership(membership)
+
+    has_manage_perm = is_staff and (
+        rbac.has_permission_anywhere(membership, "incident.update")
+        or rbac.has_permission_anywhere(membership, "incident.manage")
+        or rbac.has_permission_anywhere(membership, "incident.delete")
+        or membership.membership_roles.filter(role__system_key__in=("owner", "admin", "service_manager")).exists()
+    )
+
+    if not is_author and not has_manage_perm:
+        raise PermissionDenied("You do not have permission to delete this comment.", code="permission_denied")
+
+    if not is_staff and comment.is_internal:
+        raise PermissionDenied("Clients cannot delete internal notes.", code="permission_denied")
+
+    sr = comment.request
+    comment.delete()
+
+    audit.record(
+        "incident.comment_deleted",
+        actor=actor,
+        organization=org,
+        target=sr,
+        metadata={"comment_id": str(comment_id)},
+        request=request,
+    )

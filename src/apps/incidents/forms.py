@@ -1,11 +1,15 @@
+from datetime import timedelta
 from django import forms
+from django.utils import timezone
 
 from apps.assets.models import Asset
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
 
 from .models import ServiceRequest
 
 DT_FORMAT = "%Y-%m-%dT%H:%M"
+FUTURE_SLACK = timedelta(minutes=5)
+MAX_PAST_DAYS = timedelta(days=90)
 
 
 def dt_field(label, required=False, **kw):
@@ -37,17 +41,64 @@ class RequestForm(BootstrapFormMixin, forms.Form):
                                       widget=forms.Textarea(attrs={"rows": 2}),
                                       help_text="Mandatory reason if creating a duplicate incident")
 
-    def __init__(self, *args, assets=None, editing=False, **kwargs):
+    def __init__(self, *args, assets=None, editing=False, is_client=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if assets is not None:
+            self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
+        if is_client:
+            self.fields["occurred_at"].required = False
+            self.fields["downtime_started_at"].required = False
+            self.fields["occurred_at"].label = "When did it happen? (blank = now)"
+            self.fields["downtime_started_at"].label = "Downtime started (if the asset is down)"
         if editing:
-            for f in ("asset", "downtime_started_at", "kind", "override_duplicate", "override_reason"):
+            for f in ("override_duplicate", "override_reason"):
                 if f in self.fields:
                     del self.fields[f]
-        else:
-            self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
+
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        validate_alphabetical_description(title, field_label="Title")
+        return title
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Description")
+        return description
+
+    def clean_impact_notes(self):
+        notes = (self.cleaned_data.get("impact_notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Impact notes")
+        return notes
 
     def clean(self):
         cleaned = super().clean()
+        now = timezone.now()
+        future_limit = now + FUTURE_SLACK
+        past_limit = now - MAX_PAST_DAYS
+
+        occurred_at = cleaned.get("occurred_at")
+        downtime_started_at = cleaned.get("downtime_started_at")
+
+        if occurred_at:
+            if occurred_at > future_limit:
+                self.add_error("occurred_at", "The time of the failure cannot be in the future.")
+            elif occurred_at < past_limit:
+                self.add_error("occurred_at", "The time of the failure cannot be more than 90 days in the past.")
+
+        if downtime_started_at:
+            if downtime_started_at > future_limit:
+                self.add_error("downtime_started_at", "The downtime start cannot be in the future.")
+            elif downtime_started_at < past_limit:
+                self.add_error("downtime_started_at", "The downtime start cannot be more than 90 days in the past.")
+
+        if occurred_at and downtime_started_at and downtime_started_at < occurred_at:
+            self.add_error(
+                "downtime_started_at",
+                "The downtime start cannot be before the incident occurred.",
+            )
+
         if cleaned.get("override_duplicate") and len((cleaned.get("override_reason") or "").strip()) < 3:
             self.add_error("override_reason", "Enter at least 3 characters explaining why this is a separate incident.")
         return cleaned
@@ -58,6 +109,12 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
     priority = forms.ChoiceField(choices=[("", "(from severity)"), ("LOW", "Low"), ("MEDIUM", "Medium"),
                                           ("HIGH", "High"), ("URGENT", "Urgent")], required=False)
 
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        if title:
+            validate_alphabetical_description(title, field_label="Title")
+        return title
+
 
 class DowntimeForm(BootstrapFormMixin, forms.Form):
     started_at = dt_field("Downtime started", required=True)
@@ -67,3 +124,25 @@ class DowntimeForm(BootstrapFormMixin, forms.Form):
 class EvidenceForm(BootstrapFormMixin, forms.Form):
     file = forms.FileField()
     description = forms.CharField(max_length=200, required=False)
+
+
+class ServiceRequestCommentForm(BootstrapFormMixin, forms.Form):
+    body = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "rows": 3,
+            "placeholder": "Type your message or update...",
+        }),
+        max_length=5000,
+        required=True,
+        label="Message",
+    )
+    is_internal = forms.BooleanField(
+        required=False,
+        label="Internal note (staff only, hidden from client)",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def __init__(self, *args, is_staff=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not is_staff and "is_internal" in self.fields:
+            self.fields.pop("is_internal")

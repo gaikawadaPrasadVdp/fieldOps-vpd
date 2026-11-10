@@ -221,6 +221,30 @@
             </tbody>
           </table>
         </div>
+        {% if recent_requests_page_obj and recent_requests_page_obj.has_other_pages %}
+          <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+            <span class="small text-secondary">
+              Page {{ recent_requests_page_obj.number }} of {{ recent_requests_page_obj.paginator.num_pages }} ({{ recent_requests_page_obj.paginator.count }} requests)
+            </span>
+            <ul class="pagination pagination-sm m-0">
+              {% if recent_requests_page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?portal_page={{ recent_requests_page_obj.previous_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}">&laquo;</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+              {% endif %}
+              <li class="page-item active"><span class="page-link">{{ recent_requests_page_obj.number }}</span></li>
+              {% if recent_requests_page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?portal_page={{ recent_requests_page_obj.next_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}">&raquo;</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+              {% endif %}
+            </ul>
+          </div>
+        {% endif %}
         {% else %}
         <div class="card-body text-center py-5">
           <div class="text-body-secondary mb-3">{% icon 'inbox' 40 %}</div>

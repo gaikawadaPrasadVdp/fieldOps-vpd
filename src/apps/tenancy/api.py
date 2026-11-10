@@ -32,9 +32,15 @@ class TenantAPIMixin:
     required_permission: str | None = None
 
     def initial(self, request, *args, **kwargs):
-        if getattr(self, "action_map", None) and request.method.lower() not in self.action_map:
-            if request.method.lower() != "options":
-                raise DRFMethodNotAllowed(request.method)
+        method = request.method.lower()
+        if method != "options":
+            if getattr(self, "action_map", None):
+                if method not in self.action_map:
+                    raise DRFMethodNotAllowed(request.method)
+            else:
+                allowed = {m.lower() for m in self.allowed_methods}
+                if method not in allowed:
+                    raise DRFMethodNotAllowed(request.method)
         super().initial(request, *args, **kwargs)
 
     def get_permissions(self):

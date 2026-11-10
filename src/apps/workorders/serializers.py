@@ -1,6 +1,10 @@
 from decimal import Decimal
+from django.utils import timezone
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+
+from apps.ui.forms import validate_alphabetical_description
 
 from apps.assets.models import Asset, AssetComponent
 from apps.incidents.models import ServiceRequest
@@ -79,14 +83,16 @@ class LaborSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkOrderLabor
-        fields = ["id", "technician", "technician_name", "work_date", "hours", "description", "created_at"]
+        fields = ["id", "technician", "technician_name", "work_date", "started_at", "ended_at", "hours", "description", "created_at"]
         read_only_fields = fields
 
 
 class MaterialSerializer(serializers.ModelSerializer):
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, coerce_to_string=True)
+    stock_backed = serializers.BooleanField(read_only=True)
     class Meta:
         model = WorkOrderMaterial
-        fields = ["id", "part_reference", "item_name", "quantity", "unit", "notes", "created_at"]
+        fields = ["id", "part_reference", "item_name", "quantity", "unit", "notes", "created_at", "stock_backed"]
         read_only_fields = fields
 
 
@@ -136,9 +142,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         sites = sites.filter(pk__in=allowed_sites)
         self.fields["site"].queryset = sites
         allowed_asset_statuses = [Asset.Status.ACTIVE, Asset.Status.UNDER_MAINTENANCE, Asset.Status.OUT_OF_SERVICE]
-        assets = Asset.objects.for_organization(organization).filter(
-            site_id__in=allowed_sites, status__in=allowed_asset_statuses).select_related("site")
-        self.fields["asset"].queryset = assets
+        self.fields["asset"].queryset = Asset.objects.for_organization(organization).filter(
+            site_id__in=allowed_sites).select_related("site")
         self.fields["component"].queryset = Asset.objects.for_organization(organization).filter(
             status__in=allowed_asset_statuses, parent_link__parent__site_id__in=allowed_sites,
             parent_link__relationship_type=AssetComponent.Relationship.COMPONENT)
@@ -170,8 +175,8 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if asset.site_id != site.pk:
             raise serializers.ValidationError({"asset": "Invalid asset for the selected site."})
-        if asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
-            raise serializers.ValidationError({"asset": f"Cannot create work order for a {asset.status.lower()} asset."})
+        if asset.status != Asset.Status.ACTIVE:
+            raise serializers.ValidationError({"asset": f"Cannot create work order for an asset in {asset.status} status."})
         if component and not AssetComponent.objects.filter(organization=site.organization,
                 parent=asset, child=component,
                 relationship_type=AssetComponent.Relationship.COMPONENT).exists():
@@ -282,6 +287,23 @@ class PlanSerializer(serializers.Serializer):
         return attrs
 
 
+
+class ReassignSerializer(serializers.Serializer):
+    assigned_to = serializers.UUIDField(required=False)
+    technician = serializers.UUIDField(required=False)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    scheduled_start = serializers.DateTimeField(required=False, allow_null=True)
+    scheduled_end = serializers.DateTimeField(required=False, allow_null=True)
+    expected_version = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if not attrs.get("assigned_to") and not attrs.get("technician"):
+            raise serializers.ValidationError({"assigned_to": ["Technician is required for reassignment."]})
+        start, end = attrs.get("scheduled_start"), attrs.get("scheduled_end")
+        if start and end and end <= start:
+            raise serializers.ValidationError({"scheduled_end": ["Scheduled end must be later than scheduled start."]})
+        return attrs
+
 class AssignSerializer(serializers.Serializer):
     assigned_to = serializers.UUIDField()
     scheduled_start = serializers.DateTimeField(required=False)
@@ -301,10 +323,28 @@ class WorkOrderReasonSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
+    def validate_reason(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Reason")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
+
 
 class WorkOrderCompleteSerializer(StrictInputSerializer):
-    resolution_notes = serializers.CharField(min_length=10)
+    resolution_notes = serializers.CharField(min_length=10, required=False)
+    summary = serializers.CharField(required=False, allow_blank=True)
     expected_version = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if not attrs.get("resolution_notes") and attrs.get("summary"):
+            attrs["resolution_notes"] = attrs["summary"]
+        if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
+            raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
+        try:
+            validate_alphabetical_description(attrs["resolution_notes"], field_label="Resolution notes")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"resolution_notes": exc.message})
+        return attrs
 
 
 class ChecklistReferenceSerializer(StrictInputSerializer):
@@ -321,10 +361,24 @@ class ReviewSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     expected_version = serializers.IntegerField(min_value=1, required=False)
 
+    def validate_notes(self, value):
+        if value:
+            try:
+                return validate_alphabetical_description(value, field_label="Review notes")
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.message)
+        return value
+
 
 class ClosureCommentSerializer(serializers.Serializer):
     comment = serializers.CharField(min_length=1, max_length=1000, trim_whitespace=True)
     expected_version = serializers.IntegerField(min_value=1, required=False)
+
+    def validate_comment(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Comment")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
 
 
 class ExpectedVersionSerializer(StrictInputSerializer):
@@ -334,12 +388,47 @@ class ExpectedVersionSerializer(StrictInputSerializer):
 class WorkNoteSerializer(serializers.Serializer):
     text = serializers.CharField(min_length=5, max_length=1000, trim_whitespace=True)
 
+    def validate_text(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Work note")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
+
 
 class LaborInputSerializer(serializers.Serializer):
-    work_date = serializers.DateField()
+    work_date = serializers.DateField(required=False)
+    started_at = serializers.DateTimeField(required=False, allow_null=True)
+    ended_at = serializers.DateTimeField(required=False, allow_null=True)
     hours = serializers.DecimalField(max_digits=4, decimal_places=2,
-                                    min_value=Decimal("0.01"), max_value=Decimal("24"))
+                                    min_value=Decimal("0.01"), max_value=Decimal("24"),
+                                    required=False)
     description = serializers.CharField(min_length=5, max_length=500, trim_whitespace=True)
+
+    def validate_description(self, value):
+        try:
+            return validate_alphabetical_description(value, field_label="Work performed")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
+
+    def validate(self, attrs):
+        started_at = attrs.get("started_at")
+        ended_at = attrs.get("ended_at")
+        hours = attrs.get("hours")
+        work_date = attrs.get("work_date")
+
+        if started_at and ended_at:
+            if ended_at <= started_at:
+                raise serializers.ValidationError({"ended_at": "End record date time must be later than start record date time."})
+            if not hours:
+                attrs["hours"] = Decimal(str(round((ended_at - started_at).total_seconds() / 3600.0, 2)))
+            if not work_date:
+                attrs["work_date"] = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
+        elif not work_date:
+            raise serializers.ValidationError({"work_date": "Work date is required if start and end time are not provided."})
+        elif not hours:
+            raise serializers.ValidationError({"hours": "Hours worked is required."})
+
+        return attrs
 
 
 class MaterialInputSerializer(serializers.Serializer):

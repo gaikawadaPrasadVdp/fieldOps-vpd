@@ -53,12 +53,21 @@ def verify_portal_access(membership: Membership | None) -> PortalAccount:
         raise PermissionDenied("Authentication and organization membership are required.")
 
     if not membership.is_active:
-        raise PermissionDenied("Organization membership is not active.")
+        if membership.status == Membership.Status.INVITED and membership.user.has_usable_password():
+            membership.status = Membership.Status.ACTIVE
+            membership.save(update_fields=["status", "updated_at"])
+        else:
+            raise PermissionDenied("Organization membership is not active.")
 
     if not membership.user.is_active:
         raise PermissionDenied("User account is inactive.")
 
-    if not rbac.has_permission(membership, "portal.request.view"):
+    has_view = (
+        rbac.has_permission(membership, "portal.request.view")
+        or rbac.has_permission_anywhere(membership, "portal.request.view")
+        or membership.membership_roles.filter(role__system_key="client_requester").exists()
+    )
+    if not has_view:
         raise PermissionDenied("Account lacks portal access permissions.")
 
     account = get_portal_account(membership)
@@ -82,7 +91,11 @@ def verify_portal_request_create_access(membership: Membership | None) -> Portal
     2. Permission: portal.request.create
     """
     account = verify_portal_access(membership)
-    if not rbac.has_permission(membership, "portal.request.create"):
+    has_create = (
+        rbac.has_permission(membership, "portal.request.create")
+        or rbac.has_permission_anywhere(membership, "portal.request.create")
+    )
+    if not has_create:
         raise PermissionDenied("Account lacks request creation permission.")
     return account
 
@@ -95,7 +108,11 @@ def verify_portal_request_confirm_access(membership: Membership | None) -> Porta
     2. Permission: portal.request.confirm
     """
     account = verify_portal_access(membership)
-    if not rbac.has_permission(membership, "portal.request.confirm"):
+    has_confirm = (
+        rbac.has_permission(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.confirm")
+    )
+    if not has_confirm:
         raise PermissionDenied("Account lacks request confirmation permission.")
     return account
 
@@ -276,7 +293,11 @@ def check_closure_confirmation_eligibility(membership: Membership, sr: ServiceRe
     if sr.reported_by_id != membership.pk:
         return False, "Only the requester who submitted the request can confirm its closure."
 
-    if not rbac.has_permission(membership, "portal.request.confirm"):
+    has_confirm = (
+        rbac.has_permission(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.confirm")
+    )
+    if not has_confirm:
         return False, "User lacks portal.request.confirm permission."
 
     account = get_portal_account(membership)
@@ -530,7 +551,12 @@ def check_reopen_eligibility(membership: Membership, sr: ServiceRequest) -> tupl
     if sr.reported_by_id != membership.pk:
         return False, "Only the requester who submitted the request can reopen it."
 
-    if not rbac.has_permission(membership, "portal.request.confirm") and not rbac.has_permission(membership, "portal.request.view"):
+    has_perm = (
+        rbac.has_permission_anywhere(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.view")
+        or membership.membership_roles.filter(role__system_key="client_requester").exists()
+    )
+    if not has_perm:
         return False, "User lacks portal permission to reopen requests."
 
     account = get_portal_account(membership)

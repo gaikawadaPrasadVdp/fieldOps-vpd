@@ -156,10 +156,14 @@ class WorkOrder(TenantOwnedModel):
                 name="uniq_live_work_order_per_request",
             ),
         ]
-        indexes = [models.Index(fields=["organization", "status"]),
-                   models.Index(fields=["site", "status"]),
-                   models.Index(fields=["assigned_to", "status"]),
-                   models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx")]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+            models.Index(fields=["site", "status"]),
+            models.Index(fields=["assigned_to", "status"]),
+            models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx"),
+            models.Index(fields=["organization", "assigned_to", "status"], name="wo_org_asgn_stat_idx"),
+            models.Index(fields=["organization", "site", "status"], name="wo_org_site_stat_idx"),
+        ]
 
     def clean(self):
         super().clean()
@@ -230,6 +234,20 @@ class WorkOrder(TenantOwnedModel):
     @property
     def signoff(self):
         return getattr(self, "customer_signoff", None)
+
+    @property
+    def latest_coverage_check(self):
+        return self.coverage_checks.select_related("agreement__provider").first()
+
+    @property
+    def coverage_expiry_warning(self):
+        from django.apps import apps
+        if apps.is_installed("apps.contracts"):
+            from apps.contracts.services import check_coverage_expiry_mid_job
+            expires, msg = check_coverage_expiry_mid_job(self)
+            if expires:
+                return msg
+        return ""
 
     def __str__(self):
         return f"{self.order_number} · {self.title}"
@@ -307,6 +325,8 @@ class WorkOrderLabor(TenantOwnedModel):
     technician = models.ForeignKey("tenancy.Membership", on_delete=models.PROTECT, related_name="work_order_labor")
     entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     work_date = models.DateField()
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.CharField(max_length=500)
     notes = models.CharField(max_length=500, blank=True, default="")
@@ -347,6 +367,10 @@ class WorkOrderMaterial(TenantOwnedModel):
     @property
     def part_number(self):
         return self.part_reference
+
+    @property
+    def stock_backed(self) -> bool:
+        return self.part_line_id is not None
 
 
 class WorkOrderEvidence(TenantOwnedModel):
@@ -418,3 +442,36 @@ class WorkOrderSignoff(TenantOwnedModel):
     def clean(self):
         if self.work_order_id and self.organization_id != self.work_order.organization_id:
             raise ValidationError("Signoff and work order must belong to the same organization.")
+
+
+class TechnicianProfile(TenantOwnedModel):
+    membership = models.OneToOneField(
+        "tenancy.Membership",
+        on_delete=models.CASCADE,
+        related_name="workorder_technician_profile",
+    )
+    primary_shift = models.ForeignKey(
+        "sites.Shift",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="technicians",
+    )
+    skills = models.JSONField(blank=True, default=list)
+    certifications = models.JSONField(blank=True, default=list)
+    daily_capacity_hours = models.DecimalField(decimal_places=2, default=8.0, max_digits=5)
+    is_dispatchable = models.BooleanField(db_index=True, default=True)
+    notes = models.TextField(blank=True, max_length=1000)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [
+            models.Index(
+                fields=["organization", "is_dispatchable"],
+                name="workorders__organiz_2b7fa1_idx",
+            )
+        ]
+
+    def __str__(self):
+        return f"Technician Profile: {self.membership}"
+

@@ -1,0 +1,48 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}{% block legal_title %}{{ page_title|default:"Legal Documentation" }}{% endblock %} &middot; FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background-color: #0B1F3B; border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 4.5rem !important; padding-bottom: 4rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <!-- Breadcrumbs -->
+    <nav aria-label="Breadcrumb" class="mb-3 d-flex align-items-center gap-2 small text-white-50">
+      <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none hover-white">Home</a>
+      <span>&rsaquo;</span>
+      <span class="text-white-50">Legal</span>
+      <span>&rsaquo;</span>
+      <span style="color: #F5C451;">{% block breadcrumb_active %}{{ page_title }}{% endblock %}</span>
+    </nav>
+
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 10.5px; letter-spacing: 0.15em;">
+      {% icon 'shield' 13 %}
+      <span>Governance &bull; Enterprise Reliability Standard</span>
+    </div>
+
+    <h1 class="h2 fw-extrabold text-white mb-2">{% block hero_heading %}{{ page_title }}{% endblock %}</h1>
+    <p class="text-white-50 small mb-0 font-monospace">
+      Effective Date: October 2026 &bull; Governance Standard: HPE-PRD-2026-FOPS02 &bull; Compliance Reference: SEC-AUD-2026
+    </p>
+  </div>
+</section>
+
+<!-- Content Section: Completely Independent Legal Document -->
+<section class="py-5" style="background-color: #F8FAFC;">
+  <div class="container-xl px-4 py-3">
+    <div class="row justify-content-center">
+      <div class="col-lg-10 col-xl-9">
+        <div class="bg-white rounded-4 border shadow-sm p-4 p-md-5">
+          <div class="prose max-w-none text-secondary" style="line-height: 1.8; font-size: 0.98rem;">
+            {% block legal_content %}{% endblock %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

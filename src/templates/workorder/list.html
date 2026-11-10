@@ -1,7 +1,53 @@
 {% extends "shell.html" %}
 {% load static %}
 {% block title %}Work Order Visibility · FieldOps Nexus{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-2">{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-4">
+<style>
+  /* Ensure actions column and buttons have generous width and are never clipped */
+  .wo-records .table-responsive {
+    overflow-x: auto !important;
+  }
+  .wo-actions-heading,
+  .wo-list-table .wo-actions-cell {
+    min-width: 190px !important;
+    width: 16% !important;
+    text-align: right;
+  }
+  .wo-list-table .wo-row-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-width: 175px !important;
+    gap: .35rem;
+  }
+  .wo-list-table .wo-row-actions a,
+  .wo-list-table .wo-row-actions button,
+  .wo-list-table .wo-row-actions .wo-status-button,
+  .wo-list-table .wo-row-actions .wo-view-button,
+  .wo-list-table .wo-row-actions .wo-edit-button {
+    width: 100% !important;
+    min-width: 165px !important;
+    min-height: 32px !important;
+    padding: .38rem .85rem !important;
+    font-size: .72rem !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+  }
+  .wo-list-table .wo-actions-cell form {
+    width: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+  }
+  .wo-list-table .wo-actions-cell form button {
+    width: 100% !important;
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="wo-page">
   <div class="wo-eyebrow-row">
@@ -60,7 +106,7 @@
       <label><span class="visually-hidden">Source</span><select name="source"><option value="">All sources</option>{% for key,label in source_types %}<option value="{{ key }}" {% if selected_source == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <label><span class="visually-hidden">Site</span><select name="site"><option value="">All sites</option>{% for site in sites %}<option value="{{ site.pk }}" {% if selected_site == site.pk|stringformat:'s' %}selected{% endif %}>{{ site.code }} · {{ site.name }}</option>{% endfor %}</select></label>
       {% if not is_technician %}<label><span class="visually-hidden">Technician</span><select name="assignee"><option value="">All technicians</option>{% for member in assignees %}<option value="{{ member.pk }}" {% if selected_assignee == member.pk|stringformat:'s' %}selected{% endif %}>{{ member.user.full_name|default:member.user.email }}</option>{% endfor %}</select></label>{% endif %}
-      <label><span class="visually-hidden">Sort work orders</span><select name="ordering"><option value="-created_at" {% if selected_ordering == '-created_at' or not selected_ordering %}selected{% endif %}>Newest First</option><option value="created_at" {% if selected_ordering == 'created_at' %}selected{% endif %}>Oldest First</option><option value="title" {% if selected_ordering == 'title' %}selected{% endif %}>Title (A–Z)</option><option value="-title" {% if selected_ordering == '-title' %}selected{% endif %}>Title (Z–A)</option><option value="order_number" {% if selected_ordering == 'order_number' %}selected{% endif %}>Number (A–Z)</option><option value="-order_number" {% if selected_ordering == '-order_number' %}selected{% endif %}>Number (Z–A)</option><option value="due_at" {% if selected_ordering == 'due_at' %}selected{% endif %}>Due soonest</option><option value="-due_at" {% if selected_ordering == '-due_at' %}selected{% endif %}>Due latest</option><option value="priority" {% if selected_ordering == 'priority' %}selected{% endif %}>Priority</option><option value="planned_start" {% if selected_ordering == 'planned_start' %}selected{% endif %}>Planned start</option></select></label>
+      <label><span class="visually-hidden">Sort work orders</span><select name="ordering"><option value="" {% if not selected_ordering or selected_ordering == 'all' %}selected{% endif %}>All</option><option value="-created_at" {% if selected_ordering == '-created_at' %}selected{% endif %}>Newest First</option><option value="created_at" {% if selected_ordering == 'created_at' %}selected{% endif %}>Oldest First</option><option value="title" {% if selected_ordering == 'title' %}selected{% endif %}>Title (A–Z)</option><option value="order_number" {% if selected_ordering == 'order_number' %}selected{% endif %}>Number (A–Z)</option></select></label>
       <label class="wo-overdue"><input type="checkbox" name="overdue" value="1" {% if overdue == '1' %}checked{% endif %}> Past due</label>
       <a class="wo-reset btn btn-sm btn-outline-secondary" href="{% url 'workorders:list' %}">Reset</a>
     </form>

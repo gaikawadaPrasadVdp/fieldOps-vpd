@@ -1,2 +1,14 @@
-<div class="fx-empty"><div class="fw-semibold mb-1">{{ title|default:"Nothing here yet" }}</div>
-<div>{{ text }}</div></div>
+{% load ui_tags %}
+{# Standardized Enterprise ERP Empty State Component #}
+<div class="fx-empty text-center py-5 px-3">
+  <div class="fx-empty-icon mb-3 d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-secondary" style="width: 56px; height: 56px;">
+    {% icon icon|default:'inbox' 28 %}
+  </div>
+  <h6 class="fw-bold text-dark mb-1">{{ title|default:"No records found" }}</h6>
+  <p class="text-secondary small mb-3 mx-auto" style="max-width: 420px;">{{ text|default:"There are no items matching this criteria at this time." }}</p>
+  {% if action_url and action_label %}
+    <a href="{{ action_url }}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+      {% icon action_icon|default:'plus' 14 %} {{ action_label }}
+    </a>
+  {% endif %}
+</div>

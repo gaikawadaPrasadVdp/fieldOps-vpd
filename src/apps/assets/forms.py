@@ -30,23 +30,51 @@ class _OwnerChoice(forms.ModelChoiceField):
 
 
 class AssetForm(BootstrapFormMixin, forms.Form):
-    asset_tag = forms.CharField(max_length=40, label="Asset tag", help_text="Human-readable ID, unique in the organization.")
-    name = forms.CharField(max_length=200)
+    asset_tag = forms.CharField(
+        max_length=40,
+        label="Asset tag",
+        help_text="Human-readable ID, unique in the organization.",
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. AST-1001",
+            "required": "required",
+            "pattern": r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$",
+            "title": "Asset tag must be 1-40 characters: letters, digits, '.', '_', '/' or '-'.",
+        })
+    )
+    name = forms.CharField(
+        max_length=200,
+        min_length=2,
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Centrifugal Chiller Alpha",
+            "required": "required",
+            "minlength": "2",
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Asset name must contain only alphabetical characters.",
+        })
+    )
     category = forms.ModelChoiceField(queryset=AssetCategory.objects.none())
     site = _SiteChoice(queryset=Site.objects.none())
     zone = _ZoneChoice(queryset=Zone.objects.none(), required=False, label="Location (building / zone)",
                        empty_label="(none)")
-    manufacturer = forms.CharField(max_length=100, required=False)
-    model = forms.CharField(max_length=100, required=False)
-    serial_number = forms.CharField(max_length=100, required=False)
+    manufacturer = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. Carrier, Siemens"}))
+    model = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. Model / Spec ID"}))
+    serial_number = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. SN-849202"}))
     purchase_date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     commission_date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}),
                                       label="Commissioning date")
     owner = _OwnerChoice(queryset=Membership.objects.none(), required=False, label="Owner / custodian",
                          empty_label="(none)")
-    warranty_ref = forms.CharField(max_length=200, required=False, label="Warranty reference",
+    warranty_ref = forms.CharField(max_length=200, required=False, label="Warranty validation",
                                    help_text="Free-text reference; coverage tracking arrives with the warranty module.")
-    description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            "rows": 2,
+            "placeholder": "Brief description of the equipment",
+            "pattern": r"^[^0-9]*$",
+            "title": "Description must contain only alphabetical characters and cannot contain numbers."
+        })
+    )
     reason = forms.CharField(max_length=500, required=False, label="Reason for location change",
                              help_text="Recorded in the location history when the site or location changes.")
 
@@ -59,6 +87,13 @@ class AssetForm(BootstrapFormMixin, forms.Form):
         for d in self.attribute_defs:  # the category's custom attributes become real, validated form fields
             self.fields[f"attr_{d['key']}"] = self._attribute_field(d, values.get(d["key"], ""))
         self.fields["category"].widget.attrs["data-category-reload"] = "1"
+        self.fields["category"].widget.attrs["required"] = "required"
+        self.fields["site"].widget.attrs["required"] = "required"
+        self.fields["asset_tag"].widget.attrs["required"] = "required"
+        self.fields["name"].widget.attrs["required"] = "required"
+        self.fields["name"].widget.attrs.pop("maxlength", None)
+        self.fields["category"].empty_label = "Select Category..."
+        self.fields["site"].empty_label = "Select Site..."
         site_qs = sites.filter(status="ACTIVE").order_by("code")
         self.fields["site"].queryset = site_qs
         self.fields["zone"].queryset = Zone.objects.for_organization(org).filter(
@@ -74,8 +109,8 @@ class AssetForm(BootstrapFormMixin, forms.Form):
     @staticmethod
     def _attribute_field(d, initial):
         required = bool(d.get("required"))
-        label = f"{d['label']} *" if required else d["label"]
-        common = {"required": required, "label": label, "initial": initial}
+        label = d["label"]
+        common = {"required": required, "label": label, "initial": initial, "help_text": d.get("help_text", "")}
         if d["type"] == "number":
             return forms.DecimalField(decimal_places=6, max_digits=20, widget=forms.NumberInput(attrs={"class": "form-control"}), **common)
         if d["type"] == "date":
@@ -83,6 +118,16 @@ class AssetForm(BootstrapFormMixin, forms.Form):
         if d["type"] == "choice":
             return forms.ChoiceField(choices=[("", "(choose)")] + [(c, c) for c in d["choices"]], widget=forms.Select(attrs={"class": "form-select"}), **common)
         return forms.CharField(max_length=attrs.MAX_TEXT, widget=forms.TextInput(attrs={"class": "form-control"}), **common)
+
+    def clean_name(self):
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("name"), field_label="Asset name")
+
+    def clean_description(self):
+        desc = (self.cleaned_data.get("description") or "").strip()
+        if desc and any(c.isdigit() for c in desc):
+            raise forms.ValidationError("Description must contain only alphabetical characters and cannot contain numbers.")
+        return desc
 
     def clean_asset_tag(self):
         tag = (self.cleaned_data.get("asset_tag") or "").strip()
@@ -97,6 +142,12 @@ class AssetForm(BootstrapFormMixin, forms.Form):
             if qs.exists():
                 raise forms.ValidationError("An asset with this tag already exists.")
         return tag
+
+    def clean_reason(self):
+        reason = (self.cleaned_data.get("reason") or "").strip()
+        if reason and any(c.isdigit() for c in reason):
+            raise forms.ValidationError("Reason must contain only alphabetical characters and cannot contain numbers.")
+        return reason
 
     def clean(self):
         data = super().clean()
@@ -124,9 +175,15 @@ class AssetForm(BootstrapFormMixin, forms.Form):
 
 class RelationshipFields(forms.Form):
     relationship_type = forms.ChoiceField(choices=AssetComponent.Relationship.choices, initial="COMPONENT")
-    quantity = forms.IntegerField(min_value=1, initial=1)
+    quantity = forms.IntegerField(min_value=1, initial=1, widget=forms.NumberInput(attrs={"step": "1", "min": "1"}))
     part_number = forms.CharField(max_length=100, required=False)
     notes = forms.CharField(max_length=300, required=False)
+
+    def clean_notes(self):
+        notes = (self.cleaned_data.get("notes") or "").strip()
+        if notes and any(c.isdigit() for c in notes):
+            raise forms.ValidationError("Notes must contain only alphabetical characters and cannot contain numbers.")
+        return notes
 
 
 class NewChildForm(BootstrapFormMixin, RelationshipFields):
@@ -159,20 +216,139 @@ class ComponentReplaceForm(BootstrapFormMixin, forms.Form):
     reason = forms.CharField(max_length=300, required=False, label="Replacement Reason",
                              help_text="e.g. Scheduled part swap, worn bearing replaced during PM.")
 
+    def clean_reason(self):
+        reason = (self.cleaned_data.get("reason") or "").strip()
+        if reason and any(c.isdigit() for c in reason):
+            raise forms.ValidationError("Reason must contain only alphabetical characters and cannot contain numbers.")
+        return reason
+
     def __init__(self, *args, candidates, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["new_child"].queryset = candidates
 
 
 class DocumentForm(BootstrapFormMixin, forms.Form):
-    file = forms.FileField()
-    title = forms.CharField(max_length=150, required=False)
-    doc_type = forms.ChoiceField(choices=AssetDocument.DocType.choices, initial="OTHER", label="Type")
+    DOCUMENT_CHOICES = [
+        ("PHOTO", "Photograph"),
+        ("PDF", "PDF"),
+        ("OTHER", "Other"),
+    ]
+
+    file = forms.FileField(
+        required=True,
+        label="File",
+        widget=forms.FileInput(attrs={
+            "accept": ".pdf,image/png,image/jpeg,image/webp,image/gif",
+            "class": "form-control",
+            "id": "id_file",
+            "required": "required",
+        }),
+    )
+    title = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={
+            "placeholder": "Optional document title",
+            "class": "form-control",
+            "id": "id_title",
+        }),
+    )
+    doc_type = forms.ChoiceField(
+        choices=DOCUMENT_CHOICES,
+        initial="PHOTO",
+        label="Type",
+        widget=forms.Select(attrs={
+            "class": "form-select",
+            "id": "id_doc_type",
+        }),
+    )
+
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        if title and len(title) > 150:
+            raise forms.ValidationError("Title must not exceed 150 characters.")
+        return title
+
+    def clean(self):
+        cleaned_data = super().clean()
+        uploaded = cleaned_data.get("file")
+        doc_type = cleaned_data.get("doc_type")
+
+        if not uploaded:
+            self.add_error("file", "Please choose a file to upload.")
+            return cleaned_data
+
+        name = getattr(uploaded, "name", "")
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+        from django.conf import settings
+        max_bytes = getattr(settings, "UPLOAD_MAX_BYTES", 25 * 1024 * 1024)
+        if uploaded.size > max_bytes:
+            self.add_error("file", f"File exceeds the {max_bytes // (1024 * 1024)} MB limit.")
+            return cleaned_data
+        if uploaded.size == 0:
+            self.add_error("file", "The uploaded file is empty.")
+            return cleaned_data
+
+        import filetype
+        head = uploaded.read(8192)
+        uploaded.seek(0)
+        kind = filetype.guess(head)
+        mime = kind.mime if kind else None
+
+        image_exts = {"jpg", "jpeg", "png", "webp", "gif"}
+        image_mimes = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+        if doc_type == "PHOTO":
+            is_magic_image = (mime in image_mimes) or head.startswith(b"\xff\xd8\xff") or head.startswith(b"\x89PNG\r\n\x1a\n") or head.startswith(b"RIFF") or head.startswith(b"GIF8")
+            if ext not in image_exts:
+                self.add_error(
+                    "file",
+                    "Selected document type is Photograph. Please upload a valid image file (.jpg, .jpeg, .png, .webp)."
+                )
+            elif not is_magic_image:
+                self.add_error(
+                    "file",
+                    "File content is not a valid image format."
+                )
+        elif doc_type == "PDF":
+            is_magic_pdf = head.startswith(b"%PDF-") or (mime == "application/pdf")
+            if ext != "pdf":
+                self.add_error(
+                    "file",
+                    "Selected document type is PDF. Please upload a valid PDF file (.pdf)."
+                )
+            elif not is_magic_pdf:
+                self.add_error(
+                    "file",
+                    "File content is not a valid PDF document."
+                )
+        elif doc_type == "OTHER":
+            from apps.core.uploads import ALLOWED
+            if ext not in ALLOWED:
+                self.add_error(
+                    "file",
+                    f"File type '.{ext}' is not supported. Allowed formats: PDF, images, Office documents, text/CSV."
+                )
+        else:
+            self.add_error("doc_type", "Invalid document type selected. Please choose Photograph, PDF, or Other.")
+
+        return cleaned_data
 
 
 class MeterForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(max_length=80, help_text="e.g. Run hours")
     unit = forms.CharField(max_length=20, help_text="e.g. h, km, cycles")
+
+    def clean_name(self):
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("name"), field_label="Meter name")
+
+    def clean_unit(self):
+        unit = (self.cleaned_data.get("unit") or "").strip()
+        if any(c.isdigit() for c in unit):
+            raise forms.ValidationError("Meter unit must contain only alphabetical characters and cannot contain numbers.")
+        return unit
 
 
 class ReadingForm(BootstrapFormMixin, forms.Form):
@@ -182,9 +358,19 @@ class ReadingForm(BootstrapFormMixin, forms.Form):
                                   label="Reading time (blank = now)")
     notes = forms.CharField(max_length=300, required=False)
 
+    def clean_notes(self):
+        notes = (self.cleaned_data.get("notes") or "").strip()
+        if notes and any(c.isdigit() for c in notes):
+            raise forms.ValidationError("Notes must contain only alphabetical characters and cannot contain numbers.")
+        return notes
+
 
 class CategoryForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(max_length=100)
+
+    def clean_name(self):
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("name"), field_label="Category name")
     description = forms.CharField(max_length=300, required=False)
     is_active = forms.BooleanField(required=False, initial=True, label="Active")
     attribute_text = forms.CharField(

@@ -15,6 +15,7 @@ urlpatterns = [
     path("assets/new/", views.AssetCreateView.as_view(), name="create"),
     path("assets/categories/", views.CategoryView.as_view(), name="categories"),
     path("assets/<uuid:pk>/", views.AssetDetailView.as_view(), name="detail"),
+    path("assets/<uuid:pk>/inspect/", views.AssetStartInspectionView.as_view(), name="start_inspection"),
     path("assets/<uuid:pk>/edit/", views.AssetEditView.as_view(), name="edit"),
     path("assets/<uuid:pk>/tree/", views.AssetTreeView.as_view(), name="tree"),
     path("assets/<uuid:pk>/transition/<str:action>/", views.AssetStatusView.as_view(), name="transition"),

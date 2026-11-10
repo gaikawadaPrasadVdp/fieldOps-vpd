@@ -31,7 +31,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "asset_manager", "Asset Manager", "Owns the asset registry, documentation, meters, and hierarchy.",
-        ("asset.*", "site.view", "site.create", "site.update", "zone.view", "zone.create", "zone.update",
+        ("asset.*", "site.view", "zone.view", "zone.create", "zone.update",
          "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "inventory.view",
          "inventory.part.view", "report.view"),
     ),
@@ -46,9 +46,9 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination and escalation.",
         ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve",
-         "work_order.view", "work_order.assign", "work_order.dispatch", "work_order.plan", "work_order.update",
-         "work_order.attach", "checklist.view", "inspection.view", "inventory.view", "inventory.part.view",
-         "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
+         "work_order.view", "work_order.create", "work_order.assign", "work_order.dispatch", "work_order.plan",
+         "work_order.update", "work_order.attach", "checklist.view", "inspection.view", "inventory.view",
+         "inventory.part.view", "sla.view", "report.view", "qr.scan"),
     ),
     RoleTemplate(
         "technician", "Technician", "Executes assigned jobs, checklists, evidence, labor/time, and parts usage.",
@@ -63,7 +63,8 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "work_order.create", "work_order.plan", "work_order.update", "work_order.assign", "work_order.dispatch",
          "work_order.review", "maintenance.view", "work_order.close", "work_order.hold", "work_order.record",
          "work_order.attach", "checklist.*", "inspection.*", "inventory.view", "inventory.part.view",
-         "inventory.request", "sla.view", "report.view", "qr.scan"),
+         "inventory.request", "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
+        excludes=("inspection.execute", "checklist.execute"),
     ),
     RoleTemplate(
         "stores_manager", "Stores Manager", "Part master, warehouse stock, reservations, issue/return, transfers and reconciliation.",
@@ -101,3 +102,10 @@ BY_KEY = {t.key: t for t in TEMPLATES}
 BY_KEY["field_technician"] = BY_KEY["technician"]
 BY_KEY["stores_inventory"] = BY_KEY["stores_manager"]
 BY_KEY["compliance"] = BY_KEY["auditor"]
+
+# Primary role keys recognized across organization UI, invitation, and role management
+PRIMARY_ROLE_KEYS: tuple[str, ...] = tuple(t.key for t in TEMPLATES) + (
+    "field_technician",
+    "stores_inventory",
+    "compliance",
+)

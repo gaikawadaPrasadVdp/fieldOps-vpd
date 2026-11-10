@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from apps.rbac import services as rbac
+
 from decimal import Decimal
 from django.contrib import messages
 from django.http import Http404, HttpResponse
@@ -9,6 +11,7 @@ from django.views import View
 
 from apps.core.exceptions import DomainError
 from apps.ui.mixins import TenantPermissionMixin
+from apps.ui.pagination import paginate_dashboard_queryset
 from apps.workorders.models import WorkOrder
 
 from . import selectors, services
@@ -144,16 +147,61 @@ class MyJobsView(TenantPermissionMixin, View):
         status_filter = request.GET.get("status", "active")
         search = request.GET.get("q", "").strip()
 
-        jobs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        jobs_qs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        page_obj, preserved_params = paginate_dashboard_queryset(request, jobs_qs, page_param="page", per_page=12)
 
-        active_count = selectors.my_jobs(request.membership, status_filter="active").count()
-        upcoming_count = selectors.my_jobs(request.membership, status_filter="upcoming").count()
-        completed_count = selectors.my_jobs(request.membership, status_filter="completed").count()
-        all_count = selectors.my_jobs(request.membership, status_filter="all").count()
-        capacity = selectors.daily_capacity_summary(request.membership)
+        if request.headers.get("HX-Request"):
+            # Partial HTMX swap only updates the jobs list table/grid; skip full counts & capacity summary
+            active_count = upcoming_count = completed_count = all_count = 0
+            capacity = None
+        else:
+            from django.db.models import Count, Q
+            counts = (
+                WorkOrder.objects.for_organization(request.organization)
+                .filter(assigned_to=request.membership)
+                .aggregate(
+                    active=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.IN_PROGRESS,
+                                WorkOrder.Status.ON_HOLD,
+                                WorkOrder.Status.DISPATCHED,
+                            ]
+                        ),
+                    ),
+                    upcoming=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.ASSIGNED,
+                                WorkOrder.Status.PLANNED,
+                            ]
+                        ),
+                    ),
+                    completed=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.COMPLETED,
+                                WorkOrder.Status.SUPERVISOR_REVIEW,
+                                WorkOrder.Status.CLOSED,
+                            ]
+                        ),
+                    ),
+                    total=Count("id"),
+                )
+            )
+            active_count = counts["active"]
+            upcoming_count = counts["upcoming"]
+            completed_count = counts["completed"]
+            all_count = counts["total"]
+            capacity = selectors.daily_capacity_summary(request.membership)
 
         ctx = {
-            "jobs": jobs,
+            "jobs": page_obj.object_list,
+            "page_obj": page_obj,
+            "preserved_params": preserved_params,
             "status_filter": status_filter,
             "search": search,
             "active_count": active_count,
@@ -503,3 +551,239 @@ class JobReportDefectView(TenantPermissionMixin, View):
         return redirect("workspace:job_detail", pk=wo.pk)
 
 
+
+
+# ==============================================================================
+# Technician Profiles & Shifts Views (PRD Section 4.2, D-054)
+# ==============================================================================
+
+from apps.tenancy.models import Membership
+from .forms import ShiftForm, TechnicianProfileForm
+from .models import Shift, TechnicianProfile
+
+
+class ShiftListView(TenantPermissionMixin, View):
+    required_permission = "user.view"
+
+    def get(self, request):
+        shifts = selectors.shifts_for_org(request.organization)
+        can_manage = (
+            rbac.is_owner(request.membership)
+            or rbac.has_permission_anywhere(request.membership, "user.update")
+            or rbac.has_permission_anywhere(request.membership, "organization.update")
+            or rbac.has_permission_anywhere(request.membership, "work_order.assign")
+        )
+        return render(
+            request,
+            "workspace/shifts_list.html",
+            {"shifts": shifts, "can_manage": can_manage},
+        )
+
+
+class ShiftCreateView(TenantPermissionMixin, View):
+    required_permission = "user.update"
+
+    def get(self, request):
+        form = ShiftForm(org=request.organization)
+        return render(request, "workspace/shift_form.html", {"form": form, "title": "Create New Shift"})
+
+    def post(self, request):
+        form = ShiftForm(request.POST, org=request.organization)
+        if form.is_valid():
+            shift = form.save(commit=False)
+            shift.organization = request.organization
+            shift.save()
+            messages.success(request, f"Shift '{shift.name}' created.")
+            return redirect("workspace:shift_list")
+        return render(request, "workspace/shift_form.html", {"form": form, "title": "Create New Shift"})
+
+
+class ShiftEditView(TenantPermissionMixin, View):
+    required_permission = "user.update"
+
+    def get(self, request, pk):
+        shift = selectors.get_shift(request.organization, pk)
+        if not shift:
+            raise Http404("Shift not found.")
+        form = ShiftForm(instance=shift, org=request.organization)
+        return render(request, "workspace/shift_form.html", {"form": form, "shift": shift, "title": f"Edit Shift: {shift.name}"})
+
+    def post(self, request, pk):
+        shift = selectors.get_shift(request.organization, pk)
+        if not shift:
+            raise Http404("Shift not found.")
+        form = ShiftForm(request.POST, instance=shift, org=request.organization)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Shift '{shift.name}' updated.")
+            return redirect("workspace:shift_list")
+        return render(request, "workspace/shift_form.html", {"form": form, "shift": shift, "title": f"Edit Shift: {shift.name}"})
+
+
+class TechnicianListView(TenantPermissionMixin, View):
+    required_permission = "user.view"
+
+    def get(self, request):
+        site_filter = request.GET.get("site")
+        status_filter = request.GET.get("status")
+
+        # Find all members with technician role in this org
+        members = Membership.objects.filter(
+            organization=request.organization,
+            status=Membership.Status.ACTIVE,
+            membership_roles__role__system_key__in=["technician", "field_technician"],
+        ).select_related("user", "technician_profile__shift", "technician_profile__primary_site").distinct()
+
+        # Build display data
+        from apps.workorders.assignment_rules import ACTIVE_ASSIGNMENT_STATES
+        tech_list = []
+        for m in members:
+            profile = getattr(m, "technician_profile", None)
+            if not profile:
+                profile, _ = services.get_or_create_technician_profile(m)
+            
+            if status_filter and profile.availability_status != status_filter:
+                continue
+            if site_filter and profile.primary_site_id and str(profile.primary_site_id) != site_filter:
+                continue
+
+            active_jobs = WorkOrder.objects.filter(
+                organization=request.organization,
+                assigned_to=m,
+                status__in=ACTIVE_ASSIGNMENT_STATES,
+            ).count()
+
+            tech_list.append({
+                "membership": m,
+                "profile": profile,
+                "active_jobs": active_jobs,
+            })
+
+        sites = request.organization.sites.order_by("name") if hasattr(request.organization, "sites") else []
+        can_manage = (
+            rbac.is_owner(request.membership)
+            or rbac.has_permission_anywhere(request.membership, "user.update")
+            or rbac.has_permission_anywhere(request.membership, "work_order.assign")
+        )
+        return render(
+            request,
+            "workspace/technicians_list.html",
+            {
+                "technicians": tech_list,
+                "statuses": TechnicianProfile.AvailabilityStatus.choices,
+                "sites": sites,
+                "can_manage": can_manage,
+                "selected_status": status_filter,
+                "selected_site": site_filter,
+            },
+        )
+
+
+class TechnicianDetailView(TenantPermissionMixin, View):
+    required_permission = "user.view"
+
+    def get(self, request, pk):
+        membership = Membership.objects.filter(
+            organization=request.organization,
+            pk=pk,
+        ).select_related("user").first()
+        if not membership:
+            raise Http404("Technician not found.")
+
+        profile, _ = services.get_or_create_technician_profile(membership)
+        form = TechnicianProfileForm(instance=profile, org=request.organization)
+
+        from apps.workorders.assignment_rules import ACTIVE_ASSIGNMENT_STATES
+        active_jobs = WorkOrder.objects.filter(
+            organization=request.organization,
+            assigned_to=membership,
+            status__in=ACTIVE_ASSIGNMENT_STATES,
+        ).order_by("-planned_start")
+
+        can_edit = (
+            rbac.is_owner(request.membership)
+            or rbac.has_permission_anywhere(request.membership, "user.update")
+            or rbac.has_permission_anywhere(request.membership, "work_order.assign")
+        )
+        return render(
+            request,
+            "workspace/technician_detail.html",
+            {
+                "member": membership,
+                "profile": profile,
+                "form": form,
+                "active_jobs": active_jobs,
+                "can_edit": can_edit,
+            },
+        )
+
+    def post(self, request, pk):
+        membership = Membership.objects.filter(
+            organization=request.organization,
+            pk=pk,
+        ).select_related("user").first()
+        if not membership:
+            raise Http404("Technician not found.")
+
+        can_edit = (
+            rbac.is_owner(request.membership)
+            or rbac.has_permission_anywhere(request.membership, "user.update")
+            or rbac.has_permission_anywhere(request.membership, "work_order.assign")
+        )
+        if not can_edit:
+            raise Http404("Forbidden")
+
+        profile, _ = services.get_or_create_technician_profile(membership)
+        form = TechnicianProfileForm(request.POST, instance=profile, org=request.organization)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Profile for {membership.user.full_name or membership.user.email} updated.")
+            return redirect("workspace:technician_detail", pk=pk)
+
+        from apps.workorders.assignment_rules import ACTIVE_ASSIGNMENT_STATES
+        active_jobs = WorkOrder.objects.filter(
+            organization=request.organization,
+            assigned_to=membership,
+            status__in=ACTIVE_ASSIGNMENT_STATES,
+        )
+        return render(
+            request,
+            "workspace/technician_detail.html",
+            {
+                "member": membership,
+                "profile": profile,
+                "form": form,
+                "active_jobs": active_jobs,
+                "can_edit": can_edit,
+            },
+        )
+
+
+class MyProfileView(TenantPermissionMixin, View):
+    required_permission = "work_order.view_assigned"
+
+    def get(self, request):
+        profile, _ = services.get_or_create_technician_profile(request.membership)
+        from apps.workorders.assignment_rules import ACTIVE_ASSIGNMENT_STATES
+        active_jobs = WorkOrder.objects.filter(
+            organization=request.organization,
+            assigned_to=request.membership,
+            status__in=ACTIVE_ASSIGNMENT_STATES,
+        )
+        return render(
+            request,
+            "workspace/my_profile.html",
+            {
+                "profile": profile,
+                "active_jobs": active_jobs,
+                "statuses": TechnicianProfile.AvailabilityStatus.choices,
+            },
+        )
+
+    def post(self, request):
+        profile, _ = services.get_or_create_technician_profile(request.membership)
+        new_status = request.POST.get("availability_status")
+        if new_status in [TechnicianProfile.AvailabilityStatus.AVAILABLE, TechnicianProfile.AvailabilityStatus.OFF_DUTY, TechnicianProfile.AvailabilityStatus.ON_LEAVE]:
+            services.set_technician_availability(request.membership, new_status, actor=request.user, request=request)
+            messages.success(request, f"Your availability has been set to {new_status}.")
+        return redirect("workspace:my_profile")

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from apps.core.api import StandardPagination
 
 from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import parsers, serializers, status, viewsets
@@ -90,10 +91,19 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
                 actor=request.user,
             )
         except DomainError as exc:
-            return Response({"detail": exc.message}, status=status.HTTP_409_CONFLICT)
+            from apps.core.api import _envelope
+            code = getattr(exc, "code", "conflict")
+            return Response(_envelope(code, exc.message), status=status.HTTP_409_CONFLICT)
 
         read_serializer = PortalAccountSerializer(account)
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        from django.db.models.deletion import ProtectedError
+        try:
+            instance.delete()
+        except ProtectedError as exc:
+            raise Conflict("Cannot delete portal account because it has associated history or confirmations.", code="portal_account_in_use") from exc
 
     def perform_update(self, serializer):
         data = serializer.validated_data
@@ -107,12 +117,34 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
         )
 
     @extend_schema(request=None)
-    @extend_schema(request=None)
     @action(detail=True, methods=["post"])
     def toggle(self, request, pk=None):
         account = self.get_object()
         updated = services.toggle_portal_account(account, actor=request.user)
         return Response(PortalAccountSerializer(updated).data)
+
+
+class PortalMeUserSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    full_name = serializers.CharField()
+
+
+class PortalMeOrgSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    slug = serializers.CharField()
+
+
+class PortalMeSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    membership = serializers.UUIDField()
+    membership_status = serializers.CharField()
+    company_name = serializers.CharField()
+    is_enabled = serializers.BooleanField()
+    created_at = serializers.DateTimeField(allow_null=True)
+    user = PortalMeUserSerializer()
+    organization = PortalMeOrgSerializer()
 
 
 class PortalMeView(TenantAPIMixin, APIView):
@@ -123,7 +155,7 @@ class PortalMeView(TenantAPIMixin, APIView):
     }
 
     @extend_schema(
-        responses={200: PortalAccountSerializer},
+        responses={200: PortalMeSerializer},
         summary="Get client portal profile",
         description="Returns portal account details for the authenticated client in the active tenant organization.",
     )
@@ -180,6 +212,7 @@ class PortalAssetSerializer(serializers.ModelSerializer):
 class PortalAssetListView(TenantAPIMixin, APIView):
     """Client / Requester endpoint to list equipment assets explicitly granted to the client account."""
 
+    pagination_class = StandardPagination
     permission_map = {
         "get": "portal.request.view",
     }
@@ -259,6 +292,7 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
     reported_by_name = serializers.CharField(source="reported_by.user.full_name", read_only=True)
     reported_by_email = serializers.CharField(source="reported_by.user.email", read_only=True)
     attachments_count = serializers.SerializerMethodField()
+    sla_commitment = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceRequest
@@ -294,6 +328,7 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
             "updated_at",
             "resolved_at",
             "closed_at",
+            "sla_commitment",
         ]
         read_only_fields = fields
 
@@ -306,6 +341,25 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
     def get_attachments_count(self, obj) -> int:
         from apps.incidents.selectors import evidence_for
         return evidence_for(obj.organization, obj).count()
+
+    def get_sla_commitment(self, obj) -> dict | None:
+        indicator = selectors.get_client_sla_indicator(obj)
+        if not indicator:
+            return None
+        return {
+            "has_sla": indicator["has_sla"],
+            "is_within_sla": indicator["is_within_sla"],
+            "response_achieved": indicator["response_achieved"],
+            "resolution_achieved": indicator["resolution_achieved"],
+            "is_delayed": indicator["is_delayed"],
+            "is_paused": indicator["is_paused"],
+            "status": indicator["status"],
+            "status_label": indicator["status_label"],
+            "response_due_at": indicator["response_due_at"],
+            "response_met_at": indicator["response_met_at"],
+            "expected_resolution_at": indicator["expected_resolution_at"],
+            "resolution_met_at": indicator["resolution_met_at"],
+        }
 
 
 class PortalServiceRequestDetailSerializer(PortalServiceRequestSerializer):
@@ -428,6 +482,7 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
     POST: Submits a new client service request.
     """
 
+    pagination_class = StandardPagination
     parser_classes = [parsers.JSONParser, parsers.FormParser, parsers.MultiPartParser]
     permission_map = {
         "get": "portal.request.view",

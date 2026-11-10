@@ -217,11 +217,14 @@ def test_full_flow_through_ui_pages_and_workspace(ui):
         assert tech.post(f"/app/inventory/part-lines/{line.pk}/{act}/", {"warehouse": str(ui["wh"].pk),
                                                                           "quantity": "1"}).status_code == 403, act
     assert StockMovement.objects.filter(movement_type__in=["ISSUE", "RESERVE", "RETURN"]).count() == 0
-    # 2. stores reserve and issue from the WO parts page
+    # 2. stores reserve and issue from the WO parts page (DEF-015: Issue appears after Reserve)
     page = stores.get(f"/app/work-orders/{wo.pk}/parts/").content.decode()
-    assert "Reserve" in page and "Issue" in page and "Request a part" in page
+    assert "Reserve" in page and "Request a part" in page
+    assert "Reserve stock" in page or 'btn-outline-primary">Reserve<' in page
     assert stores.post(f"/app/inventory/part-lines/{line.pk}/reserve/", {"warehouse": str(ui["wh"].pk),
                                                                           "quantity": "3"}).status_code == 302
+    page_after_reserve = stores.get(f"/app/work-orders/{wo.pk}/parts/").content.decode()
+    assert "Issue" in page_after_reserve
     bal = StockBalance.objects.get()
     assert (bal.on_hand, bal.reserved) == (10, 3)
     assert stores.post(f"/app/inventory/part-lines/{line.pk}/issue/", {"warehouse": str(ui["wh"].pk),
@@ -276,6 +279,7 @@ def test_safe_next_redirect_and_unknown_actions(ui):
     inv.receive(ui["wh"], ui["part"], 5, actor=ui["stores"].user)
     wo = wo_in_progress(ui)
     line = inv.request_part(wo, ui["part"], 2, actor=ui["tech"].user, membership=ui["tech"])
+    inv.reserve(line, ui["wh"], actor=ui["stores"].user)
     s = ui["cl"]["stores"]
     r = s.post(f"/app/inventory/part-lines/{line.pk}/issue/", {"warehouse": str(ui["wh"].pk), "quantity": "1",
                                                                 "next": "https://evil.example/phish"})
@@ -295,3 +299,151 @@ def test_csrf_is_enforced_on_inventory_posts(ui):
                                                  "quantity": "5"})
     assert r.status_code == 403
     assert not StockMovement.objects.exists()
+
+
+def test_part_request_rejects_decimal_quantities_and_requires_whole_numbers(ui):
+    from apps.inventory.forms import RequestPartForm
+    from apps.inventory.models import Part, WorkOrderPart
+
+    parts_qs = Part.objects.filter(pk=ui["part"].pk)
+    for bad_qty in ("0.004", "1.5", "0.5", "0", "-1"):
+        form = RequestPartForm({"part": str(ui["part"].pk), "quantity": bad_qty}, parts=parts_qs)
+        assert not form.is_valid(), f"Expected {bad_qty} to be invalid"
+        assert "quantity" in form.errors
+
+    form = RequestPartForm({"part": str(ui["part"].pk), "quantity": "3"}, parts=parts_qs)
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["quantity"] == 3
+
+    wo = wo_in_progress(ui)
+    planner = ui["cl"]["planner"]
+    r = planner.post(f"/app/work-orders/{wo.pk}/parts/request/", {"part": str(ui["part"].pk), "quantity": "0.004"})
+    assert r.status_code == 302
+    messages = follow_flash(planner, r)
+    assert any("valid whole number quantity" in m for m in messages)
+    assert not WorkOrderPart.objects.filter(work_order=wo).exists()
+
+    r2 = planner.post(f"/app/work-orders/{wo.pk}/parts/request/", {"part": str(ui["part"].pk), "quantity": "2"})
+    assert r2.status_code == 302
+    assert WorkOrderPart.objects.filter(work_order=wo, quantity_requested=2).exists()
+
+
+def test_stock_movements_sorting(ui):
+    stores = ui["cl"]["stores"]
+    wh1 = ui["wh"]
+    wh2 = ui["wh2"]
+    part1 = ui["part"]  # SEAL-100
+    part2 = Part.objects.create(organization=ui["org"], part_number="ABC-001", name="Alpha Part")
+
+    inv.receive(wh1, part1, 5, actor=ui["stores"].user)
+    inv.receive(wh2, part2, 20, actor=ui["stores"].user)
+
+    # Sort by part ascending: ABC-001 first, then SEAL-100
+    resp_asc = stores.get("/app/inventory/movements/?ordering=part")
+    assert resp_asc.status_code == 200
+    content_asc = resp_asc.content.decode()
+    pos_abc = content_asc.find("ABC-001")
+    pos_seal = content_asc.find("SEAL-100")
+    assert pos_abc != -1 and pos_seal != -1
+    assert pos_abc < pos_seal
+
+    # Sort by part descending: SEAL-100 first, then ABC-001
+    resp_desc = stores.get("/app/inventory/movements/?ordering=-part")
+    assert resp_desc.status_code == 200
+    content_desc = resp_desc.content.decode()
+    pos_abc_desc = content_desc.find("ABC-001")
+    pos_seal_desc = content_desc.find("SEAL-100")
+    assert pos_seal_desc < pos_abc_desc
+
+    # Sort by quantity descending: 20 before 5
+    resp_qty_desc = stores.get("/app/inventory/movements/?ordering=-quantity")
+    assert resp_qty_desc.status_code == 200
+    movements_page = resp_qty_desc.context["page"]
+    qtys = [float(m.quantity) for m in movements_page]
+    assert qtys == sorted(qtys, reverse=True)
+
+    # Check header links and sort indicators are rendered
+    assert "href=\"?ordering=part\"" in content_asc or "href=\"?ordering=-part\"" in content_asc
+    assert "Sort order" in content_asc
+
+
+def test_quantity_rejects_decimals_across_inventory_ui(ui):
+    c = ui["cl"]["stores"]
+    base = {"warehouse": str(ui["wh"].pk), "part": str(ui["part"].pk)}
+
+    # 1. Decimal inputs in receive stock must return 400 Bad Request
+    resp_receive = c.post("/app/inventory/stock/receive/", {**base, "quantity": "9.999999"})
+    assert resp_receive.status_code == 400
+    assert "must contain only numbers" in resp_receive.content.decode()
+
+    # 2. Receive page renders input with step="1" and min="1"
+    get_receive = c.get("/app/inventory/stock/receive/")
+    assert get_receive.status_code == 200
+    html = get_receive.content.decode()
+    assert 'step="1"' in html
+    assert 'min="1"' in html
+
+    # 3. Decimal inputs in transfer stock must return 400 Bad Request
+    resp_transfer = c.post(
+        "/app/inventory/stock/transfer/",
+        {"source": str(ui["wh"].pk), "target": str(ui["wh2"].pk), "part": str(ui["part"].pk), "quantity": "4.5"}
+    )
+    assert resp_transfer.status_code == 400
+    assert "must contain only numbers" in resp_transfer.content.decode()
+
+
+def test_reservations_page_sorting_and_filtering(ui):
+    stores = ui["cl"]["stores"]
+    inv.receive(ui["wh"], ui["part"], 20, actor=ui["stores"].user)
+    wo = wo_in_progress(ui)
+
+    # Create part line and reservation
+    line = inv.request_part(wo, ui["part"], 10, actor=ui["tech"].user, membership=ui["tech"])
+    inv.reserve(line, ui["wh"], 8, actor=ui["stores"].user)
+
+    # 1. GET reservations page renders correctly with search, filter dropdowns, and KPI cards
+    resp = stores.get("/app/inventory/reservations/")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Stock held for work orders" in html
+    assert "Total Reservations" in html
+    assert "Active Holds" in html
+    assert "All Warehouses" in html
+    assert "Recently Updated" in html
+    assert wo.number in html
+    assert ui["part"].part_number in html
+    assert 'href="?ordering=work_order"' in html or 'href="?ordering=-work_order"' in html
+    assert 'href="?ordering=held"' in html or 'href="?ordering=-held"' in html
+
+    # 2. Search filtering by WO number
+    resp_search = stores.get(f"/app/inventory/reservations/?q={wo.number}")
+    assert resp_search.status_code == 200
+    assert wo.number in resp_search.content.decode()
+
+    # Search with non-matching query
+    resp_none = stores.get("/app/inventory/reservations/?q=NON_EXISTENT_WO_99999")
+    assert resp_none.status_code == 200
+    assert "No matching reservations" in resp_none.content.decode()
+
+    # 3. Filter by status: ACTIVE vs RELEASED
+    resp_active = stores.get("/app/inventory/reservations/?status=ACTIVE")
+    assert resp_active.status_code == 200
+    assert wo.number in resp_active.content.decode()
+
+    resp_released = stores.get("/app/inventory/reservations/?status=RELEASED")
+    assert resp_released.status_code == 200
+    assert "No matching reservations" in resp_released.content.decode()
+
+    # 4. Filter by warehouse
+    resp_wh = stores.get(f"/app/inventory/reservations/?warehouse={ui['wh'].pk}")
+    assert resp_wh.status_code == 200
+    assert wo.number in resp_wh.content.decode()
+
+    # 5. Sorting by held quantity and work order
+    resp_sort_held = stores.get("/app/inventory/reservations/?ordering=-held")
+    assert resp_sort_held.status_code == 200
+    assert wo.number in resp_sort_held.content.decode()
+
+    resp_sort_wo = stores.get("/app/inventory/reservations/?ordering=work_order")
+    assert resp_sort_wo.status_code == 200
+    assert wo.number in resp_sort_wo.content.decode()

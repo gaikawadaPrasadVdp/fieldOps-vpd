@@ -79,9 +79,11 @@ class RoleScopingTests(TestCase):
         # 3. User with site.update alone (no user.update authority)
         self.site_editor_user = User.objects.create_user(email="editor@alpha.test", password=PASSWORD, full_name="Site Editor")
         self.site_editor_m = Membership.objects.create(organization=self.org_a, user=self.site_editor_user, status=Membership.Status.ACTIVE)
-        # Asset manager has site.update, but NO user.update
-        self.asset_mgr_role = rbac.system_role_by_key(self.org_a, "asset_manager")
-        rbac.set_membership_roles(self.site_editor_m, [self.asset_mgr_role], actor=None, system=True)
+        # Role with site.update, but NO user.update
+        self.site_editor_role = rbac.create_role(
+            self.org_a, name="Site Editor Role", description="Site editor", permission_codes=["site.update", "site.view"], actor=self.owner_a
+        )
+        rbac.set_membership_roles(self.site_editor_m, [self.site_editor_role], actor=None, system=True)
 
         # 4. Ordinary Technician (no user.update, no site.update)
         self.tech_user = User.objects.create_user(email="tech@alpha.test", password=PASSWORD, full_name="Tech Guy")

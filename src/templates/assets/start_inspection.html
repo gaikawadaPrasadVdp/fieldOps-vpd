@@ -1,0 +1,97 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Start Inspection · {{ asset.asset_tag }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:detail' asset.pk %}">{{ asset.asset_tag }}</a></li>
+        <li class="breadcrumb-item active">Start Inspection</li>
+      </ol>
+    </nav>
+    <h1>Start Inspection for {{ asset.name }}</h1>
+    <div class="text-body-secondary">
+      <span class="fw-medium text-dark">{{ asset.asset_tag }}</span> · {{ asset.category.name }} · {{ asset.site.code }}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'assets:detail' asset.pk %}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="fx-card">
+      <div class="fx-card-header">Select Inspection Checklist</div>
+      <div class="fx-card-body">
+        {% if templates %}
+          <form method="post" action="{% url 'assets:start_inspection' asset.pk %}">
+            {% csrf_token %}
+            <div class="mb-4">
+              <label class="form-label fw-bold">Active Checklist Template <span class="text-danger">*</span></label>
+              <div class="list-group">
+                {% for t in templates %}
+                  <label class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
+                    <input class="form-check-input flex-shrink-0" type="radio" name="template_id" value="{{ t.pk }}" {% if forloop.first %}checked{% endif %}>
+                    <div class="flex-grow-1">
+                      <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-bold">{{ t.name }}</span>
+                        <span class="badge fx-badge fx-badge-secondary">v{{ t.version }}</span>
+                      </div>
+                      {% if t.description %}
+                        <div class="text-secondary small mt-1">{{ t.description }}</div>
+                      {% endif %}
+                      <div class="text-muted small mt-1">
+                        Key: <code>{{ t.key }}</code>
+                        {% if t.work_type %} · Work Type: {{ t.work_type }}{% endif %}
+                      </div>
+                    </div>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="alert alert-info py-2 px-3 small">
+              {% icon 'info' 14 %} Starting this standalone inspection will create an interactive execution session for <strong>{{ asset.asset_tag }}</strong> at site <strong>{{ asset.site.code }}</strong>.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+              <a href="{% url 'assets:detail' asset.pk %}" class="btn btn-outline-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="btn-submit-start-inspection">
+                {% icon 'play' 14 %} Begin Checklist Execution
+              </button>
+            </div>
+          </form>
+        {% else %}
+          <div class="text-center py-5">
+            <div class="text-muted mb-3">{% icon 'clipboard' 48 %}</div>
+            <h5>No Active Checklist Templates Found</h5>
+            <p class="text-secondary small mb-3">An active checklist template must exist in your organization before an asset inspection can begin.</p>
+            <a href="{% url 'assets:detail' asset.pk %}" class="btn btn-outline-secondary">Return to Asset</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header">Asset Snapshot</div>
+      <div class="fx-card-body">
+        <dl class="fx-kv mb-0">
+          <dt>Asset Tag</dt><dd class="fw-bold">{{ asset.asset_tag }}</dd>
+          <dt>Status</dt><dd>{% status_badge asset.status %}</dd>
+          <dt>Site</dt><dd>{{ asset.site.code }} · {{ asset.site.name }}</dd>
+          {% if asset.zone %}
+            <dt>Zone / Area</dt><dd>{{ asset.zone.name }}</dd>
+          {% endif %}
+          <dt>Category</dt><dd>{{ asset.category.name }}</dd>
+          <dt>Serial No.</dt><dd class="font-monospace">{{ asset.serial_number|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

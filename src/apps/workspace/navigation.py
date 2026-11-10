@@ -11,3 +11,14 @@ register(
         "/app/workspace",
     )
 )
+register(
+    NavItem(
+        "Technicians & Shifts",
+        "workspace:technician_list",
+        "user.view",
+        "users",
+        "Operations",
+        26,
+        "/app/workspace/technicians",
+    )
+)

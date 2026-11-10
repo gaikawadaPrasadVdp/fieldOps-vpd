@@ -5,12 +5,30 @@
 <div class="fx-page-header"><div><h1>Stock movements</h1><div class="text-body-secondary">The append-only ledger: every quantity change, who made it and why.</div></div></div>
 {% include "components/_section_tabs.html" with section="Inventory" %}
 <div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <select class="form-select form-select-sm" style="max-width:200px" name="warehouse" aria-label="Warehouse"><option value="">All warehouses</option>
-      {% for w in warehouses %}<option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.code }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:200px" name="type" aria-label="Type"><option value="">All types</option>
-      {% for v, l in types %}<option value="{{ v }}" {% if filters.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <a href="{% url 'inventory:movements' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
+    <select class="form-select form-select-sm" style="max-width:200px" name="warehouse" aria-label="Warehouse">
+      <option value="">All warehouses</option>
+      {% for w in warehouses %}<option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.code }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:200px" name="type" aria-label="Type">
+      <option value="">All types</option>
+      {% for v, l in types %}<option value="{{ v }}" {% if filters.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:200px" name="ordering" aria-label="Sort order" onchange="this.form.submit()">
+      <option value="-created_at" {% if filters.ordering == "-created_at" or filters.ordering == "-when" or not filters.ordering %}selected{% endif %}>Newest First</option>
+      <option value="created_at" {% if filters.ordering == "created_at" or filters.ordering == "when" %}selected{% endif %}>Oldest First</option>
+      <option value="part" {% if filters.ordering == "part" or filters.ordering == "part_number" %}selected{% endif %}>Part Number (A–Z)</option>
+      <option value="-part" {% if filters.ordering == "-part" or filters.ordering == "-part_number" %}selected{% endif %}>Part Number (Z–A)</option>
+      <option value="warehouse" {% if filters.ordering == "warehouse" %}selected{% endif %}>Warehouse (A–Z)</option>
+      <option value="-warehouse" {% if filters.ordering == "-warehouse" %}selected{% endif %}>Warehouse (Z–A)</option>
+      <option value="-quantity" {% if filters.ordering == "-quantity" or filters.ordering == "-qty" %}selected{% endif %}>Quantity (High–Low)</option>
+      <option value="quantity" {% if filters.ordering == "quantity" or filters.ordering == "qty" %}selected{% endif %}>Quantity (Low–High)</option>
+      <option value="type" {% if filters.ordering == "type" or filters.ordering == "movement_type" %}selected{% endif %}>Type (A–Z)</option>
+      <option value="-type" {% if filters.ordering == "-type" or filters.ordering == "-movement_type" %}selected{% endif %}>Type (Z–A)</option>
+    </select>
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+    <a href="{% url 'inventory:movements' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+  </form>
   {% include "inventory/_movement_table.html" with rows=page %}
   {% include "components/_pagination.html" %}
 </div>

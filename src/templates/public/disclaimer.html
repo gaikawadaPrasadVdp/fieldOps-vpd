@@ -1,0 +1,102 @@
+{% extends "public/legal_base.html" %}
+{% load static ui_tags %}
+
+{% block legal_title %}Enterprise System Disclaimer{% endblock %}
+{% block breadcrumb_active %}Disclaimer{% endblock %}
+{% block hero_heading %}Enterprise System Disclaimer{% endblock %}
+
+{% block legal_content %}
+<div class="border-bottom pb-4 mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h2 class="h4 fw-bold text-dark mb-1">FieldOps Nexus Operational Disclaimer</h2>
+      <p class="small text-muted mb-0">Version 2.0 &bull; Effective: October 2026 &bull; Technical Draft: HPE-PRD-2026-FOPS02</p>
+    </div>
+    <span class="badge px-3 py-2 fw-semibold" style="background-color: rgba(11,31,59,0.08); color: #0B1F3B; border: 1px solid rgba(11,31,59,0.15);">
+      ENG-DISC-2026
+    </span>
+  </div>
+</div>
+
+<div class="lead text-dark mb-4" style="font-size: 1.05rem; line-height: 1.7;">
+  This Enterprise System Disclaimer sets forth important technical and operational boundaries regarding FieldOps Nexus software operations, predictive algorithms, sensor integrations, and service availability.
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-4 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">1</span>
+  General Information &amp; Decision-Support Disclaimer
+</h3>
+<p>
+  FieldOps Nexus operates as an <strong>Enterprise Asset, Maintenance &amp; Field Service ERP platform</strong>. All predictive calculations, Mean Time Between Failures (MTBF), Mean Time to Repair (MTTR), straight-line asset depreciation models, and automated SLA breach risk scores provided by the platform are intended exclusively for operational planning and technical decision support.
+</p>
+<p>
+  The platform does not replace the professional engineering judgment of certified plant engineers, licensed electricians, or certified occupational safety personnel. Equipment operating decisions must be verified on-site in accordance with applicable manufacturer service manuals.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">2</span>
+  Platform Availability &amp; Maintenance Windows
+</h3>
+<p>
+  While FieldOps Nexus targets 99.9% operational availability for production tenant workspaces, uninterrupted or error-free platform operation cannot be unconditionally guaranteed:
+</p>
+<ul>
+  <li>
+    <strong>Scheduled Maintenance:</strong> Core infrastructure upgrades, database re-indexing, and security patches occur during designated off-peak maintenance windows, announced at least 48 hours in advance via system alerts.
+  </li>
+  <li>
+    <strong>Emergency Security Updates:</strong> Critical zero-day vulnerability mitigations may require immediate rolling service restarts without advance scheduling.
+  </li>
+  <li>
+    <strong>Network &amp; Telecommunications:</strong> FieldOps Nexus is not responsible for field connectivity outages, mobile carrier dead-zones, or client local area network failures preventing field tablet synchronization.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">3</span>
+  Accuracy of Information &amp; Field Telemetry
+</h3>
+<p>
+  System specifications and operational workflows adhere to verified technical draft standards. However:
+</p>
+<ul>
+  <li>
+    <strong>IoT &amp; Sensor Calibration:</strong> Telemetry streams, vibration sensor data, and operating temperatures rely on third-party hardware transducers. FieldOps Nexus does not warrant the physical calibration or hardware accuracy of client-installed IoT devices.
+  </li>
+  <li>
+    <strong>Manual Data Entries:</strong> Work order notes, technician labor timesheets, and spare parts counts reflect the manual inputs submitted by client personnel. Client organizations remain responsible for verifying data integrity before approving invoice sign-offs.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">4</span>
+  Third-Party Services &amp; Integrations
+</h3>
+<p>
+  The platform provides connectors to third-party enterprise services (including SAP, Oracle ERP, geolocation map services, SMS notification gateways, and external object storage). FieldOps Nexus exercises no direct control over the uptime, API deprecation, or data processing policies of these external vendors, and disclaims liability for interruptions attributable to external API downtime.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">5</span>
+  Limitation of Responsibility &amp; Evaluation Gate
+</h3>
+<p>
+  Under no circumstances shall FieldOps Nexus, its architects, or engineering personnel be held liable for any direct or indirect loss resulting from industrial machine downtime, production schedule delays, or unexecuted preventive maintenance cycles.
+</p>
+<div class="p-3 bg-light rounded-3 border mb-3">
+  <strong>Governance Acceptance Standard:</strong>
+  <p class="mb-0 small text-secondary mt-1">
+    Final formal acceptance of platform releases and operational calibration is subject to the mandatory <strong>90-calendar-day evaluation gate</strong> specified in governance framework <code>HPE-PRD-2026-FOPS02</code>.
+  </p>
+</div>
+
+<div class="alert mt-4 mb-0 border" style="background-color: rgba(245,196,81,0.08); border-color: rgba(245,196,81,0.3) !important;">
+  <div class="d-flex align-items-start gap-2">
+    <span class="text-warning mt-1">{% icon 'alert-circle' 16 %}</span>
+    <div class="small">
+      <strong class="text-dark">Enterprise Legal Disclaimer:</strong> Any deviation from verified technical draft standards or customization of statutory safety disclaimers requires explicit review and formal sign-off by company legal counsel.
+    </div>
+  </div>
+</div>
+{% endblock %}
+

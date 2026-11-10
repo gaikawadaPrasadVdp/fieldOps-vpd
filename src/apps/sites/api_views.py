@@ -4,12 +4,15 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import NotFound
 from apps.tenancy.api import TenantAPIMixin
 
+from apps.rbac import services as rbac
+
 from . import selectors, services
-from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Site, SiteContact, Zone
+from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Shift, Site, SiteContact, Zone
 
 # --- serializers ---------------------------------------------------------------------------------------
 
@@ -177,6 +180,7 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "site.view", "retrieve": "site.view", "create": "site.create", "partial_update": "site.update",
         "deactivate": "site.deactivate", "reactivate": "site.deactivate", "tree": "zone.view",
@@ -189,7 +193,7 @@ class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
         return site
 
     @extend_schema(parameters=[query_param("q", "code / name / city"), query_param("status", "ACTIVE|INACTIVE")],
-                   responses=SiteSerializer(many=True))
+                   responses=SiteSerializer)
     def list(self, request):
         qs = selectors.site_list(request.membership, request.organization, request.query_params)
         return paginate(request, qs, SiteSerializer)
@@ -234,6 +238,7 @@ class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class ZoneViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "zone.view", "retrieve": "zone.view", "create": "zone.create", "partial_update": "zone.update",
         "deactivate": "zone.deactivate", "reactivate": "zone.deactivate",
@@ -256,7 +261,7 @@ class ZoneViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("parent", "parent location id, or 'root'"), query_param("q"),
                                query_param("zone_type"), query_param("status")],
-                   responses=ZoneSerializer(many=True))
+                   responses=ZoneSerializer)
     def list(self, request):
         qs = selectors.filter_zones(selectors.zones_for(request.membership, request.organization),
                                     request.query_params)
@@ -301,6 +306,7 @@ class ZoneViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class CalendarViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "calendar.view", "retrieve": "calendar.view", "create": "calendar.create",
                       "partial_update": "calendar.update", "destroy": "calendar.delete"}
 
@@ -311,7 +317,7 @@ class CalendarViewSet(TenantAPIMixin, viewsets.ViewSet):
         return cal
 
     @extend_schema(parameters=[query_param("site", "site id", OpenApiTypes.UUID)],
-                   responses=CalendarSerializer(many=True))
+                   responses=CalendarSerializer)
     def list(self, request):
         qs = selectors.calendars_for(request.membership, request.organization)
         if request.query_params.get("site"):
@@ -351,10 +357,11 @@ class CalendarViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class HolidayViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "calendar.view", "create": "calendar.update", "destroy": "calendar.update"}
 
     @extend_schema(parameters=[query_param("calendar", "calendar id", OpenApiTypes.UUID)],
-                   responses=HolidaySerializer(many=True))
+                   responses=HolidaySerializer)
     def list(self, request):
         import uuid
 
@@ -384,6 +391,7 @@ class HolidayViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class ContactViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "site.view", "retrieve": "site.view", "create": "site.contact.manage",
                       "partial_update": "site.contact.manage", "destroy": "site.contact.manage"}
 
@@ -394,7 +402,7 @@ class ContactViewSet(TenantAPIMixin, viewsets.ViewSet):
         return c
 
     @extend_schema(parameters=[query_param("site", "site id", OpenApiTypes.UUID)],
-                   responses=ContactSerializer(many=True))
+                   responses=ContactSerializer)
     def list(self, request):
         import uuid
 
@@ -428,4 +436,99 @@ class ContactViewSet(TenantAPIMixin, viewsets.ViewSet):
     def destroy(self, request, pk=None):
         services.remove_contact(self._contact(request, pk, "site.contact.manage"), actor=request.user,
                                 request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SiteShiftSerializer(serializers.ModelSerializer):
+    site_code = serializers.CharField(source="site.code", read_only=True)
+
+    class Meta:
+        model = Shift
+        fields = [
+            "id", "site", "site_code", "name", "code", "start_time", "end_time",
+            "is_overnight", "days_of_week", "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class SiteShiftWriteSerializer(serializers.Serializer):
+    site = serializers.UUIDField()
+    name = serializers.CharField(max_length=100)
+    code = serializers.CharField(max_length=30)
+    start_time = serializers.TimeField()
+    end_time = serializers.TimeField()
+    is_overnight = serializers.BooleanField(required=False, allow_null=True)
+    days_of_week = serializers.ListField(child=serializers.IntegerField(min_value=0, max_value=6), required=False)
+    is_active = serializers.BooleanField(required=False, default=True)
+
+
+class SiteShiftUpdateSerializer(SiteShiftWriteSerializer):
+    site = None
+
+
+@extend_schema(parameters=[ID_PARAM])
+class ShiftViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
+    permission_map = {
+        "list": "calendar.view",
+        "retrieve": "calendar.view",
+        "create": "calendar.create",
+        "partial_update": "calendar.update",
+        "destroy": "calendar.delete",
+    }
+
+    def _queryset(self, request):
+        scope = rbac.site_scope(request.membership, "calendar.view")
+        return scope.filter(Shift.objects.for_organization(request.organization).select_related("site"), "site_id")
+
+    def _shift(self, request, pk, code=None) -> Shift:
+        shift = selectors.scoped_get(self._queryset(request), pk, "Shift")
+        if code:
+            require_permission(request.membership, code, shift.site)
+        return shift
+
+    @extend_schema(
+        parameters=[
+            query_param("site", "site id", OpenApiTypes.UUID),
+            query_param("is_active", "true | false"),
+        ],
+        responses=SiteShiftSerializer,
+    )
+    def list(self, request):
+        import uuid
+
+        qs = self._queryset(request)
+        site_id = (request.query_params.get("site") or "").strip()
+        if site_id:
+            try:
+                qs = qs.filter(site_id=uuid.UUID(site_id))
+            except ValueError:
+                qs = qs.none()
+        is_active = request.query_params.get("is_active")
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() in ("true", "1", "yes"))
+        return paginate(request, qs.order_by("site__code", "code"), SiteShiftSerializer)
+
+    @extend_schema(responses=SiteShiftSerializer)
+    def retrieve(self, request, pk=None):
+        return Response(SiteShiftSerializer(self._shift(request, pk)).data)
+
+    @extend_schema(request=SiteShiftWriteSerializer, responses={201: SiteShiftSerializer})
+    def create(self, request):
+        d = _validated(SiteShiftWriteSerializer, request)
+        site = selectors.get_site_for(request.membership, request.organization, d.pop("site"), "calendar.create")
+        shift = services.create_shift(request.organization, site, actor=request.user, request=request, **d)
+        return Response(SiteShiftSerializer(shift).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=SiteShiftUpdateSerializer, responses=SiteShiftSerializer)
+    def partial_update(self, request, pk=None):
+        shift = self._shift(request, pk, "calendar.update")
+        d = _validated(SiteShiftUpdateSerializer, request, partial=True)
+        shift = services.update_shift(shift, actor=request.user, request=request, **d)
+        return Response(SiteShiftSerializer(shift).data)
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request, pk=None):
+        shift = self._shift(request, pk, "calendar.delete")
+        services.delete_shift(shift, actor=request.user, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)

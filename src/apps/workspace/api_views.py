@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import datetime
+import logging
+import uuid
 
-from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from drf_spectacular.utils import OpenApiTypes, extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core import logging as flogging
 from apps.core.exceptions import Conflict, DomainError
 from apps.tenancy.api import TenantAPIMixin
 from apps.workorders.models import WorkOrder
 from apps.workorders.serializers import LaborSerializer, WorkOrderSerializer
+
+logger = logging.getLogger(__name__)
 
 from . import selectors, services
 from .serializers import (
@@ -33,6 +38,10 @@ from .serializers import (
     TravelLogSerializer,
     TravelLogWriteSerializer,
     WorkNoteSerializer,
+    ShiftSerializer,
+    ShiftWriteSerializer,
+    TechnicianProfileSerializer,
+    TechnicianProfileWriteSerializer,
     WorkNoteWriteSerializer,
     WorkOrderSignoffSerializer,
     JobAssetVerifySerializer,
@@ -55,7 +64,10 @@ class JobExecutionDrawerAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned"}
 
-    @extend_schema(summary="Get technician job execution drawer data")
+    @extend_schema(
+        summary="Get technician job execution drawer data",
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         try:
@@ -90,6 +102,21 @@ class JobExecutionDrawerAPIView(TenantAPIMixin, APIView):
         })
 
 
+def _workspace_error_response(exc: DomainError) -> Response:
+    if exc.code == "permission_denied":
+        http_status = status.HTTP_403_FORBIDDEN
+    elif exc.code == "not_found":
+        http_status = status.HTTP_404_NOT_FOUND
+    elif exc.code in ("conflict", "invalid_transition"):
+        http_status = status.HTTP_409_CONFLICT
+    else:
+        http_status = getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST)
+    return Response(
+        {"error": {"code": exc.code, "message": exc.message, "details": getattr(exc, "details", {})}},
+        status=http_status,
+    )
+
+
 class JobStartAPIView(TenantAPIMixin, APIView):
     """Starts the assigned work order (DISPATCHED -> IN_PROGRESS)."""
 
@@ -101,7 +128,7 @@ class JobStartAPIView(TenantAPIMixin, APIView):
         try:
             order = services.start_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} started.",
@@ -124,7 +151,7 @@ class JobPauseAPIView(TenantAPIMixin, APIView):
         try:
             order = services.pause_job(wo, reason=reason, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} paused.",
@@ -143,7 +170,7 @@ class JobResumeAPIView(TenantAPIMixin, APIView):
         try:
             order = services.resume_job(wo, membership=request.membership, actor=request.user, request=request)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": f"Work order {order.order_number} resumed.",
@@ -179,7 +206,7 @@ class JobTravelLogAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Travel logged successfully.",
@@ -192,7 +219,20 @@ class MyJobsAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned"}
 
-    @extend_schema(summary="List assigned jobs for technician")
+    @extend_schema(
+        summary="List assigned jobs for technician",
+        responses={
+            200: inline_serializer(
+                "MyJobsResponse",
+                fields={
+                    "count": serializers.IntegerField(),
+                    "status_filter": serializers.CharField(),
+                    "capacity": DailyCapacitySerializer(),
+                    "jobs": TechnicianJobSummarySerializer(many=True),
+                },
+            )
+        },
+    )
     def get(self, request):
         status_filter = request.query_params.get("status", "active")
         search = request.query_params.get("q")
@@ -212,7 +252,24 @@ class JobDetailAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned"}
 
-    @extend_schema(summary="Get full technician job execution details")
+    @extend_schema(
+        summary="Get full technician job execution details",
+        responses={
+            200: inline_serializer(
+                "JobDetailResponse",
+                fields={
+                    "work_order": WorkOrderSerializer(),
+                    "route": serializers.DictField(),
+                    "drawer": serializers.DictField(),
+                    "travel_logs": TravelLogSerializer(many=True),
+                    "notes": WorkNoteSerializer(many=True),
+                    "labor_entries": LaborSerializer(many=True),
+                    "materials": JobMaterialSerializer(many=True),
+                    "evidence": JobEvidenceSerializer(many=True),
+                },
+            )
+        },
+    )
     def get(self, request, pk: str):
         try:
             data = selectors.get_job_detail(request.membership, pk)
@@ -252,14 +309,14 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned", "post": "work_order.record"}
 
-    @extend_schema(summary="List technician work notes")
+    @extend_schema(summary="List technician work notes", responses={200: WorkNoteSerializer(many=True)})
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
         notes = selectors.work_notes_for(wo)
         return Response(WorkNoteSerializer(notes, many=True).data)
 
-    @extend_schema(request=WorkNoteWriteSerializer, summary="Append a technician work note")
+    @extend_schema(request=WorkNoteWriteSerializer, responses={201: WorkNoteSerializer}, summary="Append a technician work note")
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = WorkNoteWriteSerializer(data=request.data)
@@ -274,7 +331,13 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
+        except Exception as exc:
+            logger.exception("Unexpected error recording work note on job %s: %s", pk, exc)
+            return Response(
+                {"error": {"code": "work_note_failed", "message": str(exc), "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(WorkNoteSerializer(note_entry).data, status=status.HTTP_201_CREATED)
 
@@ -302,7 +365,7 @@ class JobLaborAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response({
             "message": "Labor time recorded successfully.",
@@ -316,14 +379,14 @@ class JobMaterialAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned", "post": "work_order.record"}
 
-    @extend_schema(summary="List materials used for job")
+    @extend_schema(summary="List materials used for job", responses={200: JobMaterialSerializer(many=True)})
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
         materials = wo.material_entries.order_by("item_name")
         return Response(JobMaterialSerializer(materials, many=True).data)
 
-    @extend_schema(request=JobMaterialWriteSerializer, summary="Record material used for job")
+    @extend_schema(request=JobMaterialWriteSerializer, responses={201: JobMaterialSerializer}, summary="Record material used for job")
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = JobMaterialWriteSerializer(data=request.data)
@@ -342,7 +405,7 @@ class JobMaterialAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobMaterialSerializer(mat).data, status=status.HTTP_201_CREATED)
 
@@ -352,14 +415,14 @@ class JobEvidenceAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned", "post": "work_order.attach"}
 
-    @extend_schema(summary="List completion evidence for job")
+    @extend_schema(summary="List completion evidence for job", responses={200: JobEvidenceSerializer(many=True)})
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
         evidence_qs = wo.completion_evidence.order_by("-created_at")
         return Response(JobEvidenceSerializer(evidence_qs, many=True).data)
 
-    @extend_schema(request=JobEvidenceUploadSerializer, summary="Upload completion evidence for job")
+    @extend_schema(request=JobEvidenceUploadSerializer, responses={201: JobEvidenceSerializer}, summary="Upload completion evidence for job")
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         uploaded_file = request.FILES.get("file") or request.FILES.get("evidence_file")
@@ -381,7 +444,7 @@ class JobEvidenceAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         from apps.workorders.models import WorkOrderEvidence
 
@@ -423,7 +486,7 @@ class JobPartConsumeAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -451,7 +514,7 @@ class JobPartReturnAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+            return _workspace_error_response(exc)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 
@@ -461,7 +524,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.complete", "post": "work_order.complete"}
 
-    @extend_schema(summary="Get job completion summary context")
+    @extend_schema(summary="Get job completion summary context", responses={200: OpenApiTypes.OBJECT})
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
@@ -524,7 +587,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
                     request=request,
                 )
             except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+                return _workspace_error_response(exc)
 
             return Response(
                 {
@@ -550,7 +613,7 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
                     request=request,
                 )
             except DomainError as exc:
-                return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+                return _workspace_error_response(exc)
 
             return Response(
                 {
@@ -567,14 +630,14 @@ class JobMeterReadingAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"get": "work_order.view_assigned", "post": "work_order.record"}
 
-    @extend_schema(summary="List active asset meters for job")
+    @extend_schema(summary="List active asset meters for job", responses={200: AssetMeterSummarySerializer(many=True)})
     def get(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
         meters = selectors.meters_for(wo)
         return Response(AssetMeterSummarySerializer(meters, many=True).data)
 
-    @extend_schema(request=JobMeterReadingWriteSerializer, summary="Record asset meter reading")
+    @extend_schema(request=JobMeterReadingWriteSerializer, responses={201: OpenApiTypes.OBJECT}, summary="Record asset meter reading")
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = JobMeterReadingWriteSerializer(data=request.data)
@@ -740,20 +803,30 @@ class JobReportDefectAPIView(TenantAPIMixin, APIView):
                 request=request,
             )
         except Conflict as exc:
+            duplicates = getattr(exc, "duplicates", [])
             return Response(
                 {
                     "error": {
                         "code": exc.code,
                         "message": exc.message,
-                        "duplicates": getattr(exc, "duplicates", []),
+                        "details": {"duplicates": duplicates, **(getattr(exc, "details", None) or {})},
+                        "duplicates": duplicates,
+                        "request_id": flogging.request_id_var.get(),
                     }
                 },
                 status=status.HTTP_409_CONFLICT,
             )
         except DomainError as exc:
             return Response(
-                {"error": {"code": exc.code, "message": exc.message}},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "error": {
+                        "code": exc.code,
+                        "message": exc.message,
+                        "details": getattr(exc, "details", None) or {},
+                        "request_id": flogging.request_id_var.get(),
+                    }
+                },
+                status=exc.status_code,
             )
 
         return Response(
@@ -776,3 +849,140 @@ class JobReportDefectAPIView(TenantAPIMixin, APIView):
 
 
 
+
+
+class ShiftListCreateAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "post": "user.update"}
+
+    @extend_schema(summary="List technician shifts", responses={200: ShiftSerializer(many=True)})
+    def get(self, request):
+        shifts = selectors.shifts_for_org(request.organization)
+        serializer = ShiftSerializer(shifts, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(summary="Create technician shift", request=ShiftWriteSerializer, responses={201: ShiftSerializer})
+    def post(self, request):
+        serializer = ShiftWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        shift = services.create_shift(
+            request.organization,
+            code=data["code"],
+            name=data["name"],
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            days_of_week=data.get("days_of_week"),
+            site=data.get("site"),
+            is_active=data.get("is_active", True),
+            notes=data.get("notes", ""),
+            actor=request.user,
+            request=request,
+        )
+        return Response(ShiftSerializer(shift).data, status=status.HTTP_201_CREATED)
+
+
+class ShiftDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "patch": "user.update", "delete": "user.update"}
+
+    def _get_shift(self, request, pk):
+        shift = selectors.get_shift(request.organization, pk)
+        if not shift:
+            raise NotFound(detail="Shift not found.")
+        return shift
+
+    @extend_schema(summary="Get shift details", responses={200: ShiftSerializer})
+    def get(self, request, pk):
+        shift = self._get_shift(request, pk)
+        return Response(ShiftSerializer(shift).data)
+
+    @extend_schema(summary="Update shift", request=ShiftWriteSerializer, responses={200: ShiftSerializer})
+    def patch(self, request, pk):
+        shift = self._get_shift(request, pk)
+        serializer = ShiftWriteSerializer(shift, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_shift(shift, actor=request.user, request=request, **serializer.validated_data)
+        return Response(ShiftSerializer(updated).data)
+
+    def delete(self, request, pk):
+        shift = self._get_shift(request, pk)
+        shift.is_active = False
+        shift.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _resolve_technician_membership(organization, pk):
+    from apps.tenancy.models import Membership
+    from .models import TechnicianProfile
+
+    try:
+        uid = uuid.UUID(str(pk))
+    except (ValueError, TypeError) as exc:
+        raise NotFound(detail="Technician profile not found.") from exc
+
+    profile = (
+        TechnicianProfile.objects.filter(organization=organization, pk=uid)
+        .select_related("membership")
+        .first()
+    )
+    if profile is not None:
+        return profile.membership
+
+    membership = Membership.objects.filter(organization=organization, pk=uid).first()
+    if not membership:
+        raise NotFound(detail="Technician membership not found.")
+    return membership
+
+
+class TechnicianProfileListAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view"}
+
+    @extend_schema(summary="List technician profiles", responses={200: TechnicianProfileSerializer(many=True)})
+    def get(self, request):
+        from apps.tenancy.models import Membership
+        members = Membership.objects.filter(
+            organization=request.organization,
+            status=Membership.Status.ACTIVE,
+            membership_roles__role__system_key__in=["technician", "field_technician"],
+        ).distinct()
+        for m in members:
+            services.get_or_create_technician_profile(m)
+        profiles = selectors.technician_profiles_for_org(request.organization)
+        return Response(TechnicianProfileSerializer(profiles, many=True).data)
+
+
+class TechnicianProfileDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "user.view", "patch": "user.update"}
+
+    def _get_profile(self, request, pk):
+        membership = _resolve_technician_membership(request.organization, pk)
+        profile, _ = services.get_or_create_technician_profile(membership)
+        return profile
+
+    @extend_schema(summary="Get technician profile", responses={200: TechnicianProfileSerializer})
+    def get(self, request, pk):
+        profile = self._get_profile(request, pk)
+        return Response(TechnicianProfileSerializer(profile).data)
+
+    @extend_schema(summary="Update technician profile", request=TechnicianProfileWriteSerializer, responses={200: TechnicianProfileSerializer})
+    def patch(self, request, pk):
+        profile = self._get_profile(request, pk)
+        serializer = TechnicianProfileWriteSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_technician_profile(profile, actor=request.user, request=request, **serializer.validated_data)
+        return Response(TechnicianProfileSerializer(updated).data)
+
+
+class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
+    permission_map = {"post": "work_order.view_assigned"}
+
+    def post(self, request, pk=None):
+        if pk:
+            membership = _resolve_technician_membership(request.organization, pk)
+        else:
+            membership = request.membership
+
+        new_status = request.data.get("availability_status") or request.data.get("status")
+        if not new_status:
+            return Response({"error": "status is required."}, status=status.HTTP_400_BAD_REQUEST)
+        profile = services.set_technician_availability(membership, new_status, actor=request.user, request=request)
+        return Response(TechnicianProfileSerializer(profile).data)

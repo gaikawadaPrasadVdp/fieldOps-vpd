@@ -137,8 +137,9 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
 
 def _role_field(org, membership=None):
     from apps.rbac import services as rbac
+    from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
 
-    qs = Role.objects.for_organization(org).order_by("name")
+    qs = Role.objects.for_organization(org).filter(system_key__in=PRIMARY_ROLE_KEYS).order_by("name")
     if membership is not None:
         if not rbac.has_role_assignment_permission(membership):
             return forms.ModelMultipleChoiceField(
@@ -188,42 +189,103 @@ class InviteForm(BootstrapFormMixin, forms.Form):
     email = forms.EmailField(
         label="Email",
         widget=forms.EmailInput(attrs={
-            "placeholder": "e.g. user@example.com",
+            "placeholder": "e.g. user@gmail.com",
             "required": "required",
             "autocomplete": "email",
+            "pattern": r"^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$",
+            "title": "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension (e.g. .com).",
         }),
     )
     full_name = forms.CharField(
         max_length=150,
-        required=False,
+        min_length=2,
+        required=True,
         label="Full name",
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. Jane Doe",
+            "required": "required",
+            "minlength": "2",
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Full name must contain only alphabetical characters.",
             "autocomplete": "name",
         }),
         help_text="Required for new accounts."
     )
     password = forms.CharField(
         max_length=128,
-        required=False,
+        min_length=8,
+        required=True,
         initial="FieldOps@2026!",
         label="Password",
         widget=forms.PasswordInput(render_value=True, attrs={
             "placeholder": "FieldOps@2026!",
             "autocomplete": "new-password",
+            "minlength": "8",
         }),
-        help_text="Initial password for login (default: FieldOps@2026!). The user can change this in their dashboard."
+        help_text="Initial password for login (default: FieldOps@2026!). Leave blank to send an invitation email instead."
     )
 
     def __init__(self, *args, org, membership=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.org = org
+        self.membership = membership
         self.fields["roles"] = _role_field(org, membership=membership)
         self.fields["sites"] = _site_field(org, membership=membership)
 
+    def clean_email(self):
+        from apps.ui.forms import validate_strict_email
+        email = validate_strict_email(self.cleaned_data.get("email"))
+        if self.org and getattr(self.org, "pk", None):
+            try:
+                from apps.accounts.models import User
+                from apps.tenancy.selectors import is_organization_member
+                user = User.objects.filter(email__iexact=email).first()
+                if user and is_organization_member(user, self.org):
+                    raise forms.ValidationError(
+                        f"A member with email '{email}' already exists in this organization."
+                    )
+            except forms.ValidationError:
+                raise
+            except Exception:
+                pass
+        return email
+
+    def clean_full_name(self):
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("full_name"), field_label="Full name")
+
+    def clean_password(self):
+        pwd = (self.cleaned_data.get("password") or "").strip()
+        if not pwd:
+            if self.fields["password"].required:
+                raise forms.ValidationError("Password is required.")
+            return ""
+        if len(pwd) < 8:
+            raise forms.ValidationError("Password must be at least 8 characters.")
+        return pwd
+
+    def clean_roles(self):
+        roles = self.cleaned_data.get("roles")
+        if not roles:
+            raise forms.ValidationError("Please select at least one role.")
+        return roles
+
 
 class MemberEditForm(forms.Form):
-    full_name = forms.CharField(max_length=150)
+    full_name = forms.CharField(
+        max_length=150,
+        min_length=2,
+        required=True,
+        widget=forms.TextInput(attrs={
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Full name must contain only alphabetical characters."
+        })
+    )
     job_title = forms.CharField(max_length=100, required=False)
+
+    def clean_full_name(self):
+        from apps.ui.forms import validate_alphabetical_name
+        return validate_alphabetical_name(self.cleaned_data.get("full_name"), field_label="Full name")
 
 
 class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
@@ -237,7 +299,8 @@ class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
         self.org = org
         self.membership = membership
 
-        roles_qs = Role.objects.for_organization(org).order_by("name")
+        from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
+        roles_qs = Role.objects.for_organization(org).filter(system_key__in=PRIMARY_ROLE_KEYS).order_by("name")
         sites_qs = Site.objects.for_organization(org).order_by("code")
 
         if membership is not None:
@@ -333,8 +396,8 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
     )
     slug = forms.CharField(
         max_length=60,
-        required=False,
-        label="URL Slug (Optional)",
+        required=True,
+        label="URL Slug",
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. apex-industrial",
         }),
@@ -405,3 +468,12 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
     def clean_country(self):
         return (self.cleaned_data.get("country", "") or "").strip().upper()[:2]
 
+
+
+class PlatformOrganizationFilterForm(forms.Form):
+    """Validates platform organizations search and status filter."""
+    q = forms.CharField(max_length=150, required=False)
+    status = forms.ChoiceField(
+        choices=[("", "All Statuses"), ("ACTIVE", "Active"), ("SUSPENDED", "Inactive / Suspended")],
+        required=False,
+    )

@@ -6,6 +6,7 @@ app_name = "contracts"
 urlpatterns = [
     path("contracts/agreements/", views.AgreementListView.as_view(), name="agreements"),
     path("contracts/agreements/new/", views.AgreementCreateView.as_view(), name="agreement_new"),
+    path("contracts/agreements/export/", views.AgreementExportView.as_view(), name="agreements_export"),
     path("contracts/agreements/export/", views.AgreementExportView.as_view(), name="agreement_export"),
     path("contracts/agreements/<uuid:pk>/", views.AgreementDetailView.as_view(), name="agreement"),
     path("contracts/agreements/<uuid:pk>/download/", views.AgreementDownloadView.as_view(), name="agreement_download"),

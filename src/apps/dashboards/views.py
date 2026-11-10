@@ -9,7 +9,9 @@ from django.shortcuts import render
 from django.views import View
 
 from apps.assets.models import Asset
-from apps.dashboards import metrics
+from apps.dashboards import metrics, services
+from apps.ui.pagination import paginate_dashboard_queryset
+from .forms import AnalyticsHubFilterForm, SnapshotFilterForm, SnapshotCreateForm
 from apps.incidents.models import ServiceRequest
 from apps.inventory.models import StockBalance
 from apps.notifications.views import MemberOnlyMixin
@@ -57,10 +59,11 @@ class DashboardHubView(TenantPermissionMixin, View):
             )
         elif sec == "inventory":
             return (
-                rbac.has_permission_anywhere(membership, "inventory.reconcile")
+                rbac.has_permission_anywhere(membership, "inventory.view")
+                or rbac.has_permission_anywhere(membership, "inventory.part.view")
+                or rbac.has_permission_anywhere(membership, "inventory.reconcile")
                 or rbac.has_permission_anywhere(membership, "inventory.warehouse.manage")
                 or rbac.has_permission_anywhere(membership, "inventory.adjust")
-                or rbac.has_permission_anywhere(membership, "audit.view")
                 or rbac.is_owner(membership)
             )
         return False
@@ -126,40 +129,47 @@ class DashboardHubView(TenantPermissionMixin, View):
             permitted_sites = all_user_sites
 
         # 4. Metric Aggregation
+        filter_form = AnalyticsHubFilterForm(request.GET)
+        filter_form.is_valid()
         trace_data: dict[str, Any] = {}
+        preserved_params = ""
         if section == "operations":
             data = metrics.get_operations_dashboard(request.organization, permitted_sites, start_dt, end_dt)
-            trace_data["recent_orders"] = list(
-                WorkOrder.objects.filter(
-                    organization=request.organization,
-                    site__in=permitted_sites,
-                ).select_related("site", "asset", "assigned_to__user").order_by("-created_at")[:8]
-            )
+            qs = WorkOrder.objects.filter(
+                organization=request.organization,
+                site__in=permitted_sites,
+            ).select_related("site", "asset", "assigned_to__user").order_by("-created_at")
+            page_obj, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=10)
+            trace_data["recent_orders"] = list(page_obj)
+            trace_data["page_obj"] = page_obj
         elif section == "assets":
             data = metrics.get_assets_dashboard(request.organization, permitted_sites, start_dt, end_dt)
-            trace_data["recent_assets"] = list(
-                Asset.objects.filter(
-                    organization=request.organization,
-                    site__in=permitted_sites,
-                ).select_related("site", "category").order_by("-created_at")[:8]
-            )
+            qs = Asset.objects.filter(
+                organization=request.organization,
+                site__in=permitted_sites,
+            ).select_related("site", "category").order_by("-created_at")
+            page_obj, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=10)
+            trace_data["recent_assets"] = list(page_obj)
+            trace_data["page_obj"] = page_obj
         elif section == "maintenance":
             data = metrics.get_maintenance_dashboard(request.organization, permitted_sites, start_dt, end_dt)
-            trace_data["preventive_orders"] = list(
-                WorkOrder.objects.filter(
-                    organization=request.organization,
-                    site__in=permitted_sites,
-                    work_type=WorkOrder.WorkType.PREVENTIVE,
-                ).select_related("site", "asset").order_by("-due_at")[:8]
-            )
+            qs = WorkOrder.objects.filter(
+                organization=request.organization,
+                site__in=permitted_sites,
+                work_type=WorkOrder.WorkType.PREVENTIVE,
+            ).select_related("site", "asset").order_by("-due_at")
+            page_obj, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=10)
+            trace_data["preventive_orders"] = list(page_obj)
+            trace_data["page_obj"] = page_obj
         elif section == "service":
             data = metrics.get_service_dashboard(request.organization, permitted_sites, start_dt, end_dt)
-            trace_data["service_requests"] = list(
-                ServiceRequest.objects.filter(
-                    organization=request.organization,
-                    site__in=permitted_sites,
-                ).select_related("site", "asset").order_by("-created_at")[:8]
-            )
+            qs = ServiceRequest.objects.filter(
+                organization=request.organization,
+                site__in=permitted_sites,
+            ).select_related("site", "asset").order_by("-created_at")
+            page_obj, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=10)
+            trace_data["service_requests"] = list(page_obj)
+            trace_data["page_obj"] = page_obj
             trace_data["sla_breaches"] = list(
                 SLABreach.objects.filter(
                     organization=request.organization,
@@ -173,8 +183,17 @@ class DashboardHubView(TenantPermissionMixin, View):
             all_balances = StockBalance.objects.filter(
                 organization=request.organization,
                 warehouse__site__in=permitted_sites,
-            ).select_related("part", "warehouse__site")
-            trace_data["low_stock_lines"] = [b for b in all_balances if b.is_low][:8]
+            ).select_related("part", "warehouse", "warehouse__site")
+            low_stock = []
+            for b in all_balances:
+                try:
+                    if b.is_low:
+                        low_stock.append(b)
+                except Exception:
+                    continue
+            page_obj, preserved_params = paginate_dashboard_queryset(request, low_stock, page_param="page", per_page=10)
+            trace_data["low_stock_lines"] = list(page_obj)
+            trace_data["page_obj"] = page_obj
 
         # 5. Precompute Pure CSS Bar Percentages
         css_bars = self._compute_css_bars(section, data.get("details", {}))
@@ -205,6 +224,8 @@ class DashboardHubView(TenantPermissionMixin, View):
             "selected_site": requested_site or "",
             "permitted_sites": all_user_sites,
             "kpi_definitions": metrics.KPI_DEFINITIONS,
+            "preserved_params": preserved_params,
+            "filter_form": filter_form,
         }
         return render(request, self.template_name, context)
 
@@ -246,6 +267,19 @@ class DashboardHubView(TenantPermissionMixin, View):
                 for item in top_failing
             ]
 
+        elif section == "inventory":
+            parts_data = details.get("parts_data", {})
+            top_parts = parts_data.get("top_parts", [])
+            max_qty = max([float(item.get("total_qty") or 0) for item in top_parts], default=1.0) or 1.0
+            bars["top_parts"] = [
+                {
+                    "label": f"{item.get('part__part_number')} - {item.get('part__name')}",
+                    "count": f"{int(round(float(item.get('total_qty'))))} {item.get('part__unit') or 'units'}",
+                    "pct": round((float(item.get("total_qty") or 0) / max_qty) * 100, 1),
+                }
+                for item in top_parts if item.get("total_qty")
+            ]
+
         return bars
 
 
@@ -268,14 +302,14 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
         data = metrics.get_my_work_dashboard(request.membership, start_dt, end_dt)
 
         # Trace assigned jobs
-        open_jobs = list(
-            WorkOrder.objects.filter(
-                organization=request.organization,
-                assigned_to=request.membership,
-            ).exclude(
-                status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]
-            ).select_related("site", "asset").order_by("-priority", "planned_start")[:10]
-        )
+        open_jobs_qs = WorkOrder.objects.filter(
+            organization=request.organization,
+            assigned_to=request.membership,
+        ).exclude(
+            status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]
+        ).select_related("site", "asset").order_by("-priority", "planned_start")
+        open_jobs_page_obj, my_work_params = paginate_dashboard_queryset(request, open_jobs_qs, page_param="jobs_page", per_page=10)
+        open_jobs = list(open_jobs_page_obj)
 
         recent_labor = list(
             WorkOrderLabor.objects.filter(
@@ -306,9 +340,101 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
             "data": data,
             "kpis": data.get("kpis", {}),
             "open_jobs": open_jobs,
+            "open_jobs_page_obj": open_jobs_page_obj,
             "recent_labor": recent_labor,
+            "preserved_params": my_work_params,
             "util_pct": util_pct,
             "date_from": start_dt.date().isoformat(),
             "date_to": end_dt.date().isoformat(),
         }
         return render(request, self.template_name, context)
+
+
+import json
+from django.http import Http404, JsonResponse
+from django.contrib import messages
+from django.shortcuts import redirect
+from .models import ReportSnapshot
+from . import services
+
+
+class SnapshotListView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+    template_name = "dashboards/snapshots_list.html"
+
+    def get(self, request):
+        filter_form = SnapshotFilterForm(request.GET)
+        filter_form.is_valid()
+        sec_filter = filter_form.cleaned_data.get("section")
+        type_filter = filter_form.cleaned_data.get("type")
+        qs = services.get_snapshot_history(
+            request.organization,
+            snapshot_type=type_filter,
+            section=sec_filter,
+            limit=None,
+        )
+        page, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=20)
+        return render(
+            request,
+            self.template_name,
+            {
+                "page": page,
+                "snapshots": page,
+                "sections": ReportSnapshot.Section.choices,
+                "types": ReportSnapshot.SnapshotType.choices,
+                "selected_section": sec_filter,
+                "selected_type": type_filter,
+                "filter_form": filter_form,
+                "preserved_params": preserved_params,
+            },
+        )
+
+    def post(self, request):
+        sec = request.POST.get("section") or ReportSnapshot.Section.OPERATIONS
+        stype = request.POST.get("snapshot_type") or ReportSnapshot.SnapshotType.DAILY
+        start_str = request.POST.get("period_start")
+        end_str = request.POST.get("period_end")
+        notes = request.POST.get("notes", "")
+
+        try:
+            start_date = datetime.date.fromisoformat(start_str) if start_str else timezone.localdate() - datetime.timedelta(days=1)
+            end_date = datetime.date.fromisoformat(end_str) if end_str else timezone.localdate() - datetime.timedelta(days=1)
+            snap = services.create_report_snapshot(
+                request.organization,
+                snapshot_type=stype,
+                section=sec,
+                period_start=start_date,
+                period_end=end_date,
+                actor=request.user,
+                notes=notes,
+                request=request,
+            )
+            messages.success(request, f"Snapshot generated for {snap.get_section_display()} ({snap.period_start} to {snap.period_end}).")
+        except Exception as exc:
+            messages.error(request, f"Failed to generate snapshot: {exc}")
+
+        return redirect("dashboards:snapshot_list")
+
+
+class SnapshotDetailView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+    template_name = "dashboards/snapshot_detail.html"
+
+    def get(self, request, pk):
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).select_related("site", "created_by").first()
+        if not snapshot:
+            raise Http404("Snapshot not found.")
+        return render(request, self.template_name, {"snapshot": snapshot})
+
+
+class SnapshotExportView(TenantPermissionMixin, View):
+    required_permission = "report.view"
+
+    def get(self, request, pk):
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).first()
+        if not snapshot:
+            raise Http404("Snapshot not found.")
+        response = JsonResponse(snapshot.metrics, json_dumps_params={"indent": 2})
+        filename = f"snapshot_{snapshot.section}_{snapshot.period_start}_{snapshot.period_end}.json"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response

@@ -79,6 +79,8 @@ def filter_trackings(qs, params):
             | Q(work_order__order_number__icontains=q)
             | Q(request__title__icontains=q)
             | Q(work_order__title__icontains=q)
+            | Q(profile__name__icontains=q)
+            | Q(site__code__icontains=q)
         )
     return qs.order_by("-started_at", "-id")
 
@@ -123,6 +125,16 @@ def filter_breaches(qs, params):
     kind = (params.get("target") or "").strip()
     if kind:
         qs = qs.filter(target_kind=kind)
+    q = (params.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(tracking__request__number__icontains=q)
+            | Q(tracking__work_order__order_number__icontains=q)
+            | Q(tracking__request__title__icontains=q)
+            | Q(tracking__work_order__title__icontains=q)
+            | Q(profile__name__icontains=q)
+            | Q(site__code__icontains=q)
+        )
     return qs.order_by("-breached_at", "-id")
 
 
@@ -138,6 +150,23 @@ def _bucket(qs, field: str) -> dict:
             "compliance_percent": round(100 * met / finished, 1) if finished else None}
 
 
+def metrics_for_trackings(qs, membership, org) -> dict:
+    """Calculate SLA metrics over a specific tracking queryset (honouring active filters)."""
+    breaches = breaches_for(membership, org).filter(tracking__in=qs.values("pk"))
+    open_breaches = breaches.filter(status=SLABreach.Status.OPEN)
+    return {
+        "trackings": qs.count(),
+        "active": qs.filter(status="ACTIVE").count(),
+        "at_risk": qs.filter(status="AT_RISK").count(),
+        "breached": qs.filter(status="BREACHED").count(),
+        "paused": qs.filter(status="PAUSED").count(),
+        "response": _bucket(qs, "response_state"),
+        "resolution": _bucket(qs, "resolution_state"),
+        "breaches_total": breaches.count(),
+        "breaches_open": open_breaches.count(),
+    }
+
+
 def metrics(membership, org, *, since: datetime | None = None, until: datetime | None = None) -> dict:
     """Real aggregates over the caller's visible trackings started in [since, until]: per-target outcome counts and
     compliance (on-time / decided), open breaches by target and priority, escalated breaches, paused trackings."""
@@ -147,7 +176,7 @@ def metrics(membership, org, *, since: datetime | None = None, until: datetime |
     if until:
         qs = qs.filter(started_at__lte=until)
     breaches = breaches_for(membership, org).filter(tracking__in=qs.values("pk"))
-    open_breaches = breaches.exclude(status="CLOSED")
+    open_breaches = breaches.filter(status=SLABreach.Status.OPEN)
     by_priority = {}
     for r in open_breaches.values("target_kind", "priority").annotate(n=Count("id")):
         by_priority.setdefault(r["target_kind"].lower(), {})[r["priority"]] = r["n"]

@@ -1,0 +1,115 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}Contact Sales &middot; FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #162A4B 100%); border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 4.5rem !important; padding-bottom: 4rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <!-- Breadcrumbs -->
+    <nav aria-label="Breadcrumb" class="mb-3 d-flex align-items-center gap-2 small text-white-50">
+      <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none">Home</a>
+      <span>&rsaquo;</span>
+      <span class="text-white-50">Company</span>
+      <span>&rsaquo;</span>
+      <span style="color: #F5C451;">Contact Sales</span>
+    </nav>
+
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 10.5px; letter-spacing: 0.15em;">
+      {% icon 'shield' 13 %}
+      <span>Enterprise Solutions &bull; Commercial Advisory</span>
+    </div>
+
+    <h1 class="display-5 fw-extrabold text-white mb-2">Contact Sales &amp; Enterprise Solutions</h1>
+    <p class="text-white-50 lead mb-0" style="max-width: 720px; font-size: 1.1rem; line-height: 1.6;">
+      Accelerate your industrial maintenance, field dispatch operations, and asset reliability with our dedicated engineering and solutions advisory team.
+    </p>
+  </div>
+</section>
+
+<!-- Content Section -->
+<section class="py-5" style="background-color: #F8FAFC;">
+  <div class="container-xl px-4 py-4">
+    <div class="row justify-content-center">
+      <div class="col-lg-10 col-xl-9">
+        <div class="text-center mx-auto mb-5" style="max-width: 720px;">
+          <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(11,31,59,0.08); color: #0B1F3B; font-size: 11px; letter-spacing: 0.1em;">
+            {% icon 'briefcase' 13 %}
+            <span>Enterprise Tiers &amp; Deployment</span>
+          </div>
+
+          <h2 class="h3 fw-bold text-dark mb-3" style="color: #0B1F3B !important;">
+            Engineered for High-Consequence Operations
+          </h2>
+
+          <p class="text-secondary mb-0" style="line-height: 1.7;">
+            Whether you operate heavy manufacturing equipment, critical utilities, or multi-facility commercial campuses, FieldOps Nexus delivers unified field mobility and real-time maintenance intelligence.
+          </p>
+        </div>
+
+        <!-- Core Capability Highlights -->
+        <div class="row g-4 mb-5">
+          <div class="col-md-4">
+            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
+              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
+                {% icon 'shield' 18 %}
+              </div>
+              <div>
+                <h3 class="h6 fw-bold text-dark mb-2">Multi-Tenant Isolated Deployment</h3>
+                <p class="small text-secondary mb-0" style="line-height: 1.6;">Cryptographically isolated data models with custom regional cloud hosting or dedicated VPC partitions.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
+              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
+                {% icon 'activity' 18 %}
+              </div>
+              <div>
+                <h3 class="h6 fw-bold text-dark mb-2">90-Day Evaluation Gate &amp; Pilot PoC</h3>
+                <p class="small text-secondary mb-0" style="line-height: 1.6;">Full feature evaluation calibrated against your actual asset registers under governance standard HPE-PRD-2026-FOPS02.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
+              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
+                {% icon 'clock' 18 %}
+              </div>
+              <div>
+                <h3 class="h6 fw-bold text-dark mb-2">Rapid 1-Business-Day Response SLA</h3>
+                <p class="small text-secondary mb-0" style="line-height: 1.6;">Direct engagement with senior solutions engineers, not automated call queues.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Highlighted Sales Support Contact Card -->
+        <div class="mx-auto" style="max-width: 640px;">
+          <div class="rounded-4 p-4 p-md-5 text-center shadow-lg position-relative overflow-hidden" style="background: linear-gradient(145deg, #0B1F3B 0%, #162A4B 100%); border: 1.5px solid rgba(245, 196, 81, 0.45);">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background: rgba(245, 196, 81, 0.14); border: 1.5px solid rgba(245, 196, 81, 0.5); color: #F5C451;">
+              {% icon 'mail' 24 %}
+            </div>
+
+            <div class="text-uppercase fw-bold mb-2" style="color: #F5C451; font-size: 12px; letter-spacing: 0.16em;">
+              Sales Support
+            </div>
+
+            <a href="mailto:sales@fieldopsnexus.com"
+               class="d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-decoration-none text-white px-3 py-2 rounded-3"
+               style="font-size: clamp(1rem, 2.6vw, 1.45rem); white-space: nowrap; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(245, 196, 81, 0.3); max-width: 100%; overflow-wrap: anywhere;">
+              <span style="color: #F5C451;">sales@fieldopsnexus.com</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

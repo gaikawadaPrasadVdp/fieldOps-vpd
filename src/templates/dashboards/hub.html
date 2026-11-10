@@ -118,6 +118,12 @@
     {% include "dashboards/_css_bars.html" with title="Top Failing Equipment (Outage Count)" items=css_bars.top_failing %}
   </div>
   {% endif %}
+
+  {% if css_bars.top_parts %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Top Consumed Spare Parts" items=css_bars.top_parts %}
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -242,11 +248,17 @@
         <tbody>
           {% for b in trace_data.low_stock_lines %}
           <tr>
-            <td data-label="Part Number"><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
-            <td data-label="Part Name">{{ b.part.name }}</td>
-            <td data-label="Warehouse">{{ b.warehouse.name }}</td>
-            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand }}</td>
-            <td data-label="Min Level">{{ b.min_level|default:"-" }}</td>
+            <td data-label="Part Number">
+              {% if b.part %}
+                <a href="{% url 'inventory:part' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td data-label="Part Name">{{ b.part.name|default:"—" }}</td>
+            <td data-label="Warehouse">{{ b.warehouse.name|default:"—" }}</td>
+            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand|floatformat:0 }}</td>
+            <td data-label="Min Level">{{ b.min_level|floatformat:0|default:"-" }}</td>
             <td data-label="Status"><span class="badge bg-danger">Low Stock Alert</span></td>
           </tr>
           {% empty %}
@@ -256,5 +268,29 @@
       {% endif %}
     </table>
   </div>
+  {% if trace_data.page_obj and trace_data.page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+      <span class="small text-secondary">
+        Page {{ trace_data.page_obj.number }} of {{ trace_data.page_obj.paginator.num_pages }} ({{ trace_data.page_obj.paginator.count }} items)
+      </span>
+      <ul class="pagination pagination-sm m-0">
+        {% if trace_data.page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ trace_data.page_obj.previous_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}" aria-label="Previous">&laquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ trace_data.page_obj.number }}</span></li>
+        {% if trace_data.page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ trace_data.page_obj.next_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}" aria-label="Next">&raquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

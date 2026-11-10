@@ -19,6 +19,7 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
+    {% if can.inspection_execute and not terminal %}<a class="btn btn-outline-success" id="start-inspection" href="{% url 'assets:start_inspection' asset.pk %}">{% icon 'check-square' 14 %} Start inspection</a>{% endif %}
     {% if can.incident_create and not terminal %}<a class="btn btn-outline-danger" id="report-problem" href="{% url 'incidents:create' %}?asset={{ asset.pk }}">Report a problem</a>{% endif %}
     {% if can.asset_update and not terminal %}<a class="btn btn-outline-primary" href="{% url 'assets:edit' asset.pk %}">{% icon 'edit-2' 14 %} Edit</a>{% endif %}
     {% if transitions %}{% include "components/_workflow_bar.html" %}{% elif terminal %}<div class="alert alert-secondary py-1 px-2 m-0">This asset is {{ asset.status|lower }}: its lifecycle is complete and it is read-only.</div>{% endif %}
@@ -128,6 +129,60 @@
   </div>
 </div>
 
+{% elif tab == "inspections" %}
+  <div class="fx-card">
+    <div class="fx-card-header d-flex justify-content-between align-items-center">
+      <span>Inspection History</span>
+      {% if can.inspection_execute and not terminal %}
+        <a class="btn btn-primary btn-sm" href="{% url 'assets:start_inspection' asset.pk %}">
+          {% icon 'plus' 14 %} New Inspection
+        </a>
+      {% endif %}
+    </div>
+    <div class="fx-card-body p-0">
+      {% if inspections %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Checklist</th>
+                <th>Status</th>
+                <th>Inspector</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for insp in inspections %}
+                <tr>
+                  <td class="fw-medium">{{ insp.template.name }} <span class="badge fx-badge fx-badge-secondary">v{{ insp.template.version }}</span></td>
+                  <td>{% status_badge insp.status %}</td>
+                  <td>{{ insp.started_by.user.display_name }}</td>
+                  <td class="text-secondary small">{{ insp.started_at|date:"d M Y, H:i" }}</td>
+                  <td class="text-secondary small">{{ insp.completed_at|date:"d M Y, H:i"|default:"In Progress" }}</td>
+                  <td class="text-end">
+                    {% if insp.status == "IN_PROGRESS" and can.inspection_execute %}
+                      <a href="{% url 'checklists:inspection_run' insp.pk %}" class="btn btn-sm btn-primary">Resume</a>
+                    {% else %}
+                      <a href="{% url 'checklists:inspection' insp.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <p class="mb-2">No inspections recorded for this asset yet.</p>
+          {% if can.inspection_execute and not terminal %}
+            <a class="btn btn-outline-primary btn-sm" href="{% url 'assets:start_inspection' asset.pk %}">Start First Inspection</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
 {% elif tab == "hierarchy" %}
 <div class="row g-4">
   <div class="col-lg-8">
@@ -248,7 +303,7 @@
               {% if d.attachment_id %}<a class="btn btn-sm btn-outline-primary" href="{% url 'files:download' d.attachment_id %}">Download</a>{% endif %}
               {% if can.asset_document_manage %}
                 <form method="post" action="{% url 'assets:document_remove' d.pk %}" class="d-inline-flex gap-1 ms-1 align-items-center">
-                  {% csrf_token %}<input class="form-control form-control-sm" style="width:9rem" name="reason" placeholder="Reason" aria-label="Reason for removing {{ d.title }}" required minlength="3"><button class="btn btn-sm btn-outline-danger">Remove</button>
+                  {% csrf_token %}<input class="form-control form-control-sm" style="width:9rem" name="reason" placeholder="Reason" aria-label="Reason for removing {{ d.title }}" required minlength="3" pattern="^[A-Za-z\s'-]+$" title="Reason must contain only alphabetical characters."><button class="btn btn-sm btn-outline-danger">Remove</button>
                 </form>
               {% endif %}
             </td>
@@ -261,14 +316,25 @@
   </div>
   {% if can.asset_document_manage %}
     <div class="fx-card-body border-top">
-      <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+      <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end" id="document-upload-form" novalidate>
         {% csrf_token %}
-        <div class="col-md-4"><label class="form-label small" for="id_file">File</label>{{ doc_form.file }}</div>
-        <div class="col-md-3"><label class="form-label small" for="id_title">Title</label>{{ doc_form.title }}</div>
-        <div class="col-md-3"><label class="form-label small" for="id_doc_type">Type</label>{{ doc_form.doc_type }}</div>
-        <div class="col-md-2"><button class="btn btn-primary w-100">Upload</button></div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" for="id_file">File <span class="text-danger ms-1" title="Required">*</span></label>
+          {{ doc_form.file }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold" for="id_title">Title</label>
+          {{ doc_form.title }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold" for="id_doc_type">Type <span class="text-danger ms-1" title="Required">*</span></label>
+          {{ doc_form.doc_type }}
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" type="submit">Upload</button>
+        </div>
       </form>
-      <div class="form-text">PDF, images, Office documents, text/CSV. Content type and size are validated on the server.</div>
+      <div class="form-text mt-2">Photographs (JPG, PNG, WebP), PDF documents, and other supported files. Content type and size are validated on the server.</div>
     </div>
   {% endif %}
 </div>
@@ -289,7 +355,7 @@
       {% if can.asset_meter_record and m.is_active and not terminal %}
         <form method="post" action="{% url 'assets:meter_reading' m.pk %}" class="row g-2 align-items-end">
           {% csrf_token %}
-          <div class="col-md-3"><label class="form-label small" for="v{{ m.pk }}">New reading ({{ m.unit }})</label><input id="v{{ m.pk }}" class="form-control" name="value" type="number" step="0.001" min="0" required></div>
+          <div class="col-md-3"><label class="form-label small" for="v{{ m.pk }}">New reading ({{ m.unit }}) <span class="text-danger ms-1" title="Required">*</span></label><input id="v{{ m.pk }}" class="form-control" name="value" type="number" step="0.001" min="0" required></div>
           <div class="col-md-3"><label class="form-label small" for="t{{ m.pk }}">Time (blank = now)</label><input id="t{{ m.pk }}" class="form-control" name="read_at" type="datetime-local"></div>
           <div class="col-md-4"><label class="form-label small" for="n{{ m.pk }}">Notes</label><input id="n{{ m.pk }}" class="form-control" name="notes" maxlength="300"></div>
           <div class="col-md-2"><button class="btn btn-primary w-100">Record</button></div>
@@ -306,8 +372,8 @@
     <div class="fx-card-body">
       <form method="post" action="{% url 'assets:meter_create' asset.pk %}" class="row g-2 align-items-end">
         {% csrf_token %}
-        <div class="col-sm-5"><label class="form-label small" for="id_name">Name</label>{{ meter_form.name }}</div>
-        <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit</label>{{ meter_form.unit }}</div>
+        <div class="col-sm-5"><label class="form-label small" for="id_name">Name <span class="text-danger ms-1" title="Required">*</span></label>{{ meter_form.name }}</div>
+        <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit <span class="text-danger ms-1" title="Required">*</span></label>{{ meter_form.unit }}</div>
         <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Add meter</button></div>
       </form>
     </div>

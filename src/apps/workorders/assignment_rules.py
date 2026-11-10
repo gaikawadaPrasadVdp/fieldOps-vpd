@@ -25,20 +25,31 @@ ACTIVE_ASSIGNMENT_STATES = [
 
 
 def schedule_warnings(work_order):
-    """Flag work scheduled outside the site's configured operating calendar."""
+    """Flag work scheduled outside the site's configured operating calendar or expiring coverage."""
     start, end = work_order.planned_start, work_order.planned_end
     if not start or not end:
         return ["Scheduled start and end are required."]
+
+    warnings = []
+    try:
+        from apps.contracts.services import check_coverage_expiry_mid_job
+        expires_mid, msg = check_coverage_expiry_mid_job(work_order)
+        if expires_mid:
+            warnings.append(f"Coverage Warning: {msg}")
+    except Exception:
+        pass
+
     calendar = OperatingCalendar.objects.filter(site=work_order.site, is_default=True).first()
     if calendar is None:
-        return ["No default site operating calendar is configured; hours could not be checked."]
+        warnings.append("No default site operating calendar is configured; hours could not be checked.")
+        return warnings
     if calendar.is_24x7:
-        return []
+        return warnings
     if not calendar.start_time or not calendar.end_time or not calendar.working_days:
-        return [f"{calendar.name} has incomplete hours; confirm the shift manually."]
+        warnings.append(f"{calendar.name} has incomplete hours; confirm the shift manually.")
+        return warnings
     zone = ZoneInfo(work_order.site.timezone or "UTC")
     local_start, local_end = timezone.localtime(start, zone), timezone.localtime(end, zone)
-    warnings = []
     if local_start.date() != local_end.date():
         warnings.append("Scheduled window crosses calendar days; confirm site coverage.")
     holidays = calendar.holidays.filter(date__gte=local_start.date(), date__lte=local_end.date())
@@ -46,7 +57,8 @@ def schedule_warnings(work_order):
     in_hours = (calendar.start_time <= local_start.timetz().replace(tzinfo=None)
                 and local_end.timetz().replace(tzinfo=None) <= calendar.end_time)
     if not is_working_day or holidays.exists() or not in_hours:
-        warnings.append(f"Scheduled window falls outside {calendar.name} operating hours ({calendar.start_time:%H:%M}–{calendar.end_time:%H:%M}); confirm technician coverage.")
+        warnings.append(f"Scheduled window falls outside {calendar.name} operating hours ({calendar.start_time:%H:%M}-{calendar.end_time:%H:%M}); confirm technician coverage.")
+
     return warnings
 
 
@@ -94,6 +106,17 @@ def validate_assignment(work_order, technician):
     if work_order.planned_end <= work_order.planned_start:
         raise ValidationFailed("Scheduled end must be after scheduled start.", code="invalid_schedule")
 
+    from .models import TechnicianProfile
+    if TechnicianProfile.objects.filter(
+        organization=work_order.organization,
+        membership=technician,
+        is_dispatchable=False,
+    ).exists():
+        raise Conflict(
+            "Technician is not currently available for dispatch.",
+            code="technician_not_dispatchable",
+        )
+
     conflict = WorkOrder.objects.for_organization(work_order.organization).filter(
         assigned_to=technician,
         status__in=ACTIVE_ASSIGNMENT_STATES,
@@ -108,6 +131,26 @@ def validate_assignment(work_order, technician):
         raise Conflict("Technician already has an overlapping active assignment.",
                        code="technician_conflict")
 
-    # Site calendars provide operating hours, but technician-specific shifts are
-    # not modeled. Surface calendar exceptions and require the planner to confirm.
-    return schedule_warnings(work_order)
+    profile = getattr(technician, "technician_profile", None)
+    if profile:
+        if profile.availability_status == "ON_LEAVE":
+            raise ValidationFailed("Technician is currently on leave.", code="technician_on_leave")
+        if profile.availability_status == "OFF_DUTY":
+            raise ValidationFailed("Technician is currently off duty.", code="technician_off_duty")
+        active_jobs = WorkOrder.objects.for_organization(work_order.organization).filter(
+            assigned_to=technician,
+            status__in=ACTIVE_ASSIGNMENT_STATES,
+        ).exclude(pk=work_order.pk).count()
+        if profile.max_active_jobs and active_jobs >= profile.max_active_jobs:
+            raise ValidationFailed(
+                f"Technician has reached maximum active jobs limit ({profile.max_active_jobs}).",
+                code="technician_max_jobs_exceeded",
+            )
+
+    warnings = schedule_warnings(work_order)
+    if profile and profile.shift and profile.shift.is_active:
+        from apps.workspace.services import check_technician_shift_eligibility
+        eligible, msg = check_technician_shift_eligibility(technician, work_order.planned_start)
+        if not eligible:
+            warnings.append(f"Technician Shift: {msg}")
+    return warnings

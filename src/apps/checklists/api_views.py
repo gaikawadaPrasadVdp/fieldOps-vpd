@@ -95,7 +95,7 @@ class ResponseSerializer(serializers.ModelSerializer):
 class FindingSerializer(serializers.ModelSerializer):
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Finding
@@ -109,7 +109,7 @@ class InspectionSerializer(serializers.ModelSerializer):
     template_version = serializers.IntegerField(source="template.version", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Inspection
@@ -286,8 +286,8 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     # reads are self-scoping: the selector returns only inspections the caller may see (404 otherwise)
     permission_map = {
         "list": MEMBER_ONLY, "retrieve": MEMBER_ONLY, "create": "inspection.execute",
-        "responses": "inspection.execute", "complete": "inspection.execute", "findings:get": MEMBER_ONLY,
-        "findings:post": "inspection.execute", "evidence:get": MEMBER_ONLY, "evidence:post": "inspection.execute",
+        "responses": MEMBER_ONLY, "complete": MEMBER_ONLY, "findings:get": MEMBER_ONLY,
+        "findings:post": MEMBER_ONLY, "evidence:get": MEMBER_ONLY, "evidence:post": MEMBER_ONLY,
         "requirements": MEMBER_ONLY,
     }
 
@@ -398,6 +398,10 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
+        from apps.portal.services import is_portal_client
+        if is_portal_client(request.membership):
+            raise PermissionDenied("Portal clients cannot access inspection requirements.")
+
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
         if not wo_param:

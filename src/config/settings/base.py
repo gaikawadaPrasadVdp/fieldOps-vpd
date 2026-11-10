@@ -102,6 +102,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
     "apps.core.middleware.TimezoneMiddleware",
+    "apps.core.middleware.SecurityCacheControlMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -168,6 +169,8 @@ AXES_RESET_ON_SUCCESS = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_CACHE_ALIAS = "default"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
@@ -224,6 +227,14 @@ CELERY_BEAT_SCHEDULE = {
     "process-scheduled-organization-deletions": {
         "task": "apps.tenancy.tasks.process_scheduled_deletions",
         "schedule": 60 * 60,
+    },
+    "process-integration-outbox": {
+        "task": "apps.core.tasks.process_integration_events",
+        "schedule": 30,
+    },
+    "archive-report-snapshots": {
+        "task": "apps.dashboards.tasks.archive_periodic_report_snapshots",
+        "schedule": 60 * 60 * 24,
     },
 }
 
@@ -287,11 +298,12 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "apps.core.api.StandardPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "apps.core.schema.FieldOpsAutoSchema",
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
+    "NUM_PROXIES": max(TRUSTED_PROXY_COUNT, 0),
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttling.SafeAnonRateThrottle",
+        "apps.core.throttling.SafeUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "600/min", "login": "10/min"},
 }
@@ -311,6 +323,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # docs/schema list endpoint names only, never tenant data (D: public docs for testers)
     "COMPONENT_SPLIT_REQUEST": True,
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "apps.core.schema.strip_unused_path_parameters",
+    ],
     "ENUM_NAME_OVERRIDES": {
         "SiteStatusEnum": "apps.sites.models.Status",
         "MembershipStatusEnum": "apps.tenancy.models.Membership.Status",

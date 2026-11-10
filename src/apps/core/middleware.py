@@ -24,6 +24,21 @@ class RequestIdMiddleware:
         rid = incoming if _VALID_ID.match(incoming) else uuid.uuid4().hex
         request.request_id = rid
 
+        for k, v in request.GET.items():
+            if "\x00" in k or "\x00" in v:
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {
+                        "error": {
+                            "code": "validation_failed",
+                            "message": "Null characters (0x00) are not permitted in query parameters.",
+                            "details": {},
+                            "request_id": rid,
+                        }
+                    },
+                    status=400,
+                )
+
         path = request.path_info or request.path or ""
         content_type = request.META.get("CONTENT_TYPE", "")
         if path.startswith("/api/") or "application/json" in content_type:
@@ -59,7 +74,6 @@ class RequestIdMiddleware:
         except Exception as exc:
             if exc.__class__.__name__ in ("RequestDataTooBig", "SuspiciousOperation"):
                 from django.http import JsonResponse
-                flogging.request_id_var.reset(token)
                 resp = JsonResponse(
                     {
                         "error": {
@@ -134,3 +148,40 @@ class TimezoneMiddleware:
             return self.get_response(request)
         finally:
             timezone.deactivate()
+
+
+class SecurityCacheControlMiddleware:
+    """
+    Prevents browsers and intermediate proxies from caching sensitive authenticated views.
+    Ensures back-button navigation after logout immediately forces a fresh request
+    to the server, which redirects unauthenticated requests to the login screen
+    rather than showing stale dashboard or tenant data from bfcache/disk cache.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        path = request.path_info or request.path or ""
+
+        static_url = getattr(settings, "STATIC_URL", "/static/")
+        media_url = getattr(settings, "MEDIA_URL", "/media/")
+        if (static_url and path.startswith(static_url)) or (media_url and path.startswith(media_url)):
+            return response
+
+        user = getattr(request, "user", None)
+        is_authenticated = bool(user and getattr(user, "is_authenticated", False))
+
+        if (
+            is_authenticated
+            or path.startswith("/app/")
+            or path.startswith("/api/")
+            or path.startswith("/portal/")
+            or path.startswith("/accounts/")
+        ):
+            response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+            response["Pragma"] = "no-cache"
+            response["Expires"] = "0"
+
+        return response

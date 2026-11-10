@@ -1,3 +1,5 @@
+import uuid
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status, viewsets
@@ -55,6 +57,11 @@ class PlatformOrganizationCreateSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=2, required=False, allow_blank=True)
 
 
+class PlatformOrganizationStatusSerializer(serializers.Serializer):
+    active = serializers.BooleanField(required=True, help_text="True to activate, False to suspend the organization")
+    reason = serializers.CharField(required=False, allow_blank=True, default="", help_text="Reason for the status change")
+
+
 
 def _resolve_role_ids(org, role_str, role_ids=None):
     if role_ids:
@@ -99,6 +106,16 @@ class PlatformUserCreateSerializer(serializers.Serializer):
 class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
     """Platform Super Admin management of all organizations (multi-tenant root)."""
 
+    def _get_org(self, pk):
+        from django.http import Http404
+        from django.shortcuts import get_object_or_404
+
+        try:
+            org_uuid = uuid.UUID(str(pk))
+        except (ValueError, TypeError) as exc:
+            raise Http404("Organization not found.") from exc
+        return get_object_or_404(Organization, pk=org_uuid)
+
     @extend_schema(responses=OrganizationSerializer(many=True))
     def list(self, request):
         orgs = Organization.objects.all().order_by("name")
@@ -106,8 +123,7 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses=OrganizationSerializer)
     def retrieve(self, request, pk=None):
-        from django.shortcuts import get_object_or_404
-        org = get_object_or_404(Organization, pk=pk)
+        org = self._get_org(pk)
         return Response(OrganizationSerializer(org).data)
 
     @extend_schema(request=PlatformOrganizationCreateSerializer, responses=OrganizationSerializer)
@@ -130,15 +146,14 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses={200: serializers.DictField()})
     def destroy(self, request, pk=None):
-        from django.shortcuts import get_object_or_404
-        org = get_object_or_404(Organization, pk=pk)
+        org = self._get_org(pk)
         hard, msg = services.delete_organization(org, actor=request.user, request=request)
         return Response({"success": True, "hard_deleted": hard, "message": msg}, status=status.HTTP_200_OK)
 
+    @extend_schema(request=PlatformOrganizationStatusSerializer, responses=OrganizationSerializer, summary="Update organization status")
     @action(detail=True, methods=["post"])
     def set_status(self, request, pk=None):
-        from django.shortcuts import get_object_or_404
-        org = get_object_or_404(Organization, pk=pk)
+        org = self._get_org(pk)
         active = bool(request.data.get("active", True))
         reason = request.data.get("reason", "") or ("Deactivated via platform API" if not active else "")
         services.set_organization_status(org, active=active, actor=request.user, reason=reason, request=request)
@@ -147,14 +162,13 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
     @extend_schema(request=PlatformUserCreateSerializer, responses={201: lambda: MemberSerializer})
     @action(detail=True, methods=["post"], url_path="users")
     def create_user(self, request, pk=None):
-        from django.shortcuts import get_object_or_404
-        from django.utils import timezone
-        org = get_object_or_404(Organization, pk=pk)
+        org = self._get_org(pk)
         ser = PlatformUserCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         d = ser.validated_data
-        full_name = d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip()
+        full_name = (d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip())[:150]
         role_ids = _resolve_role_ids(org, d.get("role", "super_admin"))
+        raw_password = d.get("password") or None
         m = services.invite_member(
             org,
             email=d["email"],
@@ -162,24 +176,18 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
             role_ids=role_ids,
             actor=request.user,
             request=request,
-                    )
+            password=raw_password,
+        )
         u = m.user
-        updated = False
-        if d.get("password"):
-            u.set_password(d["password"])
-            updated = True
+        update_fields = []
         if d.get("phone"):
             u.phone = d["phone"]
-            updated = True
-        if d.get("role", "").lower() in ("admin", "super_admin", "owner"):
+            update_fields.append("phone")
+        if d.get("role", "").lower() in ("admin", "super_admin", "owner") and not u.is_staff:
             u.is_staff = True
-            updated = True
-        if updated:
-            u.save()
-            if d.get("password"):
-                m.status = Membership.Status.ACTIVE
-                m.activated_at = timezone.now()
-                m.save(update_fields=["status", "activated_at"])
+            update_fields.append("is_staff")
+        if update_fields:
+            u.save(update_fields=update_fields)
         return Response(MemberSerializer(m).data, status=status.HTTP_201_CREATED)
 
 
@@ -189,16 +197,20 @@ class PlatformUserViewSet(PlatformAPIMixin, viewsets.ViewSet):
     @extend_schema(request=PlatformUserCreateSerializer, responses={201: lambda: MemberSerializer})
     def create(self, request):
         from django.shortcuts import get_object_or_404
-        from django.utils import timezone
         org_id = request.data.get("organization") or request.data.get("organization_id")
         if not org_id:
             raise serializers.ValidationError({"organization": "organization or organization_id is required."})
-        org = get_object_or_404(Organization, pk=org_id)
+        try:
+            org_uuid = uuid.UUID(str(org_id))
+        except (ValueError, TypeError) as exc:
+            raise serializers.ValidationError({"organization": "Enter a valid organization UUID."}) from exc
+        org = get_object_or_404(Organization, pk=org_uuid)
         ser = PlatformUserCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         d = ser.validated_data
-        full_name = d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip()
+        full_name = (d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip())[:150]
         role_ids = _resolve_role_ids(org, d.get("role", "super_admin"))
+        raw_password = d.get("password") or None
         m = services.invite_member(
             org,
             email=d["email"],
@@ -206,24 +218,18 @@ class PlatformUserViewSet(PlatformAPIMixin, viewsets.ViewSet):
             role_ids=role_ids,
             actor=request.user,
             request=request,
-                    )
+            password=raw_password,
+        )
         u = m.user
-        updated = False
-        if d.get("password"):
-            u.set_password(d["password"])
-            updated = True
+        update_fields = []
         if d.get("phone"):
             u.phone = d["phone"]
-            updated = True
-        if d.get("role", "").lower() in ("admin", "super_admin", "owner"):
+            update_fields.append("phone")
+        if d.get("role", "").lower() in ("admin", "super_admin", "owner") and not u.is_staff:
             u.is_staff = True
-            updated = True
-        if updated:
-            u.save()
-            if d.get("password"):
-                m.status = Membership.Status.ACTIVE
-                m.activated_at = timezone.now()
-                m.save(update_fields=["status", "activated_at"])
+            update_fields.append("is_staff")
+        if update_fields:
+            u.save(update_fields=update_fields)
         return Response(MemberSerializer(m).data, status=status.HTTP_201_CREATED)
 
 
@@ -315,32 +321,28 @@ class MemberViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(request=InviteSerializer, responses={201: MemberSerializer})
     def create(self, request):
-        from django.utils import timezone
         ser = InviteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         d = ser.validated_data
-        full_name = d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip()
+        full_name = (d.get("full_name") or f"{d.get('first_name', '')} {d.get('last_name', '')}".strip())[:150]
         role_ids = d.get("role_ids")
         if not role_ids and not d.get("role_assignments") and d.get("role"):
             role_ids = _resolve_role_ids(request.organization, d["role"])
 
-        m = services.invite_member(request.organization, email=d["email"], full_name=full_name or "",
-                                   role_ids=role_ids, site_ids=d.get("site_ids"),
-                                   assignments=d.get("role_assignments"), actor=request.user, request=request)
-        u = m.user
-        updated = False
-        if d.get("password"):
-            u.set_password(d["password"])
-            updated = True
+        m = services.invite_member(
+            request.organization,
+            email=d["email"],
+            full_name=full_name or "",
+            role_ids=role_ids,
+            site_ids=d.get("site_ids"),
+            assignments=d.get("role_assignments"),
+            actor=request.user,
+            request=request,
+            password=d.get("password") or None,
+        )
         if d.get("phone"):
-            u.phone = d["phone"]
-            updated = True
-        if updated:
-            u.save()
-            if d.get("password"):
-                m.status = Membership.Status.ACTIVE
-                m.activated_at = timezone.now()
-                m.save(update_fields=["status", "activated_at"])
+            m.user.phone = d["phone"]
+            m.user.save(update_fields=["phone"])
 
         return Response(MemberSerializer(m).data, status=status.HTTP_201_CREATED)
 

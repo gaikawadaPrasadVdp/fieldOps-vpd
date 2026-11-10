@@ -37,52 +37,41 @@
           {% endif %}
           
           {% if form.errors or rel_form.errors %}
-            <div class="alert alert-danger d-flex align-items-start gap-2 mb-3">
-              {% icon 'alert-circle' 18 %}
+            <div class="alert alert-danger d-flex align-items-center gap-2 mb-3 py-2 px-3 small" role="alert">
+              {% icon 'alert-circle' 16 %}
               <div>
-                <strong class="d-block mb-1">Please correct the highlighted errors before saving:</strong>
-                <ul class="mb-0 ps-3 small">
-                  {% for field in form %}
-                    {% for error in field.errors %}
-                      <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-                    {% endfor %}
-                  {% endfor %}
-                  {% if rel_form %}
-                    {% for field in rel_form %}
-                      {% for error in field.errors %}
-                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-                      {% endfor %}
-                    {% endfor %}
-                  {% endif %}
-                  {% for error in form.non_field_errors %}
-                    <li>{{ error }}</li>
-                  {% endfor %}
-                </ul>
+                {% if form.non_field_errors %}
+                  {{ form.non_field_errors.0 }}
+                {% elif rel_form.non_field_errors %}
+                  {{ rel_form.non_field_errors.0 }}
+                {% else %}
+                  Please correct the highlighted errors before saving.
+                {% endif %}
               </div>
             </div>
           {% endif %}
 
           <h5 class="mb-3 border-bottom pb-2">Asset Identification &amp; Placement</h5>
           <div class="row g-3 mb-3">
-            <div class="col-md-6">{{ form.asset_tag.label_tag }}{{ form.asset_tag }}{{ form.asset_tag.errors }}<div class="form-text">{{ form.asset_tag.help_text }}</div></div>
-            <div class="col-md-6">{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
-            <div class="col-md-6">{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}</div>
-            <div class="col-md-6">{{ form.site.label_tag }}{{ form.site }}{{ form.site.errors }}</div>
-            <div class="col-md-6">{{ form.zone.label_tag }}{{ form.zone }}{{ form.zone.errors }}</div>
-            <div class="col-md-6">{{ form.owner.label_tag }}{{ form.owner }}{{ form.owner.errors }}</div>
+            <div class="col-md-6">{% with field=form.asset_tag %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-6">{% with field=form.name %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-6">{% with field=form.category %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-6">{% with field=form.site %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-6">{% with field=form.zone %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-6">{% with field=form.owner %}{% include "components/_form_field.html" %}{% endwith %}</div>
           </div>
 
           <h5 class="mb-3 border-bottom pb-2">Manufacturer &amp; Technical Specs</h5>
           <div class="row g-3 mb-3">
-            <div class="col-md-4">{{ form.manufacturer.label_tag }}{{ form.manufacturer }}{{ form.manufacturer.errors }}</div>
-            <div class="col-md-4">{{ form.model.label_tag }}{{ form.model }}{{ form.model.errors }}</div>
-            <div class="col-md-4">{{ form.serial_number.label_tag }}{{ form.serial_number }}{{ form.serial_number.errors }}</div>
-            <div class="col-md-4">{{ form.purchase_date.label_tag }}{{ form.purchase_date }}{{ form.purchase_date.errors }}</div>
-            <div class="col-md-4">{{ form.commission_date.label_tag }}{{ form.commission_date }}{{ form.commission_date.errors }}</div>
-            <div class="col-md-4">{{ form.warranty_ref.label_tag }}{{ form.warranty_ref }}{{ form.warranty_ref.errors }}</div>
-            <div class="col-12">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
+            <div class="col-md-4">{% with field=form.manufacturer %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-4">{% with field=form.model %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-4">{% with field=form.serial_number %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-4">{% with field=form.purchase_date %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-4">{% with field=form.commission_date %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-md-4">{% with field=form.warranty_ref %}{% include "components/_form_field.html" %}{% endwith %}</div>
+            <div class="col-12">{% with field=form.description %}{% include "components/_form_field.html" %}{% endwith %}</div>
             {% if form.reason %}
-              <div class="col-12">{{ form.reason.label_tag }}{{ form.reason }}{{ form.reason.errors }}<div class="form-text">{{ form.reason.help_text }}</div></div>
+              <div class="col-12">{% with field=form.reason %}{% include "components/_form_field.html" %}{% endwith %}</div>
             {% endif %}
           </div>
 
@@ -93,10 +82,7 @@
                 {% with field_name="attr_"|add:d.key %}
                   {% with bf=form|get_item:field_name %}
                     <div class="col-md-6">
-                      {{ bf.label_tag }}
-                      {{ bf }}
-                      {{ bf.errors }}
-                      {% if d.help_text %}<div class="form-text">{{ d.help_text }}</div>{% endif %}
+                      {% with field=bf %}{% include "components/_form_field.html" %}{% endwith %}
                     </div>
                   {% endwith %}
                 {% endwith %}
@@ -107,10 +93,10 @@
           {% if rel_form %}
             <h5 class="mb-3 border-bottom pb-2 text-primary">Hierarchy Relationship to Parent</h5>
             <div class="row g-3 mb-3 p-3 bg-light rounded border">
-              <div class="col-md-4">{{ rel_form.relationship_type.label_tag }}{{ rel_form.relationship_type }}{{ rel_form.relationship_type.errors }}</div>
-              <div class="col-md-4">{{ rel_form.quantity.label_tag }}{{ rel_form.quantity }}{{ rel_form.quantity.errors }}</div>
-              <div class="col-md-4">{{ rel_form.part_number.label_tag }}{{ rel_form.part_number }}{{ rel_form.part_number.errors }}</div>
-              <div class="col-12">{{ rel_form.notes.label_tag }}{{ rel_form.notes }}{{ rel_form.notes.errors }}</div>
+              <div class="col-md-4">{% with field=rel_form.relationship_type %}{% include "components/_form_field.html" %}{% endwith %}</div>
+              <div class="col-md-4">{% with field=rel_form.quantity %}{% include "components/_form_field.html" %}{% endwith %}</div>
+              <div class="col-md-4">{% with field=rel_form.part_number %}{% include "components/_form_field.html" %}{% endwith %}</div>
+              <div class="col-12">{% with field=rel_form.notes %}{% include "components/_form_field.html" %}{% endwith %}</div>
             </div>
           {% endif %}
 

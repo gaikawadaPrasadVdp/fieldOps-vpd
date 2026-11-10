@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% load ui_tags %}
+{% load static ui_tags %}
 {% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
       <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
-        <span class="fx-brand-mark">FX</span> FieldOps Nexus
+        <span class="fx-brand-mark"><img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img"></span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
     </div>
@@ -17,6 +17,10 @@
           <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
         {% endfor %}
       {% endfor %}
+      {% if shell_org and not is_client %}
+      <div class="fx-nav-section d-lg-none">Personal</div>
+      <a class="fx-nav-link d-lg-none {% if '/app/notifications' in request.path %}active{% endif %}" href="{% url 'notifications:list' %}">{% icon 'bell' %} Notifications</a>
+      {% endif %}
     </nav>
   </aside>
   <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
@@ -48,10 +52,11 @@
           <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-truncate" style="max-width: 140px;" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
+            {% if shell_org %}<li><a class="dropdown-item" href="{% url 'notifications:list' %}">Notifications</a></li>{% endif %}
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>
             <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}">Change password</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="dropdown-item">Sign out</button></form></li>
+            <li><form method="post" action="{% url 'accounts:logout' %}" id="fx-logout-form" class="m-0">{% csrf_token %}<button type="submit" class="dropdown-item text-danger" id="fx-logout-btn">Sign out</button></form></li>
           </ul>
         </div>
       </div>

@@ -10,6 +10,7 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.audit import services as audit
 from apps.core.exceptions import DomainError
 from apps.incidents.models import ServiceRequest
 from apps.incidents.selectors import evidence_for
@@ -17,6 +18,7 @@ from apps.incidents.services import DuplicateIncidentError
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import forms, selectors, services
+from apps.ui.pagination import paginate_dashboard_queryset
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -53,12 +55,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx["company_name"] = self.account.company_name or self.request.organization.name
         ctx["created_ref"] = self.request.GET.get("created")
         ctx["metrics"] = selectors.get_portal_dashboard_metrics(self.request.membership)
-        ctx["recent_requests"] = (
+        requests_qs = (
             ServiceRequest.objects.for_organization(self.request.organization)
             .filter(reported_by=self.request.membership)
             .select_related("asset", "site")
-            .order_by("-created_at")[:5]
+            .order_by("-created_at")
         )
+        page_obj, preserved_params = paginate_dashboard_queryset(self.request, requests_qs, page_param="portal_page", per_page=10)
+        ctx["recent_requests"] = list(page_obj)
+        ctx["recent_requests_page_obj"] = page_obj
+        ctx["preserved_params"] = preserved_params
         return ctx
 
 
@@ -116,6 +122,7 @@ class RequestCreateView(LoginRequiredMixin, View):
                     severity=d.get("severity", ServiceRequest.Severity.MEDIUM),
                     service_impact=d.get("service_impact", ServiceRequest.Impact.NONE),
                     impact_notes=d.get("impact_notes", ""),
+                    site=d.get("site"),
                     attachments=attachments,
                     override_duplicate=override_dup,
                     override_reason=override_rsn,
@@ -268,6 +275,8 @@ class RequestDetailView(LoginRequiredMixin, View):
                 "confirmation": confirmation,
                 "work_order": wo,
                 "technician_name": tech_name,
+                "sla_commitment": selectors.get_client_sla_indicator(sr),
+                "comments": sr.comments.filter(is_internal=False).select_related("author").order_by("created_at"),
             },
         )
 
@@ -364,6 +373,46 @@ class RequestReopenView(LoginRequiredMixin, View):
         return redirect("portal:request_detail", pk=pk)
 
 
+class PortalCommentCreateView(LoginRequiredMixin, View):
+    """Client / Requester view to add a message to the communication thread."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.tenant_error:
+            return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
+        if request.membership is None:
+            return render(request, "errors/tenant.html", {"code": "no_membership"}, status=403)
+        self.account = selectors.get_portal_account(request.membership)
+        if not self.account or not self.account.is_enabled:
+            return render(request, "errors/tenant.html", {"code": "portal_access_disabled"}, status=403)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        try:
+            sr = selectors.get_client_request(request.membership, pk)
+        except DomainError:
+            raise Http404("Service request not found.")
+        body = (request.POST.get("body") or "").strip()
+        if not body:
+            messages.error(request, "Message cannot be empty.")
+            return redirect("portal:request_detail", pk=pk)
+        from apps.incidents import services as incident_services
+        try:
+            incident_services.add_comment(
+                sr,
+                body=body,
+                actor=request.user,
+                membership=request.membership,
+                is_internal=False,
+                request=request,
+            )
+            messages.success(request, "Your message has been sent to our service team.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+        return redirect("portal:request_detail", pk=pk)
+
+
 class AccountsListView(TenantPermissionMixin, View):
     """Staff management view for organization portal accounts.
 
@@ -402,3 +451,84 @@ class AccountToggleView(TenantPermissionMixin, View):
         )
         return redirect("portal:accounts_list")
 
+
+
+class AccountEditView(TenantPermissionMixin, View):
+    """Staff management view to edit a client portal account.
+
+    Requires portal.manage permission.
+    """
+
+    required_permission = "portal.manage"
+
+    def get(self, request, pk):
+        account = selectors.get_portal_account_by_id(request.organization, pk)
+        if account is None:
+            raise Http404("Portal account not found.")
+
+        user = account.membership.user
+        form = forms.PortalAccountEditForm(initial={
+            "company_name": account.company_name,
+            "full_name": user.full_name,
+            "phone": user.phone,
+            "is_enabled": account.is_enabled,
+            "notes": account.notes,
+        })
+        return render(
+            request,
+            "portal/account_edit.html",
+            {
+                "account": account,
+                "form": form,
+                "org": request.organization,
+            },
+        )
+
+    def post(self, request, pk):
+        account = selectors.get_portal_account_by_id(request.organization, pk)
+        if account is None:
+            raise Http404("Portal account not found.")
+
+        form = forms.PortalAccountEditForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                "portal/account_edit.html",
+                {
+                    "account": account,
+                    "form": form,
+                    "org": request.organization,
+                },
+                status=400,
+            )
+
+        cd = form.cleaned_data
+        user = account.membership.user
+        if user.full_name != cd["full_name"] or user.phone != cd["phone"]:
+            before_user = {"full_name": user.full_name, "phone": user.phone}
+            user.full_name = cd["full_name"]
+            user.phone = cd["phone"]
+            user.save(update_fields=["full_name", "phone"])
+            audit.record(
+                "user.profile_updated",
+                actor=request.user,
+                target=user,
+                target_repr=user.email,
+                before=before_user,
+                after={"full_name": user.full_name, "phone": user.phone},
+                request=request,
+            )
+
+        services.update_portal_account(
+            account,
+            company_name=cd["company_name"],
+            notes=cd["notes"],
+            is_enabled=cd["is_enabled"],
+            actor=request.user,
+        )
+
+        messages.success(
+            request,
+            f"Portal account for {user.email} updated successfully.",
+        )
+        return redirect("portal:accounts_list")

@@ -1,0 +1,300 @@
+{
+  "happy_path": [
+    {
+      "category": "Infrastructure",
+      "name": "Live Health Check",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "{\"status\": \"ok\"}"
+    },
+    {
+      "category": "Infrastructure",
+      "name": "Readiness Health Check (DB & Redis)",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "{\"status\": \"ok\", \"checks\": {\"database\": \"ok\", \"cache\": \"ok\"}}"
+    },
+    {
+      "category": "Infrastructure",
+      "name": "OpenAPI Schema Endpoint",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Size: 602498 bytes"
+    },
+    {
+      "category": "Infrastructure",
+      "name": "Swagger UI Documentation",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Swagger UI loaded"
+    },
+    {
+      "category": "Auth Happy Path",
+      "name": "JWT Token Retrieval (Owner)",
+      "expected": "200 OK with access token",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Token obtained: True"
+    },
+    {
+      "category": "Domain Happy Path",
+      "name": "List Sites (Authenticated)",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Bytes: 1014"
+    },
+    {
+      "category": "Domain Happy Path",
+      "name": "List Assets (Authenticated)",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Bytes: 52"
+    },
+    {
+      "category": "Domain Happy Path",
+      "name": "List Work Orders (Authenticated)",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Bytes: 52"
+    },
+    {
+      "category": "Domain Happy Path",
+      "name": "List Inventory Parts (Authenticated)",
+      "expected": "200 OK",
+      "actual_status": 200,
+      "passed": true,
+      "details": "Bytes: 52"
+    }
+  ],
+  "negative_path": [
+    {
+      "category": "Auth Negative",
+      "name": "Wrong Password Rejection",
+      "expected": "401 Unauthorized",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"No active account found with the given credentials\",\"details\":{},\"reques"
+    },
+    {
+      "category": "Auth Negative",
+      "name": "Unknown User Rejection",
+      "expected": "401 Unauthorized",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"No active account found with the given credentials\",\"details\":{},\"reques"
+    },
+    {
+      "category": "Security Negative",
+      "name": "SQL Injection in Login (Bypass Attempt)",
+      "expected": "400/401 (Fail-Closed, No 500)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"No active account found with the given credentials\",\"details\":{},\"reques"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Tampered JWT Access Rejection",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Given token not valid for any token type\",\"details\":{},\"request_id\":\"541"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/sites/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/assets/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/work-orders/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/workspace/jobs/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/parts/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Anonymous Access Rejection: /api/v1/audit-logs/",
+      "expected": "401 Unauthorized (JSON)",
+      "actual_status": 401,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_authenticated\",\"message\":\"Authentication credentials were not provided.\",\"deta"
+    },
+    {
+      "category": "Security Negative",
+      "name": "Spoofed X-Organization Header",
+      "expected": "403/404 or Scoped",
+      "actual_status": 403,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_a_member\",\"message\":\"You are not a member of this organization.\",\"details\":{},"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Non-Existent UUID -> /api/v1/sites/00000000-0000-4000-8000-000000000099/",
+      "expected": "404 Not Found (JSON)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Site not found.\",\"details\":{},\"request_id\":\"c75065ddf89646f8"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Malformed Non-UUID -> /api/v1/sites/not-a-valid-uuid-attack/",
+      "expected": "404/400 (JSON, No 500)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Site not found.\",\"details\":{},\"request_id\":\"93d4679bf7694a18"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Non-Existent UUID -> /api/v1/assets/00000000-0000-4000-8000-000000000099/",
+      "expected": "404 Not Found (JSON)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Asset not found.\",\"details\":{},\"request_id\":\"0035eb433d4c420"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Malformed Non-UUID -> /api/v1/assets/not-a-valid-uuid-attack/",
+      "expected": "404/400 (JSON, No 500)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Asset not found.\",\"details\":{},\"request_id\":\"51cd86bc00e241d"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Non-Existent UUID -> /api/v1/work-orders/00000000-0000-4000-8000-000000000099/",
+      "expected": "404 Not Found (JSON)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Not found.\",\"details\":{},\"request_id\":\"cb76f0254dc44e8d8ecde"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Malformed Non-UUID -> /api/v1/work-orders/not-a-valid-uuid-attack/",
+      "expected": "404/400 (JSON, No 500)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Not found.\",\"details\":{},\"request_id\":\"7662579f6e8c490d970ba"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Non-Existent UUID -> /api/v1/parts/00000000-0000-4000-8000-000000000099/",
+      "expected": "404 Not Found (JSON)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Part not found.\",\"details\":{},\"request_id\":\"7d285c9bca794f3e"
+    },
+    {
+      "category": "Negative Lookups",
+      "name": "Malformed Non-UUID -> /api/v1/parts/not-a-valid-uuid-attack/",
+      "expected": "404/400 (JSON, No 500)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"not_found\",\"message\":\"Part not found.\",\"details\":{},\"request_id\":\"6044541f0cc34643"
+    },
+    {
+      "category": "Protocol Negative",
+      "name": "PUT on List /api/v1/sites/",
+      "expected": "405 Method Not Allowed",
+      "actual_status": 405,
+      "passed": true,
+      "details": "Status: 405"
+    },
+    {
+      "category": "Protocol Negative",
+      "name": "DELETE on List /api/v1/assets/",
+      "expected": "405 Method Not Allowed",
+      "actual_status": 405,
+      "passed": true,
+      "details": "Status: 405"
+    },
+    {
+      "category": "Payload Negative",
+      "name": "Broken JSON Syntax '{bad json'",
+      "expected": "400 Bad Request",
+      "actual_status": 400,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"parse_error\",\"message\":\"JSON parse error - Expecting property name enclosed in dou"
+    },
+    {
+      "category": "Payload Negative",
+      "name": "Oversized Payload (10,000-char string)",
+      "expected": "400/401 (Graceful reject, No 500)",
+      "actual_status": 400,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"Validation failed.\",\"details\":{\"fields\":{\"email\":[\"E"
+    },
+    {
+      "category": "Payload Negative",
+      "name": "Empty POST Payload on /api/v1/sites/",
+      "expected": "400 Bad Request (Validation)",
+      "actual_status": 400,
+      "passed": true,
+      "details": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"Validation failed.\",\"details\":{\"fields\":{\"code\":[\"Th"
+    },
+    {
+      "category": "CSRF Negative",
+      "name": "UI POST /accounts/login/ Missing CSRF Token",
+      "expected": "403 Forbidden (CSRF Failed)",
+      "actual_status": 403,
+      "passed": true,
+      "details": "Status: 403"
+    },
+    {
+      "category": "Routing Negative",
+      "name": "Unknown API Route /api/v1/... (Must be JSON)",
+      "expected": "404 Not Found (JSON)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "{\"error\": {\"code\": \"not_found\", \"message\": \"Not found.\", \"details\": {}, \"request_id\": \"8e7c61d68a594"
+    },
+    {
+      "category": "Routing Negative",
+      "name": "Unknown UI Route /app/... (Must be HTML)",
+      "expected": "404 Not Found (HTML)",
+      "actual_status": 404,
+      "passed": true,
+      "details": "Content-Type: text/html; charset=utf-8"
+    }
+  ],
+  "summary": {
+    "total": 36,
+    "passed": 36,
+    "failed": 0,
+    "vulnerabilities": 0
+  }
+}

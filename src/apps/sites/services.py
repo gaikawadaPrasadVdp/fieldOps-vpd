@@ -12,7 +12,7 @@ from django.db import IntegrityError, transaction
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, ValidationFailed
 
-from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Site, SiteContact, Zone
+from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Shift, Site, SiteContact, Zone
 from .workflow import ACTIVATION, INACTIVE
 
 SITE_FIELDS = ["code", "name", "description", "address", "city", "state_region", "postal_code", "country",
@@ -461,4 +461,89 @@ def remove_contact(contact: SiteContact, *, actor, request=None):
     contact.delete()
     audit.record("site.contact_removed", actor=actor, organization=org,
                  target_repr=f"Contact {snap['name']} ({pk})", before=snap, metadata={"site": site.code},
+                 request=request)
+
+
+# --- shifts ---------------------------------------------------------------------------------------
+
+SHIFT_FIELDS = ["name", "code", "start_time", "end_time", "is_overnight", "days_of_week", "is_active"]
+
+
+@transaction.atomic
+def create_shift(
+    org,
+    site: Site,
+    *,
+    name: str,
+    code: str,
+    start_time: time,
+    end_time: time,
+    days_of_week: list[int] | None = None,
+    is_overnight: bool | None = None,
+    is_active: bool = True,
+    actor=None,
+    request=None,
+) -> Shift:
+    if site.organization_id != org.pk:
+        raise Conflict("Site does not belong to the specified organization.", code="cross_tenant_site")
+    assert_site_active(site)
+    clean_code = _code(code, what="Shift code")
+    clean_name = (name or "").strip()
+    if not clean_name:
+        raise ValidationFailed("Shift name is required.", code="name_required")
+    if not isinstance(start_time, time) or not isinstance(end_time, time):
+        raise ValidationFailed("Valid start_time and end_time are required.", code="times_required")
+
+    if is_overnight is None:
+        is_overnight = end_time <= start_time
+    if days_of_week is None:
+        days_of_week = [0, 1, 2, 3, 4]
+
+    shift = Shift(
+        organization=org,
+        site=site,
+        name=clean_name,
+        code=clean_code,
+        start_time=start_time,
+        end_time=end_time,
+        is_overnight=is_overnight,
+        days_of_week=days_of_week,
+        is_active=is_active,
+    )
+    _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
+    audit.record("shift.created", actor=actor, organization=org, target=shift,
+                 after=audit.snapshot(shift, SHIFT_FIELDS), metadata={"site": site.code}, request=request)
+    return shift
+
+
+@transaction.atomic
+def update_shift(shift: Shift, *, actor=None, request=None, **changes) -> Shift:
+    changes = _clean(changes, SHIFT_FIELDS)
+    before = audit.snapshot(shift, SHIFT_FIELDS)
+    if "code" in changes:
+        changes["code"] = _code(changes["code"], what="Shift code")
+    if "name" in changes:
+        clean_name = (changes["name"] or "").strip()
+        if not clean_name:
+            raise ValidationFailed("Shift name is required.", code="name_required")
+        changes["name"] = clean_name
+    for k, v in changes.items():
+        if v is not None:
+            setattr(shift, k, v)
+    if "is_overnight" not in changes and ("start_time" in changes or "end_time" in changes):
+        shift.is_overnight = shift.end_time <= shift.start_time
+    _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
+    after = audit.snapshot(shift, SHIFT_FIELDS)
+    if before != after:
+        audit.record("shift.updated", actor=actor, organization=shift.organization, target=shift,
+                     before=before, after=after, metadata={"site": shift.site.code}, request=request)
+    return shift
+
+
+@transaction.atomic
+def delete_shift(shift: Shift, *, actor=None, request=None) -> None:
+    snap, org, site, pk = audit.snapshot(shift, SHIFT_FIELDS), shift.organization, shift.site, shift.pk
+    shift.delete()
+    audit.record("shift.deleted", actor=actor, organization=org,
+                 target_repr=f"Shift {snap['code']} ({pk})", before=snap, metadata={"site": site.code},
                  request=request)

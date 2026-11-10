@@ -11,9 +11,9 @@ from apps.files.models import Attachment
 from apps.rbac import services as rbac
 from apps.sites.selectors import scoped_get
 
-from .models import Downtime, ServiceRequest, ServiceRequestHistory
+from .models import Downtime, ServiceRequest, ServiceRequestComment, ServiceRequestHistory
 
-ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "title": "title", "-title": "-title",
+ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "all": "-created_at", "": "-created_at", "title": "title", "-title": "-title",
              "name": "title", "-name": "-title", "number": "number", "-number": "-number",
              "severity": "severity", "status": "status"}
 
@@ -35,8 +35,8 @@ def requests_for(membership, org, code: str = "incident.view"):
     # Technician templates historically also carried ``incident.view``. Keep the visible request set limited to
     # their own reports and assigned work even if an additive role sync left that older grant in place.
     if code == "incident.view":
-        broader_roles = {"owner", "admin", "operations_manager", "asset_manager", "maintenance_planner",
-                         "supervisor", "stores_manager", "service_manager", "auditor"}
+        broader_roles = {"owner", "admin", "service_dispatcher", "operations_manager", "asset_manager", "maintenance_planner",
+                         "supervisor", "stores_manager", "stores_inventory", "service_manager", "auditor", "compliance"}
         if "technician" in role_keys and not (role_keys & broader_roles):
             code = "incident.view_assigned"
     if code == "incident.view_assigned":
@@ -106,3 +106,13 @@ def evidence_for(org, sr: ServiceRequest):
     return Attachment.objects.for_organization(org).filter(
         content_type=ContentType.objects.get_for_model(ServiceRequest), object_id=str(sr.pk)).select_related(
         "uploaded_by")
+
+
+def comments_for(membership, org, sr: ServiceRequest):
+    qs = ServiceRequestComment.objects.for_organization(org).filter(request=sr).select_related(
+        "author", "author_membership__user"
+    ).order_by("created_at", "id")
+    from apps.ui.utils import is_client_membership
+    if is_client_membership(membership):
+        return qs.filter(is_internal=False)
+    return qs

@@ -1,16 +1,24 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> f8fa01292b92aa77aaf420560a7390683bc0e137
 name: Sync Organization Dev to Personal Main
 
 on:
   push:
     branches:
       - dev
+<<<<<<< HEAD
+=======
+  workflow_dispatch:
+>>>>>>> f8fa01292b92aa77aaf420560a7390683bc0e137
 
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
+<<<<<<< HEAD
       - name: Checkout Organization Dev
         uses: actions/checkout@v4
         with:
@@ -22,3 +30,17 @@ jobs:
           UPDATE_VPD: ${{ secrets.UPDATE_VPD }}
         run: |
           git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-hpe.git HEAD:main
+=======
+            - name: Checkout Organization Dev
+              uses: actions/checkout@v4
+              with:
+                ref: dev
+                fetch-depth: 0
+                persist-credentials: false
+
+            - name: Push to Personal Repository
+              env:
+                UPDATE_VPD: ${{ secrets.UPDATE_VPD }}
+              run: |
+                git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
+>>>>>>> f8fa01292b92aa77aaf420560a7390683bc0e137

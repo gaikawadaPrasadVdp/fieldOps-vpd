@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
 from apps.assets.models import AssetMeter
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import NotFound
 from apps.sites.selectors import scoped_get
@@ -75,6 +76,7 @@ class PlanPatchSerializer(PlanWriteSerializer):
 class ScheduleWriteSerializer(serializers.Serializer):
     trigger_type = serializers.ChoiceField(choices=MaintenanceSchedule.Trigger.choices)
     frequency = serializers.ChoiceField(choices=MaintenanceSchedule.Frequency.choices, required=False)
+    interval = serializers.IntegerField(required=False, min_value=1)
     interval_count = serializers.IntegerField(required=False, min_value=1)
     start_date = serializers.DateField(required=False)
     meter = serializers.UUIDField(required=False)
@@ -84,6 +86,12 @@ class ScheduleWriteSerializer(serializers.Serializer):
     window_start_time = serializers.TimeField(required=False)
     window_hours = serializers.IntegerField(required=False, min_value=1, max_value=24)
     reminder_days = serializers.IntegerField(required=False, min_value=0, max_value=60)
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, "copy") else dict(data)
+        if "interval" in data and "interval_count" not in data:
+            data["interval_count"] = data["interval"]
+        return super().to_internal_value(data)
 
 
 class SchedulePatchSerializer(ScheduleWriteSerializer):
@@ -99,8 +107,8 @@ class CycleSerializer(serializers.ModelSerializer):
     plan = serializers.UUIDField(source="schedule.plan_id", read_only=True)
     plan_name = serializers.CharField(source="schedule.plan.name", read_only=True)
     asset_tag = serializers.CharField(source="schedule.plan.asset.asset_tag", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
-    work_order_status = serializers.CharField(source="work_order.status", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
+    work_order_status = serializers.CharField(source="work_order.status", read_only=True, default=None, allow_null=True)
     state = serializers.SerializerMethodField(help_text="GENERATED | ASSIGNED | COMPLETED | VERIFIED | CANCELLED")
 
     class Meta:
@@ -134,6 +142,7 @@ def _resolve_meter(request, plan, value):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "create": "maintenance.create",
         "partial_update": "maintenance.update", "enable": "maintenance.update", "disable": "maintenance.update",
@@ -148,7 +157,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("q", "name / asset"), query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID), query_param("active", "1 / 0")],
-                   responses=PlanSerializer(many=True))
+                   responses=PlanSerializer)
     def list(self, request):
         qs = selectors.filter_plans(selectors.plans_for(request.membership, request.organization),
                                     request.query_params)
@@ -205,6 +214,7 @@ class MaintenancePlanViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "maintenance.view", "retrieve": "maintenance.view", "partial_update": "maintenance.update",
         "enable": "maintenance.update", "disable": "maintenance.update", "generate": "maintenance.generate",
@@ -219,7 +229,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("state", "DISABLED | DUE | SCHEDULED")],
-                   responses=ScheduleSerializer(many=True))
+                   responses=ScheduleSerializer)
     def list(self, request):
         qs = selectors.schedules_for(request.membership, request.organization)
         plan = (request.query_params.get("plan") or "").strip()
@@ -280,6 +290,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "maintenance.view", "retrieve": "maintenance.view", "compliance": "maintenance.view"}
 
     @extend_schema(
@@ -307,7 +318,7 @@ class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("schedule", "schedule id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=CycleSerializer(many=True))
+                   responses=CycleSerializer)
     def list(self, request):
         qs = selectors.filter_cycles(selectors.cycles_for(request.membership, request.organization),
                                      request.query_params)

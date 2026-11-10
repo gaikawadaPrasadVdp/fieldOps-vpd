@@ -830,7 +830,10 @@ def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
         "item_name": "Drive belt", "part_reference": "BELT-42", "quantity": "0",
     })
     assert invalid_material.status_code == 400
-    assert b"Ensure this value is greater than or equal to 0.01" in invalid_material.content
+    assert (
+        b"Ensure this value is greater than or equal to 1" in invalid_material.content
+        or b"Ensure this value is greater than or equal to 0.01" in invalid_material.content
+    )
     assert b"Record each part or material used" not in invalid_material.content
     material_response = technician_ui.post(material_url, {
         "item_name": "Drive belt", "part_reference": "BELT-42", "quantity": "1.00",

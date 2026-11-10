@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -57,6 +57,13 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
         summary="Get operational dashboard section metrics",
         description="Returns real aggregated metrics for a section with date window and site filters.",
         parameters=[
+            OpenApiParameter(
+                "section",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Dashboard section",
+                enum=["operations", "assets", "maintenance", "service", "inventory", "my-work"],
+            ),
             query_param("from", "Start date (YYYY-MM-DD), defaults to 30 days ago"),
             query_param("to", "End date (YYYY-MM-DD), defaults to today"),
             query_param("site", "Specific site UUID or code filter"),
@@ -136,3 +143,73 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
             "data": data,
         }
         return Response(response_payload, status=status.HTTP_200_OK)
+
+
+from .models import ReportSnapshot
+from .serializers import ReportSnapshotSerializer, GenerateSnapshotSerializer
+from . import services
+
+
+class SnapshotListAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "report.view", "post": "report.view"}
+
+    @extend_schema(
+        summary="List dashboard report snapshots",
+        parameters=[
+            query_param("snapshot_type", "Filter by snapshot type (DAILY, WEEKLY, MONTHLY)"),
+            query_param("section", "Filter by dashboard section"),
+        ],
+        responses={200: ReportSnapshotSerializer(many=True)},
+    )
+    def get(self, request):
+        snapshot_type = request.query_params.get("snapshot_type")
+        section = request.query_params.get("section")
+        snapshots = services.get_snapshot_history(
+            request.organization,
+            snapshot_type=snapshot_type,
+            section=section,
+        )
+        return Response(ReportSnapshotSerializer(snapshots, many=True).data)
+
+    @extend_schema(
+        summary="Generate a dashboard report snapshot",
+        request=GenerateSnapshotSerializer,
+        responses={201: ReportSnapshotSerializer},
+    )
+    def post(self, request):
+        serializer = GenerateSnapshotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        site = None
+        if data.get("site_id"):
+            from apps.sites.models import Site
+            site = Site.objects.filter(organization=request.organization, pk=data["site_id"]).first()
+
+        snapshot = services.create_report_snapshot(
+            request.organization,
+            snapshot_type=data["snapshot_type"],
+            section=data["section"],
+            period_start=data["period_start"],
+            period_end=data["period_end"],
+            site=site,
+            actor=request.user,
+            notes=data.get("notes", ""),
+            request=request,
+        )
+        return Response(ReportSnapshotSerializer(snapshot).data, status=status.HTTP_201_CREATED)
+
+
+class SnapshotDetailAPIView(TenantAPIMixin, APIView):
+    permission_map = {"get": "report.view"}
+
+    @extend_schema(
+        summary="Retrieve a dashboard report snapshot",
+        responses={200: ReportSnapshotSerializer},
+    )
+    def get(self, request, pk):
+        from rest_framework.exceptions import NotFound
+        snapshot = ReportSnapshot.objects.filter(organization=request.organization, pk=pk).first()
+        if not snapshot:
+            raise NotFound("Report snapshot not found.")
+        return Response(ReportSnapshotSerializer(snapshot).data)

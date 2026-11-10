@@ -970,6 +970,32 @@ class M14DashboardUIViewTests(TestCase):
         self.assertContains(res, "Stocked SKU Lines")
         self.assertEqual(res.context["section"], "inventory")
 
+    def test_hub_view_inventory_dispatcher_role(self):
+        """Dispatcher (with inventory.view and report.view) accesses inventory dashboard tab."""
+        disp_user = User.objects.create_user(
+            email="dispatcher.ui@alpha-ui.test",
+            password="Password123!",
+            full_name="Dispatcher UI",
+        )
+        disp_m = Membership.objects.create(
+            organization=self.org_a,
+            user=disp_user,
+            status=Membership.Status.ACTIVE,
+        )
+        disp_role = rbac.system_role_by_key(self.org_a, "service_dispatcher")
+        rbac.set_membership_roles(disp_m, [disp_role], actor=None, system=True)
+
+        disp_client = Client(headers={"host": "localhost"})
+        disp_client.force_login(disp_user)
+        session = disp_client.session
+        session["active_org_id"] = str(self.org_a.pk)
+        session.save()
+
+        res = disp_client.get("/app/dashboards/?section=inventory&from=2026-10-06&to=2026-11-05")
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Stocked SKU Lines")
+        self.assertEqual(res.context["section"], "inventory")
+
     def test_hub_view_filters(self):
         """Date and site query parameters are applied to the hub context."""
         res = self.mgr_client.get(f"/app/dashboards/?section=operations&site={self.site_a1.pk}&from=2026-01-01&to=2026-01-15")

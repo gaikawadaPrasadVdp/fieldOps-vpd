@@ -10,7 +10,14 @@ from .models import Notification
 @shared_task(name="apps.notifications.tasks.send_notification_email", autoretry_for=(OSError,),
              retry_backoff=True, max_retries=5)
 def send_notification_email(notification_ids: list[str]):
+    email_backend = getattr(settings, "EMAIL_BACKEND", "").lower()
+    suppress_reserved = "locmem" not in email_backend
     for n in Notification.objects.filter(pk__in=notification_ids).select_related("recipient", "organization"):
+        email_lower = n.recipient.email.lower()
+        if suppress_reserved and any(
+            email_lower.endswith(dom) for dom in (".example", ".example.com", ".test", ".invalid", "@example.com")
+        ):
+            continue
         with tenant_context(n.organization):
             link = f"\n\n{settings.SITE_BASE_URL.rstrip('/')}{n.link}" if n.link else ""
             send_mail(

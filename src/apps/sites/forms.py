@@ -3,7 +3,7 @@ import zoneinfo
 
 from django import forms
 
-from apps.ui.forms import BootstrapFormMixin
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_name
 
 from .geo_data import (
     CITIES_BY_STATE,
@@ -46,7 +46,9 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. Main Plant & Headquarters",
             "required": "required",
-            "minlength": "2"
+            "minlength": "2",
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Site name must contain only alphabetical characters.",
         })
     )
     description = forms.CharField(
@@ -113,7 +115,11 @@ class SiteForm(BootstrapFormMixin, forms.Form):
     contact_name = forms.CharField(
         max_length=150,
         required=False,
-        widget=forms.TextInput(attrs={"placeholder": "e.g. Rajesh Kumar"})
+        widget=forms.TextInput(attrs={
+            "placeholder": "e.g. Rajesh Kumar",
+            "pattern": r"^[A-Za-z\s'-]+$",
+            "title": "Contact name must contain only alphabetical characters.",
+        })
     )
     contact_email = forms.EmailField(
         required=False,
@@ -128,7 +134,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         data = self.data or self.initial
-        country = "IN"
+        country = ""
         if data:
             c = (data.get("country") or "").strip().upper()
             if c:
@@ -140,8 +146,11 @@ class SiteForm(BootstrapFormMixin, forms.Form):
                 self.fields["timezone"].choices = list(self.fields["timezone"].choices) + [(tz, tz)]
 
         # Dynamically build State choices
-        states = STATES_BY_COUNTRY.get(country, [])
-        state_choices = [("", "Select State / Region...")] + [(s, s) for s in states]
+        if country:
+            states = STATES_BY_COUNTRY.get(country, [])
+            state_choices = [("", "Select State / Region...")] + [(s, s) for s in states]
+        else:
+            state_choices = [("", "Select State / Region...")]
         curr_state = (data.get("state_region") or "").strip() if data else ""
         if curr_state and curr_state not in [s for s, _ in state_choices]:
             state_choices.append((curr_state, curr_state))
@@ -151,10 +160,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         city_choices = [("", "Select City...")]
         if curr_state and curr_state in CITIES_BY_STATE:
             city_choices += [(c, c) for c in CITIES_BY_STATE[curr_state]]
-        elif country == "IN":
-            # Provide sample major cities if no state selected yet
-            top_cities = ["Bengaluru", "Mumbai", "New Delhi", "Chennai", "Hyderabad", "Kolkata", "Pune", "Ahmedabad"]
-            city_choices += [(c, c) for c in top_cities]
+        
         curr_city = (data.get("city") or "").strip() if data else ""
         if curr_city and curr_city not in [c for c, _ in city_choices]:
             city_choices.append((curr_city, curr_city))
@@ -171,16 +177,8 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         return code
 
     def clean_name(self):
-        name = (self.cleaned_data.get("name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Site name is required.")
-        if len(name) < 2:
-            raise forms.ValidationError("Site name must be at least 2 characters long.")
-        if len(name) > 150:
-            raise forms.ValidationError("Site name must not exceed 150 characters.")
-        if name.isdigit():
-            raise forms.ValidationError("Site name cannot consist solely of digits.")
-        return name
+        name = self.cleaned_data.get("name")
+        return validate_alphabetical_name(name, field_label="Site name", min_len=2)
 
     def clean_country(self):
         country = (self.cleaned_data.get("country") or "").strip().upper()
@@ -220,6 +218,8 @@ class SiteForm(BootstrapFormMixin, forms.Form):
             raise forms.ValidationError("City name must be at least 2 characters.")
         if len(city) > 100:
             raise forms.ValidationError("City must not exceed 100 characters.")
+        if any(c.isdigit() for c in city):
+            raise forms.ValidationError("City name must contain only alphabetical characters and cannot contain numbers.")
         return city
 
     def clean_postal_code(self):
@@ -248,18 +248,25 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         postal = (cleaned_data.get("postal_code") or "").strip()
 
         if country == "IN":
-            if not state:
+            if not state and "state_region" not in self.errors:
                 self.add_error("state_region", "State / region is required for Indian sites.")
-            if not city:
+            if not city and "city" not in self.errors:
                 self.add_error("city", "City is required for Indian sites.")
-            if not postal:
+            if not postal and "postal_code" not in self.errors:
                 self.add_error("postal_code", "PIN code is required for Indian sites.")
 
             # Validate PIN code against state postal circle
             if state and postal and re.fullmatch(r"^[1-9][0-9]{5}$", postal):
-                is_valid, err_msg = validate_india_pincode(state, postal)
-                if not is_valid:
-                    self.add_error("postal_code", err_msg)
+                if "postal_code" not in self.errors:
+                    is_valid, err_msg = validate_india_pincode(state, postal)
+                    if not is_valid:
+                        self.add_error("postal_code", err_msg)
+
+            # Validate city belongs to selected state
+            if state and city and state in CITIES_BY_STATE:
+                valid_cities = CITIES_BY_STATE[state]
+                if city not in valid_cities and "city" not in self.errors:
+                    self.add_error("city", f"'{city}' is not a recognized city in {state}.")
 
             # Check if city belongs to the selected state
             if city and state:
@@ -267,7 +274,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
                 if expected_state:
                     norm_expected = "Delhi" if "Delhi" in expected_state else expected_state
                     norm_state = "Delhi" if "Delhi" in state else state
-                    if norm_expected != norm_state:
+                    if norm_expected != norm_state and "city" not in self.errors:
                         self.add_error("city", f"'{city}' is located in {expected_state}, but '{state}' was selected as State.")
 
         return cleaned_data
@@ -275,6 +282,8 @@ class SiteForm(BootstrapFormMixin, forms.Form):
     def clean_contact_phone(self):
         phone = (self.cleaned_data.get("contact_phone") or "").strip()
         if phone:
+            if any(c.isalpha() for c in phone):
+                raise forms.ValidationError("Phone number cannot contain letters.")
             digits = [c for c in phone if c.isdigit()]
             if len(digits) < 7:
                 raise forms.ValidationError("Phone number must contain at least 7 digits.")
@@ -289,10 +298,8 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         return email
 
     def clean_contact_name(self):
-        c_name = (self.cleaned_data.get("contact_name") or "").strip()
-        if c_name and len(c_name) < 2:
-            raise forms.ValidationError("Contact name must be at least 2 characters.")
-        return c_name
+        c_name = self.cleaned_data.get("contact_name")
+        return validate_alphabetical_name(c_name, field_label="Contact name", min_len=2, required=False)
 
     def clean_address(self):
         address = (self.cleaned_data.get("address") or "").strip()

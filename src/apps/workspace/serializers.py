@@ -1,10 +1,13 @@
 from decimal import Decimal
 from rest_framework import serializers
 
-from .models import TravelLog, WorkNote
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 
 class TravelLogSerializer(serializers.ModelSerializer):
+    work_order_id = serializers.UUIDField(read_only=True)
+    technician_id = serializers.UUIDField(read_only=True)
+    labor_entry_id = serializers.UUIDField(read_only=True, allow_null=True)
     technician_name = serializers.CharField(source="technician.user.display_name", read_only=True)
     technician_email = serializers.CharField(source="technician.user.email", read_only=True)
 
@@ -43,7 +46,9 @@ class PauseJobSerializer(serializers.Serializer):
 
 
 class WorkNoteSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source="author.user.display_name", read_only=True)
+    work_order_id = serializers.UUIDField(read_only=True)
+    author_id = serializers.UUIDField(read_only=True)
+    author_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = WorkNote
@@ -57,9 +62,29 @@ class WorkNoteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_author_name(self, obj) -> str:
+        author = getattr(obj, "author", None)
+        user = getattr(author, "user", None) if author else None
+        if user:
+            return getattr(user, "display_name", None) or getattr(user, "full_name", None) or getattr(user, "email", "")
+        return ""
+
 
 class WorkNoteWriteSerializer(serializers.Serializer):
-    body = serializers.CharField(min_length=1, max_length=2000)
+    body = serializers.CharField(required=False, allow_blank=True)
+    note = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    text = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        val = attrs.get("body") or attrs.get("note") or attrs.get("notes") or attrs.get("text") or ""
+        val = val.strip()
+        if not val:
+            raise serializers.ValidationError({"body": ["This field may not be blank."]})
+        if len(val) > 2000:
+            raise serializers.ValidationError({"body": ["This field may not exceed 2000 characters."]})
+        attrs["body"] = val
+        return attrs
 
 
 class CompleteJobSerializer(serializers.Serializer):
@@ -97,6 +122,8 @@ class TechnicianJobSummarySerializer(serializers.Serializer):
 
 
 class JobMaterialSerializer(serializers.ModelSerializer):
+    work_order_id = serializers.UUIDField(read_only=True)
+
     class Meta:
         from apps.workorders.models import WorkOrderMaterial
 
@@ -122,11 +149,18 @@ class JobMaterialWriteSerializer(serializers.Serializer):
 
 
 class JobEvidenceSerializer(serializers.ModelSerializer):
+    work_order_id = serializers.UUIDField(read_only=True)
+    attachment_id = serializers.UUIDField(read_only=True)
     original_name = serializers.CharField(source="attachment.original_name", read_only=True)
     size = serializers.IntegerField(source="attachment.size", read_only=True)
     mime_type = serializers.CharField(source="attachment.mime_type", read_only=True)
     description = serializers.CharField(source="attachment.description", read_only=True)
-    file_url = serializers.FileField(source="attachment.file", read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj) -> str:
+        if obj.attachment_id:
+            return f"/app/files/{obj.attachment_id}/download/"
+        return ""
     uploader_name = serializers.CharField(source="attachment.uploaded_by.display_name", read_only=True)
 
     class Meta:
@@ -189,7 +223,7 @@ class WorkOrderSignoffSerializer(serializers.Serializer):
     customer_notes = serializers.CharField(allow_blank=True)
     technician_notes = serializers.CharField(allow_blank=True)
 
-    def get_signature_url(self, obj):
+    def get_signature_url(self, obj) -> str | None:
         if obj.signature_attachment and obj.signature_attachment.file:
             return obj.signature_attachment.file.url
         return None
@@ -266,3 +300,94 @@ class JobReportDefectSerializer(serializers.Serializer):
 
 
 
+
+
+class ShiftSerializer(serializers.ModelSerializer):
+    site_id = serializers.UUIDField(read_only=True, allow_null=True)
+    duration_hours = serializers.DecimalField(max_digits=4, decimal_places=2, read_only=True)
+    site_name = serializers.CharField(source="site.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Shift
+        fields = [
+            "id",
+            "code",
+            "name",
+            "start_time",
+            "end_time",
+            "duration_hours",
+            "days_of_week",
+            "site_id",
+            "site_name",
+            "is_active",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ShiftWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shift
+        fields = [
+            "code",
+            "name",
+            "start_time",
+            "end_time",
+            "days_of_week",
+            "site",
+            "is_active",
+            "notes",
+        ]
+
+
+class TechnicianProfileSerializer(serializers.ModelSerializer):
+    membership_id = serializers.UUIDField(read_only=True)
+    shift_id = serializers.UUIDField(read_only=True, allow_null=True)
+    primary_site_id = serializers.UUIDField(read_only=True, allow_null=True)
+    full_name = serializers.CharField(source="membership.user.full_name", read_only=True)
+    email = serializers.CharField(source="membership.user.email", read_only=True)
+    shift_name = serializers.CharField(source="shift.name", read_only=True, allow_null=True)
+    site_name = serializers.CharField(source="primary_site.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = TechnicianProfile
+        fields = [
+            "id",
+            "membership_id",
+            "full_name",
+            "email",
+            "shift_id",
+            "shift_name",
+            "primary_site_id",
+            "site_name",
+            "skills",
+            "certifications",
+            "hourly_rate",
+            "max_active_jobs",
+            "availability_status",
+            "emergency_contact",
+            "emergency_phone",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class TechnicianProfileWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TechnicianProfile
+        fields = [
+            "shift",
+            "primary_site",
+            "skills",
+            "certifications",
+            "hourly_rate",
+            "max_active_jobs",
+            "availability_status",
+            "emergency_contact",
+            "emergency_phone",
+            "notes",
+        ]

@@ -30,30 +30,30 @@ FieldOps Nexus{% endblock %} {% block content %}
     /><button class="btn btn-sm btn-outline-secondary">Search</button>
   </form>
   <div class="table-responsive">
-    <table class="table fx-table" id="providers-table">
+    <table class="table fx-table" id="providers-table" style="table-layout: auto;">
       <thead>
         <tr>
-          <th>Name</th>
+          <th style="min-width: 220px;">Name</th>
           <th>Contact</th>
           <th>Email</th>
           <th>Phone</th>
           <th>Status</th>
-          <th></th>
+          <th class="text-end" style="min-width: 140px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for p in page %}
         <tr>
-          <td>{{ p.name }}</td>
-          <td>{{ p.contact_name|default:"—" }}</td>
-          <td>{{ p.email|default:"—" }}</td>
-          <td>{{ p.phone|default:"—" }}</td>
+          <td style="max-width: 280px; word-break: break-word; overflow-wrap: anywhere;" class="fw-medium text-dark">{{ p.name }}</td>
+          <td style="max-width: 180px; word-break: break-word;">{{ p.contact_name|default:"—" }}</td>
+          <td style="max-width: 200px; word-break: break-word;">{{ p.email|default:"—" }}</td>
+          <td style="white-space: nowrap;">{{ p.phone|default:"—" }}</td>
           <td>
             {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
           </td>
-          <td>
+          <td class="text-end">
             {% if can_update %}
-            <div class="d-flex gap-1">
+            <div class="d-flex gap-1 justify-content-end">
               <a
                 class="btn btn-sm btn-outline-primary"
                 href="{% url 'contracts:provider_edit' p.pk %}"

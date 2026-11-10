@@ -12,8 +12,9 @@ PASSWORD = "Correct-Horse-Battery-9"  # test-only value
 
 @pytest.fixture
 def platform_admin(db):
-    return User.objects.create_user(email="root@platform.test", password=PASSWORD, full_name="Root Admin",
-                                    is_platform_admin=True)
+    return User.objects.filter(email="root@platform.test").first() or User.objects.create_user(
+        email="root@platform.test", password=PASSWORD, full_name="Root Admin",
+        is_platform_admin=True)
 
 
 def _activate(membership):
@@ -241,3 +242,36 @@ def sla_(p3, make_member):
         sla.create_rule(profile, target_kind=kind, trigger=trig, notify_role=role, after_minutes=after, level=2,
                         actor=svc.user)
     return {**p3, "svc": svc, "profile": profile, "ops_role": ops_role, "svc_role": svc_role}
+
+
+@pytest.fixture
+def make_portal_client(db):
+    from apps.portal.models import PortalAccount
+    from apps.rbac import services as rbac
+    def _make(org, email="client.test@acme.test", company_name="Acme Corporation"):
+        user = User.objects.filter(email=email).first() or User.objects.create_user(
+            email=email,
+            password=PASSWORD,
+            full_name="Portal Tester",
+        )
+        membership, _ = Membership.objects.unscoped().get_or_create(
+            organization=org,
+            user=user,
+            defaults={"status": Membership.Status.ACTIVE, "job_title": "Requester"},
+        )
+        membership.status = Membership.Status.ACTIVE
+        membership.save(update_fields=["status"])
+
+        role = rbac.system_role_by_key(org, "client_requester")
+        rbac.set_membership_roles(membership, [role], actor=None, system=True)
+
+        account, _ = PortalAccount.objects.unscoped().get_or_create(
+            organization=org,
+            membership=membership,
+            defaults={"company_name": company_name, "is_enabled": True},
+        )
+        account.is_enabled = True
+        account.save(update_fields=["is_enabled"])
+        return user, membership, account
+
+    return _make

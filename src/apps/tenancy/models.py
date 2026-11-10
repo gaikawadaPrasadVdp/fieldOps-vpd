@@ -87,6 +87,11 @@ class Membership(TenantOwnedModel):
     def __str__(self):
         return f"{self.user.email} @ {self.organization.slug}"
 
+    def save(self, *args, **kwargs):
+        if hasattr(self, 'activated_at') and self.status == self.Status.ACTIVE and getattr(self, 'activated_at', None) is None:
+            self.activated_at = timezone.now()
+        super().save(*args, **kwargs)
+
     @property
     def is_active(self):
         return self.status == self.Status.ACTIVE

@@ -1,8 +1,18 @@
-{% comment %} Expects `transitions`: list of {action,label,url,confirm,style,reason}; each is a real POST to a server endpoint that
-   re-validates permission, tenant, object and state. Only transitions valid for the current state are passed. {% endcomment %}
-{% if transitions %}<div class="fx-workflow-bar" role="group" aria-label="Workflow actions">
-  <span class="small fw-semibold me-2">Next:</span>
-  {% for t in transitions %}<form method="post" action="{{ t.url }}" class="m-0 d-flex gap-1">{% csrf_token %}
-    {% if t.reason %}<input class="form-control form-control-sm" style="width:12rem" name="reason" required minlength="3" maxlength="500" placeholder="Reason (required)" aria-label="Reason for {{ t.label }}">{% endif %}
-    <button class="btn btn-sm btn-{{ t.style|default:'primary' }}" {% if t.confirm %}data-confirm="{{ t.confirm }}"{% endif %}>{{ t.label }}</button></form>{% endfor %}
-</div>{% endif %}
+{% load ui_tags %}
+{# Standardized Enterprise ERP Workflow Bar Component #}
+{# Expects `transitions`: list of {action,label,url,confirm,style,reason} #}
+{% if transitions %}
+<div class="fx-workflow-bar d-flex flex-wrap align-items-center gap-2 p-2 bg-light border rounded-3 mb-3" role="group" aria-label="Workflow actions">
+  <span class="small fw-bold text-secondary text-uppercase ms-1 me-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Workflow Actions:</span>
+  {% for t in transitions %}
+    <form method="post" action="{{ t.url }}" class="m-0 d-inline-flex align-items-center gap-1">{% csrf_token %}
+      {% if t.reason %}
+        <input class="form-control form-control-sm" style="width:14rem" name="reason" required minlength="3" maxlength="500" placeholder="Reason (required)" aria-label="Reason for {{ t.label }}" pattern="^[^0-9]+$" title="Reason must contain only alphabetical characters and cannot contain numbers.">
+      {% endif %}
+      <button class="btn btn-sm btn-{{ t.style|default:'primary' }} d-inline-flex align-items-center gap-1 shadow-sm" {% if t.confirm %}data-confirm="{{ t.confirm }}"{% endif %}>
+        {% if t.icon %}{% icon t.icon 14 %}{% endif %} {{ t.label }}
+      </button>
+    </form>
+  {% endfor %}
+</div>
+{% endif %}

@@ -73,11 +73,23 @@
                 {{ form.title.label }} <span class="text-danger">*</span>
               </label>
               {{ form.title }}
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.title.errors %} d-block{% else %} d-none{% endif %}" id="title-error">{% if form.title.errors %}{{ form.title.errors.0 }}{% endif %}</div>
               {% if form.title.help_text %}
               <div class="form-text text-body-secondary">{{ form.title.help_text }}</div>
               {% endif %}
-              {% if form.title.errors %}
-              <div class="text-danger small mt-1">{{ form.title.errors.0 }}</div>
+            </div>
+
+            <!-- Site / Location Filter -->
+            <div class="mb-3">
+              <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">
+                {{ form.site.label }}
+              </label>
+              {{ form.site }}
+              {% if form.site.help_text %}
+              <div class="form-text text-body-secondary">{{ form.site.help_text }}</div>
+              {% endif %}
+              {% if form.site.errors %}
+              <div class="text-danger small mt-1">{{ form.site.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -93,6 +105,7 @@
               </div>
               {% endif %}
               {{ form.asset }}
+              
               {% if form.asset.help_text %}
               <div class="form-text text-body-secondary">{{ form.asset.help_text }}</div>
               {% endif %}
@@ -108,11 +121,9 @@
                 {{ form.description.label }}
               </label>
               {{ form.description }}
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.description.errors %} d-block{% else %} d-none{% endif %}" id="description-error">{% if form.description.errors %}{{ form.description.errors.0 }}{% endif %}</div>
               {% if form.description.help_text %}
               <div class="form-text text-body-secondary">{{ form.description.help_text }}</div>
-              {% endif %}
-              {% if form.description.errors %}
-              <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -152,11 +163,9 @@
                 {{ form.impact_notes.label }}
               </label>
               {{ form.impact_notes }}
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.impact_notes.errors %} d-block{% else %} d-none{% endif %}" id="impact_notes-error">{% if form.impact_notes.errors %}{{ form.impact_notes.errors.0 }}{% endif %}</div>
               {% if form.impact_notes.help_text %}
               <div class="form-text text-body-secondary">{{ form.impact_notes.help_text }}</div>
-              {% endif %}
-              {% if form.impact_notes.errors %}
-              <div class="text-danger small mt-1">{{ form.impact_notes.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -228,4 +237,155 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  const siteSelect = document.getElementById("id_site");
+  const assetSelect = document.getElementById("id_asset");
+  if (!siteSelect || !assetSelect) return;
+
+  const noAssetsMsg = document.getElementById("portal-no-site-assets-msg");
+
+  // Cache initial asset choices with their site association
+  const initialAssetOptions = Array.from(assetSelect.options).map(function (opt) {
+    return {
+      value: opt.value,
+      text: opt.textContent,
+      siteId: opt.dataset.siteId || "",
+    };
+  });
+
+  function filterAssets() {
+    const selectedSiteId = siteSelect.value;
+    const currentAssetVal = assetSelect.value;
+
+    assetSelect.innerHTML = "";
+
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = selectedSiteId
+      ? "Select an asset at this location..."
+      : "Select a related asset...";
+    assetSelect.appendChild(defaultOpt);
+
+    let matchCount = 0;
+    let retainedCurrent = false;
+
+    initialAssetOptions.forEach(function (item) {
+      if (!item.value) return;
+      if (!selectedSiteId || item.siteId === selectedSiteId) {
+        const opt = document.createElement("option");
+        opt.value = item.value;
+        opt.textContent = item.text;
+        if (item.siteId) {
+          opt.dataset.siteId = item.siteId;
+        }
+        if (item.value === currentAssetVal) {
+          opt.selected = true;
+          retainedCurrent = true;
+        }
+        assetSelect.appendChild(opt);
+        matchCount++;
+      }
+    });
+
+    if (!retainedCurrent && currentAssetVal) {
+      assetSelect.value = "";
+    }
+
+    if (noAssetsMsg) {
+      noAssetsMsg.hidden = !(selectedSiteId && matchCount === 0);
+    }
+  }
+
+  siteSelect.addEventListener("change", filterAssets);
+
+  // If a site is pre-selected, apply filter on load
+  if (siteSelect.value) {
+    filterAssets();
+  }
+
+  // Real-time client-side alphabetical validations ensuring strictly a SINGLE error message
+  function setupAlphaValidation(inputEl, errorId, labelName) {
+    if (!inputEl) return;
+    const errorEl = document.getElementById(errorId);
+    const parent = inputEl.closest(".mb-3") || inputEl.parentElement;
+
+    function setFieldError(msg) {
+      if (msg) {
+        inputEl.setCustomValidity(msg);
+        inputEl.classList.add("is-invalid");
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.style.display = "block";
+          errorEl.classList.add("d-block");
+        }
+      } else {
+        inputEl.setCustomValidity("");
+        inputEl.classList.remove("is-invalid");
+        if (errorEl) {
+          errorEl.textContent = "";
+          errorEl.style.display = "none";
+          errorEl.classList.remove("d-block");
+        }
+      }
+      if (parent) {
+        const extraDivs = parent.querySelectorAll("div.field-error-message, div.invalid-feedback, div.text-danger");
+        for (let i = 0; i < extraDivs.length; i++) {
+          if (errorEl && extraDivs[i] !== errorEl) {
+            extraDivs[i].remove();
+          }
+        }
+      }
+    }
+
+    function validate() {
+      const val = inputEl.value.trim();
+      if (!val) {
+        setFieldError("");
+        return;
+      }
+      if (/\d/.test(val)) {
+        setFieldError(labelName + " must contain only alphabetical characters and cannot contain numbers.");
+      } else {
+        setFieldError("");
+      }
+    }
+
+    inputEl.addEventListener("input", validate);
+    inputEl.addEventListener("change", validate);
+  }
+
+  const titleEl = document.getElementById("id_title");
+  const descEl = document.getElementById("id_description");
+  const impactEl = document.getElementById("id_impact_notes");
+
+  setupAlphaValidation(titleEl, "title-error", "Request Title / Subject");
+  setupAlphaValidation(descEl, "description-error", "Problem Description");
+  setupAlphaValidation(impactEl, "impact_notes-error", "Impact Notes");
+
+  const formEl = document.getElementById("portalRequestForm");
+  if (formEl) {
+    formEl.addEventListener("submit", function(e) {
+      if (titleEl && /\d/.test(titleEl.value.trim())) {
+        e.preventDefault();
+        titleEl.focus();
+        return;
+      }
+      if (descEl && /\d/.test(descEl.value.trim())) {
+        e.preventDefault();
+        descEl.focus();
+        return;
+      }
+      if (impactEl && /\d/.test(impactEl.value.trim())) {
+        e.preventDefault();
+        impactEl.focus();
+        return;
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

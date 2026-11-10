@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
@@ -12,6 +12,11 @@ from apps.assets.api_views import (
     MeterViewSet,
 )
 from apps.audit.api_views import AuditLogViewSet
+from apps.checklists.api_views import (
+    ChecklistTemplateViewSet,
+    FindingViewSet,
+    InspectionViewSet,
+)
 from apps.contracts.api_views import (
     AgreementViewSet,
     CoverageCheckViewSet,
@@ -19,6 +24,7 @@ from apps.contracts.api_views import (
     ProviderViewSet,
 )
 from apps.core import health
+from apps.core.api_views import IntegrationEventViewSet, WebhookEndpointViewSet
 from apps.identification.api_views import IdentifierViewSet
 from apps.incidents.api_views import ServiceRequestViewSet
 from apps.inventory.api_views import (
@@ -41,17 +47,19 @@ from apps.sites.api_views import (
     CalendarViewSet,
     ContactViewSet,
     HolidayViewSet,
+    ShiftViewSet,
     SiteViewSet,
     ZoneViewSet,
 )
 from apps.sla.api_views import (
+    EscalationViewSet,
     SLABreachViewSet,
     SLAMetricsView,
     SLAProfileViewSet,
     SLATrackingViewSet,
 )
 from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformOrganizationViewSet, PlatformUserViewSet
-from apps.workorders.views import WorkOrderViewSet
+from apps.workorders.views import TechnicianProfileViewSet, WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
 router = SimpleRouter()
@@ -63,6 +71,8 @@ router.register("audit-logs", AuditLogViewSet, basename="auditlog")
 router.register("notifications", NotificationViewSet, basename="notification")
 router.register("sites", SiteViewSet, basename="site")
 router.register("zones", ZoneViewSet, basename="zone")
+router.register("shifts", ShiftViewSet, basename="shift")
+router.register("technician-profiles", TechnicianProfileViewSet, basename="technician-profile")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
@@ -73,12 +83,37 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
+router.register("requests", ServiceRequestViewSet, basename="requests")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
 router.register("warranties", AgreementViewSet, basename="warranty")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
+router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
+router.register("slas", SLAProfileViewSet, basename="sla")
+router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
+router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
+router.register("breaches", SLABreachViewSet, basename="breach")
+router.register("escalations", EscalationViewSet, basename="escalation")
+router.register("sla-escalations", EscalationViewSet, basename="sla-escalation")
+router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenance-plan")
+router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
+router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
+router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
+router.register("parts", PartViewSet, basename="part")
+router.register("warehouses", WarehouseViewSet, basename="warehouse")
+router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
+router.register("stocks", StockBalanceViewSet, basename="stocks")
+router.register("stock-movements", StockMovementViewSet, basename="stock-movement")
+router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
+router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
+router.register("work-orders", WorkOrderViewSet, basename="work-order")
+router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
+router.register("inspections", InspectionViewSet, basename="inspection")
+router.register("findings", FindingViewSet, basename="finding")
+router.register("integration-events", IntegrationEventViewSet, basename="integration-event")
+router.register("webhooks", WebhookEndpointViewSet, basename="webhook")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
@@ -99,8 +134,8 @@ api_v1 = [
     path("", include("apps.workspace.api_urls")),
     path("", include("apps.dashboards.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    path("schema/", SpectacularAPIView.as_view(throttle_classes=[]), name="schema"),
+    path("docs/", SpectacularSwaggerView.as_view(url_name="schema", throttle_classes=[]), name="docs"),
 ]
 
 
@@ -132,6 +167,9 @@ urlpatterns = [
     path("portal/view/", RedirectView.as_view(url="/app/portal/", permanent=False)),
     path("health/live/", health.live, name="health_live"),
     path("health/ready/", health.ready, name="health_ready"),
+    path("health/db/", health.database_status, name="health_db"),
+    path("health/workers/", health.workers, name="health_workers"),
+    path("health/email/", health.email_status, name="health_email"),
     path("platform/", include("apps.tenancy.platform_urls")),
     path("api/v1/", include(api_v1)),
     path("accounts/", include("apps.accounts.urls")),
@@ -157,10 +195,11 @@ urlpatterns = [
     path("", include("apps.ui.urls")),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
+from apps.files.views import protected_media_serve
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", protected_media_serve),
+]
 
-handler400 = "apps.ui.views.bad_request"
 handler400 = "apps.ui.views.bad_request"
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"
