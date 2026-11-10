@@ -37,7 +37,8 @@ class _ContractChoice(forms.ModelChoiceField):
 class _CalendarChoice(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         site_str = f" [{obj.site.code}]" if getattr(obj, "site", None) else ""
-        return f"{obj.name}{site_str}"
+        hours_str = f" ({obj.start_time.strftime('%H:%M')}–{obj.end_time.strftime('%H:%M')})" if obj.start_time and obj.end_time else (" (24x7)" if obj.is_24x7 else "")
+        return f"{obj.name}{site_str}{hours_str}"
 
 
 def _pause_choices(applies_to=None, current_values=None):
@@ -100,8 +101,9 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
     calendar = _CalendarChoice(
         queryset=OperatingCalendar.objects.none(),
         required=False,
-        label="Operating calendar (optional)",
-        help_text="Operating calendar schedule. If left blank, the site calendar or organization default calendar is used."
+        label="Operating calendar",
+        empty_label="Choose operating calendar...",
+        help_text="Operating calendar schedule. Required when calculating SLA targets using business hours."
     )
     is_active = forms.BooleanField(required=False, initial=True, label="Activate this profile when saved")
     pause_states = forms.MultipleChoiceField(
@@ -200,8 +202,17 @@ class ProfileForm(BootstrapFormMixin, forms.Form):
             )
         if asset and category and asset.category_id != category.pk:
             self.add_error("asset", f"The selected asset does not belong to the selected category '{category.name}'.")
+        if contract and site and contract.site_id and contract.site_id != site.pk:
+            site_name = site.name or site.code
+            self.add_error("contract", f"The selected contract belongs to site '{contract.site.code}', but site '{site_name}' is selected. Choose a contract matching this site.")
         if calendar and site and calendar.site_id and calendar.site_id != site.pk:
             self.add_error("calendar", "The selected calendar must belong to the policy site.")
+        use_biz = cleaned.get("use_business_hours")
+        if use_biz and not calendar:
+            self.add_error(
+                "calendar",
+                "An operating calendar is required when calculating SLA targets using business hours. Choose an operating calendar, or uncheck business hours calculation."
+            )
         return cleaned
 
 
@@ -209,24 +220,32 @@ class TargetForm(BootstrapFormMixin, forms.Form):
     priority = forms.CharField(required=False, label="Priority")
     response_minutes = forms.CharField(
         required=False, label="Response Target",
-        widget=forms.TextInput(attrs={"placeholder": "e.g. 15 minutes"}))
+        widget=forms.TextInput(attrs={"placeholder": "e.g. 15"}))
     resolution_minutes = forms.CharField(
         required=False, label="Resolution Target",
-        widget=forms.TextInput(attrs={"placeholder": "e.g. 4 hours"}))
+        widget=forms.TextInput(attrs={"placeholder": "e.g. 120"}))
     warning_percent = forms.CharField(
-        required=False, initial=80, label="Warning Alert",
-        widget=forms.TextInput(attrs={"placeholder": "80"}))
+        required=False, label="Warning Alert (%)",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. 80"}))
 
     def __init__(self, *args, applies_to="REQUEST", **kwargs):
         super().__init__(*args, **kwargs)
         self.applies_to = "WORK_ORDER" if str(applies_to).strip().upper() in ("WORK_ORDER", "WORK ORDER") or "WORK" in str(applies_to).upper() else "REQUEST"
         if self.applies_to == "WORK_ORDER":
-            choices = [("", "Choose priority (optional)"), ("URGENT", "Urgent"), ("HIGH", "High"), ("MEDIUM", "Medium"), ("LOW", "Low")]
+            choices = [("", "Choose priority"), ("CRITICAL", "Critical"), ("URGENT", "Urgent"), ("HIGH", "High"), ("MEDIUM", "Medium"), ("LOW", "Low")]
         else:
-            choices = [("", "Choose priority (optional)"), ("CRITICAL", "Critical"), ("HIGH", "High"), ("MEDIUM", "Medium"), ("LOW", "Low")]
+            choices = [("", "Choose priority"), ("CRITICAL", "Critical"), ("HIGH", "High"), ("MEDIUM", "Medium"), ("LOW", "Low")]
+        is_standalone = not bool(self.prefix)
+        select_attrs = {"class": "form-select"}
+        if is_standalone:
+            select_attrs["required"] = "required"
+            self.fields["response_minutes"].required = True
+            self.fields["response_minutes"].widget.attrs["required"] = "required"
+            self.fields["resolution_minutes"].required = True
+            self.fields["resolution_minutes"].widget.attrs["required"] = "required"
         self.fields["priority"] = forms.CharField(
-            required=False, label="Priority",
-            widget=forms.Select(choices=choices, attrs={"class": "form-select"})
+            required=is_standalone, label="Priority",
+            widget=forms.Select(choices=choices, attrs=select_attrs)
         )
 
     def clean(self):
@@ -251,8 +270,8 @@ class TargetForm(BootstrapFormMixin, forms.Form):
         if (warn_val is None or str(warn_val).strip() == "") and self.is_bound:
             warn_val = self.data.get(f"{pfx}warning_alert") or self.data.get(f"{pfx}warning_percent") or self.data.get(f"{pfx}warn_at")
 
-        # Completely empty row check
-        if not priority_val and (resp_val is None or str(resp_val).strip() == "") and (resol_val is None or str(resol_val).strip() == ""):
+        # In formsets, completely empty extra rows are allowed to be ignored
+        if self.prefix and not priority_val and (resp_val is None or str(resp_val).strip() == "") and (resol_val is None or str(resol_val).strip() == ""):
             return {}
 
         from .services import parse_duration_minutes, parse_percentage
@@ -310,7 +329,12 @@ class TargetForm(BootstrapFormMixin, forms.Form):
         # Check resolution >= response
         if cleaned.get("response_minutes") and cleaned.get("resolution_minutes"):
             if cleaned["resolution_minutes"] < cleaned["response_minutes"]:
-                self.add_error("resolution_minutes", "The Resolution Target cannot be shorter than the Response Target.")
+                resp_m = cleaned["response_minutes"]
+                resol_m = cleaned["resolution_minutes"]
+                self.add_error(
+                    "resolution_minutes",
+                    f"Resolution Target ({resol_m} min) cannot be shorter than Response Target ({resp_m} min). Add 'h' if entering hours (e.g. '4h')."
+                )
 
         return cleaned
 
@@ -351,18 +375,54 @@ PriorityTargetFormSetFactory = formset_factory(
 class RuleForm(BootstrapFormMixin, forms.Form):
     target_kind = forms.ChoiceField(required=False,
                                     choices=[("", "Choose target"), ("RESPONSE", "Response Target"),
-                                             ("RESOLUTION", "Resolution Target")], label="Target")
+                                             ("RESOLUTION", "Resolution Target")], label="Monitor Target")
     trigger = forms.ChoiceField(required=False,
-                                choices=[("", "Choose trigger"), *EscalationRule.Trigger.choices], label="When")
-    after_minutes = forms.IntegerField(required=False, min_value=1, label="Escalate after (minutes, Escalation only)")
-    level = forms.IntegerField(min_value=1, max_value=3, initial=1, label="Escalation level")
-    notify_role = forms.ModelChoiceField(queryset=Role.objects.none(), required=False, label="Notify role")
-    notify_assignee = forms.BooleanField(required=False, label="Notify the assignee")
+                                choices=[("", "Choose trigger"), *EscalationRule.Trigger.choices], label="Trigger Condition")
+    after_minutes = forms.IntegerField(
+        required=False, min_value=0,
+        label="Escalate after (minutes, Escalation only)",
+        widget=forms.NumberInput(attrs={"placeholder": "e.g. 15, 30, 60", "min": "1"})
+    )
+    level = forms.ChoiceField(
+        choices=[(1, "Level 1"), (2, "Level 2"), (3, "Level 3")],
+        initial=1,
+        label="Alert / Escalation level"
+    )
+    notify_role = forms.ModelChoiceField(queryset=Role.objects.none(), required=False, label="Notify role", empty_label="Choose role (optional if assignee checked)...")
+    notify_assignee = forms.BooleanField(
+        required=False, label="Notify the assignee",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )
 
-    def __init__(self, *args, roles=None, **kwargs):
+    def __init__(self, *args, roles=None, applies_to=None, **kwargs):
         super().__init__(*args, **kwargs)
         if roles is not None:
             self.fields["notify_role"].queryset = roles
+        scope = str(applies_to or "").strip().upper()
+        if scope == "WORK_ORDER":
+            self.fields["target_kind"].choices = [
+                ("", "Choose target"),
+                ("RESPONSE", "Response Target (Time to assign / start Work Order)"),
+                ("RESOLUTION", "Resolution Target (Time to complete Work Order)"),
+            ]
+        elif scope == "REQUEST":
+            self.fields["target_kind"].choices = [
+                ("", "Choose target"),
+                ("RESPONSE", "Response Target (Time to triage Incident)"),
+                ("RESOLUTION", "Resolution Target (Time to resolve Incident)"),
+            ]
+        else:
+            self.fields["target_kind"].choices = [
+                ("", "Choose target"),
+                ("RESPONSE", "Response Target (First triage / assignment)"),
+                ("RESOLUTION", "Resolution Target (Full resolution / completion)"),
+            ]
+
+    def clean_level(self):
+        try:
+            return int(self.cleaned_data.get("level") or 1)
+        except (TypeError, ValueError):
+            raise forms.ValidationError("Escalation level must be 1, 2, or 3.")
 
     def clean(self):
         cleaned = super().clean()
@@ -372,17 +432,22 @@ class RuleForm(BootstrapFormMixin, forms.Form):
         role, assignee = cleaned.get("notify_role"), cleaned.get("notify_assignee")
         after = cleaned.get("after_minutes")
         if not any((target, trigger, role, assignee, after)):
+            if self.prefix:
+                return cleaned
+            self.add_error("target_kind", "Choose which target this rule monitors (Response or Resolution).")
+            self.add_error("trigger", "Choose when this rule runs (Warning, Breach, or Escalation).")
+            self.add_error("notify_role", "Select a role or check 'Notify the assignee'.")
             return cleaned
         if not target:
             self.add_error("target_kind", "Choose which target this rule monitors.")
         if not trigger:
-            self.add_error("trigger", "Choose when this rule should run.")
+            self.add_error("trigger", "Choose when this rule runs.")
         if not role and not assignee:
-            self.add_error("notify_role", "Choose a role or the assignee to notify.")
+            self.add_error("notify_role", "Select a role or check 'Notify the assignee'.")
         if trigger == EscalationRule.Trigger.ESCALATION and not after:
-            self.add_error("after_minutes", "Set how many minutes after the SLA Breach to escalate.")
-        if trigger and trigger != EscalationRule.Trigger.ESCALATION and after:
-            self.add_error("after_minutes", "Only Escalation rules use an after-breach delay.")
+            self.add_error("after_minutes", "Enter minutes after SLA Breach to escalate (at least 1 minute).")
+        if trigger and trigger != EscalationRule.Trigger.ESCALATION:
+            cleaned["after_minutes"] = 0
         return cleaned
 
 

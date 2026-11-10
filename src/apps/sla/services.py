@@ -73,41 +73,54 @@ def valid_pause_tokens(applies_to: str) -> set[str]:
 # --- profiles / targets / rules ------------------------------------------------------------------------------------------
 
 
-def parse_duration_minutes(val, what="Duration") -> int:
+def _extract_duration_units(text: str) -> int | None:
+    """Parse combined duration strings like '1d 4h 30m' into total minutes."""
+    import re
+    total_minutes = 0
+    matched = False
+
+    day_match = re.search(r"\b(\d+(?:\.\d+)?)[ \t]*(?:days?|d)\b", text)
+    if day_match:
+        total_minutes += int(round(float(day_match.group(1)) * 1440))
+        matched = True
+
+    hour_match = re.search(r"\b(\d+(?:\.\d+)?)[ \t]*(?:hours?|hrs?|h)\b", text)
+    if hour_match:
+        total_minutes += int(round(float(hour_match.group(1)) * 60))
+        matched = True
+
+    min_match = re.search(r"\b(\d+(?:\.\d+)?)[ \t]*(?:minutes?|mins?|m)\b", text)
+    if min_match:
+        total_minutes += int(round(float(min_match.group(1))))
+        matched = True
+
+    return total_minutes if matched else None
+
+
+def _to_raw_minutes(val, what: str) -> int:
     if val is None or str(val).strip() == "":
         raise ValidationFailed(f"{what} is required.", code="invalid_minutes")
+    if isinstance(val, bool):
+        raise ValidationFailed(f"{what} must be a whole number of minutes.", code="invalid_minutes")
     if isinstance(val, (int, float)):
-        v = int(val)
-    else:
-        s = str(val).strip().lower()
-        if s.isdigit():
-            v = int(s)
-        else:
-            import re
-            total_minutes = 0
-            matched = False
-            d = re.search(r'([\d.]+)\s*(?:days?|d)\b', s)
-            if d:
-                total_minutes += int(round(float(d.group(1)) * 24 * 60))
-                matched = True
-            h = re.search(r'([\d.]+)\s*(?:hours?|hrs?|hr|h)\b', s)
-            if h:
-                total_minutes += int(round(float(h.group(1)) * 60))
-                matched = True
-            m = re.search(r'([\d.]+)\s*(?:minutes?|mins?|min|m)\b', s)
-            if m:
-                total_minutes += int(round(float(m.group(1))))
-                matched = True
-            if matched:
-                v = total_minutes
-            else:
-                try:
-                    v = int(round(float(s)))
-                except ValueError as exc:
-                    raise ValidationFailed(
-                        f"{what} must be a whole number of minutes or duration format (e.g. '15 minutes', '4 hours').",
-                        code="invalid_minutes",
-                    ) from exc
+        return int(val)
+    s = str(val).strip().lower()
+    if s.isdigit():
+        return int(s)
+    parsed = _extract_duration_units(s)
+    if parsed is not None:
+        return parsed
+    try:
+        return int(round(float(s)))
+    except ValueError as exc:
+        raise ValidationFailed(
+            f"{what} must be a whole number of minutes or duration format (e.g. '15 minutes', '4 hours').",
+            code="invalid_minutes",
+        ) from exc
+
+
+def parse_duration_minutes(val, what="Duration") -> int:
+    v = _to_raw_minutes(val, what)
     if not 1 <= v <= 60 * 24 * 365:
         raise ValidationFailed(f"{what} must be between 1 minute and one year.", code="invalid_minutes")
     return v
@@ -168,60 +181,78 @@ def _ensure_scope_available(org, scope, *, current=None, coverage_only=False):
         )
 
 
+def _normalize_applies_to(applies_to) -> str:
+    s = str(applies_to).strip()
+    if s in ("Incident / Breakdown", "Incident / Breakdown and Service Request", "Incident", "REQUEST"):
+        return REQUEST
+    if s in ("Work Order", "WORK_ORDER"):
+        return WORK_ORDER
+    if s in SLAProfile.AppliesTo.values:
+        return s
+    raise ValidationFailed("Choose what the profile applies to.", code="invalid_applies_to")
+
+
+def _validate_scope_objects(org_id, site, client, contract, asset, asset_category, calendar):
+    if site is not None and site.organization_id != org_id:
+        raise ValidationFailed("Site not found in this organization.", code="cross_tenant_site")
+    for label, obj in (("client", client), ("contract", contract), ("asset", asset), ("asset category", asset_category)):
+        if obj is not None and obj.organization_id != org_id:
+            raise ValidationFailed(f"{label.title()} not found in this organization.", code="cross_tenant_scope")
+    if client is not None:
+        from apps.rbac.models import MembershipRole
+        if not MembershipRole.objects.filter(membership=client, role__system_key="client_requester").exists():
+            raise ValidationFailed("Select a client requester from this organization.", code="invalid_client")
+    site_pk = getattr(site, "pk", None)
+    if asset is not None and site_pk and asset.site_id != site_pk:
+        raise ValidationFailed("The selected asset must belong to the policy site.", code="scope_site_mismatch")
+    if asset is not None and asset_category is not None and asset.category_id != asset_category.pk:
+        raise ValidationFailed("The selected asset does not belong to the selected category.", code="scope_category_mismatch")
+    if contract is not None and site_pk and contract.site_id and contract.site_id != site_pk:
+        raise ValidationFailed("The selected contract must belong to the policy site.", code="scope_contract_mismatch")
+    if calendar is not None:
+        if calendar.organization_id != org_id:
+            raise ValidationFailed("Operating calendar not found in this organization.", code="cross_tenant_calendar")
+        if site_pk and calendar.site_id and calendar.site_id != site_pk:
+            raise ValidationFailed("The selected calendar must belong to the policy site.", code="scope_calendar_mismatch")
+
+
+def _resolve_calendar_or_fail(use_biz: bool, calendar, profile, site, org):
+    if not use_biz or calendar is not None:
+        return calendar
+    cal = resolve_calendar(profile, site) or OperatingCalendar.objects.for_organization(org).filter(is_default=True).first()
+    if cal is not None:
+        return cal
+    raise ValidationFailed("An operating calendar is required when calculating SLA targets using business hours.", code="calendar_required_for_business_hours")
+
+
 @transaction.atomic
 def create_profile(org, *, name, applies_to, actor, description="", site=None, work_type="", pause_states=None,
                    coverage_only=False, client=None, contract=None, asset=None, asset_category=None,
                    service_type="", is_active=True, request=None, calendar=None,
                    use_business_hours=False) -> SLAProfile:
     from apps.workorders.models import WorkOrder
+    from apps.tenancy.models import Organization
 
     name = (name or "").strip()
-    if pause_states is None:
-        pause_states = DEFAULT_PAUSE_STATES
-    from apps.tenancy.models import Organization
-    Organization.objects.select_for_update().get(pk=org.pk)
     if len(name) < 3:
         raise ValidationFailed("A name of at least 3 characters is required.", code="name_required")
-    applies_to_str = str(applies_to).strip()
-    if applies_to_str in ("Incident / Breakdown", "Incident / Breakdown and Service Request", "Incident", "REQUEST"):
-        applies_to = REQUEST
-    elif applies_to_str in ("Work Order", "WORK_ORDER"):
-        applies_to = WORK_ORDER
-    if applies_to not in SLAProfile.AppliesTo.values:
-        raise ValidationFailed("Choose what the profile applies to.", code="invalid_applies_to")
-    if site is not None and site.organization_id != org.pk:
-        raise ValidationFailed("Site not found in this organization.", code="cross_tenant_site")
-    for label, obj in (("client", client), ("contract", contract), ("asset", asset),
-                       ("asset category", asset_category)):
-        if obj is not None and obj.organization_id != org.pk:
-            raise ValidationFailed(f"{label.title()} not found in this organization.", code="cross_tenant_scope")
-    if client is not None:
-        from apps.rbac.models import MembershipRole
-        if not MembershipRole.objects.filter(membership=client, role__system_key="client_requester").exists():
-            raise ValidationFailed("Select a client requester from this organization.", code="invalid_client")
-    if asset is not None and site is not None and asset.site_id != site.pk:
-        raise ValidationFailed("The selected asset must belong to the policy site.", code="scope_site_mismatch")
-    if asset is not None and asset_category is not None and asset.category_id != asset_category.pk:
-        raise ValidationFailed("The selected asset does not belong to the selected category.",
-                               code="scope_category_mismatch")
-    if contract is not None and site is not None and contract.site_id != site.pk:
-        raise ValidationFailed("The selected contract must belong to the policy site.", code="scope_contract_mismatch")
+    pause_states = DEFAULT_PAUSE_STATES if pause_states is None else pause_states
+    Organization.objects.select_for_update().get(pk=org.pk)
+
+    applies_to = _normalize_applies_to(applies_to)
+    _validate_scope_objects(org.pk, site, client, contract, asset, asset_category, calendar)
+
     work_type = (work_type or "").strip()
     if work_type and (applies_to != WORK_ORDER or work_type not in WorkOrder.WorkType.values):
         raise ValidationFailed("A work type filter is only valid for work-order profiles.", code="invalid_work_type")
     service_type = (service_type or "").strip()
     if service_type:
-        if applies_to == REQUEST:
-            from apps.incidents.models import ServiceRequest
-            choices = ServiceRequest.Kind.values
-        else:
-            choices = WorkOrder.WorkType.values
+        from apps.incidents.models import ServiceRequest
+        choices = ServiceRequest.Kind.values if applies_to == REQUEST else WorkOrder.WorkType.values
         if service_type not in choices:
             raise ValidationFailed("Choose a valid service type for this policy.", code="invalid_service_type")
-    if calendar is not None and calendar.organization_id != org.pk:
-        raise ValidationFailed("Operating calendar not found in this organization.", code="cross_tenant_calendar")
-    if calendar is not None and site is not None and calendar.site_id is not None and calendar.site_id != site.pk:
-        raise ValidationFailed("The selected calendar must belong to the policy site.", code="scope_calendar_mismatch")
+
+    calendar = _resolve_calendar_or_fail(use_business_hours, calendar, None, site, org)
     if SLAProfile.objects.for_organization(org).filter(name__iexact=name).exists():
         raise Conflict("A profile with this name already exists.", code="profile_name_taken")
     if is_active:
@@ -266,28 +297,12 @@ def update_profile(profile: SLAProfile, *, actor, request=None, **changes) -> SL
     if "description" in changes:
         profile.description = (changes["description"] or "").strip()[:300]
     if "applies_to" in changes:
-        a_str = str(changes["applies_to"]).strip()
-        if a_str in ("Incident / Breakdown", "Incident / Breakdown and Service Request", "Incident", "REQUEST"):
-            changes["applies_to"] = REQUEST
-        elif a_str in ("Work Order", "WORK_ORDER"):
-            changes["applies_to"] = WORK_ORDER
-        if changes["applies_to"] not in SLAProfile.AppliesTo.values:
-            raise ValidationFailed("Choose what the policy applies to.", code="invalid_applies_to")
-        profile.applies_to = changes["applies_to"]
+        profile.applies_to = _normalize_applies_to(changes["applies_to"])
     if "pause_states" in changes:
         profile.pause_states = _pause_states(profile.applies_to, changes["pause_states"])
     for field in ("site", "client", "contract", "asset", "asset_category"):
         if field in changes:
-            value = changes[field]
-            if value is not None and value.organization_id != profile.organization_id:
-                raise ValidationFailed(f"{field.replace('_', ' ').title()} not found in this organization.",
-                                       code="cross_tenant_scope")
-            setattr(profile, field, value)
-    if profile.client_id:
-        from apps.rbac.models import MembershipRole
-        if not MembershipRole.objects.filter(membership=profile.client,
-                                              role__system_key="client_requester").exists():
-            raise ValidationFailed("Select a client requester from this organization.", code="invalid_client")
+            setattr(profile, field, changes[field])
     if "service_type" in changes:
         value = (changes["service_type"] or "").strip()
         if value:
@@ -306,23 +321,14 @@ def update_profile(profile: SLAProfile, *, actor, request=None, **changes) -> SL
     if "coverage_only" in changes:
         profile.coverage_only = bool(changes["coverage_only"])
     if "calendar" in changes:
-        cal_val = changes["calendar"]
-        if cal_val is not None and cal_val.organization_id != profile.organization_id:
-            raise ValidationFailed("Operating calendar not found in this organization.", code="cross_tenant_calendar")
-        profile.calendar = cal_val
+        profile.calendar = changes["calendar"]
     if "use_business_hours" in changes:
         profile.use_business_hours = bool(changes["use_business_hours"])
-    if "site" in changes and profile.asset_id and profile.asset.site_id != profile.site_id:
-        raise ValidationFailed("The selected asset must belong to the policy site.", code="scope_site_mismatch")
-    if profile.asset_id and profile.asset_category_id and profile.asset.category_id != profile.asset_category_id:
-        raise ValidationFailed("The selected asset does not belong to the selected category.",
-                               code="scope_category_mismatch")
-    if profile.contract_id and profile.site_id and profile.contract.site_id != profile.site_id:
-        raise ValidationFailed("The selected contract must belong to the policy site.", code="scope_contract_mismatch")
-    if profile.contract_id and profile.contract.organization_id != profile.organization_id:
-        raise ValidationFailed("Choose a contract from this organization.", code="cross_tenant_scope")
-    if profile.calendar_id and profile.calendar.site_id and profile.site_id and profile.calendar.site_id != profile.site_id:
-        raise ValidationFailed("The selected calendar must belong to the policy site.", code="scope_calendar_mismatch")
+
+    _validate_scope_objects(profile.organization_id, profile.site, profile.client, profile.contract,
+                            profile.asset, profile.asset_category, profile.calendar)
+    profile.calendar = _resolve_calendar_or_fail(profile.use_business_hours, profile.calendar, profile, profile.site, profile.organization)
+
     _ensure_scope_available(profile.organization, _scope_values(applies_to=profile.applies_to, site=profile.site,
         client=profile.client, contract=profile.contract, asset=profile.asset,
         asset_category=profile.asset_category, service_type=profile.service_type,
@@ -403,10 +409,7 @@ def remove_target(target: SLATarget, *, actor, request=None) -> None:
                  request=request)
 
 
-@transaction.atomic
-def create_rule(profile: SLAProfile, *, target_kind, trigger, notify_role=None, notify_assignee=False,
-                after_minutes=0, level=1, actor, request=None) -> EscalationRule:
-    profile = SLAProfile.objects.select_for_update().get(pk=profile.pk)
+def _validate_rule_params(profile: SLAProfile, target_kind, trigger, notify_role, notify_assignee, after_minutes, level):
     if target_kind not in (RESPONSE, RESOLUTION):
         raise ValidationFailed("Choose response or resolution.", code="invalid_target_kind")
     if trigger not in EscalationRule.Trigger.values:
@@ -415,15 +418,32 @@ def create_rule(profile: SLAProfile, *, target_kind, trigger, notify_role=None, 
         raise ValidationFailed("Role not found in this organization.", code="cross_tenant_role")
     if notify_role is None and not notify_assignee:
         raise ValidationFailed("Choose who is notified (a role and / or the assignee).", code="recipient_required")
-    after = 0
-    if trigger == EscalationRule.Trigger.ESCALATION:
-        after = _minutes(after_minutes, "Escalate after")
+    after = _minutes(after_minutes, "Escalate after") if trigger == EscalationRule.Trigger.ESCALATION else 0
     try:
-        level = int(level)
+        lvl = int(level)
     except (TypeError, ValueError) as exc:
         raise ValidationFailed("The level must be 1, 2 or 3.", code="invalid_level") from exc
-    if not 1 <= level <= 3:
+    if not 1 <= lvl <= 3:
         raise ValidationFailed("The level must be 1, 2 or 3.", code="invalid_level")
+    return after, lvl
+
+
+@transaction.atomic
+def create_rule(profile: SLAProfile, *, target_kind, trigger, notify_role=None, notify_assignee=False,
+                after_minutes=0, level=1, actor, request=None) -> EscalationRule:
+    profile = SLAProfile.objects.select_for_update().get(pk=profile.pk)
+    after, level = _validate_rule_params(profile, target_kind, trigger, notify_role, notify_assignee, after_minutes, level)
+
+    existing_rule = EscalationRule.objects.for_organization(profile.organization).filter(
+        profile=profile, target_kind=target_kind, trigger=trigger, after_minutes=after
+    ).first()
+    if existing_rule is not None:
+        return update_rule(
+            existing_rule, target_kind=target_kind, trigger=trigger,
+            notify_role=notify_role, notify_assignee=bool(notify_assignee),
+            after_minutes=after, level=level, actor=actor, request=request
+        )
+
     if EscalationRule.objects.for_organization(profile.organization).filter(profile=profile).count() >= (
             MAX_RULES_PER_PROFILE):
         raise Conflict(f"A profile can have at most {MAX_RULES_PER_PROFILE} escalation rules.", code="too_many_rules")
@@ -436,6 +456,34 @@ def create_rule(profile: SLAProfile, *, target_kind, trigger, notify_role=None, 
     except IntegrityError as exc:
         raise Conflict("This profile already has a rule for that step.", code="duplicate_rule") from exc
     audit.record("sla.rule_created", actor=actor, organization=profile.organization, target=profile,
+                 after={"target": target_kind, "trigger": trigger, "after_minutes": after, "level": level,
+                        "role": notify_role.name if notify_role else None, "assignee": bool(notify_assignee)},
+                 request=request)
+    return rule
+
+
+@transaction.atomic
+def update_rule(rule: EscalationRule, *, target_kind, trigger, notify_role=None, notify_assignee=False,
+                after_minutes=0, level=1, actor, request=None) -> EscalationRule:
+    profile = SLAProfile.objects.select_for_update().get(pk=rule.profile_id)
+    after, level = _validate_rule_params(profile, target_kind, trigger, notify_role, notify_assignee, after_minutes, level)
+
+    before = {"target": rule.target_kind, "trigger": rule.trigger, "after_minutes": rule.after_minutes,
+              "level": rule.level, "role": rule.notify_role.name if rule.notify_role else None,
+              "assignee": rule.notify_assignee}
+    rule.target_kind = target_kind
+    rule.trigger = trigger
+    rule.after_minutes = after
+    rule.level = level
+    rule.notify_role = notify_role
+    rule.notify_assignee = bool(notify_assignee)
+    try:
+        with transaction.atomic():
+            rule.save()
+    except IntegrityError as exc:
+        raise Conflict("This profile already has a rule for that step.", code="duplicate_rule") from exc
+    audit.record("sla.rule_updated", actor=actor, organization=profile.organization, target=profile,
+                 before=before,
                  after={"target": target_kind, "trigger": trigger, "after_minutes": after, "level": level,
                         "role": notify_role.name if notify_role else None, "assignee": bool(notify_assignee)},
                  request=request)
@@ -691,7 +739,10 @@ def _finish_open_pause(t: SLATracking, now: datetime) -> None:
 
 def _meet(t: SLATracking, kind: str, now: datetime, *, actor=None) -> None:
     due = t.response_due_at if kind == RESPONSE else t.resolution_due_at
-    late = now > due
+    already_breached = SLABreach.objects.for_organization(t.organization).filter(
+        tracking=t, target_kind=kind
+    ).exists()
+    late = (now > due) or already_breached
     if late:  # the target was missed: the breach is recorded even if the monitor never saw it, then closed
         breach, created = _record_breach(t, kind, due, now)
         if created:
@@ -708,7 +759,7 @@ def _meet(t: SLATracking, kind: str, now: datetime, *, actor=None) -> None:
     else:
         t.resolution_met_at, t.resolution_state = now, state
         _finish_open_pause(t, now)
-        t.status = Status.UNDER_REVIEW
+        t.status = Status.COMPLETED
     t.save()
     _event(t, f"{kind}_MET", at=now, kind=kind, detail="late" if late else "on time", actor=actor)
     audit.record("sla.response_met" if kind == RESPONSE else "sla.resolution_met", actor=actor,

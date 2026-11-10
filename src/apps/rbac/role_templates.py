@@ -46,9 +46,9 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination and escalation.",
         ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve",
-         "work_order.view", "work_order.assign", "work_order.dispatch", "work_order.plan", "work_order.update",
-         "work_order.attach", "checklist.view", "inspection.view", "inventory.view", "inventory.part.view",
-         "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
+         "work_order.view", "work_order.create", "work_order.assign", "work_order.dispatch", "work_order.plan",
+         "work_order.update", "work_order.attach", "checklist.view", "inspection.view", "inventory.view",
+         "inventory.part.view", "sla.view", "report.view", "qr.scan"),
     ),
     RoleTemplate(
         "technician", "Technician", "Executes assigned jobs, checklists, evidence, labor/time, and parts usage.",
@@ -63,7 +63,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "work_order.create", "work_order.plan", "work_order.update", "work_order.assign", "work_order.dispatch",
          "work_order.review", "maintenance.view", "work_order.close", "work_order.hold", "work_order.record",
          "work_order.attach", "checklist.*", "inspection.*", "inventory.view", "inventory.part.view",
-         "inventory.request", "sla.view", "report.view", "qr.scan"),
+         "inventory.request", "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
         excludes=("inspection.execute", "checklist.execute"),
     ),
     RoleTemplate(
