@@ -189,3 +189,38 @@ class ClientOnboardingForm(BootstrapFormMixin, forms.Form):
 
     def clean_phone(self):
         return validate_phone_number(self.cleaned_data.get("phone"))
+
+
+class DashboardFilterForm(BootstrapFormMixin, forms.Form):
+    """Standardized validation form for dashboard GET parameters."""
+    days = forms.CharField(required=False, initial="30")
+    site = forms.CharField(required=False)
+    q = forms.CharField(required=False, max_length=100)
+
+    def clean_days(self):
+        val = self.cleaned_data.get("days")
+        if not val:
+            return 30
+        try:
+            num = int(str(val).strip())
+            if num < 1 or num > 365:
+                return 30
+            return num
+        except (ValueError, TypeError):
+            return 30
+
+    def clean_site(self):
+        val = self.cleaned_data.get("site")
+        if not val:
+            return None
+        import uuid
+        try:
+            return str(uuid.UUID(str(val).strip()))
+        except (ValueError, TypeError):
+            return None
+
+    def clean_q(self):
+        val = self.cleaned_data.get("q")
+        if not val:
+            return ""
+        return validate_safe_text(val, field_label="Search query", max_len=100, required=False)
