@@ -300,8 +300,8 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
     "NUM_PROXIES": max(TRUSTED_PROXY_COUNT, 0),
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttling.SafeAnonRateThrottle",
+        "apps.core.throttling.SafeUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "600/min", "login": "10/min"},
 }
