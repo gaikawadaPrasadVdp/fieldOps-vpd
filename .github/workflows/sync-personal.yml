@@ -11,14 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Organization Dev
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-          fetch-depth: 0
+            - name: Checkout Organization Dev
+              uses: actions/checkout@v4
+              with:
+                ref: dev
+                fetch-depth: 0
+                persist-credentials: false
 
-      - name: Push to Personal Repository
-        env:
-          UPDATE_VPD: ${{ secrets.UPDATE_VPD }}
-        run: |
-          git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
+            - name: Push to Personal Repository
+              env:
+                UPDATE_VPD: ${{ secrets.UPDATE_VPD }}
+              run: |
+                git push https://x-access-token:${UPDATE_VPD}@github.com/gaikawadaPrasadVdp/fieldOps-vpd.git HEAD:main
