@@ -1,38 +1,231 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}SLA breaches · FieldOps Nexus{% endblock %}
+{% block title %}SLA breaches &middot; FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>SLA breaches</h1><div class="text-body-secondary">One row per missed target, persisted when the monitor detects it.</div></div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>SLA breaches</h1>
+    <div class="text-body-secondary">One row per missed target, persisted when the monitor detects it.</div>
+  </div>
+</div>
 {% include "sla/_tabs.html" %}
 
-<!-- Standardized KPI Cards Row -->
-<div class="row g-3 mb-4">
-  <div class="col-12 col-md-4">
-    {% include "components/_kpi_card.html" with title="Total Breaches" value=total_breaches|default:0 tone="primary" icon="clipboard" %}
+<div id="breaches-content" class="w-100">
+  <!-- Standardized KPI Cards Row -->
+  <div class="row g-3 mb-4" id="breaches-kpi-row">
+    <div class="col-12 col-md-4">
+      {% include "components/_kpi_card.html" with title="Total Breaches" value=total_breaches|default:0 tone="primary" icon="clipboard" %}
+    </div>
+    <div class="col-12 col-md-4">
+      {% include "components/_kpi_card.html" with title="Open Breaches" value=open_breaches|default:0 tone="danger" icon="alert-circle" %}
+    </div>
+    <div class="col-12 col-md-4">
+      {% include "components/_kpi_card.html" with title="Acknowledged" value=ack_breaches|default:0 tone="info" icon="check" %}
+    </div>
   </div>
-  <div class="col-12 col-md-4">
-    {% include "components/_kpi_card.html" with title="Open Breaches" value=open_breaches|default:0 tone="danger" icon="alert-circle" %}
-  </div>
-  <div class="col-12 col-md-4">
-    {% include "components/_kpi_card.html" with title="Acknowledged" value=ack_breaches|default:0 tone="info" icon="check" %}
-  </div>
-</div>
 
-<div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>
-      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:160px" name="status" aria-label="Status"><option value="">Any status</option>
-      <option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>Open</option><option value="ACKNOWLEDGED" {% if filters.status == "ACKNOWLEDGED" %}selected{% endif %}>Acknowledged</option><option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>Closed</option></select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="target" aria-label="Target"><option value="">Both targets</option>
-      <option value="RESPONSE" {% if filters.target == "RESPONSE" %}selected{% endif %}>Response</option><option value="RESOLUTION" {% if filters.target == "RESOLUTION" %}selected{% endif %}>Resolution</option></select>
-    <a href="{% url 'sla:breaches' %}" class="btn btn-sm btn-outline-secondary">Reset</a></form>
-  <div class="table-responsive"><table class="table fx-table" id="breaches-table"><thead><tr><th>Item</th><th>Site</th><th>Target</th><th>Priority</th><th>Missed at</th><th>Escalation</th><th>Status</th><th></th></tr></thead><tbody>
-  {% for b in page %}<tr><td><a href="{% url 'sla:tracking' b.tracking_id %}">{% if b.tracking.request %}{{ b.tracking.request.number }}{% else %}{{ b.tracking.work_order.number }}{% endif %}</a></td>
-    <td class="text-nowrap">{{ b.site.code }}</td><td>{{ b.get_target_kind_display }}</td><td>{% status_badge b.priority %}</td><td class="small">{{ b.breached_at|date:"d M Y H:i" }}</td>
-    <td>{% if b.escalation_level %}level {{ b.escalation_level }}{% else %}—{% endif %}</td><td>{% status_badge b.status %}</td>
-    <td>{% if b.can_ack and b.status == "OPEN" %}<form method="post" action="{% url 'sla:breach_ack' b.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-primary">Acknowledge</button></form>{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="8">{% include "components/_empty_state.html" with title="No breaches" text="Nothing has missed its SLA target." %}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="fx-card shadow-sm mb-4 w-100" id="breaches-card">
+    <form method="get" class="p-3 border-bottom bg-light-subtle w-100" id="breach-filter-form">
+      <div class="row g-2 align-items-center w-100 m-0">
+        <div class="col-12 col-sm-6 col-lg-4 ps-0">
+          <div class="input-group input-group-sm w-100">
+            <span class="input-group-text bg-white text-secondary">{% icon 'search' 14 %}</span>
+            <input class="form-control" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Ticket, order, or title..." aria-label="Search breaches" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="col-6 col-sm-3 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="site" aria-label="Site">
+            <option value="">All sites</option>
+            {% for s in sites %}
+              <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-3 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="status" aria-label="Status">
+            <option value="">Any status</option>
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="target" aria-label="Target">
+            <option value="">Both targets</option>
+            <option value="RESPONSE" {% if filters.target == "RESPONSE" %}selected{% endif %}>Response</option>
+            <option value="RESOLUTION" {% if filters.target == "RESOLUTION" %}selected{% endif %}>Resolution</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-auto col-lg-2 ms-auto pe-0 d-flex justify-content-end">
+          <a href="{% url 'sla:breaches' %}" class="btn btn-sm btn-outline-secondary px-3 w-100 w-lg-auto" id="reset-breach-filter-btn">Reset</a>
+        </div>
+      </div>
+    </form>
+
+  <div id="breaches-table-container">
+  <div class="table-responsive w-100">
+    <table class="table fx-table align-middle mb-0 w-100" id="breaches-table">
+      <thead>
+        <tr>
+          <th style="width: 18%;">Item</th>
+          <th style="width: 14%;">Site</th>
+          <th style="width: 14%;">Target</th>
+          <th style="width: 10%;">Priority</th>
+          <th style="width: 16%;">Missed at</th>
+          <th style="width: 12%;">Escalation</th>
+          <th style="width: 10%;">Status</th>
+          <th style="width: 6%; text-align: end;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in page %}
+        <tr>
+          <td>
+            <a class="fw-semibold text-primary text-decoration-none" href="{% url 'sla:tracking' b.tracking_id %}">
+              {% if b.tracking.request %}{{ b.tracking.request.number }}{% else %}{{ b.tracking.work_order.number }}{% endif %}
+            </a>
+            <div class="small text-body-secondary text-truncate" style="max-width: 200px;">
+              {% if b.tracking.request %}{{ b.tracking.request.title }}{% else %}{{ b.tracking.work_order.title }}{% endif %}
+            </div>
+          </td>
+          <td class="text-nowrap">
+            <span class="fw-medium text-body">{{ b.site.code }}</span>
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border">
+              {% if b.target_kind == "RESPONSE" %}
+                {% icon 'clock' 12 %} Response
+              {% else %}
+                {% icon 'shield' 12 %} Resolution
+              {% endif %}
+            </span>
+          </td>
+          <td>{% status_badge b.priority %}</td>
+          <td class="small text-nowrap">
+            <span class="fw-medium">{{ b.breached_at|date:"d M Y H:i" }}</span>
+          </td>
+          <td>
+            {% if b.escalation_level %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Level {{ b.escalation_level }}</span>
+            {% else %}
+              <span class="text-body-secondary">&mdash;</span>
+            {% endif %}
+          </td>
+          <td>{% status_badge b.status %}</td>
+          <td class="text-end text-nowrap">
+            {% if b.can_ack and b.status == "OPEN" %}
+            <form method="post" action="{% url 'sla:breach_ack' b.pk %}" class="m-0 d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button class="btn btn-sm btn-outline-primary py-1 px-2 fw-medium">
+                Acknowledge
+              </button>
+            </form>
+            {% else %}
+              <span class="text-body-secondary small">&mdash;</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="p-4 text-center text-body-secondary">
+            {% include "components/_empty_state.html" with title="No breaches found" text="No SLA breaches match the current filter criteria." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include "components/_pagination.html" %}
+  </div>
+  </div>
 </div>
-{% endblock %}
+{% endblock content %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+  var debounceTimer = null;
+  var activeController = null;
+
+  async function applyBreachFilters() {
+    var filterForm = document.getElementById("breach-filter-form");
+    if (!filterForm) return;
+    var baseAction = filterForm.getAttribute("action") || window.location.pathname;
+    var params = new URLSearchParams();
+    new FormData(filterForm).forEach(function(val, key) {
+      if (typeof val === "string" && val.trim() !== "") {
+        params.append(key, val.trim());
+      }
+    });
+    var qs = params.toString();
+    var targetUrl = qs ? (baseAction + "?" + qs) : baseAction;
+
+    if (activeController) activeController.abort();
+    activeController = new AbortController();
+
+    try {
+      var resp = await fetch(targetUrl, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        signal: activeController.signal
+      });
+      if (!resp.ok) {
+        filterForm.submit();
+        return;
+      }
+      var htmlText = await resp.text();
+      var doc = new DOMParser().parseFromString(htmlText, "text/html");
+
+      var newContainer = doc.getElementById("breaches-table-container");
+      var curContainer = document.getElementById("breaches-table-container");
+      if (newContainer && curContainer) {
+        curContainer.innerHTML = newContainer.innerHTML;
+      }
+
+      var newKpis = doc.getElementById("breaches-kpi-row");
+      var curKpis = document.getElementById("breaches-kpi-row");
+      if (newKpis && curKpis) {
+        curKpis.innerHTML = newKpis.innerHTML;
+      }
+
+      window.history.replaceState(null, "", targetUrl);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      filterForm.submit();
+    }
+  }
+
+  document.addEventListener("change", function(e) {
+    if (e.target && e.target.closest("#breach-filter-form")) {
+      applyBreachFilters();
+    }
+  });
+
+  document.addEventListener("input", function(e) {
+    if (e.target && e.target.matches('#breach-filter-form input[name="q"]')) {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applyBreachFilters, 300);
+    }
+  });
+
+  document.addEventListener("search", function(e) {
+    if (e.target && e.target.matches('#breach-filter-form input[name="q"]')) {
+      clearTimeout(debounceTimer);
+      applyBreachFilters();
+    }
+  });
+
+  document.addEventListener("submit", function(e) {
+    if (e.target && e.target.id === "breach-filter-form") {
+      e.preventDefault();
+      clearTimeout(debounceTimer);
+      applyBreachFilters();
+    }
+  });
+});
+</script>
+{% endblock scripts %}
