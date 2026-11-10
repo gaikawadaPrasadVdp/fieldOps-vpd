@@ -2543,4 +2543,140 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }
 
+
+  // =========================================================================
+  // 14. Anime.js Metric Counter Tweening
+  // =========================================================================
+  const initMetricCounters = () => {
+    const counterElements = document.querySelectorAll('[data-fx-counter]');
+    if (!counterElements.length) return;
+
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion || typeof window.anime !== 'function') {
+      counterElements.forEach(el => {
+        const target = el.getAttribute('data-fx-counter');
+        const prefix = el.getAttribute('data-fx-prefix') || '';
+        const suffix = el.getAttribute('data-fx-suffix') || '';
+        el.textContent = prefix + target + suffix;
+      });
+      return;
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      counterElements.forEach(el => {
+        const target = el.getAttribute('data-fx-counter');
+        const prefix = el.getAttribute('data-fx-prefix') || '';
+        const suffix = el.getAttribute('data-fx-suffix') || '';
+        el.textContent = prefix + target + suffix;
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        observer.unobserve(el);
+
+        const rawTarget = parseFloat(el.getAttribute('data-fx-counter') || '0');
+        const decimals = parseInt(el.getAttribute('data-fx-decimals') || '0', 10);
+        const prefix = el.getAttribute('data-fx-prefix') || '';
+        const suffix = el.getAttribute('data-fx-suffix') || '';
+
+        const animObj = { val: 0 };
+        window.anime({
+          targets: animObj,
+          val: rawTarget,
+          duration: 1400,
+          easing: 'easeOutExpo',
+          update: () => {
+            const formatted = decimals > 0 ? animObj.val.toFixed(decimals) : Math.round(animObj.val);
+            el.textContent = prefix + formatted + suffix;
+          },
+          complete: () => {
+            const finalVal = decimals > 0 ? rawTarget.toFixed(decimals) : Math.round(rawTarget);
+            el.textContent = prefix + finalVal + suffix;
+          }
+        });
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+    counterElements.forEach(el => observer.observe(el));
+  };
+
+  // =========================================================================
+  // 15. Anime.js Staggered Card Entrance & Button Micro-Glow
+  // =========================================================================
+  const initStaggeredCards = () => {
+    const cardContainers = document.querySelectorAll('.fx-module-grid, .fx-advantage-section .row.g-3');
+    if (!cardContainers.length) return;
+
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion || typeof window.anime !== 'function') {
+      cardContainers.forEach(container => {
+        container.querySelectorAll('.module-card, .fx-pill-card, .landing-reveal').forEach(card => {
+          card.classList.add('is-visible');
+        });
+      });
+      return;
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      cardContainers.forEach(container => {
+        container.querySelectorAll('.module-card, .fx-pill-card, .landing-reveal').forEach(card => {
+          card.classList.add('is-visible');
+        });
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const container = entry.target;
+        observer.unobserve(container);
+
+        const cards = container.querySelectorAll('.module-card, .fx-pill-card, .landing-reveal');
+        if (!cards.length) return;
+
+        window.anime({
+          targets: cards,
+          opacity: [0, 1],
+          translateY: [24, 0],
+          delay: window.anime.stagger(65, { start: 100 }),
+          duration: 700,
+          easing: 'easeOutCubic',
+          complete: () => {
+            cards.forEach(c => c.classList.add('is-visible'));
+          }
+        });
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+    cardContainers.forEach(c => observer.observe(c));
+  };
+
+  const initCtaMicroGlow = () => {
+    const rings = document.querySelectorAll('.fx-cta-rings, .fx-cta-rings-2');
+    if (!rings.length) return;
+
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || typeof window.anime !== 'function') return;
+
+    window.anime({
+      targets: rings,
+      scale: [1, 1.05],
+      opacity: [0.15, 0.3],
+      direction: 'alternate',
+      loop: true,
+      easing: 'easeInOutQuad',
+      duration: 3200
+    });
+  };
+
+  initMetricCounters();
+  initStaggeredCards();
+  initCtaMicroGlow();
 });

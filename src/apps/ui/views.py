@@ -10,7 +10,8 @@ from apps.rbac import services as rbac
 from apps.rbac.models import Role
 from apps.tenancy import selectors
 from apps.tenancy.models import Membership
-from .forms import ClientOnboardingForm
+from .forms import ClientOnboardingForm, DashboardFilterForm
+from .pagination import paginate_dashboard_queryset
 from .utils import is_client_membership
 from .public_catalog import get_catalog_item, DETAIL_PAGES
 
@@ -783,8 +784,12 @@ def home(request):
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
         ]
         header_actions = []
+        filter_form = DashboardFilterForm(request.GET)
+        filter_form.is_valid()
         if rbac.has_permission(request.membership, "audit.view"):
-            recent = list(AuditLog.objects.for_organization(org)[:8])
+            recent_qs = AuditLog.objects.for_organization(org)
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
+            recent = list(recent_page_obj)
             activity_title = "Recent Immutable Audit Activity"
             activity_link = reverse("audit:list")
             activity_link_label = "Full Audit Trail →"
@@ -792,8 +797,8 @@ def home(request):
             recent_qs = WorkOrder.objects.for_organization(org)
             if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
                 recent_qs = recent_qs.filter(assigned_to=request.membership)
-            recent_objs = recent_qs.order_by("-created_at")[:8]
-            recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_objs]
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs.order_by("-created_at"), page_param="activity_page", per_page=8)
+            recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_page_obj]
             activity_title = "Recent Work Orders"
             activity_link = reverse("workorders:list")
             activity_link_label = "Work Order Board →"
@@ -845,6 +850,9 @@ def home(request):
     is_tech = persona_key in ("technician", "field_technician")
     return render(request, "ui/home.html", {
         "persona": persona,
+        "recent_page_obj": locals().get("recent_page_obj"),
+        "preserved_params": locals().get("preserved_params", ""),
+        "filter_form": locals().get("filter_form"),
         "kpi_cards": kpi_cards,
         "shortcuts": filtered_shortcuts,
         "header_actions": filtered_headers,

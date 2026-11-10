@@ -9,6 +9,7 @@ from django.utils import timezone
 from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole
 from apps.workorders.models import WorkOrder
+from apps.ui.pagination import paginate_dashboard_queryset
 
 from .models import Downtime, ServiceRequest
 from .workflow import CLOSED, REJECTED
@@ -161,9 +162,13 @@ def _dashboard_context(request, *, platform=False):
             balance = stock_by_part.get(line.part_id, {})
             line.available_stock = (balance.get("on_hand") or 0) - (balance.get("reserved") or 0)
             line.shortage = max(line.remaining_to_issue - line.available_stock, 0)
-    request_rows = list((requests if not platform and "client_requester" in role_keys and not has_incidents
-                         else active_requests).order_by("-created_at")[:12])
-    work_order_rows = list(open_work_orders.order_by("due_at", "-created_at")[:12])
+    req_qs = (requests if not platform and "client_requester" in role_keys and not has_incidents else active_requests).order_by("-created_at")
+    requests_page_obj, requests_params = paginate_dashboard_queryset(request, req_qs, page_param="req_page", per_page=12)
+    request_rows = list(requests_page_obj)
+
+    wo_qs = open_work_orders.order_by("due_at", "-created_at")
+    work_orders_page_obj, wo_params = paginate_dashboard_queryset(request, wo_qs, page_param="wo_page", per_page=12)
+    work_order_rows = list(work_orders_page_obj)
     recent_audits = list(audits.order_by("-occurred_at")[:10])
     open_breaches = list(breaches.filter(status=SLABreach.Status.OPEN).select_related(
         "tracking__request", "site").order_by("-breached_at")[:10]) if can["sla"] else []
@@ -172,6 +177,8 @@ def _dashboard_context(request, *, platform=False):
     return {
         "platform": platform, "dashboard_title": title, "role_keys": role_keys,
         "requests": request_rows, "work_orders": work_order_rows, "parts": parts,
+        "requests_page_obj": requests_page_obj, "requests_params": requests_params,
+        "work_orders_page_obj": work_orders_page_obj, "wo_params": wo_params,
         "recent_audits": recent_audits, "open_breaches": open_breaches,
         "at_risk": at_risk,
         "repeated_assets": repeated_assets, "by_category": by_category, "by_site": by_site,
