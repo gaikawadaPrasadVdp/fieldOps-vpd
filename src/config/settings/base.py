@@ -179,7 +179,16 @@ CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 
 # --- Cache / Redis ----------------------------------------------------------------------------
-REDIS_URL = env("REDIS_URL", "").strip()
+_raw_redis_url = env("REDIS_URL", "").strip()
+_VALID_REDIS_SCHEMES = ("redis://", "rediss://", "unix://")
+
+if _raw_redis_url and any(_raw_redis_url.startswith(s) for s in _VALID_REDIS_SCHEMES):
+    REDIS_URL = _raw_redis_url
+elif _raw_redis_url and ":" in _raw_redis_url and " " not in _raw_redis_url and not _raw_redis_url.startswith(("http://", "https://")):
+    REDIS_URL = f"redis://{_raw_redis_url}"
+else:
+    REDIS_URL = ""
+
 if REDIS_URL:
     CACHES = {
         "default": {
