@@ -233,35 +233,20 @@ body.fx-public-site {
 
   z-index: 1040;
 
-  /* background-color: #071426;
-
-  background: #071426; */
-
-  background-color: transparent;
-  backdrop-filter: none;
-
-  -webkit-backdrop-filter: none;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-
+  background: rgba(7, 20, 38, 0.72);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .fx-pub-header.is-scrolled {
-  background-color: #0b29584b;
-
-  background: #0b29584b;
-  opacity: 0.8;
-
-  backdrop-filter: none;
-
-  -webkit-backdrop-filter: none;
-
+  background: rgba(5, 14, 28, 0.88);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
   border-bottom: 1px solid rgba(245, 196, 81, 0.25);
-
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
 }
 
 .fx-pub-header.has-mega-open {
@@ -3596,20 +3581,18 @@ a.fx-footer-location-link:focus-visible {
 
   z-index: 1040 !important;
 
-  background-color: #071426 !important;
+  background: rgba(7, 20, 38, 0.72) !important;
 
-  background: #071426;
+  backdrop-filter: blur(16px) saturate(180%) !important;
 
-  backdrop-filter: none !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
 
-  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
 
   transition:
-    background-color 0.25s ease,
+    background 0.25s ease,
     border-color 0.25s ease,
     box-shadow 0.25s ease;
 }
@@ -3704,17 +3687,15 @@ a.fx-footer-location-link:focus-visible {
 /* Scrolled state on Home Page — Solid Deep Navy */
 
 .fx-page-home .fx-pub-header.is-scrolled {
-  background-color: #050e1c !important;
+  background: rgba(5, 14, 28, 0.88) !important;
 
-  background: #050e1c !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
 
-  backdrop-filter: none !important;
-
-  -webkit-backdrop-filter: none !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
 
   border-bottom: 1px solid rgba(245, 196, 81, 0.25) !important;
 
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
 }
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-brand-text {
