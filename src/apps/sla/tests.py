@@ -877,6 +877,7 @@ class SlaFullWorkflowLifecycleTests(TestCase):
 
         t_wo.refresh_from_db()
         self.assertIsNotNone(t_wo.resolution_met_at, "Resolution target must be met upon completion")
+        self.assertEqual(t_wo.status, SLATracking.Status.COMPLETED)
         self.assertEqual(t_wo.resolution_state, SLATracking.TargetState.MET)
         self.assertTrue(SLAEvent.objects.filter(tracking=t_wo, event_type="RESOLUTION_MET").exists())
         self.assertTrue(AuditLog.objects.filter(action="sla.resolution_met", organization=self.org).exists())
@@ -1036,6 +1037,19 @@ class SlaFullWorkflowLifecycleTests(TestCase):
         self.assertEqual(breach.acknowledged_by, self.dispatcher)
         self.assertTrue(SLAEvent.objects.filter(tracking=t_wo, event_type="ACKNOWLEDGED").exists())
         self.assertTrue(AuditLog.objects.filter(action="sla.breach_acknowledged", organization=self.org).exists())
+
+        # Acknowledged breaches must not inflate Open Breaches KPI count (only remaining unacknowledged OPEN breaches count)
+        from apps.sla import selectors as sla_selectors
+        expected_open = SLABreach.objects.for_organization(self.org).filter(status=SLABreach.Status.OPEN).count()
+        self.assertEqual(expected_open, 1)
+        kpis = sla_selectors.metrics_for_trackings(sla_selectors.trackings_for(self.owner_mem, self.org), self.owner_mem, self.org)
+        self.assertEqual(kpis["breaches_open"], expected_open)
+        self.assertEqual(sla_selectors.metrics(self.owner_mem, self.org)["breaches_open"], expected_open)
+
+        # Fulfilling a previously breached target marks MET_LATE even if wall-clock now <= due
+        sla_services._meet(t_wo, "RESOLUTION", t_wo.started_at + timedelta(minutes=1), actor=self.dispatcher)
+        t_wo.refresh_from_db()
+        self.assertEqual(t_wo.resolution_state, SLATracking.TargetState.MET_LATE)
 
     def test_dispatcher_rejection_cancels_sla(self):
         """Dispatcher rejecting request cancels the active SLA tracking."""
