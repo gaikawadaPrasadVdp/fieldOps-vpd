@@ -46,70 +46,10 @@ def _filter_valid_nav_items(sections):
     return clean
 
 
-def shell(request):
-    user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated:
-        return {}
-
-    req_path = request.path
-    membership = getattr(request, "membership", None)
-
-    # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
-    if getattr(user, "is_platform_admin", False):
-        sections = {
-            "Platform Governance": [
-                {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
-                {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                
-            ]
-        }
-        sections = _filter_valid_nav_items(sections)
-        _resolve_active(sections, req_path)
-        return {
-            "shell_org": None,
-            "shell_membership": None,
-            "shell_nav_sections": sections,
-            "shell_memberships": [],
-            "shell_tenant_error": None,
-            "is_client": False,
-        }
-
-    if membership is None:
-        return {
-            "shell_org": None,
-            "shell_membership": None,
-            "shell_nav_sections": {},
-            "shell_memberships": list(selectors.active_memberships(user)),
-            "shell_tenant_error": getattr(request, "tenant_error", None),
-            "is_client": False,
-        }
-
-    # 2. Client / Requester Navigation (M13)
-    is_client = is_client_membership(membership)
-    if is_client:
-        sections = {
-            "Portal": [
-                {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
-                {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
-                {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
-            ]
-        }
-        sections = _filter_valid_nav_items(sections)
-        _resolve_active(sections, req_path)
-        return {
-            "shell_org": getattr(request, "organization", None),
-            "shell_membership": membership,
-            "shell_nav_sections": sections,
-            "shell_memberships": request.active_memberships if hasattr(request, "active_memberships") and request.active_memberships is not None else list(selectors.active_memberships(user)),
-            "shell_tenant_error": getattr(request, "tenant_error", None),
-            "is_client": True,
-        }
-
-    # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
+def _build_tenant_nav(membership, is_owner):
     role_keys = set(
         MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True)
     )
-    is_owner = rbac.is_owner(membership)
     is_admin = "admin" in role_keys or rbac.has_permission(membership, "role.manage")
     sections = {}
 
@@ -451,7 +391,83 @@ def shell(request):
         if admin_items:
             sections["Administration"] = admin_items
 
-    sections = _filter_valid_nav_items(sections)
+    return _filter_valid_nav_items(sections)
+
+
+def shell(request):
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {}
+
+    req_path = request.path
+    membership = getattr(request, "membership", None)
+
+    # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
+    if getattr(user, "is_platform_admin", False):
+        sections = {
+            "Platform Governance": [
+                {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
+                {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
+                
+            ]
+        }
+        sections = _filter_valid_nav_items(sections)
+        _resolve_active(sections, req_path)
+        return {
+            "shell_org": None,
+            "shell_membership": None,
+            "shell_nav_sections": sections,
+            "shell_memberships": [],
+            "shell_tenant_error": None,
+            "is_client": False,
+        }
+
+    if membership is None:
+        return {
+            "shell_org": None,
+            "shell_membership": None,
+            "shell_nav_sections": {},
+            "shell_memberships": list(selectors.active_memberships(user)),
+            "shell_tenant_error": getattr(request, "tenant_error", None),
+            "is_client": False,
+        }
+
+    # 2. Client / Requester Navigation (M13)
+    is_client = is_client_membership(membership)
+    if is_client:
+        sections = {
+            "Portal": [
+                {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
+                {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
+                {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+            ]
+        }
+        sections = _filter_valid_nav_items(sections)
+        _resolve_active(sections, req_path)
+        return {
+            "shell_org": getattr(request, "organization", None),
+            "shell_membership": membership,
+            "shell_nav_sections": sections,
+            "shell_memberships": request.active_memberships if hasattr(request, "active_memberships") and request.active_memberships is not None else list(selectors.active_memberships(user)),
+            "shell_tenant_error": getattr(request, "tenant_error", None),
+            "is_client": True,
+        }
+
+        # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
+    import copy
+    import uuid
+    from django.core.cache import cache
+
+    is_owner = rbac.is_owner(membership)
+    nav_cache_key = f"shell_nav_raw:{membership.pk}" if isinstance(getattr(membership, "pk", None), (uuid.UUID, int, str)) else None
+    raw_sections = cache.get(nav_cache_key) if nav_cache_key else None
+
+    if raw_sections is None:
+        raw_sections = _build_tenant_nav(membership, is_owner)
+        if nav_cache_key:
+            cache.set(nav_cache_key, raw_sections, timeout=300)
+
+    sections = copy.deepcopy(raw_sections)
     _resolve_active(sections, req_path)
 
     return {
