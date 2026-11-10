@@ -156,10 +156,14 @@ class WorkOrder(TenantOwnedModel):
                 name="uniq_live_work_order_per_request",
             ),
         ]
-        indexes = [models.Index(fields=["organization", "status"]),
-                   models.Index(fields=["site", "status"]),
-                   models.Index(fields=["assigned_to", "status"]),
-                   models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx")]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+            models.Index(fields=["site", "status"]),
+            models.Index(fields=["assigned_to", "status"]),
+            models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx"),
+            models.Index(fields=["organization", "assigned_to", "status"], name="wo_org_asgn_stat_idx"),
+            models.Index(fields=["organization", "site", "status"], name="wo_org_site_stat_idx"),
+        ]
 
     def clean(self):
         super().clean()
