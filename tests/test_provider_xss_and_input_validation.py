@@ -98,3 +98,29 @@ def test_cleanup_fuzzed_providers_migration(org_a):
     assert not ServiceProvider.objects.filter(pk=bad_repetition.pk).exists()
     # Verify good one remained
     assert ServiceProvider.objects.filter(pk=good_provider.pk).exists()
+
+
+@pytest.mark.django_db
+def test_cleanup_fuzzed_providers_management_command(org_a):
+    from io import StringIO
+    from django.core.management import call_command
+
+    bad_xss = ServiceProvider.objects.create(
+        organization=org_a,
+        name='<script>alert(1)</script>"><img src=x onerror=alert(2)>',
+        is_active=True,
+    )
+    bapi_prov = ServiceProvider.objects.create(
+        organization=org_a,
+        name="BAPI Provider 1106142839",
+        is_active=True,
+    )
+
+    out = StringIO()
+    call_command("cleanup_fuzzed_providers", "--include-bapi", stdout=out)
+    output = out.getvalue()
+
+    assert "Deleted unlinked fuzzed provider" in output
+    assert not ServiceProvider.objects.filter(pk=bad_xss.pk).exists()
+    assert not ServiceProvider.objects.filter(pk=bapi_prov.pk).exists()
+
