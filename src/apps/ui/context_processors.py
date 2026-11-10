@@ -144,8 +144,9 @@ def shell(request):
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
         sections["Commercial"] = [
-            {"label": "Warranties & contracts", "url": reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
-            {"label": "Expiring coverage", "url": reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Warranties & contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
         sections["Administration"] = [
             {"label": "Organization", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
@@ -246,6 +247,7 @@ def shell(request):
         sections["Commercial"] = [
             {"label": "Warranties & contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
             {"label": "Expiring coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
         if rbac.has_permission_anywhere(membership, "report.view"):
             sections["Analytics"] = [
@@ -329,6 +331,7 @@ def shell(request):
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
             {"label": "Warranties & contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
             {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
         ]
 
