@@ -348,6 +348,26 @@
       </tbody>
     </table>
   </div>
+  {% if requests_page_obj and requests_page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+      <span class="small text-secondary">
+        Page {{ requests_page_obj.number }} of {{ requests_page_obj.paginator.num_pages }} ({{ requests_page_obj.paginator.count }} requests)
+      </span>
+      <ul class="pagination pagination-sm m-0">
+        {% if requests_page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?req_page={{ requests_page_obj.previous_page_number }}{% if requests_params %}&amp;{{ requests_params }}{% endif %}">&laquo;</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ requests_page_obj.number }}</span></li>
+        {% if requests_page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?req_page={{ requests_page_obj.next_page_number }}{% if requests_params %}&amp;{{ requests_params }}{% endif %}">&raquo;</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  {% endif %}
 </div>
 {% endif %} {% if has_work_orders %}
 <div class="fx-card mb-4">
@@ -399,6 +419,26 @@
       </tbody>
     </table>
   </div>
+  {% if work_orders_page_obj and work_orders_page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+      <span class="small text-secondary">
+        Page {{ work_orders_page_obj.number }} of {{ work_orders_page_obj.paginator.num_pages }} ({{ work_orders_page_obj.paginator.count }} jobs)
+      </span>
+      <ul class="pagination pagination-sm m-0">
+        {% if work_orders_page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?wo_page={{ work_orders_page_obj.previous_page_number }}{% if wo_params %}&amp;{{ wo_params }}{% endif %}">&laquo;</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ work_orders_page_obj.number }}</span></li>
+        {% if work_orders_page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?wo_page={{ work_orders_page_obj.next_page_number }}{% if wo_params %}&amp;{{ wo_params }}{% endif %}">&raquo;</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  {% endif %}
 </div>
 {% endif %} {% if can.parts %}
 <div class="fx-card mb-4">

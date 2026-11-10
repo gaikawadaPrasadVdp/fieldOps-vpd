@@ -11,6 +11,7 @@ from django.views import View
 
 from apps.core.exceptions import DomainError
 from apps.ui.mixins import TenantPermissionMixin
+from apps.ui.pagination import paginate_dashboard_queryset
 from apps.workorders.models import WorkOrder
 
 from . import selectors, services
@@ -146,7 +147,8 @@ class MyJobsView(TenantPermissionMixin, View):
         status_filter = request.GET.get("status", "active")
         search = request.GET.get("q", "").strip()
 
-        jobs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        jobs_qs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        page_obj, preserved_params = paginate_dashboard_queryset(request, jobs_qs, page_param="page", per_page=12)
 
         active_count = selectors.my_jobs(request.membership, status_filter="active").count()
         upcoming_count = selectors.my_jobs(request.membership, status_filter="upcoming").count()
@@ -155,7 +157,9 @@ class MyJobsView(TenantPermissionMixin, View):
         capacity = selectors.daily_capacity_summary(request.membership)
 
         ctx = {
-            "jobs": jobs,
+            "jobs": page_obj.object_list,
+            "page_obj": page_obj,
+            "preserved_params": preserved_params,
             "status_filter": status_filter,
             "search": search,
             "active_count": active_count,

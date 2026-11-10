@@ -468,3 +468,12 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
     def clean_country(self):
         return (self.cleaned_data.get("country", "") or "").strip().upper()[:2]
 
+
+
+class PlatformOrganizationFilterForm(forms.Form):
+    """Validates platform organizations search and status filter."""
+    q = forms.CharField(max_length=150, required=False)
+    status = forms.ChoiceField(
+        choices=[("", "All Statuses"), ("ACTIVE", "Active"), ("SUSPENDED", "Inactive / Suspended")],
+        required=False,
+    )

@@ -10,6 +10,7 @@ LIBS = {
     "bootstrap.bundle.min.js": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js",
     "htmx.min.js": "https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js",
     "zxing.min.js": "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js",  # M12 camera scanner
+    "anime.min.js": "https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js",
 }
 out = Path(__file__).resolve().parent.parent / "src" / "static" / "lib"
 out.mkdir(parents=True, exist_ok=True)
@@ -18,4 +19,4 @@ for name, url in LIBS.items():
     text = re.sub(r"/\*#\s*sourceMappingURL=[^*]*\*/|//#\s*sourceMappingURL=\S+", "", text)
     (out / name).write_text(text, encoding="utf-8")
     print(f"{name}: {len(text):,} bytes")
-(out / "VERSIONS.txt").write_text("bootstrap 5.3.3 (MIT), htmx 2.0.4 (BSD-2), @zxing/library 0.21.3 (Apache-2.0). Re-create with scripts/fetch_static_libs.py\n")
+(out / "VERSIONS.txt").write_text("bootstrap 5.3.3 (MIT), htmx 2.0.4 (BSD-2), @zxing/library 0.21.3 (Apache-2.0), animejs 3.2.2 (MIT). Re-create with scripts/fetch_static_libs.py\n")

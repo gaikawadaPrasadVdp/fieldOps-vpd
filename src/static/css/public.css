@@ -199,7 +199,7 @@ body.fx-public-site {
   .landing-reveal-left.is-visible,
   .landing-reveal-scale,
   .landing-reveal-scale.is-visible {
-    opacity: 0.8 !important;
+    opacity: 1 !important;
     transform: none !important;
 
     transition: none !important;

@@ -18,6 +18,7 @@ from apps.incidents.services import DuplicateIncidentError
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import forms, selectors, services
+from apps.ui.pagination import paginate_dashboard_queryset
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -54,12 +55,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx["company_name"] = self.account.company_name or self.request.organization.name
         ctx["created_ref"] = self.request.GET.get("created")
         ctx["metrics"] = selectors.get_portal_dashboard_metrics(self.request.membership)
-        ctx["recent_requests"] = (
+        requests_qs = (
             ServiceRequest.objects.for_organization(self.request.organization)
             .filter(reported_by=self.request.membership)
             .select_related("asset", "site")
-            .order_by("-created_at")[:5]
+            .order_by("-created_at")
         )
+        page_obj, preserved_params = paginate_dashboard_queryset(self.request, requests_qs, page_param="portal_page", per_page=10)
+        ctx["recent_requests"] = list(page_obj)
+        ctx["recent_requests_page_obj"] = page_obj
+        ctx["preserved_params"] = preserved_params
         return ctx
 
 

@@ -100,7 +100,7 @@ def shell(request):
             "shell_org": getattr(request, "organization", None),
             "shell_membership": membership,
             "shell_nav_sections": sections,
-            "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
+            "shell_memberships": request.active_memberships if hasattr(request, "active_memberships") and request.active_memberships is not None else list(selectors.active_memberships(user)),
             "shell_tenant_error": getattr(request, "tenant_error", None),
             "is_client": True,
         }
@@ -116,47 +116,52 @@ def shell(request):
     if is_owner or is_admin:
         sections["Overview"] = [
             {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+            {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "activity", "match_prefix": "/app/dashboards"},
+            {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "clock", "match_prefix": "/app/dashboards/snapshots"},
         ]
         sections["Operations"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
             {"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
             {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
+            {"label": "Technician Workspace", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
         ]
         sections["Maintenance Planning"] = [
-            {"label": "Maintenance plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
-            {"label": "Due & upcoming", "url": _safe_reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
-            {"label": "PM history", "url": _safe_reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
+            {"label": "Maintenance Plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
+            {"label": "Due & Upcoming", "url": _safe_reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
+            {"label": "PM History", "url": _safe_reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
         ]
-        sections["Inventory & Warehouses"] = [
-            {"label": "Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
-            {"label": "Stock", "url": _safe_reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"},
+        sections["Inventory & Stores"] = [
+            {"label": "Parts Catalog", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
+            {"label": "Stock Balances", "url": _safe_reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"},
             {"label": "Warehouses", "url": _safe_reverse("inventory:warehouses"), "icon": "building", "match_prefix": "/app/inventory/warehouses"},
             {"label": "Reservations", "url": _safe_reverse("inventory:reservations"), "icon": "list-check", "match_prefix": "/app/inventory/reservations"},
-            {"label": "Movements", "url": _safe_reverse("inventory:movements"), "icon": "clipboard", "match_prefix": "/app/inventory/movements"},
+            {"label": "Stock Movements", "url": _safe_reverse("inventory:movements"), "icon": "clipboard", "match_prefix": "/app/inventory/movements"},
         ]
-        sections["Asset Lifecycle"] = [
+        sections["Assets & Locations"] = [
             {"label": "Sites & Locations", "url": _safe_reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
-            {"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Hierarchy", "url": _safe_reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"},
+            {"label": "Asset Registry", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Asset Hierarchy", "url": _safe_reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"},
+            {"label": "Scan QR / Barcode", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
+        ]
+        sections["Commercial & Contracts"] = [
+            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
-        sections["Commercial"] = [
-            {"label": "Warranties & contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
-            {"label": "Expiring coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
-            {"label": "Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
+        sections["Compliance & Governance"] = [
+            {"label": "Audit Trail", "url": _safe_reverse("audit:list"), "icon": "clock", "match_prefix": "/app/audit"},
+            {"label": "Compliance Reports", "url": _safe_reverse("audit:reports"), "icon": "list-check", "match_prefix": "/app/audit/reports"},
         ]
         sections["Administration"] = [
-            {"label": "Organization", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
-            {"label": "Users", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
+            {"label": "Organization Settings", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
+            {"label": "Users & Invitations", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
             {"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
+            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"},
             {"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
-        ]
-        sections["Analytics & Governance"] = [
-            {"label": "Operational Dashboards", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
-            {"label": "Audit Trail", "url": _safe_reverse("audit:list"), "icon": "clock", "match_prefix": "/app/audit"},
         ]
 
 
@@ -346,36 +351,105 @@ def shell(request):
         ]
 
     else:
-        # Fallback for custom composite roles
+        # Fallback for custom composite roles - dynamically populated by verified permissions
         sections["Overview"] = [
             {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
         ]
+
+        # Operations
+        ops_items = []
         if rbac.has_permission_anywhere(membership, "incident.view"):
-            sections.setdefault("Operations", []).append(
-                {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"}
-            )
+            ops_items.append({"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"})
         if rbac.has_permission_anywhere(membership, "work_order.view"):
-            sections.setdefault("Operations", []).append(
-                {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"}
-            )
+            ops_items.append({"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"})
+        if rbac.has_permission_anywhere(membership, "checklist.view"):
+            ops_items.append({"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"})
+        if rbac.has_permission_anywhere(membership, "inspection.view") or rbac.has_permission_anywhere(membership, "checklist.execute"):
+            ops_items.append({"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"})
+        if rbac.has_permission_anywhere(membership, "work_order.view_assigned"):
+            ops_items.append({"label": "My Assigned Jobs", "url": _safe_reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"})
+        if ops_items:
+            sections["Operations"] = ops_items
+
+        # Maintenance Planning
+        if rbac.has_permission_anywhere(membership, "maintenance.view"):
+            sections["Maintenance Planning"] = [
+                {"label": "Maintenance plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
+                {"label": "Due & upcoming", "url": _safe_reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
+                {"label": "PM history", "url": _safe_reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
+            ]
+
+        # Inventory & Warehouses
+        inv_items = []
+        if rbac.has_permission_anywhere(membership, "inventory.part.view") or rbac.has_permission_anywhere(membership, "inventory.view"):
+            inv_items.append({"label": "Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"})
+        if rbac.has_permission_anywhere(membership, "inventory.stock.view") or rbac.has_permission_anywhere(membership, "inventory.view"):
+            inv_items.append({"label": "Stock", "url": _safe_reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"})
+        if rbac.has_permission_anywhere(membership, "inventory.warehouse.view") or rbac.has_permission_anywhere(membership, "inventory.view"):
+            inv_items.append({"label": "Warehouses", "url": _safe_reverse("inventory:warehouses"), "icon": "building", "match_prefix": "/app/inventory/warehouses"})
+        if rbac.has_permission_anywhere(membership, "inventory.reservation.view") or rbac.has_permission_anywhere(membership, "inventory.view"):
+            inv_items.append({"label": "Reservations", "url": _safe_reverse("inventory:reservations"), "icon": "list-check", "match_prefix": "/app/inventory/reservations"})
+        if rbac.has_permission_anywhere(membership, "inventory.movement.view") or rbac.has_permission_anywhere(membership, "inventory.view"):
+            inv_items.append({"label": "Movements", "url": _safe_reverse("inventory:movements"), "icon": "clipboard", "match_prefix": "/app/inventory/movements"})
+        if inv_items:
+            sections["Inventory & Warehouses"] = inv_items
+
+        # Assets & Locations
+        asset_items = []
+        if rbac.has_permission_anywhere(membership, "site.view") or rbac.has_permission_anywhere(membership, "asset.view"):
+            asset_items.append({"label": "Sites & Locations", "url": _safe_reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"})
         if rbac.has_permission_anywhere(membership, "asset.view"):
-            sections.setdefault("Assets & Locations", []).append(
-                {"label": "Sites & Locations", "url": _safe_reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"}
-            )
-            sections.setdefault("Assets & Locations", []).append(
-                {"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"}
-            )
-            sections.setdefault("Assets & Locations", []).append(
-                {"label": "Hierarchy", "url": _safe_reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"}
-            )
+            asset_items.append({"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
+            asset_items.append({"label": "Hierarchy", "url": _safe_reverse("assets:hierarchy_hub"), "icon": "git-branch", "match_prefix": "/app/assets/hierarchy"})
+        if rbac.has_permission_anywhere(membership, "qr.scan"):
+            asset_items.append({"label": "Scan QR / Barcode", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
+        if asset_items:
+            sections["Asset Lifecycle"] = asset_items
+
+        # Service Level Agreements
         if rbac.has_permission_anywhere(membership, "sla.view"):
             sections["Service Level Agreements"] = [
                 {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
             ]
-        if rbac.has_permission_anywhere(membership, "report.view"):
-            sections["Analytics"] = [
-                {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+
+        # Commercial
+        if rbac.has_permission_anywhere(membership, "contract.view"):
+            sections["Commercial"] = [
+                {"label": "Warranties & contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+                {"label": "Expiring coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+                {"label": "Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
             ]
+
+        # Analytics
+        analytics_items = []
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            analytics_items.append({"label": "Operational Dashboards", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"})
+            analytics_items.append({"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "clock", "match_prefix": "/app/dashboards/snapshots"})
+        if analytics_items:
+            sections["Analytics"] = analytics_items
+
+        # Compliance & Governance
+        audit_items = []
+        if rbac.has_permission_anywhere(membership, "audit.view"):
+            audit_items.append({"label": "Audit Trail", "url": _safe_reverse("audit:list"), "icon": "clock", "match_prefix": "/app/audit"},)
+            audit_items.append({"label": "Compliance reports", "url": _safe_reverse("audit:reports"), "icon": "list-check", "match_prefix": "/app/audit/reports"})
+        if audit_items:
+            sections["Compliance & Governance"] = audit_items
+
+        # Administration
+        admin_items = []
+        if rbac.has_permission_anywhere(membership, "organization.update"):
+            admin_items.append({"label": "Organization", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"})
+        if rbac.has_permission_anywhere(membership, "user.invite") or rbac.has_permission_anywhere(membership, "user.view"):
+            admin_items.append({"label": "Users", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"})
+        if rbac.has_permission_anywhere(membership, "role.manage") or rbac.has_permission_anywhere(membership, "role.view"):
+            admin_items.append({"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"})
+        if rbac.has_permission_anywhere(membership, "work_order.view"):
+            admin_items.append({"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"})
+        if rbac.has_permission_anywhere(membership, "portal.manage"):
+            admin_items.append({"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"})
+        if admin_items:
+            sections["Administration"] = admin_items
 
     sections = _filter_valid_nav_items(sections)
     _resolve_active(sections, req_path)
@@ -384,7 +458,7 @@ def shell(request):
         "shell_org": getattr(request, "organization", None),
         "shell_membership": membership,
         "shell_nav_sections": sections,
-        "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
+        "shell_memberships": request.active_memberships if hasattr(request, "active_memberships") and request.active_memberships is not None else list(selectors.active_memberships(user)),
         "shell_tenant_error": getattr(request, "tenant_error", None),
         "is_client": is_client,
         "is_org_owner": is_owner,
