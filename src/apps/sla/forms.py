@@ -390,6 +390,29 @@ class EscalationRuleFormSet(BaseFormSet):
     def __init__(self, *args, roles=None, **kwargs):
         super().__init__(*args, form_kwargs={"roles": roles}, **kwargs)
 
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_rules = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            target = form.cleaned_data.get("target_kind")
+            trigger = form.cleaned_data.get("trigger")
+            after = form.cleaned_data.get("after_minutes") or 0
+            if target and trigger:
+                key = (target, trigger, after)
+                if key in active_rules:
+                    target_label = "Response" if target == "RESPONSE" else "Resolution"
+                    trigger_label = dict(EscalationRule.Trigger.choices).get(trigger, trigger)
+                    delay_msg = f" with {after}m delay" if trigger == EscalationRule.Trigger.ESCALATION and after else ""
+                    raise forms.ValidationError(
+                        f"Duplicate escalation rule detected for {target_label} Target ({trigger_label}{delay_msg}). "
+                        "Each rule step can only be configured once per SLA Profile."
+                    )
+                active_rules.append(key)
+
 
 EscalationRuleFormSetFactory = formset_factory(
     RuleForm, formset=EscalationRuleFormSet, extra=0, can_delete=True, max_num=6, validate_max=True,

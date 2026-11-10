@@ -293,6 +293,43 @@ class SlaProfileFormTests(TestCase):
         self.assertIn("Duplicate priority target detected", error_msg)
         self.assertIn("Critical", error_msg)
 
+    def test_duplicate_escalation_rules_rejected(self):
+        """Submitting two rows with the same escalation rule step raises a clear duplicate error."""
+        sup_role = self.roles.get("supervisor") or self.roles.get("operations_manager")
+        payload = {
+            "name": "Duplicate Rule SLA",
+            "applies_to": "REQUEST",
+            "targets-TOTAL_FORMS": "1",
+            "targets-INITIAL_FORMS": "0",
+            "targets-MIN_NUM_FORMS": "0",
+            "targets-MAX_NUM_FORMS": "4",
+            "targets-0-priority": "CRITICAL",
+            "targets-0-response_minutes": "15 minutes",
+            "targets-0-resolution_minutes": "4 hours",
+            "targets-0-warning_percent": "75%",
+            "rules-TOTAL_FORMS": "2",
+            "rules-INITIAL_FORMS": "0",
+            "rules-MIN_NUM_FORMS": "0",
+            "rules-MAX_NUM_FORMS": "6",
+            "rules-0-target_kind": "RESOLUTION",
+            "rules-0-trigger": "WARNING",
+            "rules-0-level": "1",
+            "rules-0-notify_role": str(sup_role.pk) if sup_role else "",
+            "rules-0-notify_assignee": "on",
+            "rules-1-target_kind": "RESOLUTION",
+            "rules-1-trigger": "WARNING",
+            "rules-1-level": "2",
+            "rules-1-notify_role": str(sup_role.pk) if sup_role else "",
+            "rules-1-notify_assignee": "on",
+            "action": "activate",
+        }
+        response = self.client.post("/app/sla/profiles/new/", data=payload)
+        self.assertEqual(response.status_code, 400)
+        rule_formset = response.context.get("rule_formset")
+        self.assertTrue(rule_formset.non_form_errors())
+        error_msg = str(rule_formset.non_form_errors()[0])
+        self.assertIn("Duplicate escalation rule detected", error_msg)
+
     def test_duplicate_scope_conflict_message(self):
         """Creating an active profile with duplicate scope raises clear message indicating existing profile."""
         SLAProfile.objects.create(

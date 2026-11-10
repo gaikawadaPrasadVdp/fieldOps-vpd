@@ -26,7 +26,7 @@ class TenantContextMiddleware:
             path = request.path
             if user is not None and user.is_authenticated:
                 if path.startswith(PLATFORM_PREFIXES):
-                    if user.is_platform_admin:
+                    if getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False):
                         tenant.set_current(tenant.PLATFORM)
                 elif not path.startswith("/api/"):
                     self._resolve_session_tenant(request, user)
