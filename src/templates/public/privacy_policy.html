@@ -1,0 +1,135 @@
+{% extends "public/legal_base.html" %}
+{% load static ui_tags %}
+
+{% block legal_title %}Privacy Policy &amp; Data Protection{% endblock %}
+{% block breadcrumb_active %}Privacy Policy{% endblock %}
+{% block hero_badge %}Data Privacy &bull; Security &amp; Governance{% endblock %}
+{% block hero_heading %}Privacy Policy &amp; Data Protection{% endblock %}
+{% block hero_meta %}Version 2.4 &bull; Last Revised: October 2026 &bull; Reference: SEC-AUD-2026-PRIV{% endblock %}
+
+{% block legal_content %}
+<div class="border-bottom pb-4 mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h2 class="h4 fw-bold text-dark mb-1">FieldOps Nexus Enterprise Privacy Policy</h2>
+      <p class="small text-muted mb-0">Version 2.4 &bull; Last Revised: October 2026 &bull; Classification: Enterprise Public</p>
+    </div>
+    <span class="badge px-3 py-2 fw-semibold" style="background-color: rgba(11,31,59,0.08); color: #0B1F3B; border: 1px solid rgba(11,31,59,0.15);">
+      SEC-AUD-2026-PRIV
+    </span>
+  </div>
+</div>
+
+<div class="lead text-dark mb-4" style="font-size: 1.05rem; line-height: 1.7;">
+  FieldOps Nexus provides an enterprise multi-tenant platform for mission-critical asset tracking, preventive maintenance, and field dispatch execution. This Privacy Policy details our technical and operational commitments regarding data collection, tenant segregation, storage encryption, and regulatory rights.
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-4 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">1</span>
+  Information Collection and Usage
+</h3>
+<p>
+  FieldOps Nexus collects only data necessary to provision, maintain, and secure enterprise field operations. Data processed across the platform falls into three operational tiers:
+</p>
+<ul>
+  <li>
+    <strong>Account &amp; Administrative Credentials:</strong> Enterprise administrator names, professional email addresses, phone contacts, organization affiliations, and cryptographic password hashes required for authenticated tenant access.
+  </li>
+  <li>
+    <strong>Operational Asset &amp; Telemetry Data:</strong> Equipment specifications, serial identifiers, meter readings, runtime counters, sensor telemetry feeds, work order notes, checklist inspection results, and facility layout coordinates.
+  </li>
+  <li>
+    <strong>System Telemetry &amp; Audit Logs:</strong> Access timestamps, source IP addresses, browser user-agent tokens, API endpoint invocations, and database state mutation records captured solely to guarantee auditability and operational integrity.
+  </li>
+</ul>
+<p>
+  <strong>Purpose of Processing:</strong> We process enterprise data exclusively to execute maintenance workflows, dispatch field engineers, prevent unplanned equipment downtime, calculate SLA metrics, and maintain tenant audit traceability. FieldOps Nexus does not monetize, sell, or license enterprise data to third-party advertisers.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">2</span>
+  Data Protection and Security
+</h3>
+<p>
+  Our platform enforces defense-in-depth security architecture designed to safeguard enterprise assets and operational data against unauthorized disclosure or tampering:
+</p>
+<ul>
+  <li>
+    <strong>Cryptographic Tenant Isolation:</strong> FieldOps Nexus enforces strict tenant-isolated data protection compliant with enterprise standards. Each organizational entity operates within isolated database schemas or logically segregated queries bounded by verified organizational context. Under no circumstances can work orders, parts inventory, or personnel records be queried or modified cross-tenant.
+  </li>
+  <li>
+    <strong>Encryption at Rest &amp; in Transit:</strong> All data stored within platform databases and media volumes is encrypted at rest using AES-256 standards. All external and internal communications require Transport Layer Security (TLS 1.3) with strictly enforced HTTP Strict Transport Security (HSTS).
+  </li>
+  <li>
+    <strong>Role-Based Access Control (RBAC):</strong> Access is strictly governed by the principle of least privilege. Permissions are assigned per organizational role (Platform Admin, Org Admin, Dispatcher, Maintenance Manager, Technician, Requester) and validated on every API request.
+  </li>
+  <li>
+    <strong>Append-Only Audit Trails:</strong> State transitions—including dispatch status changes, part reservations, and role delegations—produce immutable transactional audit logs capturing actor identity, action type, and microsecond timestamps.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">3</span>
+  Data Retention and Decommissioning
+</h3>
+<p>
+  We retain enterprise data only for the duration specified in the governing Master Services Agreement (MSA) and applicable industrial compliance standards:
+</p>
+<ul>
+  <li>
+    <strong>Active Subscription:</strong> Operational records, asset health logs, and maintenance histories are retained continuously throughout the active contract term to ensure historical continuity and predictive maintenance modeling.
+  </li>
+  <li>
+    <strong>Safety &amp; Compliance Logs:</strong> Work order sign-offs, hazardous equipment inspections, and statutory compliance checklists are archived for standard statutory retention periods (up to seven years or as required by local jurisdiction).
+  </li>
+  <li>
+    <strong>Tenant Decommissioning &amp; Purge:</strong> Upon contract expiration or verified termination, all tenant-isolated data is retained for a standard 30-day grace recovery window, after which all database partitions, media files, and cryptographic keys are permanently sanitized and purged.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">4</span>
+  User Privacy Rights &amp; Regulatory Compliance
+</h3>
+<p>
+  In accordance with international privacy frameworks (including GDPR, CCPA/CPRA, and applicable data sovereignty laws), authorized enterprise personnel and individual platform users possess specific rights regarding their personal data:
+</p>
+<ul>
+  <li><strong>Right of Access &amp; Portability:</strong> Designated organization administrators may request complete structured exports (JSON/CSV) of tenant metadata, user rosters, and equipment operational logs.</li>
+  <li><strong>Right to Rectification:</strong> Administrators may correct inaccurate personal records or operational data through administrative management consoles.</li>
+  <li><strong>Right to Restriction &amp; Erasure:</strong> Inactive user profiles can be deactivated and sanitized upon organizational request, subject to non-alteration of immutable safety and audit ledger records.</li>
+  <li><strong>Data Sovereignty:</strong> Dedicated regional hosting options are available for enterprise organizations requiring strictly localized data residency.</li>
+</ul>
+
+<div class="alert mt-4 mb-4 border" style="background-color: rgba(245,196,81,0.08); border-color: rgba(245,196,81,0.3) !important;">
+  <div class="d-flex align-items-start gap-2">
+    <span class="text-warning mt-1">{% icon 'alert-circle' 16 %}</span>
+    <div class="small">
+      <strong class="text-dark">Enterprise Legal Note:</strong> Custom data residency covenants, specialized business associate agreements (BAA), and cross-border transfer mechanisms require explicit approval and endorsement from the company legal oversight committee under project standard HPE-PRD-2026-FOPS02.
+    </div>
+  </div>
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">5</span>
+  Contact Information for Privacy Enquiries
+</h3>
+<p>
+  For all privacy questions, data protection inquiries, audit certifications, or to exercise regulatory privacy rights, please contact our dedicated Data Protection and Compliance team:
+</p>
+<div class="p-3 bg-light rounded-3 border">
+  <div class="row g-3">
+    <div class="col-sm-6">
+      <div class="text-muted small">Data Protection Officer:</div>
+      <div class="fw-semibold text-dark">Data Privacy &amp; Governance Desk</div>
+      <div class="small mt-1"><a href="mailto:privacy@fieldopsnexus.com" class="text-decoration-none" style="color: #0B1F3B;">privacy@fieldopsnexus.com</a></div>
+    </div>
+    <div class="col-sm-6">
+      <div class="text-muted small">Enterprise Compliance Desk:</div>
+      <div class="fw-semibold text-dark">FieldOps Nexus Legal Oversight</div>
+      <div class="small mt-1"><a href="mailto:compliance@fieldopsnexus.com" class="text-decoration-none" style="color: #0B1F3B;">compliance@fieldopsnexus.com</a></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
