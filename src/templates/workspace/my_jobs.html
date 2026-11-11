@@ -39,6 +39,12 @@ Technician Workspace{% endblock %} {% block content %}
         {% icon 'clock' 14 %} Schedule Board
       </a>
       <a
+        href="{% url 'workspace:my_profile' %}"
+        class="btn btn-outline-secondary btn-sm"
+      >
+        {% icon 'user' 14 %} My Profile &amp; Shift
+      </a>
+      <a
         href="{% url 'workorders:list' %}"
         class="btn btn-outline-secondary btn-sm"
       >

@@ -9,6 +9,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.html import format_html
 from django.views import View
 
 import logging
@@ -172,9 +174,14 @@ class AgreementCreateView(CBase):
                 a = assets.filter(pk=request.GET["assets"]).first() if selectors._uuid_or_none(
                     request.GET["assets"]) else None
                 initial["site"] = a.site_id if a else None
-        return AgreementForm(data, providers=selectors.providers_for(org).filter(is_active=True), sites=sites,
+        form = AgreementForm(data, providers=selectors.providers_for(org).filter(is_active=True), sites=sites,
                              assets=assets, sla_profiles=SLAProfile.objects.for_organization(org).filter(
                                  is_active=True).order_by("name"), initial=initial)
+        form.fields["provider"].help_text = format_html(
+            'Need a new vendor? <a href="{}">+ Add provider</a>',
+            reverse("contracts:provider_new"),
+        )
+        return form
 
     def get(self, request):
         return form_page(request, title="New warranty / AMC / contract", form=self._form(request),
