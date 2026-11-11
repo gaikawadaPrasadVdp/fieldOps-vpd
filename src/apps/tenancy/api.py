@@ -88,6 +88,10 @@ class HasOrgPermission(permissions.BasePermission):
         code = view.get_required_permission()
         if code is None:
             return False  # unmapped action -> deny
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(membership) and not request.path.startswith("/api/v1/portal/"):
+            if code not in ("user.self", MEMBER_ONLY) and not code.startswith("portal.request."):
+                return False
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
         return rbac.has_permission_anywhere(membership, code)

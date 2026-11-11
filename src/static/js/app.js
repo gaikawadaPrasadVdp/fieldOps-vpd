@@ -2220,14 +2220,22 @@ document.addEventListener("click", function (e) {
     if (!elem) return;
 
     var form = elem.form || elem.closest("form");
-    var isLogoutForm = form && form.action && form.action.indexOf("/accounts/logout/") !== -1;
+    var formAction = "";
+    if (form) {
+      if (typeof form.action === "string") {
+        formAction = form.action;
+      } else if (typeof form.getAttribute === "function") {
+        formAction = form.getAttribute("action") || "";
+      }
+    }
+    var isLogoutForm = Boolean(formAction && formAction.indexOf("/accounts/logout/") !== -1);
     var isLogoutBtn = elem.id === "fx-logout-btn" || (elem.textContent && elem.textContent.trim().toLowerCase() === "sign out");
 
     if (isLogoutForm || isLogoutBtn) {
       e.preventDefault();
       e.stopPropagation();
 
-      var logoutUrl = (form && form.action) ? form.action : "/accounts/logout/";
+      var logoutUrl = formAction || "/accounts/logout/";
       var csrfInput = form ? form.querySelector("input[name='csrfmiddlewaretoken']") : null;
       var csrfToken = csrfInput ? csrfInput.value : "";
       if (!csrfToken) {

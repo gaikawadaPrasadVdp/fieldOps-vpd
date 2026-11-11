@@ -34,6 +34,11 @@ class LoginView(auth_views.LoginView):
             services.activate_pending_memberships(user, request=self.request)
         response = super().form_valid(form)
         self.request.session["_last_activity_ts"] = int(time.time())
+        # Remember me cookie persistence: 0 = browser session cookie when unticked
+        if not self.request.POST.get("remember"):
+            self.request.session.set_expiry(0)
+        else:
+            self.request.session.set_expiry(settings.SESSION_COOKIE_AGE)
         if user and not (getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False)):
             from apps.tenancy import selectors
             memberships = list(selectors.active_memberships(user))
