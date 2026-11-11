@@ -316,7 +316,15 @@ class AssetCreateView(AssetBase):
             "crumbs": [("Assets", "/app/assets/"), (title, None)]}, status=status)
 
     def get(self, request):
-        parent = self._parent(request)
+        try:
+            parent = self._parent(request)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            pid = request.GET.get("parent")
+            if pid:
+                return redirect(f"/app/assets/{pid}/?tab=hierarchy")
+            return redirect("/app/assets/")
+
         initial = {}
         if parent:
             initial = {"site": parent.site_id, "zone": parent.zone_id, "category": parent.category_id}
@@ -335,7 +343,14 @@ class AssetCreateView(AssetBase):
         return self._page(request, form, parent, NewChildForm() if parent else None)
 
     def post(self, request):
-        parent = self._parent(request)
+        try:
+            parent = self._parent(request)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            pid = request.POST.get("parent") or request.GET.get("parent")
+            if pid:
+                return redirect(f"/app/assets/{pid}/?tab=hierarchy")
+            return redirect("/app/assets/")
         form = AssetForm(request.POST, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, request.POST))
         rel_form = NewChildForm(request.POST) if parent else None

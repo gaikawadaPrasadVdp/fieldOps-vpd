@@ -131,3 +131,29 @@
   </div>
   {% endfor %}
 </div>
+{% if page_obj and page_obj.has_other_pages %}
+<div class="mt-4">
+  <div class="card border-0 shadow-sm p-3 bg-white d-flex flex-row justify-content-between align-items-center" style="border-radius:10px;">
+    <span class="small text-secondary">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} assigned jobs)
+    </span>
+    <ul class="pagination pagination-sm m-0">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if search %}&amp;q={{ search }}{% endif %}">&laquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if search %}&amp;q={{ search }}{% endif %}">&raquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+{% endif %}

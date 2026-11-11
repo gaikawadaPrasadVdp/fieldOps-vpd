@@ -145,6 +145,12 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
             generate_identifier(asset, kind="QR", actor=actor, request=request)
     except Exception:
         pass
+    try:
+        with transaction.atomic():
+            from apps.portal.services import sync_portal_grants_for_asset
+            sync_portal_grants_for_asset(asset, actor=actor)
+    except Exception:
+        pass
     return asset
 
 
@@ -197,6 +203,12 @@ def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNS
                      before={"site_id": before["site_id"], "zone_id": before["zone_id"]},
                      after={"site_id": after["site_id"], "zone_id": after["zone_id"]},
                      metadata={"reason": reason}, request=request)
+        try:
+            with transaction.atomic():
+                from apps.portal.services import sync_portal_grants_for_asset
+                sync_portal_grants_for_asset(asset, actor=actor)
+        except Exception:
+            pass
     return asset
 
 
@@ -218,8 +230,8 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
     reason = (reason or "").strip()
     if not reason:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
-    if source == "manual" and any(c.isdigit() for c in reason):
-        raise ValidationFailed("Reason must contain only alphabetical characters and cannot contain numbers.", code="invalid_reason")
+    if source == "manual" and reason.isdigit():
+        raise ValidationFailed("Reason must contain descriptive text and cannot be numbers only.", code="invalid_reason")
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     previous, new = ASSET_STATUS.apply(asset, action)
     asset.save(update_fields=["status", "updated_at"])
@@ -245,8 +257,9 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
                     "source": source,
                 },
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger("apps.assets").warning("Failed to publish asset status changed integration event: %s", exc)
     return asset
 
 

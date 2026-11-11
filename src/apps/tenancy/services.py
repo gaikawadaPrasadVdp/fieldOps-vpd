@@ -396,8 +396,12 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
                     defaults={
                         "company_name": full_name or org.name,
                         "is_enabled": True,
+                        "auto_grant_assets": True,
                     },
                 )
+                if not portal_acc.auto_grant_assets:
+                    portal_acc.auto_grant_assets = True
+                    portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
                 from apps.assets.models import Asset
                 assets_qs = Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"])
                 site_ids = [s.pk for _, s in assignments if s is not None]
@@ -497,8 +501,12 @@ def update_member(membership: Membership, *, actor, full_name=None, job_title=No
                         defaults={
                             "company_name": membership.user.full_name or membership.organization.name,
                             "is_enabled": True,
+                            "auto_grant_assets": True,
                         },
                     )
+                    if not portal_acc.auto_grant_assets:
+                        portal_acc.auto_grant_assets = True
+                        portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
                     from apps.assets.models import Asset
                     assets_qs = Asset.objects.for_organization(membership.organization).exclude(status__in=["RETIRED", "DISPOSED"])
                     site_ids = [s.pk for _, s in resolved if s is not None]

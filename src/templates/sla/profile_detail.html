@@ -129,10 +129,13 @@
 <!-- SLA Targets Card -->
 <div class="fx-card mb-4" id="targets-section">
   <div class="fx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
+    <div class="d-flex align-items-center gap-2">
       <span class="fw-semibold">SLA Targets</span>
+      <span class="badge bg-light text-dark border ms-1">{{ targets|length }} Priority Target{{ targets|length|pluralize }}</span>
     </div>
-    <span class="badge bg-light text-dark border">{{ targets|length }} Priority Target{{ targets|length|pluralize }}</span>
+    <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" id="btn_open_target_add" data-bs-toggle="modal" data-bs-target="#targetModal" data-action="add-target">
+      {% icon 'plus' 14 %} Add Priority Target
+    </button>
   </div>
   <div class="table-responsive">
     <table class="table fx-table mb-0" id="targets-table">
@@ -169,100 +172,70 @@
           </td>
           <td>
             <div class="fw-semibold text-body">{{ t.response_minutes }} min</div>
-            <div class="text-body-secondary small">Max allowed time to assign/triage</div>
+            <div class="text-body-secondary small">
+              {% if p.applies_to == "WORK_ORDER" %}Max time to assign or start Work Order{% else %}Max time for Dispatcher to triage Incident{% endif %}
+            </div>
           </td>
           <td>
             <div class="fw-semibold text-body">{{ t.resolution_minutes }} min</div>
-            <div class="text-body-secondary small">Max allowed time to complete/resolve</div>
+            <div class="text-body-secondary small">
+              {% if p.applies_to == "WORK_ORDER" %}Max time to complete Work Order{% else %}Max total time until Incident is resolved{% endif %}
+            </div>
           </td>
           <td>
             <div class="fw-semibold text-warning-emphasis">{{ t.warning_percent }}%</div>
             <div class="text-body-secondary small">Alert threshold before breach</div>
           </td>
           <td class="text-end">
-            <form method="post" action="{% url 'sla:target_remove' p.pk t.pk %}" class="m-0">
-              {% csrf_token %}
-              <button class="btn btn-sm btn-outline-danger" data-confirm="Remove this target? Items with this priority will no longer be tracked.">
-                <i class="bi bi-trash me-1"></i>Remove
+            <div class="d-inline-flex align-items-center gap-1">
+              <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
+                      data-bs-toggle="modal"
+                      data-bs-target="#targetModal"
+                      data-action="edit-target"
+                      data-priority="{{ t.priority }}"
+                      data-response="{{ t.response_minutes }} minutes"
+                      data-resolution="{{ t.resolution_minutes }} minutes"
+                      data-warning="{{ t.warning_percent }}">
+                <i class="bi bi-pencil me-1"></i>Edit
               </button>
-            </form>
+              <form method="post" action="{% url 'sla:target_remove' p.pk t.pk %}" class="m-0 d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" data-confirm="Remove this target? Items with this priority will no longer be tracked.">
+                  <i class="bi bi-trash me-1"></i>Remove
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% empty %}
         <tr>
           <td colspan="5" class="p-4 text-center text-body-secondary">
             <i class="bi bi-clock-history fs-3 d-block mb-2 text-secondary"></i>
-            No targets defined yet. Add a target below for Critical/Urgent, High, Medium, or Low priority items.
+            No targets defined yet. Add a target above for Critical/Urgent, High, Medium, or Low priority items.
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-
-  <details class="fx-card-body border-top bg-light-subtle p-3">
-    <summary class="small fw-semibold text-primary cursor-pointer d-flex align-items-center gap-1">
-      <i class="bi bi-plus-circle"></i>
-      <span>Add or Update Another Priority Target</span>
-    </summary>
-    <form method="post" action="{% url 'sla:target_set' p.pk %}" class="row g-2 align-items-end mt-2">
-      {% csrf_token %}
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=target_form.priority %}
-      </div>
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=target_form.response_minutes %}
-        <div class="d-flex gap-1 flex-wrap mt-1">
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_response_minutes', '15 minutes')">15m</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_response_minutes', '30 minutes')">30m</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_response_minutes', '1 hour')">1h</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_response_minutes', '2 hours')">2h</button>
-        </div>
-      </div>
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=target_form.resolution_minutes %}
-        <div class="d-flex gap-1 flex-wrap mt-1">
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_resolution_minutes', '2 hours')">2h</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_resolution_minutes', '4 hours')">4h</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_resolution_minutes', '8 hours')">8h</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_resolution_minutes', '24 hours')">24h</button>
-        </div>
-      </div>
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=target_form.warning_percent %}
-        <div class="d-flex gap-1 flex-wrap mt-1">
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_warning_percent', '70%')">70%</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_warning_percent', '75%')">75%</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_warning_percent', '80%')">80%</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.72rem;" onclick="fillTargetField('id_warning_percent', '90%')">90%</button>
-        </div>
-      </div>
-      <div class="col-12 mt-2">
-        <button class="btn btn-primary px-3">
-          <i class="bi bi-check-lg me-1"></i>Save target
-        </button>
-      </div>
-    </form>
-  </details>
 </div>
 
-<script>
-  function fillTargetField(id, val) {
-    var el = document.getElementById(id);
-    if (el) {
-      el.value = val;
-      el.dispatchEvent(new Event("input"));
-    }
-  }
-</script>
-
 <!-- Escalation Rules Card -->
-<div class="fx-card mb-4">
-  <div class="fx-card-header d-flex justify-content-between align-items-center">
-    <div>
+<div class="fx-card mb-4" id="rules-section">
+  <div class="fx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
       <span class="fw-semibold">Escalation & Notification Rules</span>
-      <span class="text-body-secondary small ms-2">({{ rules|length }} configured)</span>
+      <span class="text-body-secondary small ms-1">({{ rules|length }} / {{ max_rules }} configured)</span>
     </div>
+    {% if rules|length >= max_rules %}
+      <button type="button" class="btn btn-sm btn-secondary d-inline-flex align-items-center gap-1" disabled title="Maximum of {{ max_rules }} rules reached; edit or remove an existing rule.">
+        {% icon 'plus' 14 %} Max {{ max_rules }} Rules Reached
+      </button>
+    {% else %}
+      <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" id="btn_open_rule_add" data-bs-toggle="modal" data-bs-target="#ruleModal" data-action="add-rule">
+        {% icon 'plus' 14 %} Add Escalation Rule
+      </button>
+    {% endif %}
   </div>
 
   <div class="table-responsive">
@@ -281,13 +254,20 @@
         {% for r in rules %}
         <tr>
           <td>
-            <span class="badge bg-light text-dark border">
+            <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1">
               {% if r.target_kind == "RESPONSE" %}
-                <i class="bi bi-lightning-charge me-1 text-primary"></i>Response Target
+                {% icon 'zap' 12 %} Response Target
               {% else %}
-                <i class="bi bi-flag me-1 text-success"></i>Resolution Target
+                {% icon 'check-circle' 12 %} Resolution Target
               {% endif %}
             </span>
+            <div class="small text-body-secondary mt-1">
+              {% if r.target_kind == "RESPONSE" %}
+                {% if p.applies_to == "WORK_ORDER" %}Assign / start deadline{% else %}Dispatcher triage deadline{% endif %}
+              {% else %}
+                {% if p.applies_to == "WORK_ORDER" %}Work completion deadline{% else %}Full issue resolution deadline{% endif %}
+              {% endif %}
+            </div>
           </td>
           <td>
             <div class="fw-semibold text-body">{{ r.get_trigger_display }}</div>
@@ -315,12 +295,27 @@
             </div>
           </td>
           <td class="text-end">
-            <form method="post" action="{% url 'sla:rule_remove' p.pk r.pk %}" class="m-0">
-              {% csrf_token %}
-              <button class="btn btn-sm btn-outline-danger" data-confirm="Remove this escalation rule?">
-                <i class="bi bi-trash me-1"></i>Remove
+            <div class="d-inline-flex align-items-center gap-1">
+              <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
+                      data-bs-toggle="modal"
+                      data-bs-target="#ruleModal"
+                      data-action="edit-rule"
+                      data-url="{% url 'sla:rule_edit' p.pk r.pk %}"
+                      data-kind="{{ r.target_kind }}"
+                      data-trigger="{{ r.trigger }}"
+                      data-after="{{ r.after_minutes|default:'' }}"
+                      data-level="{{ r.level }}"
+                      data-role="{{ r.notify_role_id|default:'' }}"
+                      data-assignee="{% if r.notify_assignee %}1{% else %}0{% endif %}">
+                <i class="bi bi-pencil me-1"></i>Edit
               </button>
-            </form>
+              <form method="post" action="{% url 'sla:rule_remove' p.pk r.pk %}" class="m-0 d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" data-confirm="Remove this escalation rule?">
+                  <i class="bi bi-trash me-1"></i>Remove
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -334,40 +329,536 @@
       </tbody>
     </table>
   </div>
-
-  <details class="fx-card-body border-top bg-light-subtle p-3">
-    <summary class="small fw-semibold text-primary cursor-pointer d-flex align-items-center gap-1">
-      <i class="bi bi-plus-circle"></i>
-      <span>Add Custom Escalation Rule</span>
-    </summary>
-    <form method="post" action="{% url 'sla:rule_new' p.pk %}" class="row g-2 align-items-end mt-2">
-      {% csrf_token %}
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=rule_form.target_kind %}
-      </div>
-      <div class="col-md-3">
-        {% include "components/_form_field.html" with field=rule_form.trigger %}
-      </div>
-      <div class="col-md-2" id="after_minutes_wrapper">
-        {% include "components/_form_field.html" with field=rule_form.after_minutes %}
-      </div>
-      <div class="col-md-2">
-        {% include "components/_form_field.html" with field=rule_form.level %}
-      </div>
-      <div class="col-md-2">
-        {% include "components/_form_field.html" with field=rule_form.notify_role %}
-      </div>
-      <div class="col-12 mt-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div>
-          {% include "components/_form_field.html" with field=rule_form.notify_assignee %}
-        </div>
-        <button class="btn btn-primary px-3">
-          <i class="bi bi-check-lg me-1"></i>Add rule
-        </button>
-      </div>
-    </form>
-  </details>
 </div>
 
+<!-- Modal: Add / Edit Priority Target -->
+<div class="modal fade" id="targetModal" tabindex="-1" aria-labelledby="targetModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form method="post" action="{% url 'sla:target_set' p.pk %}" id="targetForm" novalidate>
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="targetModalTitle">Add Priority Target</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-3 p-md-4">
+          <div id="targetModalError" class="alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              {% include "components/_form_field.html" with field=target_form.priority %}
+            </div>
+            <div class="col-md-6">
+              {% include "components/_form_field.html" with field=target_form.warning_percent %}
+              <div class="form-text text-body-secondary small">Alert threshold percentage before breach (defaults to 80% if blank).</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ target_form.response_minutes.id_for_label }}">
+                Response Target<span class="text-danger ms-1" title="Required">*</span>
+              </label>
+              <div class="row g-2">
+                <div class="col-7">
+                  {{ target_form.response_minutes }}
+                </div>
+                <div class="col-5">
+                  <select class="form-select" id="response_unit_select" aria-label="Response unit">
+                    <option value="minutes" selected>Minutes</option>
+                    <option value="hours">Hours</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-text text-body-secondary small" id="response_preview">
+                {% if p.applies_to == "WORK_ORDER" %}
+                  Max time to assign or start Work Order (e.g. 15 Minutes).
+                {% else %}
+                  Max time for Dispatcher to triage Incident (e.g. 15 Minutes).
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ target_form.resolution_minutes.id_for_label }}">
+                Resolution Target<span class="text-danger ms-1" title="Required">*</span>
+              </label>
+              <div class="row g-2">
+                <div class="col-7">
+                  {{ target_form.resolution_minutes }}
+                </div>
+                <div class="col-5">
+                  <select class="form-select" id="resolution_unit_select" aria-label="Resolution unit">
+                    <option value="minutes" selected>Minutes</option>
+                    <option value="hours">Hours</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-text text-body-secondary small" id="resolution_preview">
+                {% if p.applies_to == "WORK_ORDER" %}
+                  Max total time to complete Work Order (must be &ge; Response).
+                {% else %}
+                  Max total time until Incident is resolved (must be &ge; Response).
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light-subtle">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary px-3" id="targetModalSubmitBtn">
+            Save target
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
+<!-- Modal: Add / Edit Escalation Rule -->
+<div class="modal fade" id="ruleModal" tabindex="-1" aria-labelledby="ruleModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form method="post" action="{% url 'sla:rule_new' p.pk %}" id="ruleForm" novalidate data-applies-to="{{ p.applies_to }}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold" id="ruleModalTitle">Add Escalation Rule</h5>
+            <div class="small text-body-secondary">
+              Profile type: <strong>{% if p.applies_to == "WORK_ORDER" %}Work Order SLA{% else %}Incident / Breakdown SLA{% endif %}</strong>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-3 p-md-4">
+          <div id="ruleModalError" class="alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ rule_form.target_kind.id_for_label }}">
+                Monitor Target<span class="text-danger ms-1" title="Required">*</span>
+              </label>
+              {{ rule_form.target_kind }}
+              <div class="form-text text-body-secondary small" id="rule_target_explain">
+                {% if p.applies_to == "WORK_ORDER" %}
+                  Choose whether this rule watches Technician assignment/start (Response) or job completion (Resolution).
+                {% else %}
+                  Choose whether this rule watches Dispatcher triage (Response) or full issue resolution (Resolution).
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ rule_form.trigger.id_for_label }}">
+                Trigger Condition<span class="text-danger ms-1" title="Required">*</span>
+              </label>
+              {{ rule_form.trigger }}
+              <div class="form-text text-body-secondary small">Choose when this rule should fire and send alerts.</div>
+            </div>
+            <div class="col-md-6">
+              <div id="rule_after_minutes_group" class="d-none">
+                <label class="form-label fw-semibold" for="{{ rule_form.after_minutes.id_for_label }}">
+                  Escalate after (minutes)<span class="text-danger ms-1" title="Required">*</span>
+                </label>
+                {{ rule_form.after_minutes }}
+                <div class="form-text text-body-secondary small">Minutes after SLA breach if target is still unmet (e.g. 15 or 30).</div>
+              </div>
+              <div id="rule_timing_auto_box">
+                <label class="form-label fw-semibold">Trigger Timing</label>
+                <div class="form-control bg-light text-body-secondary small" id="rule_timing_readonly">
+                  Select Trigger Condition above
+                </div>
+                <div class="form-text text-body-secondary small" id="rule_timing_explain">
+                  Shows when the alert fires or lets you enter escalation delay minutes.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              {% include "components/_form_field.html" with field=rule_form.level %}
+              <div class="form-text text-body-secondary small" id="rule_level_explain" style="margin-top:-10px;">
+                Alert tier recorded in SLA Breaches &amp; Audit: Level 1 (Supervisor), Level 2 (Manager), Level 3 (Executive).
+              </div>
+            </div>
+            <div class="col-md-12">
+              {% include "components/_form_field.html" with field=rule_form.notify_role %}
+            </div>
+            <div class="col-md-12">
+              <div class="form-check">
+                {{ rule_form.notify_assignee }}
+                <label class="form-check-label fw-semibold" for="{{ rule_form.notify_assignee.id_for_label }}">
+                  Notify the current ticket / work order assignee
+                </label>
+              </div>
+              <div class="form-text text-body-secondary small mt-1">Select at least one recipient (a role and/or the assignee).</div>
+              <div id="rule_assignee_hint" class="alert alert-warning py-1 px-2 small mt-2 mb-0 d-none">
+                Untriaged Incidents do not have an assigned technician yet &mdash; select a <strong>Notify role</strong> (such as <em>Service Dispatcher</em> or <em>Maintenance Supervisor</em>) so Response alerts are delivered.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light-subtle">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary px-3" id="ruleModalSubmitBtn">
+            Save rule
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener("DOMContentLoaded", function() {
+    var targetModalEl = document.getElementById("targetModal");
+    var targetForm = document.getElementById("targetForm");
+    var targetErrorEl = document.getElementById("targetModalError");
+    var respInput = targetForm ? targetForm.querySelector('[name="response_minutes"]') : null;
+    var resolInput = targetForm ? targetForm.querySelector('[name="resolution_minutes"]') : null;
+    var respUnit = document.getElementById("response_unit_select");
+    var resolUnit = document.getElementById("resolution_unit_select");
+    var respPreview = document.getElementById("response_preview");
+    var resolPreview = document.getElementById("resolution_preview");
+
+    var ruleModalEl = document.getElementById("ruleModal");
+    var ruleForm = document.getElementById("ruleForm");
+    var ruleErrorEl = document.getElementById("ruleModalError");
+
+    function showTargetError(msg) {
+      if (!targetErrorEl) return;
+      if (msg) {
+        targetErrorEl.textContent = msg;
+        targetErrorEl.classList.remove("d-none");
+      } else {
+        targetErrorEl.textContent = "";
+        targetErrorEl.classList.add("d-none");
+      }
+    }
+
+    function showRuleError(msg) {
+      if (!ruleErrorEl) return;
+      if (msg) {
+        ruleErrorEl.textContent = msg;
+        ruleErrorEl.classList.remove("d-none");
+      } else {
+        ruleErrorEl.textContent = "";
+        ruleErrorEl.classList.add("d-none");
+      }
+    }
+
+    function parseDurationToMinutes(rawVal, unitVal) {
+      var txt = (rawVal || "").trim().toLowerCase();
+      if (!txt) return null;
+      if (/^\d+(\.\d+)?$/.test(txt)) {
+        var n = parseFloat(txt);
+        if (unitVal === "hours") return Math.round(n * 60);
+        return Math.round(n);
+      }
+      var total = 0;
+      var matched = false;
+      var h = txt.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+      if (h) { total += parseFloat(h[1]) * 60; matched = true; }
+      var m = txt.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/);
+      if (m) { total += parseFloat(m[1]); matched = true; }
+      return matched ? Math.round(total) : null;
+    }
+
+    function formatMinutesReadable(mins) {
+      if (!mins || mins <= 0) return "";
+      if (mins >= 60 && mins % 60 === 0) return "= " + (mins / 60) + " hour(s) (" + mins + " min)";
+      return "= " + mins + " minute(s)";
+    }
+
+    var isWorkOrderProfile = ruleForm && ruleForm.getAttribute("data-applies-to") === "WORK_ORDER";
+
+    function updatePreviews() {
+      var respDefault = isWorkOrderProfile
+        ? "Max time to assign or start Work Order (e.g. 15 Minutes)."
+        : "Max time for Dispatcher to triage Incident (e.g. 15 Minutes).";
+      var resolDefault = isWorkOrderProfile
+        ? "Max total time to complete Work Order (must be >= Response)."
+        : "Max total time until Incident is resolved (must be >= Response).";
+      if (respPreview && respInput && respUnit) {
+        var rm = parseDurationToMinutes(respInput.value, respUnit.value);
+        respPreview.textContent = rm ? formatMinutesReadable(rm) : respDefault;
+      }
+      if (resolPreview && resolInput && resolUnit) {
+        var rsm = parseDurationToMinutes(resolInput.value, resolUnit.value);
+        resolPreview.textContent = rsm ? formatMinutesReadable(rsm) : resolDefault;
+      }
+      showTargetError("");
+    }
+
+    if (respInput) respInput.addEventListener("input", updatePreviews);
+    if (resolInput) resolInput.addEventListener("input", updatePreviews);
+    if (respUnit) respUnit.addEventListener("change", updatePreviews);
+    if (resolUnit) resolUnit.addEventListener("change", updatePreviews);
+
+    if (targetForm) {
+      targetForm.addEventListener("submit", function(e) {
+        showTargetError("");
+        var prioSelect = targetForm.querySelector('[name="priority"]');
+        var warnInput = targetForm.querySelector('[name="warning_percent"]');
+
+        if (!prioSelect || !prioSelect.value) {
+          e.preventDefault();
+          showTargetError("Please choose a Priority level.");
+          return;
+        }
+        var respMins = parseDurationToMinutes(respInput ? respInput.value : "", respUnit ? respUnit.value : "minutes");
+        if (!respMins || respMins < 1) {
+          e.preventDefault();
+          showTargetError("Please enter a valid positive Response Target duration (at least 1 minute).");
+          return;
+        }
+        var resolMins = parseDurationToMinutes(resolInput ? resolInput.value : "", resolUnit ? resolUnit.value : "minutes");
+        if (!resolMins || resolMins < 1) {
+          e.preventDefault();
+          showTargetError("Please enter a valid positive Resolution Target duration (at least 1 minute).");
+          return;
+        }
+        if (resolMins < respMins) {
+          e.preventDefault();
+          showTargetError("Resolution Target (" + resolMins + " min) cannot be shorter than Response Target (" + respMins + " min). Increase Resolution Target or switch unit to Hours.");
+          return;
+        }
+        var warnRaw = warnInput ? warnInput.value.trim().replace("%", "") : "";
+        if (warnRaw !== "") {
+          var wNum = parseFloat(warnRaw);
+          if (isNaN(wNum) || wNum < 1 || wNum > 99) {
+            e.preventDefault();
+            showTargetError("Warning Alert must be a percentage between 1 and 99 (or leave blank for 80%).");
+            return;
+          }
+        }
+        // Normalize plain numbers with selected unit before submitting
+        if (respInput && respUnit && /^\d+(\.\d+)?$/.test(respInput.value.trim())) {
+          respInput.value = respInput.value.trim() + " " + respUnit.value;
+        }
+        if (resolInput && resolUnit && /^\d+(\.\d+)?$/.test(resolInput.value.trim())) {
+          resolInput.value = resolInput.value.trim() + " " + resolUnit.value;
+        }
+      });
+    }
+
+    function updateRuleTargetExplain() {
+      var kindSel = ruleForm ? ruleForm.querySelector('[name="target_kind"]') : null;
+      var targetExplain = document.getElementById("rule_target_explain");
+      var assigneeHint = document.getElementById("rule_assignee_hint");
+      if (!kindSel || !targetExplain) return;
+      var k = kindSel.value;
+      if (assigneeHint) {
+        if (!isWorkOrderProfile && k === "RESPONSE") {
+          assigneeHint.classList.remove("d-none");
+        } else {
+          assigneeHint.classList.add("d-none");
+        }
+      }
+      if (k === "RESPONSE") {
+        targetExplain.textContent = isWorkOrderProfile
+          ? "Watches initial dispatch speed: fires if Work Order is not Assigned, Dispatched, or Started before the Response deadline."
+          : "Watches initial pickup speed: fires if the NEW Incident is not Triaged by Dispatcher before the Response deadline.";
+      } else if (k === "RESOLUTION") {
+        targetExplain.textContent = isWorkOrderProfile
+          ? "Watches full job execution: fires if the Work Order is not Completed before the Resolution deadline (pauses while On Hold)."
+          : "Watches end-to-end fix time: fires if the Incident is not Resolved before the Resolution deadline (pauses while On Hold).";
+      } else {
+        targetExplain.textContent = isWorkOrderProfile
+          ? "Choose whether this rule watches Technician assignment/start (Response) or job completion (Resolution)."
+          : "Choose whether this rule watches Dispatcher triage (Response) or full issue resolution (Resolution).";
+      }
+    }
+
+    function updateAfterMinutesVisibility() {
+      var triggerSelect = ruleForm ? ruleForm.querySelector('[name="trigger"]') : null;
+      var afterInput = ruleForm ? ruleForm.querySelector('[name="after_minutes"]') : null;
+      var grp = document.getElementById("rule_after_minutes_group");
+      var autoBox = document.getElementById("rule_timing_auto_box");
+      var timingText = document.getElementById("rule_timing_readonly");
+      var timingExplain = document.getElementById("rule_timing_explain");
+      var levelExplain = document.getElementById("rule_level_explain");
+
+      updateRuleTargetExplain();
+      if (!triggerSelect) return;
+      var val = triggerSelect.value;
+
+      if (val === "ESCALATION") {
+        if (grp) grp.classList.remove("d-none");
+        if (autoBox) autoBox.classList.add("d-none");
+        if (levelExplain) {
+          levelExplain.textContent = "Escalation tier pushed after breach: Level 1 (Supervisor), Level 2 (Manager), Level 3 (Executive).";
+        }
+      } else {
+        if (grp) grp.classList.add("d-none");
+        if (autoBox) autoBox.classList.remove("d-none");
+        if (afterInput) afterInput.value = "";
+        if (timingText && timingExplain) {
+          if (val === "WARNING") {
+            timingText.textContent = "Automatic (at Target's Warning Alert %)";
+            timingExplain.textContent = "Fires once when elapsed SLA time reaches the Warning Alert % (e.g. 80%).";
+          } else if (val === "BREACH") {
+            timingText.textContent = "Immediate (0 min - when deadline missed)";
+            timingExplain.textContent = "Fires immediately when the selected Response or Resolution deadline is missed.";
+          } else {
+            timingText.textContent = "Select Trigger Condition above";
+            timingExplain.textContent = "Shows when the alert fires or lets you enter escalation delay minutes.";
+          }
+        }
+        if (levelExplain) {
+          levelExplain.textContent = "Alert tier recorded in SLA Breaches & Audit: Level 1 (Supervisor), Level 2 (Manager), Level 3 (Executive).";
+        }
+      }
+      showRuleError("");
+    }
+
+    if (ruleForm) {
+      var kindSelectListener = ruleForm.querySelector('[name="target_kind"]');
+      var trigSelect = ruleForm.querySelector('[name="trigger"]');
+      if (kindSelectListener) {
+        kindSelectListener.addEventListener("change", updateRuleTargetExplain);
+      }
+      if (trigSelect) {
+        trigSelect.addEventListener("change", updateAfterMinutesVisibility);
+      }
+      ruleForm.addEventListener("submit", function(e) {
+        showRuleError("");
+        var kindSel = ruleForm.querySelector('[name="target_kind"]');
+        var trSel = ruleForm.querySelector('[name="trigger"]');
+        var aftInp = ruleForm.querySelector('[name="after_minutes"]');
+        var rolSel = ruleForm.querySelector('[name="notify_role"]');
+        var asChk = ruleForm.querySelector('[name="notify_assignee"]');
+
+        if (!kindSel || !kindSel.value) {
+          e.preventDefault();
+          showRuleError("Please choose a Monitor Target (Response Target or Resolution Target).");
+          return;
+        }
+        if (!trSel || !trSel.value) {
+          e.preventDefault();
+          showRuleError("Please choose a Trigger Condition (Warning, SLA Breach, or Escalation).");
+          return;
+        }
+        if (trSel.value === "ESCALATION") {
+          var mins = aftInp ? parseInt(aftInp.value, 10) : NaN;
+          if (isNaN(mins) || mins < 1) {
+            e.preventDefault();
+            showRuleError("Please enter how many minutes after breach to escalate (at least 1 minute).");
+            return;
+          }
+        }
+        var hasRole = rolSel && rolSel.value !== "";
+        var hasAssignee = asChk && asChk.checked;
+        if (!hasRole && !hasAssignee) {
+          e.preventDefault();
+          showRuleError("Please select a Role to notify or check 'Notify the current ticket / work order assignee'.");
+          return;
+        }
+      });
+    }
+
+    function splitMinutesForUI(rawStr) {
+      var mins = parseDurationToMinutes(rawStr, "minutes");
+      if (!mins) return { val: "", unit: "minutes" };
+      if (mins >= 60 && mins % 60 === 0) return { val: String(mins / 60), unit: "hours" };
+      return { val: String(mins), unit: "minutes" };
+    }
+
+    if (targetModalEl) {
+      targetModalEl.addEventListener("show.bs.modal", function(event) {
+        var button = event.relatedTarget;
+        if (!button) return;
+        showTargetError("");
+        var action = button.getAttribute("data-action");
+        if (action === "edit-target") {
+          var priority = button.getAttribute("data-priority") || "";
+          var response = button.getAttribute("data-response") || "";
+          var resolution = button.getAttribute("data-resolution") || "";
+          var warning = button.getAttribute("data-warning") || "";
+
+          var prioSelect = targetForm.querySelector('[name="priority"]');
+          var warnInput = targetForm.querySelector('[name="warning_percent"]');
+          var rSplit = splitMinutesForUI(response);
+          var rsSplit = splitMinutesForUI(resolution);
+
+          if (prioSelect) prioSelect.value = priority;
+          if (respInput) respInput.value = rSplit.val;
+          if (respUnit) respUnit.value = rSplit.unit;
+          if (resolInput) resolInput.value = rsSplit.val;
+          if (resolUnit) resolUnit.value = rsSplit.unit;
+          if (warnInput) warnInput.value = warning;
+
+          document.getElementById("targetModalTitle").textContent = "Edit Priority Target: " + priority;
+          document.getElementById("targetModalSubmitBtn").textContent = "Update target";
+        } else {
+          if (targetForm) {
+            targetForm.reset();
+            var prio = targetForm.querySelector('[name="priority"]');
+            var warn = targetForm.querySelector('[name="warning_percent"]');
+            if (prio) prio.value = "";
+            if (respInput) respInput.value = "";
+            if (respUnit) respUnit.value = "minutes";
+            if (resolInput) resolInput.value = "";
+            if (resolUnit) resolUnit.value = "minutes";
+            if (warn) warn.value = "";
+          }
+          document.getElementById("targetModalTitle").textContent = "Add Priority Target";
+          document.getElementById("targetModalSubmitBtn").textContent = "Save target";
+        }
+        updatePreviews();
+      });
+    }
+
+    if (ruleModalEl) {
+      ruleModalEl.addEventListener("show.bs.modal", function(event) {
+        var button = event.relatedTarget;
+        if (!button) return;
+        showRuleError("");
+        var action = button.getAttribute("data-action");
+        if (action === "edit-rule") {
+          var url = button.getAttribute("data-url");
+          var kind = button.getAttribute("data-kind") || "";
+          var trigger = button.getAttribute("data-trigger") || "";
+          var after = button.getAttribute("data-after") || "";
+          var level = button.getAttribute("data-level") || "1";
+          var role = button.getAttribute("data-role") || "";
+          var assignee = button.getAttribute("data-assignee");
+
+          if (ruleForm && url) ruleForm.action = url;
+          var kindSelect = ruleForm.querySelector('[name="target_kind"]');
+          var triggerSelect = ruleForm.querySelector('[name="trigger"]');
+          var afterInput = ruleForm.querySelector('[name="after_minutes"]');
+          var levelInput = ruleForm.querySelector('[name="level"]');
+          var roleSelect = ruleForm.querySelector('[name="notify_role"]');
+          var assigneeChk = ruleForm.querySelector('[name="notify_assignee"]');
+
+          if (kindSelect) kindSelect.value = kind;
+          if (triggerSelect) triggerSelect.value = trigger;
+          if (afterInput) afterInput.value = after;
+          if (levelInput) levelInput.value = level;
+          if (roleSelect) roleSelect.value = role;
+          if (assigneeChk) assigneeChk.checked = (assignee === "1");
+
+          document.getElementById("ruleModalTitle").textContent = "Edit Escalation Rule";
+          document.getElementById("ruleModalSubmitBtn").textContent = "Update rule";
+          updateAfterMinutesVisibility();
+        } else {
+          if (ruleForm) {
+            ruleForm.reset();
+            ruleForm.action = "{% url 'sla:rule_new' p.pk %}";
+            var kSel = ruleForm.querySelector('[name="target_kind"]');
+            var tSel = ruleForm.querySelector('[name="trigger"]');
+            var aInp = ruleForm.querySelector('[name="after_minutes"]');
+            var lInp = ruleForm.querySelector('[name="level"]');
+            var rSel = ruleForm.querySelector('[name="notify_role"]');
+            var asChk = ruleForm.querySelector('[name="notify_assignee"]');
+            if (kSel) kSel.value = "";
+            if (tSel) tSel.value = "";
+            if (aInp) aInp.value = "";
+            if (lInp) lInp.value = "1";
+            if (rSel) rSel.value = "";
+            if (asChk) asChk.checked = false;
+            document.getElementById("ruleModalTitle").textContent = "Add Escalation Rule";
+            document.getElementById("ruleModalSubmitBtn").textContent = "Save rule";
+            updateAfterMinutesVisibility();
+          }
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

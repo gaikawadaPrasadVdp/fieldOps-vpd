@@ -6,20 +6,33 @@
 {% block body_class %}fx-error-body{% endblock %}
 
 {% block body %}
+{% if request.user.is_authenticated %}
+  {% if request.user.is_platform_admin %}
+    {% url 'platform_admin:organizations' as dashboard_url %}
+  {% else %}
+    {% url 'ui:home' as dashboard_url %}
+  {% endif %}
+{% else %}
+  {% url 'ui:root' as dashboard_url %}
+{% endif %}
 <div class="fx-error-page min-vh-100 d-flex flex-column justify-content-between" style="background: #F8FAFC;">
   <!-- Top Navigation Bar -->
   <header class="py-3 px-4 border-bottom bg-white d-flex align-items-center justify-content-between shadow-sm">
-    <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+    <a href="{{ dashboard_url }}" class="d-flex align-items-center gap-2 text-decoration-none">
       <div class="fx-pub-brand-badge" style="width:34px; height:34px; background:#0B1F3A; color:#F5C451; display:flex; align-items:center; justify-content:center; border-radius:8px; font-weight:bold; font-size:14px; letter-spacing:0.5px;">
         FX
       </div>
       <div class="lh-1">
         <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
-        <span class="d-none d-sm-inline-block ms-2 badge bg-light text-secondary border">Platform</span>
+        {% if request.user.is_platform_admin %}
+          <span class="d-none d-sm-inline-block ms-2 badge bg-light text-secondary border">Platform</span>
+        {% elif shell_org %}
+          <span class="d-none d-sm-inline-block ms-2 badge bg-light text-secondary border">{{ shell_org.name }}</span>
+        {% endif %}
       </div>
     </a>
     <div class="d-flex align-items-center gap-2">
-      <a href="{% url 'ui:root' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+      <a href="{{ dashboard_url }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
         {% icon 'grid' 15 %} <span>Dashboard</span>
       </a>
     </div>
@@ -40,11 +53,11 @@
         </p>
 
         <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
-          <a href="{% url 'ui:root' %}" class="btn btn-primary px-4 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="background:#0B1F3A; border-color:#0B1F3A;">
+          <a href="{{ dashboard_url }}" class="btn btn-primary px-4 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="background:#0B1F3A; border-color:#0B1F3A;">
             {% icon 'grid' 16 %}
             <span>Return to Dashboard</span>
           </a>
-          <button type="button" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'ui:root' %}'">
+          <button type="button" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{{ dashboard_url }}'">
             {% icon 'arrow-left' 15 %}
             <span>Go Back</span>
           </button>

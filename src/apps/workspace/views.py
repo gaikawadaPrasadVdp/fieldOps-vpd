@@ -11,6 +11,7 @@ from django.views import View
 
 from apps.core.exceptions import DomainError
 from apps.ui.mixins import TenantPermissionMixin
+from apps.ui.pagination import paginate_dashboard_queryset
 from apps.workorders.models import WorkOrder
 
 from . import selectors, services
@@ -146,16 +147,61 @@ class MyJobsView(TenantPermissionMixin, View):
         status_filter = request.GET.get("status", "active")
         search = request.GET.get("q", "").strip()
 
-        jobs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        jobs_qs = selectors.my_jobs(request.membership, status_filter=status_filter, search=search)
+        page_obj, preserved_params = paginate_dashboard_queryset(request, jobs_qs, page_param="page", per_page=12)
 
-        active_count = selectors.my_jobs(request.membership, status_filter="active").count()
-        upcoming_count = selectors.my_jobs(request.membership, status_filter="upcoming").count()
-        completed_count = selectors.my_jobs(request.membership, status_filter="completed").count()
-        all_count = selectors.my_jobs(request.membership, status_filter="all").count()
-        capacity = selectors.daily_capacity_summary(request.membership)
+        if request.headers.get("HX-Request"):
+            # Partial HTMX swap only updates the jobs list table/grid; skip full counts & capacity summary
+            active_count = upcoming_count = completed_count = all_count = 0
+            capacity = None
+        else:
+            from django.db.models import Count, Q
+            counts = (
+                WorkOrder.objects.for_organization(request.organization)
+                .filter(assigned_to=request.membership)
+                .aggregate(
+                    active=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.IN_PROGRESS,
+                                WorkOrder.Status.ON_HOLD,
+                                WorkOrder.Status.DISPATCHED,
+                            ]
+                        ),
+                    ),
+                    upcoming=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.ASSIGNED,
+                                WorkOrder.Status.PLANNED,
+                            ]
+                        ),
+                    ),
+                    completed=Count(
+                        "id",
+                        filter=Q(
+                            status__in=[
+                                WorkOrder.Status.COMPLETED,
+                                WorkOrder.Status.SUPERVISOR_REVIEW,
+                                WorkOrder.Status.CLOSED,
+                            ]
+                        ),
+                    ),
+                    total=Count("id"),
+                )
+            )
+            active_count = counts["active"]
+            upcoming_count = counts["upcoming"]
+            completed_count = counts["completed"]
+            all_count = counts["total"]
+            capacity = selectors.daily_capacity_summary(request.membership)
 
         ctx = {
-            "jobs": jobs,
+            "jobs": page_obj.object_list,
+            "page_obj": page_obj,
+            "preserved_params": preserved_params,
             "status_filter": status_filter,
             "search": search,
             "active_count": active_count,

@@ -859,6 +859,11 @@ def dispatch_work_order(wo, *, membership, actor, expected_version=None, request
 def start_work_order(wo, *, membership, actor, expected_version=None, request=None):
     _need(membership, "work_order.start", wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
+    if wo.status != WorkOrder.Status.DISPATCHED:
+        raise InvalidTransition(
+            f"Cannot start work order from {wo.status}; only DISPATCHED work orders can be started.",
+            code="invalid_work_order_transition",
+        )
     _transition(wo, WorkOrder.Status.IN_PROGRESS)
     if wo.assigned_to_id != membership.pk:
         raise PermissionDenied("Only the assigned technician may start this work order.")
@@ -910,6 +915,11 @@ def hold_work_order(wo, *, membership, actor, reason, expected_version=None, req
 def resume_work_order(wo, *, membership, actor, expected_version=None, request=None):
     _need(membership, "work_order.start", wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
+    if wo.status != WorkOrder.Status.ON_HOLD:
+        raise InvalidTransition(
+            f"Cannot resume work order from {wo.status}; only ON_HOLD work orders can be resumed.",
+            code="invalid_work_order_transition",
+        )
     _transition(wo, WorkOrder.Status.IN_PROGRESS)
     assert_can_execute(wo, membership)
     return transition_work_order(wo, WorkOrder.Status.IN_PROGRESS, membership=membership, actor=actor,

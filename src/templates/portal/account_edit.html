@@ -64,7 +64,7 @@
     <div class="card border-0 shadow-sm p-4 bg-white mb-4" style="border-radius:10px;">
       <div class="text-center pb-3 border-bottom">
         <div class="d-inline-grid place-items-center rounded-circle text-white fw-bold mx-auto mb-3 shadow-sm" style="width: 64px; height: 64px; background: var(--fx-accent); font-size: 1.35rem; border: 2px solid var(--fx-gold);">
-          {{ account.membership.user.display_name|slice:":2"|upper }}
+          {{ account.membership.user.display_name|avatar_initials }}
         </div>
         <h5 class="fw-bold text-dark mb-1">{{ account.membership.user.display_name }}</h5>
         <div class="text-secondary small mb-2">{{ account.membership.user.email }}</div>

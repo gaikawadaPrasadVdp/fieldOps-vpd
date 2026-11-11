@@ -79,8 +79,8 @@ class Command(BaseCommand):
         hierarchy.add_component(gen, engine, relationship_type="ASSEMBLY", actor=actor)
         hierarchy.add_component(gen, alt, relationship_type="ASSEMBLY", actor=actor)
         hierarchy.add_component(gen, cool, relationship_type="ASSEMBLY", actor=actor)
-        hierarchy.add_component(cool, pump, relationship_type="COMPONENT", actor=actor)
-        hierarchy.add_component(engine, filt, relationship_type="REPLACEABLE_PART", quantity=2,
+        hierarchy.add_component(gen, pump, relationship_type="COMPONENT", actor=actor)
+        hierarchy.add_component(gen, filt, relationship_type="REPLACEABLE_PART", quantity=2,
                                 part_number="LF-3000", actor=actor)
         meter = asset_services.create_meter(gen, name="Run hours", unit="h", actor=actor)
         for value in (120, 250.5, 410):
