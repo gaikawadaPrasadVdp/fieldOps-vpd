@@ -137,10 +137,10 @@ def test_asset_create_view_child_cannot_be_parent_handles_gracefully():
 def test_reportsnapshot_cleanup_migration_exists():
     """Verify migration 0003 exists and cleans up legacy kind column for dashboards_reportsnapshot."""
     import importlib
-    mig3 = importlib.import_module("apps.dashboards.migrations.0003_cleanup_legacy_reportsnapshot_columns")
+    mig3 = importlib.import_module("apps.dashboards.migrations.0004_cleanup_legacy_reportsnapshot_columns")
 
     assert hasattr(mig3, "cleanup_legacy_columns")
-    assert mig3.Migration.dependencies == [("dashboards", "0002_sync_schema")]
+    assert mig3.Migration.dependencies == [("dashboards", "0003_fix_snapshot_schema")]
 
 
 
