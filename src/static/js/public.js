@@ -66,6 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       navScrollSignal.style.transform = `scaleX(${progress})`;
 
+      navScrollSignal.style.opacity = progress > 0.001 ? '1' : '0';
+
     }
 
   };
@@ -75,6 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', updateScrollSignals, { passive: true });
 
   window.addEventListener('resize', updateScrollSignals, { passive: true });
+
+  window.addEventListener('load', updateScrollSignals, { once: true });
 
   updateScrollSignals();
 

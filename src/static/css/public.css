@@ -57,67 +57,7 @@
 
   --font-sans:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-
-  --font-mono: "JetBrains Mono", monospace;
-
-  --fx-navbar-height: 86px;
 }
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  font-family: var(--font-sans);
-
-  -webkit-font-smoothing: antialiased;
-
-  -moz-osx-font-smoothing: grayscale;
-
-  scroll-behavior: smooth;
-
-  overflow-x: clip;
-}
-
-body.fx-public-site {
-  margin: 0;
-
-  background-color: #ffffff;
-
-  color: var(--fx-text-primary);
-
-  font-family: var(--font-sans);
-
-  overflow-x: clip;
-
-  line-height: 1.5;
-}
-
-/* Scrollbars */
-
-::-webkit-scrollbar {
-  width: 6px;
-
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Animations */
 
 @keyframes pulse-dot {
   0%,
@@ -233,63 +173,47 @@ body.fx-public-site {
 
   z-index: 1040;
 
-  background: rgba(7, 20, 38, 0.72);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(6, 18, 36, 0.72);
+  border-bottom: none;
+  box-shadow: none;
+  transition: none;
 }
 
 .fx-pub-header.is-scrolled {
-  background: rgba(5, 14, 28, 0.88);
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border-bottom: 1px solid rgba(245, 196, 81, 0.25);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  background: rgba(6, 18, 36, 0.72);
+  border-bottom: none;
+  box-shadow: none;
 }
 
 .fx-pub-header.has-mega-open {
-  background-color: #071426;
-
-  background: #071426;
-
-  border-bottom: 1px solid rgba(245, 196, 81, 0.3);
+  background: rgba(6, 18, 36, 0.94);
+  border-bottom: none;
+  box-shadow: none;
 }
 
-/* Top Edge Gold Scroll Signal */
-
-.fx-nav-scroll-rail {
+/* Top Edge 4px Gold Scroll-Progress Line */
+.fx-nav-gold-track {
   position: absolute;
-
   top: 0;
-
   left: 0;
-
   right: 0;
-
-  height: 3px;
-
-  background-color: rgba(255, 255, 255, 0.05);
-
-  overflow: hidden;
-
-  z-index: 1050;
-
+  width: 100%;
+  height: 4px;
+  overflow-x: hidden;
+  overflow-y: visible;
   pointer-events: none;
+  z-index: 1050;
+  background: transparent;
 }
 
 #nexus-nav-scroll-signal {
-  height: 100%;
-
+  display: block;
   width: 100%;
-
-  transform-origin: left;
-
-  background-color: #f5c451;
-
-  box-shadow: 0 0 12px rgba(245, 196, 81, 0.7);
-
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: #f5c451;
+  box-shadow: 0 1px 8px rgba(245, 196, 81, 0.55);
   will-change: transform;
 }
 
@@ -528,14 +452,10 @@ body.fx-public-site {
   right: 0;
   width: 100%;
   z-index: 1040;
-  background: rgba(7, 20, 38, 0.52);
-  backdrop-filter: blur(18px) saturate(190%);
-  -webkit-backdrop-filter: blur(18px) saturate(190%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 8px 32px 0 rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(6, 18, 36, 0.72);
+  border-bottom: none;
+  box-shadow: none;
+  transition: none;
 }
 
 .fx-page-home
@@ -622,11 +542,9 @@ body.fx-public-site {
 /* Scrolled state on Home Page */
 /* Scrolled state on Home Page — Maintains cohesive dark-glass brilliance */
 .fx-page-home .fx-pub-header.is-scrolled {
-  background: rgba(4, 12, 24, 0.94);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border-bottom: 1px solid rgba(245, 196, 81, 0.22);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(6, 18, 36, 0.72);
+  border-bottom: none;
+  box-shadow: none;
 }
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-brand-text {
@@ -689,7 +607,8 @@ body.fx-public-site {
 /* Mega menu open state */
 .fx-page-home .fx-pub-header.has-mega-open {
   background-color: #0b1f3b !important;
-  border-bottom-color: rgba(248, 250, 252, 0.1) !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
 
 .fx-page-home .fx-pub-header.has-mega-open .fx-pub-brand-text {
@@ -3163,9 +3082,9 @@ a.fx-footer-location-link:focus-visible {
   }
 
   .fx-pub-brand-logo {
-    height: 64px;
+    height: 58px !important;
 
-    max-width: 260px;
+    max-width: 240px !important;
   }
 }
 
@@ -3181,9 +3100,9 @@ a.fx-footer-location-link:focus-visible {
   }
 
   .fx-pub-brand-logo {
-    height: 58px;
+    height: 52px !important;
 
-    max-width: 230px;
+    max-width: 215px !important;
   }
 }
 
@@ -3605,20 +3524,39 @@ a.fx-footer-location-link:focus-visible {
 
   z-index: 1040 !important;
 
-  background: rgba(7, 20, 38, 0.72) !important;
+  background: rgba(7, 20, 38, 0.96) !important;
 
-  backdrop-filter: blur(16px) saturate(180%) !important;
+  border-bottom: none !important;
 
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: none !important;
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  transition: none !important;
+}
 
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+@media (min-width: 992px) {
+  .fx-page-home .fx-pub-header {
+    position: fixed !important;
 
-  transition:
-    background 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+    background: linear-gradient(
+      180deg,
+      rgba(6, 18, 36, 0.72) 0%,
+      rgba(6, 18, 36, 0.48) 50%,
+      rgba(6, 18, 36, 0.16) 82%,
+      rgba(6, 18, 36, 0) 100%
+    ) !important;
+
+    border-bottom: none !important;
+
+    box-shadow: none !important;
+  }
+
+  .fx-page-home .fx-video-showcase-section {
+    height: 100vh;
+
+    height: 100dvh;
+
+    max-height: 920px;
+  }
 }
 
 .fx-page-home
@@ -3711,15 +3649,17 @@ a.fx-footer-location-link:focus-visible {
 /* Scrolled state on Home Page — Solid Deep Navy */
 
 .fx-page-home .fx-pub-header.is-scrolled {
-  background: rgba(5, 14, 28, 0.88) !important;
+  background: rgba(6, 18, 36, 0.72) !important;
 
-  backdrop-filter: blur(20px) saturate(190%) !important;
+  border-bottom: none !important;
 
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  box-shadow: none !important;
+}
 
-  border-bottom: 1px solid rgba(245, 196, 81, 0.25) !important;
-
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
+@media (max-width: 991.98px) {
+  .fx-page-home .fx-pub-header.is-scrolled {
+    background: rgba(7, 20, 38, 0.96) !important;
+  }
 }
 
 .fx-page-home .fx-pub-header.is-scrolled .fx-pub-brand-text {
@@ -3793,7 +3733,9 @@ a.fx-footer-location-link:focus-visible {
 
   background: #071426 !important;
 
-  border-bottom: 1px solid rgba(245, 196, 81, 0.3) !important;
+  border-bottom: none !important;
+
+  box-shadow: none !important;
 }
 
 .fx-page-home .fx-pub-header.has-mega-open .fx-pub-brand-text {
@@ -4268,6 +4210,12 @@ a.fx-footer-location-link:focus-visible {
 
 .fx-pub-mobile-drawer {
   display: none;
+
+  max-height: calc(100dvh - var(--fx-navbar-height, 66px));
+
+  overflow-y: auto;
+
+  -webkit-overflow-scrolling: touch;
 
   background-color: #ffffff;
 
@@ -13841,11 +13789,6 @@ a.fx-footer-location-link:focus-visible {
    Mobile & Tablet Layout Refinement (320px - 767.98px)
    ========================================================================== */
 @media (max-width: 767.98px) {
-  .fx-pub-mobile-drawer {
-    max-height: calc(100dvh - var(--fx-navbar-height, 66px));
-    overflow-y: auto;
-  }
-
   .fx-advantage-section,
   .fx-modules-section,
   .fx-visibility-section,

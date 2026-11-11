@@ -107,8 +107,8 @@ def public_module(request, module_id):
         {
             "active_page": "modules",
             "category": "modules",
-            "section_name": "Modules",
-            "section_url": "/modules/",
+            "section_name": "Platform",
+            "section_url": "/platform/",
             "item": item,
             "selected_slug": canonical_slug,
         },
@@ -158,82 +158,80 @@ def client_register(request):
     return render(request, "accounts/client_register.html", {"form": form})
 
 
+def public_privacy_policy(request):
+    return render(
+        request,
+        "public/privacy_policy.html",
+        {
+            "active_page": "privacy_policy",
+            "active_legal": "privacy-policy",
+            "page_title": "Privacy Policy & Data Protection",
+        },
+    )
+
+
+def public_terms_of_service(request):
+    return render(
+        request,
+        "public/terms_of_service.html",
+        {
+            "active_page": "terms_of_service",
+            "active_legal": "terms-of-service",
+            "page_title": "Terms of Service & Agreement",
+        },
+    )
+
+
+def public_disclaimer(request):
+    return render(
+        request,
+        "public/disclaimer.html",
+        {
+            "active_page": "disclaimer",
+            "active_legal": "disclaimer",
+            "page_title": "Enterprise System Disclaimer",
+        },
+    )
+
+
+def public_cookie_policy(request):
+    return render(
+        request,
+        "public/cookie_policy.html",
+        {
+            "active_page": "cookie_policy",
+            "active_legal": "cookie-policy",
+            "page_title": "Cookie & Session Policy",
+        },
+    )
+
+
 def public_legal(request, slug):
-    titles = {
-        "privacy-policy": "Privacy Policy & Data Protection",
-        "terms-and-conditions": "Terms and Conditions of Use",
-        "terms-of-service": "Terms of Service & User Agreement",
-        "disclaimer": "Enterprise System Disclaimer",
-        "cookie-policy": "Cookie & Session Policy",
-        "sitemap": "Platform Sitemap & Directory",
+    dedicated_views = {
+        "privacy-policy": public_privacy_policy,
+        "terms-of-service": public_terms_of_service,
+        "terms-and-conditions": public_terms_of_service,
+        "disclaimer": public_disclaimer,
+        "cookie-policy": public_cookie_policy,
     }
-    title = titles.get(slug, "Legal Notice")
-    contents = {
-        "privacy-policy": "<p>FieldOps Nexus enforces strict tenant-isolated data protection compliant with enterprise standards. User credentials and operational telemetry are encrypted and never shared cross-tenant.</p><p>Audit logs record user interactions solely for traceability, accountability, and compliance verification under HPE Delivery Oversight guidelines.</p>",
-        "terms-and-conditions": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
-        "terms-of-service": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
-        "disclaimer": "<p>This system operates as an Enterprise Asset, Maintenance & Field Service ERP. System specifications and operational workflows adhere to verified technical draft standards.</p><p>Final formal acceptance is subject to the mandatory 90-calendar-day evaluation gate.</p>",
-        "cookie-policy": "<p>FieldOps Nexus utilizes strictly necessary session cookies (<code>sessionid</code> and <code>csrftoken</code>) configured with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections to maintain authenticated sessions and protect against cross-site request forgery.</p>",
-    }
+    if slug in dedicated_views:
+        return dedicated_views[slug](request)
     if slug == "sitemap":
         return public_sitemap(request)
-    content = contents.get(slug, "<p>Legal terms and conditions apply as specified in project governance documentation.</p>")
-    return render(request, "public/legal.html", {"active_page": "legal", "selected_slug": slug, "title": title, "content": content})
-
-
-def public_contact(request):
-    title = "Contact Sales & Enterprise Support"
-    content = (
-        "<p class='lead text-dark'>Get in touch with the FieldOps Nexus team for enterprise deployment, technical evaluations, and platform inquiries.</p>"
-        "<div class='row g-4 mt-2'>"
-        "  <div class='col-md-6'>"
-        "    <div class='p-4 rounded-3 border bg-light h-100'>"
-        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Sales & Commercial</h4>"
-        "      <p class='small text-secondary mb-2'>Speak with our solutions team about licensing tiers, pilot programs, and service contracts.</p>"
-        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:sales@fieldopsnexus.com' class='text-decoration-none'>sales@fieldopsnexus.com</a></p>"
-        "      <p class='mb-0'><strong>Response Time:</strong> Within 1 business day</p>"
-        "    </div>"
-        "  </div>"
-        "  <div class='col-md-6'>"
-        "    <div class='p-4 rounded-3 border bg-light h-100'>"
-        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Technical Support & Headquarters</h4>"
-        "      <p class='small text-secondary mb-2'>Operational telemetry assistance, SLA escalations, and platform diagnostics.</p>"
-        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:support@fieldopsnexus.com' class='text-decoration-none'>support@fieldopsnexus.com</a></p>"
-        "      <p class='mb-1'><strong>Phone:</strong> <a href='tel:+919876543210' class='text-decoration-none'>+91 98765 43210</a></p>"
-        "      <p class='mb-0'><strong>Location:</strong> <a href='https://maps.google.com/?q=Bangalore,+Karnataka,+India' target='_blank' rel='noopener noreferrer' class='text-decoration-none'>Bangalore, Karnataka, India</a></p>"
-        "    </div>"
-        "  </div>"
-        "</div>"
+    return render(
+        request,
+        "public/legal.html",
+        {
+            "active_page": "legal",
+            "selected_slug": slug,
+            "title": "Legal Notice",
+            "content": "<p>Legal terms and conditions apply as specified in project governance documentation.</p>",
+        },
     )
-    return render(request, "public/legal.html", {"active_page": "contact", "selected_slug": "contact", "title": title, "content": content})
 
 
-def public_careers(request):
-    title = "Careers & Engineering Opportunities"
-    content = (
-        "<p class='lead text-dark'>Join our mission to transform industrial maintenance, field service execution, and enterprise asset reliability.</p>"
-        "<div class='mt-4'>"
-        "  <h4 class='h5 fw-bold text-dark mb-3'>Open Engineering & Operations Positions</h4>"
-        "  <div class='list-group list-group-flush border rounded-3 mb-4'>"
-        "    <div class='list-group-item p-3'>"
-        "      <div class='d-flex justify-content-between align-items-center'>"
-        "        <h6 class='mb-1 fw-bold text-dark'>Senior Systems Architect &bull; Multi-Tenant Core</h6>"
-        "        <span class='badge bg-primary'>Full-Time</span>"
-        "      </div>"
-        "      <p class='small text-secondary mb-0'>Distributed Python/Django backend systems, telemetry streaming, and cryptographic audit ledgers.</p>"
-        "    </div>"
-        "    <div class='list-group-item p-3'>"
-        "      <div class='d-flex justify-content-between align-items-center'>"
-        "        <h6 class='mb-1 fw-bold text-dark'>Field Operations Solutions Engineer</h6>"
-        "        <span class='badge bg-success'>Bangalore / Hybrid</span>"
-        "      </div>"
-        "      <p class='small text-secondary mb-0'>Client onboarding, ERP integration (SAP/Oracle), and field workflow calibration.</p>"
-        "    </div>"
-        "  </div>"
-        "  <p class='small text-secondary'>To apply or submit an open inquiry, contact talent acquisition at <a href='mailto:careers@fieldopsnexus.com' class='fw-bold text-decoration-none'>careers@fieldopsnexus.com</a>.</p>"
-        "</div>"
-    )
-    return render(request, "public/legal.html", {"active_page": "careers", "selected_slug": "careers", "title": title, "content": content})
+def public_contact_sales(request):
+    return render(request, "public/contact_sales.html", {"active_page": "contact_sales"})
 
 
 def public_sitemap(request):
@@ -248,18 +246,18 @@ def public_sitemap(request):
         "        <li><a href='/' class='text-decoration-none fw-semibold'>&rarr; Home &amp; Enterprise Landing</a></li>"
         "        <li><a href='/features/' class='text-decoration-none fw-semibold'>&rarr; Features &amp; 8-Stage Connected Service Flow</a></li>"
         "        <li><a href='/product/' class='text-decoration-none fw-semibold'>&rarr; Product Architecture Overview</a></li>"
-        "        <li><a href='/modules/' class='text-decoration-none fw-semibold'>&rarr; Operational Modules Index</a></li>"
+        "        <li><a href='/platform/' class='text-decoration-none fw-semibold'>&rarr; Platform Capabilities Index</a></li>"
         "      </ul>"
         "    </div>"
         "  </div>"
         "  <div class='col-md-6'>"
         "    <div class='p-3 border rounded-3 bg-light h-100'>"
-        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Enterprise Modules</h5>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Enterprise Platform</h5>"
         "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
-        "        <li><a href='/modules/asset-management/' class='text-decoration-none'>&bull; Asset Management &amp; Telemetry</a></li>"
-        "        <li><a href='/modules/service-management/' class='text-decoration-none'>&bull; Service Requests &amp; Triage</a></li>"
-        "        <li><a href='/modules/work-order-management/' class='text-decoration-none'>&bull; Work Order Formulation &amp; Execution</a></li>"
-        "        <li><a href='/modules/analytics-reporting/' class='text-decoration-none'>&bull; Analytics &amp; Operational Intelligence</a></li>"
+        "        <li><a href='/platform/asset-management/' class='text-decoration-none'>&bull; Asset Management &amp; Telemetry</a></li>"
+        "        <li><a href='/platform/service-management/' class='text-decoration-none'>&bull; Service Requests &amp; Triage</a></li>"
+        "        <li><a href='/platform/work-order-management/' class='text-decoration-none'>&bull; Work Order Formulation &amp; Execution</a></li>"
+        "        <li><a href='/platform/analytics-reporting/' class='text-decoration-none'>&bull; Analytics &amp; Operational Intelligence</a></li>"
         "      </ul>"
         "    </div>"
         "  </div>"

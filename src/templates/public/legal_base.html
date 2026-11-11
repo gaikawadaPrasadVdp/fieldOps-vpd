@@ -13,19 +13,17 @@
     <nav aria-label="Breadcrumb" class="mb-3 d-flex align-items-center gap-2 small text-white-50">
       <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none hover-white">Home</a>
       <span>&rsaquo;</span>
-      <span class="text-white-50">Legal</span>
-      <span>&rsaquo;</span>
       <span style="color: #F5C451;">{% block breadcrumb_active %}{{ page_title }}{% endblock %}</span>
     </nav>
 
     <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 10.5px; letter-spacing: 0.15em;">
-      {% icon 'shield' 13 %}
-      <span>Governance &bull; Enterprise Reliability Standard</span>
+      {% block hero_badge_icon %}{% icon 'shield' 13 %}{% endblock %}
+      <span>{% block hero_badge %}Governance &bull; Enterprise Reliability Standard{% endblock %}</span>
     </div>
 
     <h1 class="h2 fw-extrabold text-white mb-2">{% block hero_heading %}{{ page_title }}{% endblock %}</h1>
     <p class="text-white-50 small mb-0 font-monospace">
-      Effective Date: October 2026 &bull; Governance Standard: HPE-PRD-2026-FOPS02 &bull; Compliance Reference: SEC-AUD-2026
+      {% block hero_meta %}Effective Date: October 2026 &bull; Governance Standard: HPE-PRD-2026-FOPS02 &bull; Compliance Reference: SEC-AUD-2026{% endblock %}
     </p>
   </div>
 </section>
@@ -38,6 +36,16 @@
         <div class="bg-white rounded-4 border shadow-sm p-4 p-md-5">
           <div class="prose max-w-none text-secondary" style="line-height: 1.8; font-size: 0.98rem;">
             {% block legal_content %}{% endblock %}
+          </div>
+
+          <div class="mt-5 pt-4 border-top d-flex flex-wrap align-items-center justify-content-between gap-3 small">
+            <span class="text-muted fw-semibold text-uppercase" style="font-size: 11px; letter-spacing: 0.1em;">Related Policies</span>
+            <nav class="d-flex flex-wrap align-items-center gap-3" aria-label="Related Legal Policies">
+              <a href="{% url 'ui:public_privacy_policy' %}" class="text-decoration-none {% if active_legal == 'privacy-policy' %}fw-bold{% else %}text-secondary{% endif %}" {% if active_legal == 'privacy-policy' %}aria-current="page" style="color: #0B1F3B;"{% endif %}>Privacy Policy</a>
+              <a href="{% url 'ui:public_terms_of_service' %}" class="text-decoration-none {% if active_legal == 'terms-of-service' %}fw-bold{% else %}text-secondary{% endif %}" {% if active_legal == 'terms-of-service' %}aria-current="page" style="color: #0B1F3B;"{% endif %}>Terms of Service</a>
+              <a href="{% url 'ui:public_disclaimer' %}" class="text-decoration-none {% if active_legal == 'disclaimer' %}fw-bold{% else %}text-secondary{% endif %}" {% if active_legal == 'disclaimer' %}aria-current="page" style="color: #0B1F3B;"{% endif %}>Disclaimer</a>
+              <a href="{% url 'ui:public_cookie_policy' %}" class="text-decoration-none {% if active_legal == 'cookie-policy' %}fw-bold{% else %}text-secondary{% endif %}" {% if active_legal == 'cookie-policy' %}aria-current="page" style="color: #0B1F3B;"{% endif %}>Cookie Policy</a>
+            </nav>
           </div>
         </div>
       </div>

@@ -3,108 +3,483 @@
 
 {% block title %}Contact Sales &middot; FieldOps Nexus{% endblock %}
 
-{% block public_content %}
-<!-- Hero Section -->
-<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #162A4B 100%); border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 4.5rem !important; padding-bottom: 4rem !important;">
-  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .fx-cs-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .fx-cs-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(245, 196, 81, 0.7);
+    box-shadow: 0 14px 32px rgba(11, 31, 59, 0.08);
+  }
+  .fx-cs-step-card {
+    background: rgba(22, 42, 75, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    transition: transform 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+  }
+  .fx-cs-step-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(245, 196, 81, 0.55);
+    background: rgba(22, 42, 75, 0.95);
+  }
+  .fx-cs-why-item {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-left: 3.5px solid #F5C451;
+    border-radius: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  .fx-cs-why-item:hover {
+    background: #FFFFFF;
+    transform: translateX(3px);
+    box-shadow: 0 8px 22px rgba(11, 31, 59, 0.06);
+  }
+  .fx-cs-email-pill {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(245, 196, 81, 0.35);
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  .fx-cs-email-pill:hover {
+    color: #F5C451;
+    background: rgba(245, 196, 81, 0.1);
+    border-color: rgba(245, 196, 81, 0.75);
+  }
+  .fx-cs-accordion-item {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .fx-cs-accordion-item:has(.accordion-button:not(.collapsed)) {
+    border-color: rgba(245, 196, 81, 0.8) !important;
+    box-shadow: 0 10px 26px rgba(11, 31, 59, 0.06);
+  }
+  .fx-cs-accordion-item .accordion-button {
+    background: #FFFFFF;
+    color: #0B1F3B;
+    font-weight: 700;
+    font-size: 0.98rem;
+    padding: 1.15rem 1.35rem;
+    box-shadow: none !important;
+  }
+  .fx-cs-accordion-item .accordion-button:not(.collapsed) {
+    background: #F8FAFC;
+    color: #0B1F3B;
+  }
+  .fx-cs-accordion-item .accordion-button:focus {
+    box-shadow: none;
+  }
+  .fx-cs-step-connector {
+    position: relative;
+  }
+  @media (min-width: 992px) {
+    .fx-cs-step-connector::before {
+      content: "";
+      position: absolute;
+      top: 42px;
+      left: 12%;
+      right: 12%;
+      height: 2px;
+      border-top: 2px dashed rgba(245, 196, 81, 0.35);
+      z-index: 0;
+    }
+  }
+</style>
+{% endblock %}
 
-  <div class="container-xl px-4 position-relative z-10">
-    <!-- Breadcrumbs -->
-    <nav aria-label="Breadcrumb" class="mb-3 d-flex align-items-center gap-2 small text-white-50">
+{% block public_content %}
+<!-- =========================================================================
+     1. Hero Section
+     ========================================================================= -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #162A4B 100%); border-bottom: 1px solid rgba(255,255,255,0.08); padding-top: 4.75rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <nav aria-label="Breadcrumb" class="mb-3 d-inline-flex align-items-center justify-content-center gap-2 small text-white-50">
       <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none">Home</a>
-      <span>&rsaquo;</span>
-      <span class="text-white-50">Company</span>
       <span>&rsaquo;</span>
       <span style="color: #F5C451;">Contact Sales</span>
     </nav>
 
-    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 10.5px; letter-spacing: 0.15em;">
-      {% icon 'shield' 13 %}
-      <span>Enterprise Solutions &bull; Commercial Advisory</span>
+    <div class="d-flex justify-content-center mb-3">
+      <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.32); color: #F5C451; font-size: 11px; letter-spacing: 0.14em;">
+        {% icon 'briefcase' 13 %}
+        <span>Enterprise Engagement &bull; Business Advisory</span>
+      </div>
     </div>
 
-    <h1 class="display-5 fw-extrabold text-white mb-2">Contact Sales &amp; Enterprise Solutions</h1>
-    <p class="text-white-50 lead mb-0" style="max-width: 720px; font-size: 1.1rem; line-height: 1.6;">
-      Accelerate your industrial maintenance, field dispatch operations, and asset reliability with our dedicated engineering and solutions advisory team.
+    <h1 class="display-4 fw-extrabold text-white mb-3 mx-auto" style="max-width: 780px; line-height: 1.15;">
+      Let&rsquo;s Start a <span style="color: #F5C451;">Conversation</span>
+    </h1>
+
+    <p class="text-white-50 lead mx-auto mb-4 pb-2" style="max-width: 700px; font-size: 1.08rem; line-height: 1.7;">
+      Every organization has unique operational challenges. Connect with the FieldOps Nexus team to discuss your business goals, explore potential solutions, and discover opportunities to improve operational efficiency.
     </p>
+
+    <div class="d-flex justify-content-center">
+      <a href="mailto:support@fieldopsnexus.com" class="btn-outline-light">
+        {% icon 'mail' 16 %}
+        <span>Send an Email</span>
+      </a>
+    </div>
   </div>
 </section>
 
-<!-- Content Section -->
-<section class="py-5" style="background-color: #F8FAFC;">
+<!-- =========================================================================
+     2. About Our Engagement
+     ========================================================================= -->
+<section class="py-5 bg-white border-bottom">
   <div class="container-xl px-4 py-4">
-    <div class="row justify-content-center">
-      <div class="col-lg-10 col-xl-9">
-        <div class="text-center mx-auto mb-5" style="max-width: 720px;">
-          <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(11,31,59,0.08); color: #0B1F3B; font-size: 11px; letter-spacing: 0.1em;">
-            {% icon 'briefcase' 13 %}
-            <span>Enterprise Tiers &amp; Deployment</span>
-          </div>
+    <div class="row align-items-start g-5">
+      <div class="col-lg-5 fx-reveal">
+        <div class="fx-eyebrow">
+          <span class="fx-eyebrow-bar"></span>
+          <span>About Our Engagement</span>
+        </div>
+        <h2 class="fx-section-title mb-3">
+          Business Conversations That Matter
+        </h2>
+        <p class="text-secondary mb-0" style="font-size: 1.02rem; line-height: 1.7;">
+          FieldOps Nexus welcomes conversations with organizations looking to improve operational coordination, visibility, accountability, and service delivery.
+        </p>
+      </div>
 
-          <h2 class="h3 fw-bold text-dark mb-3" style="color: #0B1F3B !important;">
-            Engineered for High-Consequence Operations
-          </h2>
-
-          <p class="text-secondary mb-0" style="line-height: 1.7;">
-            Whether you operate heavy manufacturing equipment, critical utilities, or multi-facility commercial campuses, FieldOps Nexus delivers unified field mobility and real-time maintenance intelligence.
+      <div class="col-lg-7 fx-reveal">
+        <div class="d-flex flex-column gap-3 text-secondary" style="font-size: 0.98rem; line-height: 1.75;">
+          <p class="mb-0">
+            Every enterprise operates with its own asset structures, team workflows, compliance expectations, and service priorities. Our discussions focus on <strong style="color: #0B1F3B;">understanding individual business requirements</strong> before recommending any path forward.
+          </p>
+          <p class="mb-0">
+            We take the time for <strong style="color: #0B1F3B;">discussing organizational operational challenges</strong> openly with your stakeholders and <strong style="color: #0B1F3B;">exploring suitable implementation approaches</strong> tailored to how your teams actually work across sites and departments.
+          </p>
+          <p class="mb-0">
+            Whether you are evaluating architecture alignment, operational governance, or team readiness, our goal is <strong style="color: #0B1F3B;">supporting informed technology decisions</strong> and <strong style="color: #0B1F3B;">building long-term professional relationships</strong> grounded in clarity and mutual trust.
           </p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-        <!-- Core Capability Highlights -->
-        <div class="row g-4 mb-5">
-          <div class="col-md-4">
-            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
-              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
-                {% icon 'shield' 18 %}
-              </div>
-              <div>
-                <h3 class="h6 fw-bold text-dark mb-2">Multi-Tenant Isolated Deployment</h3>
-                <p class="small text-secondary mb-0" style="line-height: 1.6;">Cryptographically isolated data models with custom regional cloud hosting or dedicated VPC partitions.</p>
-              </div>
-            </div>
+<!-- =========================================================================
+     3. Who Can Connect With Us?
+     ========================================================================= -->
+<section class="py-5" style="background-color: #F8FAFC;">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center mx-auto mb-5 fx-reveal" style="max-width: 680px;">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Who Can Connect</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title mb-2">Who Can Connect With Us?</h2>
+      <p class="text-secondary mb-0" style="font-size: 1rem;">
+        Practical business and technical discussions tailored to decision-makers across your organization.
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-sm-6 col-lg-3 fx-reveal">
+        <div class="fx-cs-card p-4 h-100 d-flex flex-column">
+          <div class="rounded-3 d-inline-flex align-items-center justify-content-center mb-3" style="width: 46px; height: 46px; background-color: #0B1F3B; color: #F5C451;">
+            {% icon 'building' 20 %}
           </div>
+          <h3 class="h6 fw-bold mb-2" style="color: #0B1F3B;">Enterprise Organizations</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Businesses exploring operational technology solutions.
+          </p>
+        </div>
+      </div>
 
-          <div class="col-md-4">
-            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
-              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
-                {% icon 'activity' 18 %}
-              </div>
-              <div>
-                <h3 class="h6 fw-bold text-dark mb-2">90-Day Evaluation Gate &amp; Pilot PoC</h3>
-                <p class="small text-secondary mb-0" style="line-height: 1.6;">Full feature evaluation calibrated against your actual asset registers under governance standard HPE-PRD-2026-FOPS02.</p>
-              </div>
-            </div>
+      <div class="col-sm-6 col-lg-3 fx-reveal">
+        <div class="fx-cs-card p-4 h-100 d-flex flex-column">
+          <div class="rounded-3 d-inline-flex align-items-center justify-content-center mb-3" style="width: 46px; height: 46px; background-color: #0B1F3B; color: #F5C451;">
+            {% icon 'activity' 20 %}
           </div>
+          <h3 class="h6 fw-bold mb-2" style="color: #0B1F3B;">Operations Leaders</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Professionals interested in improving coordination and visibility.
+          </p>
+        </div>
+      </div>
 
-          <div class="col-md-4">
-            <div class="d-flex flex-column align-items-start gap-3 p-4 bg-white rounded-4 border shadow-sm h-100">
-              <div class="rounded-circle p-2 text-white flex-shrink-0" style="background-color: #0B1F3B;">
-                {% icon 'clock' 18 %}
-              </div>
-              <div>
-                <h3 class="h6 fw-bold text-dark mb-2">Rapid 1-Business-Day Response SLA</h3>
-                <p class="small text-secondary mb-0" style="line-height: 1.6;">Direct engagement with senior solutions engineers, not automated call queues.</p>
-              </div>
-            </div>
+      <div class="col-sm-6 col-lg-3 fx-reveal">
+        <div class="fx-cs-card p-4 h-100 d-flex flex-column">
+          <div class="rounded-3 d-inline-flex align-items-center justify-content-center mb-3" style="width: 46px; height: 46px; background-color: #0B1F3B; color: #F5C451;">
+            {% icon 'settings' 20 %}
+          </div>
+          <h3 class="h6 fw-bold mb-2" style="color: #0B1F3B;">Technology Teams</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Teams exploring integrations and deployment requirements.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-3 fx-reveal">
+        <div class="fx-cs-card p-4 h-100 d-flex flex-column">
+          <div class="rounded-3 d-inline-flex align-items-center justify-content-center mb-3" style="width: 46px; height: 46px; background-color: #0B1F3B; color: #F5C451;">
+            {% icon 'users' 20 %}
+          </div>
+          <h3 class="h6 fw-bold mb-2" style="color: #0B1F3B;">Business Partners</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Organizations interested in collaboration opportunities.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     4. How We Connect
+     ========================================================================= -->
+<section class="py-5 text-white" style="background-color: #0B1F3B;">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center mx-auto mb-5 fx-reveal" style="max-width: 680px;">
+      <div class="fx-eyebrow light justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Engagement Process</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="h2 fw-extrabold text-white mb-2">How We Connect</h2>
+      <p class="text-white-50 mb-0" style="font-size: 1rem;">
+        A straightforward process for initiating discussions with our team.
+      </p>
+    </div>
+
+    <div class="row g-4 fx-cs-step-connector">
+      <div class="col-12 col-lg-3 position-relative z-10 fx-reveal">
+        <div class="fx-cs-step-card p-4 h-100 text-center text-lg-start">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold mb-3" style="width: 44px; height: 44px; background-color: #F5C451; color: #0B1F3B; font-size: 0.9rem;">
+            01
+          </div>
+          <h3 class="h6 fw-bold text-white mb-2">Reach Out</h3>
+          <p class="small text-white-50 mb-0" style="line-height: 1.6;">
+            Contact our team through email.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3 position-relative z-10 fx-reveal">
+        <div class="fx-cs-step-card p-4 h-100 text-center text-lg-start">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold mb-3" style="width: 44px; height: 44px; background-color: #F5C451; color: #0B1F3B; font-size: 0.9rem;">
+            02
+          </div>
+          <h3 class="h6 fw-bold text-white mb-2">Share Your Requirements</h3>
+          <p class="small text-white-50 mb-0" style="line-height: 1.6;">
+            Explain your business interests and objectives.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3 position-relative z-10 fx-reveal">
+        <div class="fx-cs-step-card p-4 h-100 text-center text-lg-start">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold mb-3" style="width: 44px; height: 44px; background-color: #F5C451; color: #0B1F3B; font-size: 0.9rem;">
+            03
+          </div>
+          <h3 class="h6 fw-bold text-white mb-2">Initial Discussion</h3>
+          <p class="small text-white-50 mb-0" style="line-height: 1.6;">
+            Discuss relevant questions and possible approaches.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3 position-relative z-10 fx-reveal">
+        <div class="fx-cs-step-card p-4 h-100 text-center text-lg-start">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold mb-3" style="width: 44px; height: 44px; background-color: #F5C451; color: #0B1F3B; font-size: 0.9rem;">
+            04
+          </div>
+          <h3 class="h6 fw-bold text-white mb-2">Next Steps</h3>
+          <p class="small text-white-50 mb-0" style="line-height: 1.6;">
+            Explore suitable opportunities for further engagement.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     5. Why Connect With FieldOps Nexus?
+     ========================================================================= -->
+<section class="py-5 bg-white border-bottom">
+  <div class="container-xl px-4 py-4">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-5 fx-reveal">
+        <div class="fx-eyebrow">
+          <span class="fx-eyebrow-bar"></span>
+          <span>Value-Driven Collaboration</span>
+        </div>
+        <h2 class="fx-section-title mb-3">
+          Why Connect With FieldOps Nexus?
+        </h2>
+        <p class="text-secondary mb-0" style="font-size: 1rem; line-height: 1.7;">
+          We approach every prospective conversation around real business context, operational clarity, and thoughtful alignment with your organization&rsquo;s goals.
+        </p>
+      </div>
+
+      <div class="col-lg-7 fx-reveal">
+        <div class="d-flex flex-column gap-3">
+          <div class="fx-cs-why-item p-3 px-4 d-flex align-items-center gap-3">
+            <span class="flex-shrink-0" style="color: #D97706;">{% icon 'check' 18 %}</span>
+            <span class="fw-semibold" style="color: #0B1F3B;">Enterprise-oriented approach designed around multi-team operational environments.</span>
+          </div>
+          <div class="fx-cs-why-item p-3 px-4 d-flex align-items-center gap-3">
+            <span class="flex-shrink-0" style="color: #D97706;">{% icon 'check' 18 %}</span>
+            <span class="fw-semibold" style="color: #0B1F3B;">Understanding of operational workflows across planning, field execution, and oversight.</span>
+          </div>
+          <div class="fx-cs-why-item p-3 px-4 d-flex align-items-center gap-3">
+            <span class="flex-shrink-0" style="color: #D97706;">{% icon 'check' 18 %}</span>
+            <span class="fw-semibold" style="color: #0B1F3B;">Focus on practical business requirements rather than generic checklists.</span>
+          </div>
+          <div class="fx-cs-why-item p-3 px-4 d-flex align-items-center gap-3">
+            <span class="flex-shrink-0" style="color: #D97706;">{% icon 'check' 18 %}</span>
+            <span class="fw-semibold" style="color: #0B1F3B;">Clear communication and collaboration with operational and technical stakeholders.</span>
+          </div>
+          <div class="fx-cs-why-item p-3 px-4 d-flex align-items-center gap-3">
+            <span class="flex-shrink-0" style="color: #D97706;">{% icon 'check' 18 %}</span>
+            <span class="fw-semibold" style="color: #0B1F3B;">Flexible discussions based on organizational needs and priorities.</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-        <!-- Highlighted Sales Support Contact Card -->
-        <div class="mx-auto" style="max-width: 640px;">
-          <div class="rounded-4 p-4 p-md-5 text-center shadow-lg position-relative overflow-hidden" style="background: linear-gradient(145deg, #0B1F3B 0%, #162A4B 100%); border: 1.5px solid rgba(245, 196, 81, 0.45);">
-            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background: rgba(245, 196, 81, 0.14); border: 1.5px solid rgba(245, 196, 81, 0.5); color: #F5C451;">
-              {% icon 'mail' 24 %}
+<!-- =========================================================================
+     6. Contact Section (Single Official Contact Email)
+     ========================================================================= -->
+<section id="ready-to-connect" class="py-5" style="background-color: #F8FAFC;">
+  <div class="container-xl px-4 py-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-8 col-xl-7 fx-reveal">
+        <div class="rounded-4 p-4 p-sm-5 text-center shadow-lg position-relative overflow-hidden" style="background: linear-gradient(145deg, #0B1F3B 0%, #162A4B 100%); border: 1.5px solid rgba(245, 196, 81, 0.45);">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 60px; height: 60px; background: rgba(245, 196, 81, 0.14); border: 1.5px solid rgba(245, 196, 81, 0.55); color: #F5C451;">
+            {% icon 'mail' 26 %}
+          </div>
+
+          <h2 class="h2 fw-bold text-white mb-2">Ready to Connect?</h2>
+          <p class="text-white-50 mx-auto mb-4" style="max-width: 500px; font-size: 0.98rem; line-height: 1.65;">
+            Have questions about FieldOps Nexus or want to discuss a business opportunity? Reach out to our team.
+          </p>
+
+          <div class="mb-4">
+            <div class="text-uppercase fw-bold mb-2" style="color: #F5C451; font-size: 11px; letter-spacing: 0.14em;">
+              Official Contact Email
             </div>
-
-            <div class="text-uppercase fw-bold mb-2" style="color: #F5C451; font-size: 12px; letter-spacing: 0.16em;">
-              Sales Support
-            </div>
-
-            <a href="mailto:sales@fieldopsnexus.com"
-               class="d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-decoration-none text-white px-3 py-2 rounded-3"
-               style="font-size: clamp(1rem, 2.6vw, 1.45rem); white-space: nowrap; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(245, 196, 81, 0.3); max-width: 100%; overflow-wrap: anywhere;">
-              <span style="color: #F5C451;">sales@fieldopsnexus.com</span>
+            <a href="mailto:support@fieldopsnexus.com"
+               class="fx-cs-email-pill fw-bold text-decoration-none d-inline-block px-4 py-2 rounded-3"
+               style="font-size: clamp(0.98rem, 2.5vw, 1.25rem); white-space: nowrap; max-width: 100%; overflow-wrap: anywhere;">
+              support@fieldopsnexus.com
             </a>
+          </div>
+
+          <a href="mailto:support@fieldopsnexus.com" class="btn-fx-gold">
+            {% icon 'mail' 17 %}
+            <span>Send Email</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     7. Frequently Asked Questions
+     ========================================================================= -->
+<section class="py-5 bg-white border-top">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center mx-auto mb-5 fx-reveal" style="max-width: 660px;">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Common Questions</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title mb-2">Frequently Asked Questions</h2>
+      <p class="text-secondary mb-0" style="font-size: 0.98rem;">
+        Helpful answers about reaching out and initiating discussions with the FieldOps Nexus team.
+      </p>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-9 fx-reveal">
+        <div class="accordion d-flex flex-column gap-3" id="fxContactFaqAccordion">
+          <!-- FAQ 1 -->
+          <div class="accordion-item fx-cs-accordion-item">
+            <h3 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#csFaqOne" aria-expanded="true" aria-controls="csFaqOne">
+                How can I contact the FieldOps Nexus team?
+              </button>
+            </h3>
+            <div id="csFaqOne" class="accordion-collapse collapse show" data-bs-parent="#fxContactFaqAccordion">
+              <div class="accordion-body text-secondary small pt-0 px-4 pb-4" style="line-height: 1.7; font-size: 0.94rem;">
+                You can reach our team directly via email at <a href="mailto:support@fieldopsnexus.com" class="fw-semibold text-decoration-none" style="color: #0B1F3B;">support@fieldopsnexus.com</a> or by selecting the <strong>Send Email</strong> button above to open a message in your email client.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 2 -->
+          <div class="accordion-item fx-cs-accordion-item">
+            <h3 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#csFaqTwo" aria-expanded="false" aria-controls="csFaqTwo">
+                Can I discuss my organization&rsquo;s requirements?
+              </button>
+            </h3>
+            <div id="csFaqTwo" class="accordion-collapse collapse" data-bs-parent="#fxContactFaqAccordion">
+              <div class="accordion-body text-secondary small pt-0 px-4 pb-4" style="line-height: 1.7; font-size: 0.94rem;">
+                Yes. Sharing an overview of your operational goals, team structure, and current workflow challenges helps guide an initial conversation focused on your organization&rsquo;s priorities.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 3 -->
+          <div class="accordion-item fx-cs-accordion-item">
+            <h3 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#csFaqThree" aria-expanded="false" aria-controls="csFaqThree">
+                Can I enquire about enterprise deployment?
+              </button>
+            </h3>
+            <div id="csFaqThree" class="accordion-collapse collapse" data-bs-parent="#fxContactFaqAccordion">
+              <div class="accordion-body text-secondary small pt-0 px-4 pb-4" style="line-height: 1.7; font-size: 0.94rem;">
+                Yes. Organizations evaluating multi-site operations, governance boundaries, and enterprise rollout considerations can email our team to discuss deployment requirements and suitable approaches.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 4 -->
+          <div class="accordion-item fx-cs-accordion-item">
+            <h3 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#csFaqFour" aria-expanded="false" aria-controls="csFaqFour">
+                Can technology integration requirements be discussed?
+              </button>
+            </h3>
+            <div id="csFaqFour" class="accordion-collapse collapse" data-bs-parent="#fxContactFaqAccordion">
+              <div class="accordion-body text-secondary small pt-0 px-4 pb-4" style="line-height: 1.7; font-size: 0.94rem;">
+                Yes. Technology and engineering teams are welcome to outline their existing systems, data exchange needs, and integration questions as part of our technical and operational discussions.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 5 -->
+          <div class="accordion-item fx-cs-accordion-item">
+            <h3 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#csFaqFive" aria-expanded="false" aria-controls="csFaqFive">
+                How can I explore a potential business collaboration?
+              </button>
+            </h3>
+            <div id="csFaqFive" class="accordion-collapse collapse" data-bs-parent="#fxContactFaqAccordion">
+              <div class="accordion-body text-secondary small pt-0 px-4 pb-4" style="line-height: 1.7; font-size: 0.94rem;">
+                Prospective business partners can write to <a href="mailto:support@fieldopsnexus.com" class="fw-semibold text-decoration-none" style="color: #0B1F3B;">support@fieldopsnexus.com</a> with a brief introduction to your organization and areas of shared interest so our team can review next steps.
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -112,4 +487,3 @@
   </div>
 </section>
 {% endblock %}
-
