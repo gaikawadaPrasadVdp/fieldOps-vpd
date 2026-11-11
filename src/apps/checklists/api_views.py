@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import PermissionDenied, ValidationFailed
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
 from apps.workorders import selectors as wo_selectors

@@ -274,11 +274,11 @@ class AgreementEditView(AgreementBase):
             "end_date": ag.end_date, "terms": ag.terms, "exclusion_notes": ag.exclusion_notes,
             "sla_terms": ag.sla_terms, "sla_profile": ag.sla_profile_id, "renewal_alert_days": ag.renewal_alert_days,
             "excluded_work_types": [e.work_type for e in ag.exclusions.all()]}
-        providers = selectors.providers_for(org).filter(is_active=True) | selectors.providers_for(org).filter(
-            pk=ag.provider_id)
-        profiles = SLAProfile.objects.for_organization(org).filter(is_active=True) | SLAProfile.objects.for_organization(
-            org).filter(pk=ag.sla_profile_id)
-        return AgreementForm(data, providers=providers, sites=None, assets=None, sla_profiles=profiles.order_by("name"),
+        providers = (selectors.providers_for(org).filter(is_active=True) | selectors.providers_for(org).filter(
+            pk=ag.provider_id)).distinct().order_by("name")
+        profiles = (SLAProfile.objects.for_organization(org).filter(is_active=True) | SLAProfile.objects.for_organization(
+            org).filter(pk=ag.sla_profile_id)).distinct().order_by("name")
+        return AgreementForm(data, providers=providers, sites=None, assets=None, sla_profiles=profiles,
                              editing=True, initial=initial)
 
     def _page(self, request, ag, form, status=200):
