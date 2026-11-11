@@ -388,11 +388,9 @@ class PortalServiceRequestDetailSerializer(PortalServiceRequestSerializer):
             return services.get_request_closure_blockers(obj)
         return []
 
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        if ret.get("work_order") is None:
-            ret.pop("work_order", None)
-        return ret
+    # work_order is a SerializerMethodField documented as nullable, so it is always
+    # present in the response (null while no work order is linked) and the payload
+    # matches the OpenAPI schema. Consumers should treat null as "not linked yet".
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_history(self, obj):
