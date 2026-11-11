@@ -23,7 +23,7 @@ def reverse_noop(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0005_remove_webhookendpoint_core_webhoo_organiz_6dd066_idx_and_more"),
+        ("core", "0006_create_login_throttle_cache"),
     ]
 
     operations = [
