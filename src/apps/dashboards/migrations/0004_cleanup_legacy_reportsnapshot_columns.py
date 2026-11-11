@@ -28,7 +28,7 @@ def cleanup_legacy_columns(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("dashboards", "0002_sync_schema"),
+        ("dashboards", "0003_fix_snapshot_schema"),
     ]
 
     operations = [
