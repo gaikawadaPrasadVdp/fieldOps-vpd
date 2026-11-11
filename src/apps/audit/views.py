@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views import View
 
 from apps.core.exceptions import DomainError, NotFound, PermissionDenied
@@ -43,11 +43,18 @@ class AuditListView(TenantPermissionMixin, View):
         for e in page:
             e.site_code = sites.get(e.site_id, "")
         metrics = selectors.get_audit_dashboard_metrics(m, org)
+        from apps.workorders.models import WorkOrder
+        recent_work_orders = list(
+            WorkOrder.objects.for_organization(org)
+            .values("pk", "order_number", "title")
+            .order_by("-created_at")[:25]
+        )
         return render(request, "audit/list.html", {
             "page": page, "filters": request.GET, "categories": [(k, v[0]) for k, v in selectors.CATEGORIES.items()],
             "entity_types": selectors.entity_types(base), "sites": sorted(sites.items(), key=lambda kv: kv[1]),
             "can_export": rbac.has_permission_anywhere(m, "audit.export"), "error": error,
-            "query": request.GET.urlencode(), "total_hint": exports.EXPORT_LIMIT, "metrics": metrics})
+            "query": request.GET.urlencode(), "total_hint": exports.EXPORT_LIMIT, "metrics": metrics,
+            "recent_work_orders": recent_work_orders})
 
 
 class AuditDetailView(TenantPermissionMixin, View):
@@ -100,9 +107,11 @@ class EvidencePackageView(TenantPermissionMixin, View):
         try:
             pkg = evidence.build(request.membership, request.organization, pk, actor=request.user, request=request)
         except NotFound as exc:
-            raise Http404 from exc
+            messages.error(request, f"Work order '{pk}' was not found. Please verify the Work Order Number or UUID.")
+            return redirect("audit:list")
         except PermissionDenied:
-            return HttpResponse("You may not export evidence for this site.", status=403)
+            messages.error(request, "You do not have permission to export evidence for this site.")
+            return redirect("audit:list")
         resp = HttpResponse(pkg.body, content_type="application/zip")
         resp["Content-Disposition"] = f'attachment; filename="{pkg.filename}"'
         resp["Cache-Control"] = "private, no-store"

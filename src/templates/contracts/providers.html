@@ -30,10 +30,10 @@ FieldOps Nexus{% endblock %} {% block content %}
     /><button class="btn btn-sm btn-outline-secondary">Search</button>
   </form>
   <div class="table-responsive">
-    <table class="table fx-table" id="providers-table" style="table-layout: auto;">
+    <table class="table fx-table align-middle" id="providers-table">
       <thead>
         <tr>
-          <th style="min-width: 220px;">Name</th>
+          <th style="min-width: 220px; max-width: 320px;">Name</th>
           <th>Contact</th>
           <th>Email</th>
           <th>Phone</th>
@@ -44,7 +44,7 @@ FieldOps Nexus{% endblock %} {% block content %}
       <tbody>
         {% for p in page %}
         <tr>
-          <td style="max-width: 280px; word-break: break-word; overflow-wrap: anywhere;" class="fw-medium text-dark">{{ p.name }}</td>
+          <td style="max-width: 300px; word-break: break-all; overflow-wrap: anywhere;" class="fw-medium text-dark">{{ p.name }}</td>
           <td style="max-width: 180px; word-break: break-word;">{{ p.contact_name|default:"—" }}</td>
           <td style="max-width: 200px; word-break: break-word;">{{ p.email|default:"—" }}</td>
           <td style="white-space: nowrap;">{{ p.phone|default:"—" }}</td>

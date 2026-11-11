@@ -525,6 +525,8 @@ class TestAuditUIViews:
         assert b"Compliance reports" in r.content
         assert b"Asset history" in r.content
         assert b"Work order lifecycle" in r.content
+        assert b"Back to Audit Trail" in r.content
+        assert b"/app/audit/" in r.content
 
     def test_ui_export_view(self, client, p3):
         org = p3["org"]
@@ -561,3 +563,13 @@ class TestAuditUIViews:
         r = client.get(f"/app/audit/evidence/work-order/{wo.pk}/")
         assert r.status_code == 200
         assert r["Content-Type"] == "application/zip"
+
+        # Also support lookup by human-readable work order number
+        r2 = client.get(f"/app/audit/evidence/work-order/{wo.order_number}/")
+        assert r2.status_code == 200
+        assert r2["Content-Type"] == "application/zip"
+
+        # Invalid or non-existent work order redirects gracefully with error toast
+        r3 = client.get("/app/audit/evidence/work-order/non-existent-wo-123/")
+        assert r3.status_code == 302
+        assert r3.url == "/app/audit/"
