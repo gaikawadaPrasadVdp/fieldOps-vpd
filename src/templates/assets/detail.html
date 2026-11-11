@@ -268,7 +268,7 @@
       </div>
     {% endif %}
 
-    {% if can.asset_hierarchy_manage and not terminal %}
+    {% if can.asset_hierarchy_manage and not terminal and not parent_link %}
       <div class="fx-card mb-3">
         <div class="fx-card-header d-flex align-items-center gap-2">
           {% icon 'plus' 15 %} Attach Child Component to <span class="badge text-bg-light border ms-1 font-monospace">{{ asset.asset_tag }}</span>
@@ -283,6 +283,11 @@
             {% icon 'plus' 13 %} Create &amp; register new asset instead
           </a>
         </div>
+      </div>
+    {% elif can.asset_hierarchy_manage and parent_link %}
+      <div class="alert alert-light border small text-body-secondary mb-3 d-flex align-items-center gap-2">
+        {% icon 'info' 14 %}
+        <span>This equipment is a component of <strong>{{ parent_link.parent.asset_tag }}</strong>. Under the 2-level hierarchy, sub-components cannot have children.</span>
       </div>
     {% endif %}
   </div>

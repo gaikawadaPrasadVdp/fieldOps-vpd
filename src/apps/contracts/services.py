@@ -523,10 +523,11 @@ def record_check(work_order, *, actor=None, request=None) -> CoverageCheck:
     """Evaluates and PERSISTS the eligibility of a work order (evidence; a new check appends a new row)."""
     org = work_order.organization
     on = reference_date_for(work_order)
-    res = evaluate(org, work_order.asset, on, work_order.work_type)
+    wt = (getattr(work_order, "work_type", "") or "").strip() or "OTHER"
+    res = evaluate(org, work_order.asset, on, wt)
     best = res.best
     check = CoverageCheck(organization=org, work_order=work_order, asset=work_order.asset,
-                          agreement=best.agreement if best else None, work_type=work_order.work_type,
+                          agreement=best.agreement if best else None, work_type=wt,
                           reference_date=on, eligible=res.eligible, reason=res.reason[:500], checked_by=actor)
     check.save()
     audit.record("contract.coverage_checked", actor=actor, organization=org, target=work_order,

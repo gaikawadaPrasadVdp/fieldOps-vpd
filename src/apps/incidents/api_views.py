@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import DomainError
+from apps.core.exceptions import DomainError, NotFound
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 
@@ -447,7 +447,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = self._obj(request, pk)
         return paginate(request, selectors.history_for(request.organization, sr), HistorySerializer)
 
-    @extend_schema(methods=["GET"], responses=DowntimeSerializer)
+    @extend_schema(methods=["GET"], responses={200: DowntimeSerializer, 404: OpenApiTypes.OBJECT})
     @extend_schema(methods=["PUT"], request=DowntimeWriteSerializer, responses=DowntimeSerializer)
     @action(detail=True, methods=["get", "put"])
     def downtime(self, request, pk=None):
@@ -455,7 +455,11 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = self._obj(request, pk)
         if request.method == "GET":
             dt = selectors.downtime_for(request.organization, sr)
-            return Response(DowntimeSerializer(dt).data if dt else None)
+            if dt is None:
+                # A missing record is a 404 with the standard error envelope, not a
+                # 200 with a null body (the Swagger contract documents an object).
+                raise NotFound("No downtime record exists for this request.")
+            return Response(DowntimeSerializer(dt).data)
         require_permission(request.membership, "incident.downtime.manage", sr.site_id)
         d = _validated(DowntimeWriteSerializer, request)
         dt = services.set_downtime(sr, started_at=d["started_at"], ended_at=d.get("ended_at"), actor=request.user,

@@ -2,8 +2,12 @@ import re
 import time
 import uuid
 import zoneinfo
+from urllib.parse import quote
 
 from django.conf import settings
+from django.contrib.auth import logout as auth_logout
+from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.utils import timezone
 
 from . import logging as flogging
@@ -185,3 +189,69 @@ class SecurityCacheControlMiddleware:
             response["Expires"] = "0"
 
         return response
+
+
+class SessionIdleTimeoutMiddleware:
+    """Enforces server-side inactivity timeout for authenticated user sessions."""
+
+    SESSION_ACTIVITY_KEY = "_last_activity_ts"
+    _EXEMPT_PREFIXES = (
+        "/health/",
+        "/accounts/login/",
+        "/accounts/logout/",
+        "/api/v1/auth/logout/",
+        "/favicon.ico",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def _is_exempt(self, path: str) -> bool:
+        static_url = getattr(settings, "STATIC_URL", "") or ""
+        media_url = getattr(settings, "MEDIA_URL", "") or ""
+        if static_url and path.startswith(static_url):
+            return True
+        if media_url and path.startswith(media_url):
+            return True
+        return any(path.startswith(prefix) for prefix in self._EXEMPT_PREFIXES)
+
+    def _wants_json(self, request) -> bool:
+        if request.path.startswith("/api/"):
+            return True
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return True
+        accept = request.headers.get("Accept", "")
+        return "application/json" in accept
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated and not self._is_exempt(request.path):
+            idle_limit = max(1, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)))
+            now_ts = int(time.time())
+            last_raw = request.session.get(self.SESSION_ACTIVITY_KEY)
+            last_ts = None
+
+            if last_raw is not None:
+                try:
+                    last_ts = int(last_raw)
+                except (TypeError, ValueError):
+                    last_ts = None
+                if last_ts is not None and (now_ts - last_ts) > idle_limit:
+                    auth_logout(request)
+                    if self._wants_json(request):
+                        return JsonResponse(
+                            {
+                                "error": {
+                                    "code": "session_expired",
+                                    "message": "Your session expired due to inactivity. Please sign in again.",
+                                }
+                            },
+                            status=401,
+                        )
+                    next_url = quote(request.get_full_path(), safe="")
+                    return redirect(f"/accounts/login/?logged_out=1&next={next_url}")
+
+            if last_ts is None or (now_ts - last_ts) >= 15:
+                request.session[self.SESSION_ACTIVITY_KEY] = now_ts
+
+        return self.get_response(request)

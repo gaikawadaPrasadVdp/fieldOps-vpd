@@ -11,11 +11,14 @@
       Manage member access roles and operating permissions across <strong>{{ request.organization.name }}</strong>.
     </div>
   </div>
-  <div>
+  <div class="d-flex flex-wrap align-items-center gap-2">
     {% if is_owner %}
       <span class="badge text-bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-7 d-inline-flex align-items-center gap-2">
         {% icon 'shield' 16 %} Owner Mode: Authorized to edit permissions
       </span>
+      <a href="{% url 'rbac:role_create' %}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+        {% icon 'plus' 14 %} New custom role
+      </a>
     {% else %}
       <span class="badge text-bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-2 fs-7 d-inline-flex align-items-center gap-2">
         {% icon 'lock' 16 %} Read Only: Only Organization Owners can edit permissions
@@ -23,6 +26,17 @@
     {% endif %}
   </div>
 </div>
+
+{% if custom_roles %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <span class="small fw-semibold text-body-secondary">Custom Roles:</span>
+  {% for r in custom_roles %}
+    <a href="{% url 'rbac:role_detail' r.pk %}" class="badge text-bg-light border text-dark text-decoration-none py-1 px-2">
+      {{ r.name }}
+    </a>
+  {% endfor %}
+</div>
+{% endif %}
 
 <div class="fx-card mb-4">
   <!-- Search & Filter Bar -->

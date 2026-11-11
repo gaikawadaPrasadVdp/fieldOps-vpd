@@ -587,15 +587,38 @@ def home(request):
         activity_link_label = "Due Maintenance →"
 
     elif persona_key == "service_dispatcher":
-        open_reqs = incident_selectors.requests_for(request.membership, org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count()
-        unassigned = wo_selectors.work_order_list(request.membership, org).filter(assigned_to__isnull=True).exclude(status__in=TERMINAL_WO_STATUSES).count()
-        dispatched = WorkOrder.objects.for_organization(org).filter(status__in=["DISPATCHED", "IN_PROGRESS"]).count()
-        breaches = SLABreach.objects.for_organization(org).count()
+        from django.db.models import Count
+        disp_reqs = incident_selectors.requests_for(request.membership, org)
+        disp_wos = wo_selectors.work_order_list(request.membership, org)
+        open_reqs_qs = disp_reqs.exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"])
+        open_wos_qs = disp_wos.exclude(status__in=TERMINAL_WO_STATUSES)
+        open_reqs = open_reqs_qs.count()
+        unassigned = open_wos_qs.filter(assigned_to__isnull=True).count()
+        dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS"]).count()
+        breaches = rbac.site_scope(request.membership, "sla.view").filter(
+            SLABreach.objects.for_organization(org), "site_id"
+        ).count()
         kpi_cards = [
             {"title": "Open Incidents", "value": open_reqs, "subtitle": "Unresolved breakdown tickets", "tone": "warning", "icon": "bell"},
             {"title": "Unassigned Jobs", "value": unassigned, "subtitle": "Orders requiring dispatch", "tone": "accent", "icon": "clipboard"},
             {"title": "Dispatched Orders", "value": dispatched, "subtitle": "Field jobs in execution", "tone": "gold", "icon": "activity"},
             {"title": "SLA Breaches", "value": breaches, "subtitle": "Missed response / resolution targets", "tone": "danger", "icon": "clock"},
+            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
+        ]
+        inc_by_site = dict(open_reqs_qs.values_list("site_id").annotate(cnt=Count("pk")))
+        wo_by_site = dict(open_wos_qs.values_list("site_id").annotate(cnt=Count("pk")))
+        unassigned_by_site = dict(open_wos_qs.filter(assigned_to__isnull=True).values_list("site_id").annotate(cnt=Count("pk")))
+        active_sites = list(site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").order_by("code")[:12])
+        site_stats = [
+            {
+                "id": s.pk,
+                "code": s.code,
+                "name": s.name,
+                "open_incidents": inc_by_site.get(s.pk, 0),
+                "open_work_orders": wo_by_site.get(s.pk, 0),
+                "unassigned_orders": unassigned_by_site.get(s.pk, 0),
+            }
+            for s in active_sites
         ]
         shortcuts = [
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
@@ -607,8 +630,9 @@ def home(request):
             {"label": "Incidents", "url": reverse("incidents:list"), "icon": "bell"},
             {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
         ]
-        recent_objs = ServiceRequest.objects.for_organization(org).order_by("-created_at")[:8]
-        recent = [ActivityEntry(f"Service Request [{r.status}]: {r.number}", r.created_at, getattr(r.reported_by.user, "email", "system") if r.reported_by else "system", r.title) for r in recent_objs]
+        recent_qs = disp_reqs.select_related("reported_by__user").order_by("-created_at")
+        recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
+        recent = [ActivityEntry(f"Service Request [{r.status}]: {r.number}", r.created_at, getattr(r.reported_by.user, "email", "system") if r.reported_by else "system", r.title) for r in recent_page_obj]
         activity_title = "Recent Incident & Service Calls"
         activity_link = reverse("incidents:list")
         activity_link_label = "All Incidents →"
@@ -808,19 +832,19 @@ def home(request):
         if "/app/organization" in u or "/app/users" in u or "/app/roles" in u:
             if not can_view_users:
                 continue
-        if "/app/audit" in u and not rbac.has_permission(request.membership, "audit.view"):
+        if "/app/audit" in u and not rbac.has_permission_anywhere(request.membership, "audit.view"):
             continue
-        if "/app/inventory" in u and not (rbac.has_permission(request.membership, "inventory.view") or rbac.has_permission(request.membership, "inventory.part.view")):
+        if "/app/inventory" in u and not (rbac.has_permission_anywhere(request.membership, "inventory.view") or rbac.has_permission_anywhere(request.membership, "inventory.part.view")):
             continue
-        if "/app/contracts" in u and not rbac.has_permission(request.membership, "contract.view"):
+        if "/app/contracts" in u and not rbac.has_permission_anywhere(request.membership, "contract.view"):
             continue
-        if "/app/maintenance" in u and not rbac.has_permission(request.membership, "maintenance.view"):
+        if "/app/maintenance" in u and not rbac.has_permission_anywhere(request.membership, "maintenance.view"):
             continue
-        if "/app/incidents" in u and not (rbac.has_permission(request.membership, "incident.view") or rbac.has_permission(request.membership, "incident.view_assigned")):
+        if "/app/incidents" in u and not (rbac.has_permission_anywhere(request.membership, "incident.view") or rbac.has_permission_anywhere(request.membership, "incident.view_assigned")):
             continue
-        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission_anywhere(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
-        if "/app/sla" in u and not rbac.has_permission(request.membership, "sla.view"):
+        if "/app/sla" in u and not rbac.has_permission_anywhere(request.membership, "sla.view"):
             continue
         filtered_shortcuts.append(s)
 
@@ -829,19 +853,19 @@ def home(request):
         u = h["url"]
         if "/app/users" in u and not can_view_users:
             continue
-        if "/app/audit" in u and not rbac.has_permission(request.membership, "audit.view"):
+        if "/app/audit" in u and not rbac.has_permission_anywhere(request.membership, "audit.view"):
             continue
         if "/app/assets" in u and not can_view_assets:
             continue
         if "/app/work-orders" in u and not can_view_work_orders:
             continue
-        if "/app/inventory" in u and not (rbac.has_permission(request.membership, "inventory.part.view") or rbac.has_permission(request.membership, "inventory.view")):
+        if "/app/inventory" in u and not (rbac.has_permission_anywhere(request.membership, "inventory.part.view") or rbac.has_permission_anywhere(request.membership, "inventory.view")):
             continue
-        if "/app/maintenance" in u and not rbac.has_permission(request.membership, "maintenance.view"):
+        if "/app/maintenance" in u and not rbac.has_permission_anywhere(request.membership, "maintenance.view"):
             continue
-        if "/app/incidents" in u and not rbac.has_permission(request.membership, "incident.view"):
+        if "/app/incidents" in u and not rbac.has_permission_anywhere(request.membership, "incident.view"):
             continue
-        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission_anywhere(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
         filtered_headers.append(h)
 
@@ -855,6 +879,7 @@ def home(request):
         "shortcuts": filtered_shortcuts,
         "header_actions": filtered_headers,
         "stats": stats,
+        "site_stats": locals().get("site_stats", []),
         "recent": recent,
         "activity_title": activity_title,
         "activity_link": activity_link,

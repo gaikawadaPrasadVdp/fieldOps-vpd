@@ -98,6 +98,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.SessionIdleTimeoutMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
@@ -169,6 +170,7 @@ AXES_RESET_ON_SUCCESS = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_IDLE_TIMEOUT_SECONDS = int(env("DJANGO_SESSION_IDLE_TIMEOUT_SECONDS", "1800"))
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_CACHE_ALIAS = "default"
 CSRF_COOKIE_SAMESITE = "Lax"
@@ -203,6 +205,26 @@ else:
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "KEY_PREFIX": "fieldops",
         }
+    }
+
+# --- Shared login-throttle counter store --------------------------------------------------------
+# The documented 10/min login rate limit (docs/AUTH_RBAC_FOUNDATION.md §9.3) must hold
+# across workers and instances. Redis is used when configured; otherwise the database,
+# so the counter stays shared even on deployments without a cache service. Before this
+# existed the limit silently degraded to per-process memory when REDIS_URL was absent
+# (QA run 2026-11-10, DEF-002: 13 rapid bad logins were all answered 401).
+if REDIS_URL:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "fieldops-login-throttle",
+    }
+else:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "core_login_throttle",
+        "KEY_PREFIX": "fieldops-login-throttle",
+        "OPTIONS": {"MAX_ENTRIES": 50000, "CULL_FREQUENCY": 3},
     }
 
 # --- Celery -----------------------------------------------------------------------------------

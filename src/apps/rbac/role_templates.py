@@ -32,8 +32,8 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "asset_manager", "Asset Manager", "Owns the asset registry, documentation, meters, and hierarchy.",
         ("asset.*", "site.view", "zone.view", "zone.create", "zone.update",
-         "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "inventory.view",
-         "inventory.part.view", "report.view"),
+         "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "checklist.view",
+         "inspection.view", "inventory.view", "inventory.part.view", "report.view"),
     ),
     RoleTemplate(
         "maintenance_planner", "Maintenance Planner", "Plans, schedules and assigns preventive and corrective maintenance work.",

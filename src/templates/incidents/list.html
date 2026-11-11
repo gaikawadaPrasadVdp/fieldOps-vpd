@@ -10,7 +10,10 @@
 <div class="fx-page-header"><div>
   <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item">Operations</li><li class="breadcrumb-item active">Incidents &amp; Requests</li></ol></nav>
   <h1>Incidents &amp; Requests</h1><div class="text-body-secondary">Failures and service requests: report, triage, approve, and follow the resulting work order.</div></div>
-  <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'incidents:create' %}">{% icon 'plus' 16 %} Report incident</a>{% endif %}</div></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'incidents:dashboard' %}">{% icon 'activity' 16 %} Incident dashboard</a>
+    {% if can_create %}<a class="btn btn-primary" href="{% url 'incidents:create' %}">{% icon 'plus' 16 %} Report incident</a>{% endif %}
+  </div></div>
 
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">

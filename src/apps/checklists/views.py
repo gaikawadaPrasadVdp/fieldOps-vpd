@@ -318,7 +318,10 @@ class InspectionDetailView(_View):
 
     def dispatch(self, request, *args, **kwargs):
         m = getattr(request, "membership", None)
-        self.required_permission = "inspection.view" if m and rbac.has_permission_anywhere(m, "inspection.view") else "inspection.execute"
+        if m and (rbac.has_permission_anywhere(m, "inspection.view") or rbac.has_permission_anywhere(m, "asset.view")):
+            self.required_permission = "inspection.view" if rbac.has_permission_anywhere(m, "inspection.view") else "asset.view"
+        else:
+            self.required_permission = "inspection.execute"
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, pk):
