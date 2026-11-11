@@ -31,3 +31,6 @@ for default_origin in (
 for default_host in ("fieldops.onrender.com", "fieldops-qry5.onrender.com"):
     if default_host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(default_host)
+
+# In Render environment, trust 1 proxy hop to resolve true client IP
+TRUSTED_PROXY_COUNT = int(env('TRUSTED_PROXY_COUNT', '1'))

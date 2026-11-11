@@ -141,3 +141,57 @@ def test_reportsnapshot_cleanup_migration_exists():
 
     assert hasattr(mig3, "cleanup_legacy_columns")
     assert mig3.Migration.dependencies == [("dashboards", "0002_sync_schema")]
+
+
+
+def test_e2e_def_007_app_js_safe_form_action():
+    """Verify app.js does not invoke .indexOf on form.action directly to prevent TypeError with input[name='action']."""
+    with open("src/static/js/app.js", "r", encoding="utf-8") as f:
+        js = f.read()
+
+    assert 'form.action.indexOf("/accounts/logout/")' not in js
+    assert 'typeof form.action === "string"' in js
+
+
+def test_e2e_def_011_remember_me_session_expiry():
+    """Verify form_valid in LoginView sets session expiry to 0 when remember me is not checked."""
+    from apps.accounts.views import LoginView
+    from django.test import RequestFactory
+    from unittest.mock import MagicMock, patch
+
+    rf = RequestFactory()
+    req = rf.post("/accounts/login/", data={"username": "user@fieldops.local", "password": "secretpassword"})
+    req.session = MagicMock()
+    req.user = MagicMock()
+
+    view = LoginView()
+    view.request = req
+
+    form = MagicMock()
+    form.get_user.return_value = req.user
+
+    with patch("apps.accounts.services.activate_pending_memberships"), patch("django.contrib.auth.views.LoginView.form_valid", return_value=MagicMock()):
+        view.form_valid(form)
+        req.session.set_expiry.assert_called_with(0)
+
+
+def test_e2e_def_012_client_portal_account_blocked_from_staff_views():
+    """Verify TenantPermissionMixin rejects client memberships trying to access staff pages."""
+    from apps.ui.mixins import TenantPermissionMixin
+    from django.core.exceptions import PermissionDenied
+    from django.test import RequestFactory
+    from unittest.mock import MagicMock
+
+    rf = RequestFactory()
+    req = rf.get("/app/audit/")
+    req.user = MagicMock(is_authenticated=True)
+    req.membership = MagicMock()
+    req.tenant_error = None
+
+    view = TenantPermissionMixin()
+    view.required_permission = "audit.view"
+
+    with patch("apps.ui.utils.is_client_membership", return_value=True):
+        with pytest.raises(PermissionDenied) as exc_info:
+            view.dispatch(req)
+        assert "Client portal accounts cannot access internal staff operations" in str(exc_info.value)
