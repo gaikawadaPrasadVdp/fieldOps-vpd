@@ -16,7 +16,14 @@ _FALLBACK_THROTTLE_CACHE = LocMemCache("fieldops-throttle-fallback", {})
 
 
 class ClientIPScopedRateThrottle(ScopedRateThrottle):
-    """Per-IP scoped throttle tolerant of reverse proxies and transient cache outages."""
+    """Per-IP scoped throttle tolerant of reverse proxies and transient cache outages.
+
+    Counters are kept in the shared ``login_throttle`` cache (Redis when configured,
+    otherwise the ``core_login_throttle`` database table), so the documented 10/min
+    limit holds across workers and instances. If that backend is missing or errors,
+    the throttle degrades to per-process memory instead of failing authentication:
+    a cache outage must never take login down with it (QA 2026-11-10, DEF-002).
+    """
 
     def get_ident(self, request):
         return client_ip(request) or super().get_ident(request)
@@ -28,12 +35,26 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
                 return rates[self.scope]
         return super().get_rate()
 
-    def allow_request(self, request, view):
+    @staticmethod
+    def _shared_cache():
         try:
-            return super().allow_request(request, view)
+            from django.core.cache import caches
+
+            return caches["login_throttle"]
         except Exception:
-            self.cache = _FALLBACK_THROTTLE_CACHE
-            return super().allow_request(request, view)
+            return None
+
+    def allow_request(self, request, view):
+        for backend in (self._shared_cache(), _FALLBACK_THROTTLE_CACHE):
+            if backend is None:
+                continue
+            self.cache = backend
+            try:
+                return super().allow_request(request, view)
+            except Exception:
+                continue
+        # No usable counter store: allow the request rather than block authentication.
+        return True
 
 
 class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):

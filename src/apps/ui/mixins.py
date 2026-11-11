@@ -25,6 +25,10 @@ class TenantPermissionMixin(LoginRequiredMixin):
         if request.membership is None:
             return redirect("ui:choose_org")
 
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(request.membership) and not request.path.startswith("/app/portal/"):
+            raise PermissionDenied("Client portal accounts cannot access internal staff operations.")
+
         perms = []
         if self.required_permission:
             if isinstance(self.required_permission, (list, tuple)):

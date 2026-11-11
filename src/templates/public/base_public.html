@@ -6,7 +6,7 @@
 
 {% block extra_css %}
 
-<link rel="stylesheet" href="{% static 'css/public.css' %}?v=8.7">
+<link rel="stylesheet" href="{% static 'css/public.css' %}?v=9.9">
 
 <link rel="stylesheet" href="{% static 'css/public-detail.css' %}?v=8.0">
 
@@ -28,15 +28,7 @@
 
 <header class="fx-pub-header" role="banner">
 
-  <!-- Top Edge Gold Scroll Signal -->
-
-  <div class="fx-nav-scroll-rail" aria-hidden="true">
-
-    <div id="nexus-nav-scroll-signal" style="transform: scaleX(0);"></div>
-
-  </div>
-
-
+  <div class="fx-nav-gold-track" aria-hidden="true"><span id="nexus-nav-scroll-signal" style="transform: scaleX(0); opacity: 0;"></span></div>
 
   <div class="fx-pub-nav-container">
 
@@ -102,13 +94,13 @@
 
 
 
-      <!-- Modules Dropdown Trigger -->
+      <!-- Platform Dropdown Trigger -->
 
       <button type="button" class="fx-pub-nav-link {% if active_page == 'modules' %}active{% endif %}"
 
         data-fx-mega-trigger="modules" aria-expanded="false" aria-haspopup="dialog">
 
-        <span>Modules</span>
+        <span>Platform</span>
 
         <svg class="fx-pub-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
 
@@ -518,8 +510,8 @@
     </div>
   </div>
 
-  <!-- 3. Modules Mega Menu -->
-  <div class="fx-mega-menu" id="mega-modules" role="dialog" aria-label="Modules mega menu">
+  <!-- 3. Platform Mega Menu -->
+  <div class="fx-mega-menu" id="mega-modules" role="dialog" aria-label="Platform mega menu">
     <div class="fx-mega-menu-inner">
       <div class="fx-mega-2col-layout">
         <div class="fx-mega-items-col">
@@ -529,7 +521,7 @@
           </div>
           <div class="fx-mega-cards-grid">
             <!-- Item 1: Maintenance Management -->
-            <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mega-card">
+            <a href="{% url 'ui:public_platform' 'maintenance-management' %}" class="fx-mega-card">
               <div class="fx-mega-card-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F5C451" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -546,7 +538,7 @@
             </a>
 
             <!-- Item 2: Workforce Management -->
-            <a href="{% url 'ui:public_module' 'workforce-management' %}" class="fx-mega-card">
+            <a href="{% url 'ui:public_platform' 'workforce-management' %}" class="fx-mega-card">
               <div class="fx-mega-card-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F5C451" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -563,7 +555,7 @@
             </a>
 
             <!-- Item 3: Analytics & Reporting -->
-            <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="fx-mega-card">
+            <a href="{% url 'ui:public_platform' 'analytics-reporting' %}" class="fx-mega-card">
               <div class="fx-mega-card-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F5C451" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -581,7 +573,7 @@
             </a>
 
             <!-- Item 4: Audit & Traceability -->
-            <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="fx-mega-card">
+            <a href="{% url 'ui:public_platform' 'audit-traceability' %}" class="fx-mega-card">
               <div class="fx-mega-card-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F5C451" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -600,15 +592,15 @@
           </div>
         </div>
 
-        <!-- Featured Card: Modules Overview -->
+        <!-- Featured Card: Platform Overview -->
         <div class="fx-mega-feat-card">
           <div>
             <div class="fx-mega-feat-pill">
               <span class="bar"></span>
-              <span class="txt">MODULES OVERVIEW</span>
+              <span class="txt">PLATFORM OVERVIEW</span>
             </div>
-            <h3>FieldOps Modules</h3>
-            <p>Integrated modules to manage maintenance, workforce, reporting, and operational compliance.</p>
+            <h3>FieldOps Platform</h3>
+            <p>Integrated platform capabilities to manage maintenance, workforce, reporting, and operational compliance.</p>
           </div>
 
           <div class="fx-mega-device-wrap">
@@ -711,17 +703,17 @@
       </div>
     </div>
 
-    <!-- Modules Accordion -->
+    <!-- Platform Accordion -->
     <div class="fx-mobile-nav-item">
       <button type="button" class="fx-mobile-accordion-trigger" data-fx-mobile-accordion="m-acc-modules">
-        <span>Modules</span>
+        <span>Platform</span>
         {% icon 'chevron-down' 16 %}
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-modules">
-        <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mobile-sublink">Maintenance Management</a>
-        <a href="{% url 'ui:public_module' 'workforce-management' %}" class="fx-mobile-sublink">Workforce Management</a>
-        <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="fx-mobile-sublink">Analytics &amp; Reporting</a>
-        <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="fx-mobile-sublink">Audit &amp; Traceability</a>
+        <a href="{% url 'ui:public_platform' 'maintenance-management' %}" class="fx-mobile-sublink">Maintenance Management</a>
+        <a href="{% url 'ui:public_platform' 'workforce-management' %}" class="fx-mobile-sublink">Workforce Management</a>
+        <a href="{% url 'ui:public_platform' 'analytics-reporting' %}" class="fx-mobile-sublink">Analytics &amp; Reporting</a>
+        <a href="{% url 'ui:public_platform' 'audit-traceability' %}" class="fx-mobile-sublink">Audit &amp; Traceability</a>
       </div>
     </div>
 
@@ -881,13 +873,13 @@
 
           <li><a href="{% url 'ui:public_features' %}">Features</a></li>
 
-          <li><a href="{% url 'ui:public_module' 'asset-management' %}">Asset Management</a></li>
+          <li><a href="{% url 'ui:public_platform' 'asset-management' %}">Asset Management</a></li>
 
-          <li><a href="{% url 'ui:public_module' 'service-management' %}">Service Management</a></li>
+          <li><a href="{% url 'ui:public_platform' 'service-management' %}">Service Management</a></li>
 
-          <li><a href="{% url 'ui:public_module' 'work-order-management' %}">Work Orders</a></li>
+          <li><a href="{% url 'ui:public_platform' 'work-order-management' %}">Work Orders</a></li>
 
-          <li><a href="{% url 'ui:public_module' 'analytics-reporting' %}">Analytics</a></li>
+          <li><a href="{% url 'ui:public_platform' 'analytics-reporting' %}">Analytics</a></li>
 
         </ul>
 
@@ -929,9 +921,7 @@
 
           <li><a href="{% url 'ui:public_resources' %}">Resources</a></li>
 
-          <li><a href="{% url 'ui:public_contact' %}">Contact Sales</a></li>
-
-          <li><a href="{% url 'ui:public_careers' %}">Careers</a></li>
+          <li><a href="{% url 'ui:public_contact_sales' %}">Contact Sales</a></li>
 
           <li><a href="{% url 'ui:root' %}">Home</a></li>
 
@@ -1023,19 +1013,19 @@
 
       <nav class="fx-footer-legal-nav" aria-label="Legal Navigation">
 
-        <a href="{% url 'ui:public_legal' 'privacy-policy' %}" class="fx-footer-legal-link">Privacy Policy</a>
+        <a href="{% url 'ui:public_privacy_policy' %}" class="fx-footer-legal-link">Privacy Policy</a>
 
         <span class="fx-footer-pipe" aria-hidden="true">|</span>
 
-        <a href="{% url 'ui:public_legal' 'terms-of-service' %}" class="fx-footer-legal-link">Terms of Service</a>
+        <a href="{% url 'ui:public_terms_of_service' %}" class="fx-footer-legal-link">Terms of Service</a>
 
         <span class="fx-footer-pipe" aria-hidden="true">|</span>
 
-        <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="fx-footer-legal-link">Disclaimer</a>
+        <a href="{% url 'ui:public_disclaimer' %}" class="fx-footer-legal-link">Disclaimer</a>
 
         <span class="fx-footer-pipe" aria-hidden="true">|</span>
 
-        <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="fx-footer-legal-link">Cookie Policy</a>
+        <a href="{% url 'ui:public_cookie_policy' %}" class="fx-footer-legal-link">Cookie Policy</a>
 
       </nav>
 
@@ -1057,7 +1047,7 @@
 
 <script defer src="{% static 'lib/anime.min.js' %}"></script>
 
-<script defer src="{% static 'js/public.js' %}?v=5.1"></script>
+<script defer src="{% static 'js/public.js' %}?v=5.2"></script>
 
 <script defer src="{% static 'js/public-detail.js' %}?v=5.0"></script>
 

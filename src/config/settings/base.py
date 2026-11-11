@@ -158,7 +158,7 @@ AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",
 # letting one noisy client lock out everybody sharing its IP (or one username lock every IP).
-AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_LOCKOUT_PARAMETERS = [["ip_address"], ["username", "ip_address"]]
 # Django's authenticate() receives the login identifier under the key "username" (our USERNAME_FIELD is email).
 AXES_USERNAME_FORM_FIELD = "username"
 AXES_USERNAME_CALLABLE = "apps.core.net.axes_username"  # lower-cased/stripped
@@ -197,6 +197,10 @@ if REDIS_URL:
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": REDIS_URL,
             "KEY_PREFIX": "fieldops",
+            "OPTIONS": {
+                "socket_connect_timeout": 2,
+                "socket_timeout": 2,
+            },
         }
     }
 else:
@@ -205,6 +209,26 @@ else:
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "KEY_PREFIX": "fieldops",
         }
+    }
+
+# --- Shared login-throttle counter store --------------------------------------------------------
+# The documented 10/min login rate limit (docs/AUTH_RBAC_FOUNDATION.md §9.3) must hold
+# across workers and instances. Redis is used when configured; otherwise the database,
+# so the counter stays shared even on deployments without a cache service. Before this
+# existed the limit silently degraded to per-process memory when REDIS_URL was absent
+# (QA run 2026-11-10, DEF-002: 13 rapid bad logins were all answered 401).
+if REDIS_URL:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "fieldops-login-throttle",
+    }
+else:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "core_login_throttle",
+        "KEY_PREFIX": "fieldops-login-throttle",
+        "OPTIONS": {"MAX_ENTRIES": 50000, "CULL_FREQUENCY": 3},
     }
 
 # --- Celery -----------------------------------------------------------------------------------
