@@ -77,7 +77,7 @@ class PartListView(InvBase):
             "total_parts": total_parts,
             "active_parts": active_parts,
             "inactive_parts": inactive_parts,
-            "can_manage": rbac.has_permission(request.membership, "inventory.part.manage")})
+            "can_manage": rbac.has_permission_anywhere(request.membership, "inventory.part.manage")})
 
 
 class PartCreateView(InvBase):
@@ -136,7 +136,7 @@ class PartDetailView(InvBase):
         m, org = request.membership, request.organization
         part = or404(selectors.get_part, org, pk)
         can_view_stock = rbac.has_permission_anywhere(m, "inventory.view")
-        ctx = {"part": part, "can_manage": rbac.has_permission(m, "inventory.part.manage"),
+        ctx = {"part": part, "can_manage": rbac.has_permission_anywhere(m, "inventory.part.manage"),
                "can_view_stock": can_view_stock}
         if can_view_stock:
             ctx["balances"] = selectors.balances_for(m, org).filter(part=part)
