@@ -596,23 +596,27 @@
           </h5>
         </div>
         <div class="card-body">
-          <form method="post" action="{% url 'workspace:labor' work_order.pk %}" class="mb-4">
+          <form method="post" action="{% url 'workspace:labor' work_order.pk %}" id="onSiteLaborForm" class="mb-4" novalidate>
             {% csrf_token %}
             <div class="row g-2 mb-2">
               <div class="col-6">
-                <label class="form-label small fw-semibold">Hours Worked *</label>
-                <input type="number" step="0.25" min="0.05" max="24" name="hours" class="form-control form-control-sm"
-                  required placeholder="e.g. 2.0">
+                <label class="form-label small fw-semibold" for="id_labor_hours">Hours Worked *</label>
+                <input type="number" step="0.25" min="0.05" max="24" name="hours" id="id_labor_hours"
+                  class="form-control form-control-sm" required placeholder="e.g. 2.0">
+                <div class="invalid-feedback field-error-message" id="labor-hours-error"></div>
               </div>
               <div class="col-6">
-                <label class="form-label small fw-semibold">Work Date</label>
-                <input type="date" name="work_date" class="form-control form-control-sm">
+                <label class="form-label small fw-semibold" for="id_labor_work_date">Work Date</label>
+                <input type="date" name="work_date" id="id_labor_work_date" class="form-control form-control-sm">
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label small fw-semibold">Work Description *</label>
-              <input type="text" name="description" class="form-control form-control-sm" required
+              <label class="form-label small fw-semibold" for="id_labor_description">Work Description *</label>
+              <input type="text" name="description" id="id_labor_description" maxlength="500"
+                class="form-control form-control-sm" required
                 placeholder="e.g. Replaced faulty gasket and pressure tested">
+              <div class="invalid-feedback field-error-message" id="labor-description-error"></div>
+              <div class="form-text small">Alphabetical characters and basic punctuation only (numbers are not allowed).</div>
             </div>
             <button type="submit" class="btn btn-sm btn-outline-success w-100">
               {% icon 'plus' 14 %} Record Labor Time
@@ -1121,7 +1125,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
     var partSelect = document.getElementById('part-line-select');
     var qtyInput = document.getElementById('part-quantity-input');
@@ -1200,6 +1204,80 @@
         var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
         if (opt) {
           returnQtyInput.value = opt.getAttribute('data-max') || '';
+        }
+      });
+    }
+
+    var onSiteLaborForm = document.getElementById('onSiteLaborForm');
+    if (onSiteLaborForm) {
+      var hoursInput = document.getElementById('id_labor_hours');
+      var hoursError = document.getElementById('labor-hours-error');
+      var descInput = document.getElementById('id_labor_description');
+      var descError = document.getElementById('labor-description-error');
+      var alphaPattern = /^[A-Za-z\s.,;:'"\-()/]+$/;
+
+      function setFieldValidation(input, errEl, message) {
+        if (!input || !errEl) return;
+        if (message) {
+          input.classList.add('is-invalid');
+          errEl.textContent = message;
+          errEl.style.display = 'block';
+        } else {
+          input.classList.remove('is-invalid');
+          errEl.textContent = '';
+          errEl.style.display = 'none';
+        }
+      }
+
+      function validateHoursField() {
+        if (!hoursInput) return true;
+        var raw = (hoursInput.value || '').trim();
+        var val = parseFloat(raw);
+        if (!raw || isNaN(val) || val < 0.05 || val > 24) {
+          setFieldValidation(hoursInput, hoursError, 'Hours Worked must be between 0.05 and 24.');
+          return false;
+        }
+        setFieldValidation(hoursInput, hoursError, '');
+        return true;
+      }
+
+      function validateDescriptionField() {
+        if (!descInput) return true;
+        var val = (descInput.value || '').trim();
+        if (!val) {
+          setFieldValidation(descInput, descError, 'Work Description is required.');
+          return false;
+        }
+        if (/\d/.test(val) || !/[A-Za-z]/.test(val) || !alphaPattern.test(val)) {
+          setFieldValidation(
+            descInput,
+            descError,
+            'Work Description must contain only alphabetical characters and cannot contain numbers.'
+          );
+          return false;
+        }
+        setFieldValidation(descInput, descError, '');
+        return true;
+      }
+
+      if (hoursInput) {
+        hoursInput.addEventListener('input', validateHoursField);
+      }
+      if (descInput) {
+        descInput.addEventListener('input', validateDescriptionField);
+      }
+
+      onSiteLaborForm.addEventListener('submit', function (e) {
+        var hoursOk = validateHoursField();
+        var descOk = validateDescriptionField();
+        if (!hoursOk || !descOk) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!hoursOk && hoursInput) {
+            hoursInput.focus();
+          } else if (!descOk && descInput) {
+            descInput.focus();
+          }
         }
       });
     }

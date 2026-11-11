@@ -264,6 +264,52 @@
     </div>
     {% endif %}
 
+    {% if site_stats %}
+    <!-- Facility Site Statistics Overview -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'building' 16 %}
+          <span class="fw-bold text-dark">Facility Site Statistics</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'dashboards:hub' %}?section=service">
+          Site Breakdown &rarr;
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table fx-table table-hover align-middle mb-0">
+          <thead class="table-light small text-secondary">
+            <tr>
+              <th class="ps-3 py-2">Facility Site</th>
+              <th class="py-2 text-center">Open Incidents</th>
+              <th class="py-2 text-center">Active Work Orders</th>
+              <th class="pe-3 py-2 text-center">Unassigned Jobs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for st in site_stats %}
+            <tr>
+              <td class="ps-3" data-label="Facility Site">
+                <span class="badge bg-light text-dark border me-1">{{ st.code }}</span>
+                <span class="fw-semibold text-dark">{{ st.name }}</span>
+              </td>
+              <td class="text-center" data-label="Open Incidents">
+                <span class="badge {% if st.open_incidents %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-light text-secondary border{% endif %}">{{ st.open_incidents }}</span>
+              </td>
+              <td class="text-center" data-label="Active Work Orders">
+                <span class="badge {% if st.open_work_orders %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-light text-secondary border{% endif %}">{{ st.open_work_orders }}</span>
+              </td>
+              <td class="pe-3 text-center" data-label="Unassigned Jobs">
+                <span class="badge {% if st.unassigned_orders %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-light text-secondary border{% endif %}">{{ st.unassigned_orders }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Activity Timeline -->
     {% if recent %}
       <div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">

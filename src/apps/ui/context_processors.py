@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.urls import NoReverseMatch, reverse
 
 from apps.rbac import services as rbac
@@ -420,6 +421,7 @@ def shell(request):
             "shell_memberships": [],
             "shell_tenant_error": None,
             "is_client": False,
+            "session_idle_timeout_ms": max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000,
         }
 
     if membership is None:
@@ -451,6 +453,7 @@ def shell(request):
             "shell_memberships": request.active_memberships if hasattr(request, "active_memberships") and request.active_memberships is not None else list(selectors.active_memberships(user)),
             "shell_tenant_error": getattr(request, "tenant_error", None),
             "is_client": True,
+            "session_idle_timeout_ms": max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000,
         }
 
         # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
@@ -478,4 +481,5 @@ def shell(request):
         "shell_tenant_error": getattr(request, "tenant_error", None),
         "is_client": is_client,
         "is_org_owner": is_owner,
+        "session_idle_timeout_ms": max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000,
     }

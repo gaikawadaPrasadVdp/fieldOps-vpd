@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -9,6 +10,7 @@ from django.utils import timezone
 from apps.audit import services as audit
 from apps.core.exceptions import PermissionDenied, ValidationFailed
 from apps.rbac import services as rbac
+from apps.ui.forms import validate_alphabetical_description
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff
 
@@ -420,13 +422,31 @@ def record_job_labor(
 ):
     """Records on-site technician labor entry in M06."""
     assert_can_execute_job(work_order, membership)
+    cleaned_description = (description or "").strip()
+    if not cleaned_description:
+        raise ValidationFailed(
+            "Work Description is required.",
+            code="invalid_description",
+            details={"description": "Work Description is required."},
+        )
+    try:
+        cleaned_description = validate_alphabetical_description(
+            cleaned_description, field_label="Work Description"
+        )
+    except DjangoValidationError as exc:
+        msg = exc.messages[0] if getattr(exc, "messages", None) else str(exc)
+        raise ValidationFailed(
+            msg,
+            code="invalid_description",
+            details={"description": msg},
+        ) from exc
     labor = wo_services.record_labor(
         work_order,
         membership=membership,
         actor=actor,
         work_date=work_date or timezone.localdate(),
         hours=hours,
-        description=description,
+        description=cleaned_description,
         request=request,
     )
     audit.record(
@@ -434,7 +454,7 @@ def record_job_labor(
         organization=work_order.organization,
         actor=actor,
         target=work_order,
-        metadata={"hours": str(hours), "description": description[:80]},
+        metadata={"hours": str(hours), "description": cleaned_description[:80]},
         request=request,
     )
     return labor

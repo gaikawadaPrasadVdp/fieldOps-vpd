@@ -88,7 +88,7 @@
       {% endif %}
 
       <!-- Login Form -->
-      <form method="post" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
+      <form method="post" action="{% url 'accounts:login' %}" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
         <!-- Email Address -->
         <div class="fx-login-group">
           <label for="id_username" class="fx-login-label">
@@ -155,7 +155,7 @@
 
         </div>
 
-        <input type="hidden" name="next" value="{{ next }}">
+        <input type="hidden" name="next" value="{{ next|default:'' }}">
 
         <!-- Sign In Button -->
         <button type="submit" class="fx-login-submit-btn">
@@ -194,8 +194,24 @@
 
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
+  window.addEventListener("pageshow", function(event) {
+    if (event.persisted) {
+      window.location.reload();
+    }
+  });
+
+  function syncCsrfFromCookie(formEl) {
+    if (!formEl) return;
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (!match || !match[1]) return;
+    var cookieToken = decodeURIComponent(match[1]);
+    var csrfInput = formEl.querySelector("input[name='csrfmiddlewaretoken']");
+    if (csrfInput) {
+      csrfInput.value = cookieToken;
+    }
+  }
   // Password visibility toggle
   var toggle = document.getElementById("fx-pw-toggle");
   var input = document.getElementById("id_password");
@@ -254,6 +270,7 @@
         }
         return false;
       }
+      syncCsrfFromCookie(form);
     });
   }
 })();

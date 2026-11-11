@@ -2120,7 +2120,7 @@ document.addEventListener("click", function (e) {
         var cookie = cookies[i];
         var eqPos = cookie.indexOf("=");
         var name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        if (name) {
+        if (name && name !== "csrftoken") {
           document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
           document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
         }
@@ -2262,4 +2262,121 @@ document.addEventListener("click", function (e) {
         });
     }
   });
+
+  // 5. Automatic Client-Side Session Idle Timeout & Auto Sign-Out
+  var layoutEl = document.getElementById("fx-layout");
+  var idlePath = window.location.pathname || "";
+  if (
+    layoutEl &&
+    !idlePath.startsWith("/accounts/login") &&
+    !idlePath.startsWith("/accounts/logout")
+  ) {
+    var IDLE_ACTIVITY_KEY = "nexus_last_activity_at";
+    var rawIdleMs = parseInt(layoutEl.getAttribute("data-idle-timeout-ms") || "1800000", 10);
+    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 1800000;
+    var lastActivityAt = Date.now();
+    var lastSyncedAt = 0;
+    var idleLogoutTriggered = false;
+    var idleIntervalId = null;
+
+    function syncActivityTimestamp(force) {
+      var now = Date.now();
+      lastActivityAt = now;
+      if (force || (now - lastSyncedAt) >= 5000) {
+        lastSyncedAt = now;
+        try {
+          localStorage.setItem(IDLE_ACTIVITY_KEY, String(now));
+        } catch (e) {}
+      }
+    }
+
+    function getEffectiveLastActivity() {
+      var latest = lastActivityAt;
+      try {
+        var stored = parseInt(localStorage.getItem(IDLE_ACTIVITY_KEY) || "0", 10);
+        if (!isNaN(stored) && stored > latest) {
+          latest = stored;
+        }
+      } catch (e) {}
+      return latest;
+    }
+
+    function performIdleSignOut() {
+      if (idleLogoutTriggered) return;
+      idleLogoutTriggered = true;
+      if (idleIntervalId) {
+        clearInterval(idleIntervalId);
+        idleIntervalId = null;
+      }
+
+      var logoutForm = document.getElementById("fx-logout-form");
+      var logoutUrl = (logoutForm && logoutForm.action) ? logoutForm.action : "/accounts/logout/";
+      var csrfInput = logoutForm ? logoutForm.querySelector("input[name='csrfmiddlewaretoken']") : null;
+      var csrfToken = csrfInput ? csrfInput.value : "";
+      if (!csrfToken) {
+        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        if (match) csrfToken = match[1];
+      }
+
+      var bodyParams = new URLSearchParams();
+      if (csrfToken) {
+        bodyParams.append("csrfmiddlewaretoken", csrfToken);
+      }
+
+      var nextParam = encodeURIComponent(window.location.pathname + window.location.search);
+      fetch(logoutUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: bodyParams.toString(),
+      }).finally(function () {
+        try {
+          localStorage.removeItem(IDLE_ACTIVITY_KEY);
+        } catch (e) {}
+        broadcastLogout();
+        clearClientCookies();
+        window.location.replace("/accounts/login/?logged_out=1&next=" + nextParam);
+      });
+    }
+
+    function checkIdleExpiration() {
+      if (idleLogoutTriggered) return;
+      if ((Date.now() - getEffectiveLastActivity()) >= idleTimeoutMs) {
+        performIdleSignOut();
+      }
+    }
+
+    syncActivityTimestamp(true);
+    ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evtName) {
+      document.addEventListener(evtName, function () {
+        if (!idleLogoutTriggered) {
+          syncActivityTimestamp(false);
+        }
+      }, { passive: true });
+    });
+
+    window.addEventListener("storage", function (e) {
+      if (e.key === IDLE_ACTIVITY_KEY && e.newValue) {
+        var parsed = parseInt(e.newValue, 10);
+        if (!isNaN(parsed) && parsed > lastActivityAt) {
+          lastActivityAt = parsed;
+        }
+      }
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") {
+        checkIdleExpiration();
+      }
+    });
+    window.addEventListener("focus", checkIdleExpiration);
+
+    var pollMs = Math.min(Math.max(Math.floor(idleTimeoutMs / 4), 1000), 15000);
+    idleIntervalId = setInterval(checkIdleExpiration, pollMs);
+  }
 })();

@@ -18,6 +18,7 @@ class PortalAccount(TenantOwnedModel):
     )
     company_name = models.CharField(max_length=150, blank=True)
     is_enabled = models.BooleanField(default=True, db_index=True)
+    auto_grant_assets = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
     class Meta:

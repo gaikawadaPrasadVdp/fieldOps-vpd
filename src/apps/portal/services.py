@@ -675,6 +675,7 @@ def create_portal_account(
     membership: Membership,
     company_name: str = "",
     is_enabled: bool = True,
+    auto_grant_assets: bool = True,
     notes: str = "",
     actor=None,
 ) -> PortalAccount:
@@ -704,16 +705,20 @@ def create_portal_account(
         membership=membership,
         company_name=company_name.strip(),
         is_enabled=is_enabled,
+        auto_grant_assets=bool(auto_grant_assets),
         notes=notes.strip(),
     )
     account.save()
+
+    if account.auto_grant_assets and account.is_enabled:
+        sync_portal_grants_for_account(account)
 
     audit.record(
         "portal.account_created",
         actor=actor,
         organization=organization,
         target=account,
-        after=audit.snapshot(account, ["company_name", "is_enabled", "notes"]),
+        after=audit.snapshot(account, ["company_name", "is_enabled", "auto_grant_assets", "notes"]),
         metadata={"membership_id": str(membership.pk), "user_email": membership.user.email},
     )
     return account
@@ -776,10 +781,11 @@ def update_portal_account(
     company_name: str | None = None,
     notes: str | None = None,
     is_enabled: bool | None = None,
+    auto_grant_assets: bool | None = None,
     actor=None,
 ) -> PortalAccount:
     """Updates portal account metadata with audit trail."""
-    before = audit.snapshot(account, ["company_name", "notes", "is_enabled"])
+    before = audit.snapshot(account, ["company_name", "notes", "is_enabled", "auto_grant_assets"])
     update_fields = ["updated_at"]
 
     if company_name is not None:
@@ -794,7 +800,14 @@ def update_portal_account(
         account.is_enabled = bool(is_enabled)
         update_fields.append("is_enabled")
 
+    if auto_grant_assets is not None:
+        account.auto_grant_assets = bool(auto_grant_assets)
+        update_fields.append("auto_grant_assets")
+
     account.save(update_fields=update_fields)
+
+    if account.auto_grant_assets and account.is_enabled:
+        sync_portal_grants_for_account(account)
 
     audit.record(
         "portal.account_updated",
@@ -802,7 +815,7 @@ def update_portal_account(
         organization=account.organization,
         target=account,
         before=before,
-        after=audit.snapshot(account, ["company_name", "notes"]),
+        after=audit.snapshot(account, ["company_name", "notes", "is_enabled", "auto_grant_assets"]),
         metadata={"user_email": account.membership.user.email},
     )
     return account
@@ -861,3 +874,69 @@ def revoke_portal_asset(
         )
         return True
     return False
+
+
+def _portal_account_site_ids(account: PortalAccount) -> list[uuid.UUID] | None:
+    """Returns allowed site IDs for a site-scoped client account, or None if org-wide."""
+    site_ids = list(
+        account.membership.membership_roles.values_list("site_id", flat=True)
+    )
+    if not site_ids or None in site_ids:
+        return None
+    return [sid for sid in site_ids if sid is not None]
+
+
+@transaction.atomic
+def sync_portal_grants_for_account(account: PortalAccount) -> int:
+    """Grants all active organization (or site-scoped) assets to an auto-syncing PortalAccount."""
+    if not account.is_enabled or not account.auto_grant_assets or not account.membership.is_active:
+        return 0
+
+    assets_qs = Asset.objects.for_organization(account.organization).exclude(
+        status__in=["RETIRED", "DISPOSED"]
+    )
+    allowed_site_ids = _portal_account_site_ids(account)
+    if allowed_site_ids is not None:
+        assets_qs = assets_qs.filter(site_id__in=allowed_site_ids)
+
+    granted = 0
+    for asset in assets_qs:
+        _, created = PortalAssetGrant.objects.get_or_create(
+            organization=account.organization,
+            portal_account=account,
+            asset=asset,
+        )
+        if created:
+            granted += 1
+    return granted
+
+
+@transaction.atomic
+def sync_portal_grants_for_asset(asset: Asset, actor=None) -> int:
+    """Syncs newly created or relocated active assets to enabled PortalAccounts with auto_grant_assets=True."""
+    if asset.status in ("RETIRED", "DISPOSED"):
+        return 0
+
+    accounts = (
+        PortalAccount.objects.for_organization(asset.organization_id)
+        .filter(
+            is_enabled=True,
+            auto_grant_assets=True,
+            membership__status=Membership.Status.ACTIVE,
+            membership__user__is_active=True,
+        )
+        .select_related("membership")
+    )
+    granted = 0
+    for account in accounts:
+        allowed_site_ids = _portal_account_site_ids(account)
+        if allowed_site_ids is not None and asset.site_id not in allowed_site_ids:
+            continue
+        _, created = PortalAssetGrant.objects.get_or_create(
+            organization=asset.organization,
+            portal_account=account,
+            asset=asset,
+        )
+        if created:
+            granted += 1
+    return granted
