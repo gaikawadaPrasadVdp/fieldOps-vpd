@@ -43,7 +43,8 @@ def test_logout_ajax_fetch_returns_json_and_logs_out(client, owner_a, org_a):
     assert resp.status_code == 200
     data = json.loads(resp.content.decode("utf-8"))
     assert data["status"] == "logged_out"
-    assert data["redirect_url"] == "/accounts/login/"
+    assert data["redirect_url"].startswith("/accounts/login/")
+    assert "next=/app/" in data["redirect_url"]
 
     # Check audit log recorded the logout
     audit_exists = AuditLog.objects.filter(action="auth.logout", actor=owner_a).exists()
@@ -130,3 +131,41 @@ def test_app_js_includes_bfcache_and_history_replace():
     assert "window.location.replace" in js_code, "app.js must use location.replace for clean logout history"
     assert "pageshow" in js_code, "app.js must listen to pageshow for bfcache detection"
     assert "event.persisted" in js_code, "app.js must inspect event.persisted"
+
+
+def test_logout_then_login_lands_at_app(client, owner_a):
+    """User story: If a user clicks log out and then logs in, they should land at /app location."""
+    from tests.conftest import PASSWORD
+    owner_a.set_password(PASSWORD)
+    owner_a.save()
+
+    # 1. User starts logged in at an inner page
+    client.force_login(owner_a)
+    r1 = client.get("/app/roles/")
+    assert r1.status_code == 200
+
+    # 2. User logs out via AJAX
+    r_logout = client.post(
+        "/accounts/logout/",
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        HTTP_ACCEPT="application/json",
+    )
+    assert r_logout.status_code == 200
+    logout_data = json.loads(r_logout.content.decode("utf-8"))
+    assert "/accounts/login/" in logout_data["redirect_url"]
+
+    # 3. User navigates to the login page
+    r_login_page = client.get(logout_data["redirect_url"])
+    assert r_login_page.status_code == 200
+
+    # 4. User logs in again
+    r_login_post = client.post(
+        "/accounts/login/",
+        {"username": owner_a.email, "password": PASSWORD, "next": "/app/"},
+        follow=True,
+    )
+    # Must redirect and land directly at /app/
+    assert r_login_post.status_code == 200
+    assert r_login_post.request["PATH_INFO"] == "/app/"
+    assert any(dest == "/app/" for dest, _ in r_login_post.redirect_chain)
+

@@ -39,10 +39,10 @@ class LoginView(auth_views.LoginView):
             self.request.session.set_expiry(0)
         else:
             self.request.session.set_expiry(settings.SESSION_COOKIE_AGE)
-        if user and not (getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False)):
+        if user:
             from apps.tenancy import selectors
             memberships = list(selectors.active_memberships(user))
-            if len(memberships) == 1:
+            if memberships and (selectors.SESSION_KEY not in self.request.session or not self.request.session[selectors.SESSION_KEY]):
                 self.request.session[selectors.SESSION_KEY] = str(memberships[0].organization_id)
         return response
 
@@ -65,6 +65,7 @@ class LogoutView(auth_views.LogoutView):
     """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
 
     http_method_names = ["post", "options"]
+    next_page = "/accounts/login/?logged_out=1&next=/app/"
 
     def post(self, request, *args, **kwargs):
         is_ajax = (
@@ -75,7 +76,7 @@ class LogoutView(auth_views.LogoutView):
             from django.contrib.auth import logout as auth_logout
             from django.http import JsonResponse
             auth_logout(request)
-            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/"})
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/?logged_out=1&next=/app/"})
         else:
             response = super().post(request, *args, **kwargs)
 
