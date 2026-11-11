@@ -85,11 +85,12 @@
                 {{ form.site.label }}
               </label>
               {{ form.site }}
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.site.errors %} d-block{% else %} d-none{% endif %}" id="site-error">{% if form.site.errors %}{{ form.site.errors.0 }}{% endif %}</div>
+              <div class="alert alert-info py-2 px-3 small mt-2 mb-0" id="portal-no-site-assets-msg" hidden>
+                No authorized assets are available at the selected site / location.
+              </div>
               {% if form.site.help_text %}
               <div class="form-text text-body-secondary">{{ form.site.help_text }}</div>
-              {% endif %}
-              {% if form.site.errors %}
-              <div class="text-danger small mt-1">{{ form.site.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -105,12 +106,9 @@
               </div>
               {% endif %}
               {{ form.asset }}
-              
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.asset.errors %} d-block{% else %} d-none{% endif %}" id="asset-error">{% if form.asset.errors %}{{ form.asset.errors.0 }}{% endif %}</div>
               {% if form.asset.help_text %}
               <div class="form-text text-body-secondary">{{ form.asset.help_text }}</div>
-              {% endif %}
-              {% if form.asset.errors %}
-              <div class="text-danger small mt-1">{{ form.asset.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -134,11 +132,9 @@
                   {{ form.severity.label }}
                 </label>
                 {{ form.severity }}
+                <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.severity.errors %} d-block{% else %} d-none{% endif %}" id="severity-error">{% if form.severity.errors %}{{ form.severity.errors.0 }}{% endif %}</div>
                 {% if form.severity.help_text %}
                 <div class="form-text text-body-secondary">{{ form.severity.help_text }}</div>
-                {% endif %}
-                {% if form.severity.errors %}
-                <div class="text-danger small mt-1">{{ form.severity.errors.0 }}</div>
                 {% endif %}
               </div>
 
@@ -148,11 +144,9 @@
                   {{ form.service_impact.label }}
                 </label>
                 {{ form.service_impact }}
+                <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.service_impact.errors %} d-block{% else %} d-none{% endif %}" id="service_impact-error">{% if form.service_impact.errors %}{{ form.service_impact.errors.0 }}{% endif %}</div>
                 {% if form.service_impact.help_text %}
                 <div class="form-text text-body-secondary">{{ form.service_impact.help_text }}</div>
-                {% endif %}
-                {% if form.service_impact.errors %}
-                <div class="text-danger small mt-1">{{ form.service_impact.errors.0 }}</div>
                 {% endif %}
               </div>
             </div>
@@ -175,11 +169,9 @@
                 {{ form.attachment.label }}
               </label>
               {{ form.attachment }}
+              <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.attachment.errors %} d-block{% else %} d-none{% endif %}" id="attachment-error">{% if form.attachment.errors %}{{ form.attachment.errors.0 }}{% endif %}</div>
               {% if form.attachment.help_text %}
               <div class="form-text text-body-secondary">{{ form.attachment.help_text }}</div>
-              {% endif %}
-              {% if form.attachment.errors %}
-              <div class="text-danger small mt-1">{{ form.attachment.errors.0 }}</div>
               {% endif %}
             </div>
 
@@ -300,36 +292,31 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  siteSelect.addEventListener("change", filterAssets);
+  siteSelect.addEventListener("change", function () {
+    filterAssets();
+    if (assetSelect.classList.contains("is-invalid")) {
+      validateAsset();
+    }
+  });
 
   // If a site is pre-selected, apply filter on load
   if (siteSelect.value) {
     filterAssets();
   }
 
-  // Real-time client-side alphabetical validations ensuring strictly a SINGLE error message
-  function setupAlphaValidation(inputEl, errorId, labelName) {
-    if (!inputEl) return;
-    const errorEl = document.getElementById(errorId);
-    const parent = inputEl.closest(".mb-3") || inputEl.parentElement;
+  function setFieldError(inputEl, errorId, msg) {
+    if (!inputEl) return true;
+    const errorEl = errorId ? document.getElementById(errorId) : null;
+    const parent = inputEl.closest(".mb-3, .mb-4, .col-12") || inputEl.parentElement;
 
-    function setFieldError(msg) {
-      if (msg) {
-        inputEl.setCustomValidity(msg);
-        inputEl.classList.add("is-invalid");
-        if (errorEl) {
-          errorEl.textContent = msg;
-          errorEl.style.display = "block";
-          errorEl.classList.add("d-block");
-        }
-      } else {
-        inputEl.setCustomValidity("");
-        inputEl.classList.remove("is-invalid");
-        if (errorEl) {
-          errorEl.textContent = "";
-          errorEl.style.display = "none";
-          errorEl.classList.remove("d-block");
-        }
+    if (msg) {
+      inputEl.setCustomValidity(msg);
+      inputEl.classList.add("is-invalid");
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.style.display = "block";
+        errorEl.classList.remove("d-none");
+        errorEl.classList.add("d-block");
       }
       if (parent) {
         const extraDivs = parent.querySelectorAll("div.field-error-message, div.invalid-feedback, div.text-danger");
@@ -339,50 +326,170 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         }
       }
+      return false;
     }
 
-    function validate() {
-      const val = inputEl.value.trim();
-      if (!val) {
-        setFieldError("");
-        return;
-      }
-      if (/\d/.test(val)) {
-        setFieldError(labelName + " must contain only alphabetical characters and cannot contain numbers.");
-      } else {
-        setFieldError("");
-      }
+    inputEl.setCustomValidity("");
+    inputEl.classList.remove("is-invalid");
+    if (errorEl) {
+      errorEl.textContent = "";
+      errorEl.style.display = "none";
+      errorEl.classList.remove("d-block");
+      errorEl.classList.add("d-none");
     }
+    return true;
+  }
 
-    inputEl.addEventListener("input", validate);
-    inputEl.addEventListener("change", validate);
+  const ALLOWED_PUNCTUATION_RE = /^[A-Za-z\u00C0-\u024F\u1E00-\u1EFF\s.,;:!?'\"’“”()\[\]\/\\\-–—_&%]+$/;
+  const HAS_LETTER_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/;
+
+  function validateTextField(inputEl, errorId, labelName, opts) {
+    if (!inputEl) return true;
+    const val = inputEl.value.trim();
+
+    if (!val) {
+      if (opts && opts.required) {
+        return setFieldError(inputEl, errorId, labelName + " is required.");
+      }
+      return setFieldError(inputEl, errorId, "");
+    }
+    if (opts && opts.minLength && val.length < opts.minLength) {
+      return setFieldError(inputEl, errorId, labelName + " must be at least " + opts.minLength + " characters.");
+    }
+    if (opts && opts.maxLength && val.length > opts.maxLength) {
+      return setFieldError(inputEl, errorId, labelName + " cannot exceed " + opts.maxLength + " characters.");
+    }
+    if (/\d/.test(val)) {
+      return setFieldError(inputEl, errorId, labelName + " must contain only alphabetical characters and cannot contain numbers.");
+    }
+    if (!HAS_LETTER_RE.test(val)) {
+      return setFieldError(inputEl, errorId, labelName + " must contain alphabetical text.");
+    }
+    if (!ALLOWED_PUNCTUATION_RE.test(val)) {
+      return setFieldError(inputEl, errorId, labelName + " can contain letters, spaces, and standard punctuation only.");
+    }
+    return setFieldError(inputEl, errorId, "");
   }
 
   const titleEl = document.getElementById("id_title");
   const descEl = document.getElementById("id_description");
+  const severityEl = document.getElementById("id_severity");
+  const impactTypeEl = document.getElementById("id_service_impact");
   const impactEl = document.getElementById("id_impact_notes");
+  const attachmentEl = document.getElementById("id_attachment");
 
-  setupAlphaValidation(titleEl, "title-error", "Request Title / Subject");
-  setupAlphaValidation(descEl, "description-error", "Problem Description");
-  setupAlphaValidation(impactEl, "impact_notes-error", "Impact Notes");
+  function validateTitle() {
+    return validateTextField(titleEl, "title-error", "Request Title / Subject", {
+      required: true,
+      minLength: 3,
+      maxLength: 200,
+    });
+  }
+
+  function validateDescription() {
+    return validateTextField(descEl, "description-error", "Problem Description", {
+      required: false,
+    });
+  }
+
+  function validateImpactNotes() {
+    return validateTextField(impactEl, "impact_notes-error", "Impact Notes", {
+      required: false,
+      maxLength: 500,
+    });
+  }
+
+  function validateAsset() {
+    const val = (assetSelect.value || "").trim();
+    if (!val) {
+      return setFieldError(assetSelect, "asset-error", "Please select a related asset.");
+    }
+    const selectedOpt = assetSelect.options[assetSelect.selectedIndex];
+    const optSiteId = selectedOpt ? (selectedOpt.dataset.siteId || "") : "";
+    if (siteSelect.value && optSiteId && optSiteId !== siteSelect.value) {
+      return setFieldError(assetSelect, "asset-error", "The selected asset does not belong to the chosen site / location.");
+    }
+    return setFieldError(assetSelect, "asset-error", "");
+  }
+
+  function validateSelectRequired(selectEl, errorId, labelName) {
+    if (!selectEl) return true;
+    if (!(selectEl.value || "").trim()) {
+      return setFieldError(selectEl, errorId, "Please select a " + labelName + ".");
+    }
+    return setFieldError(selectEl, errorId, "");
+  }
+
+  function validateAttachment() {
+    if (!attachmentEl || !attachmentEl.files || attachmentEl.files.length === 0) {
+      return setFieldError(attachmentEl, "attachment-error", "");
+    }
+    const maxBytes = 10 * 1024 * 1024;
+    if (attachmentEl.files[0].size > maxBytes) {
+      return setFieldError(attachmentEl, "attachment-error", "Attachment file size must not exceed 10 MB.");
+    }
+    return setFieldError(attachmentEl, "attachment-error", "");
+  }
+
+  if (titleEl) {
+    titleEl.addEventListener("input", validateTitle);
+    titleEl.addEventListener("blur", validateTitle);
+  }
+  if (descEl) {
+    descEl.addEventListener("input", validateDescription);
+    descEl.addEventListener("blur", validateDescription);
+  }
+  if (impactEl) {
+    impactEl.addEventListener("input", validateImpactNotes);
+    impactEl.addEventListener("blur", validateImpactNotes);
+  }
+  assetSelect.addEventListener("change", validateAsset);
+  assetSelect.addEventListener("blur", validateAsset);
+  if (severityEl) {
+    severityEl.addEventListener("change", function () {
+      validateSelectRequired(severityEl, "severity-error", "priority / urgency");
+    });
+  }
+  if (impactTypeEl) {
+    impactTypeEl.addEventListener("change", function () {
+      validateSelectRequired(impactTypeEl, "service_impact-error", "service impact");
+    });
+  }
+  if (attachmentEl) {
+    attachmentEl.addEventListener("change", validateAttachment);
+  }
 
   const formEl = document.getElementById("portalRequestForm");
   if (formEl) {
-    formEl.addEventListener("submit", function(e) {
-      if (titleEl && /\d/.test(titleEl.value.trim())) {
+    formEl.addEventListener("submit", function (e) {
+      const checks = [
+        { el: titleEl, ok: validateTitle() },
+        { el: assetSelect, ok: validateAsset() },
+        { el: descEl, ok: validateDescription() },
+        { el: severityEl, ok: validateSelectRequired(severityEl, "severity-error", "priority / urgency") },
+        { el: impactTypeEl, ok: validateSelectRequired(impactTypeEl, "service_impact-error", "service impact") },
+        { el: impactEl, ok: validateImpactNotes() },
+        { el: attachmentEl, ok: validateAttachment() },
+      ];
+
+      const firstBad = checks.find(function (item) {
+        return !item.ok;
+      });
+
+      if (firstBad) {
         e.preventDefault();
-        titleEl.focus();
-        return;
-      }
-      if (descEl && /\d/.test(descEl.value.trim())) {
-        e.preventDefault();
-        descEl.focus();
-        return;
-      }
-      if (impactEl && /\d/.test(impactEl.value.trim())) {
-        e.preventDefault();
-        impactEl.focus();
-        return;
+        e.stopImmediatePropagation();
+        delete formEl.dataset.submitting;
+        const submitBtn = document.getElementById("submitRequestBtn");
+        if (submitBtn) submitBtn.disabled = false;
+        if (firstBad.el) {
+          firstBad.el.focus();
+          firstBad.el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        if (window.fxToast) {
+          window.fxToast("Please complete all required fields correctly before submitting.", "warning");
+        }
+        return false;
       }
     });
   }

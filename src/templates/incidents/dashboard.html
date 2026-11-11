@@ -85,7 +85,7 @@
     </div>
   </div>
   {% endif %}
-  {% if "supervisor" in role_keys or "technician" in role_keys or "stores_manager" in role_keys %}
+  {% if "supervisor" in role_keys or "technician" in role_keys or "stores_manager" in role_keys or "service_dispatcher" in role_keys %}
   <div class="col-6 col-xl-3">
     <div class="fx-card fx-card-body">
       <div class="fx-stat">{{ counts.work_orders }}</div>
@@ -109,9 +109,9 @@
   {% endif %}
 </div>
 
-{% if "asset_manager" in role_keys or platform or "owner" in role_keys or "service_manager" in role_keys %}
+{% if "asset_manager" in role_keys or platform or "owner" in role_keys or "service_manager" in role_keys or "service_dispatcher" in role_keys %}
 <div class="row g-3 mb-4">
-  {% if "owner" in role_keys or "service_manager" in role_keys or platform %}
+  {% if "owner" in role_keys or "service_manager" in role_keys or "service_dispatcher" in role_keys or platform %}
   <div class="col-lg-3">
     <div class="fx-card h-100">
       <div class="fx-card-header">Service impact summary</div>
@@ -482,7 +482,7 @@
     </table>
   </div>
 </div>
-{% endif %} {% if can.sla and "operations_manager" in role_keys or can.sla and "service_manager" in role_keys %}
+{% endif %} {% if can.sla and "operations_manager" in role_keys or can.sla and "service_manager" in role_keys or can.sla and "service_dispatcher" in role_keys %}
 <div class="fx-card mb-4">
   <div class="fx-card-header">Incidents approaching an SLA deadline</div>
   <div class="table-responsive">

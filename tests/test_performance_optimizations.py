@@ -173,6 +173,26 @@ def test_sidebar_navigation_caching_and_active_isolation():
 
         # Verify active state resolved correctly for /app/work-orders/ on the cloned cached copy
         overview_item = ctx2["shell_nav_sections"]["Overview"][0]
-        workorders_item = ctx2["shell_nav_sections"]["Operations"][1]
+        workorders_item = [item for item in ctx2["shell_nav_sections"]["Operations"] if item["label"] == "Work Orders"][0]
         assert overview_item.get("active") is not True
         assert workorders_item.get("active") is True
+
+
+def test_redis_url_sanitization():
+    """Verify that REDIS_URL without scheme or invalid placeholder falls back safely."""
+    from config.settings.base import _VALID_REDIS_SCHEMES
+    schemes = _VALID_REDIS_SCHEMES
+
+    def sanitize(raw):
+        raw = raw.strip()
+        if raw and any(raw.startswith(s) for s in schemes):
+            return raw
+        elif raw and ":" in raw and " " not in raw and not raw.startswith(("http://", "https://")):
+            return f"redis://{raw}"
+        return ""
+
+    assert sanitize("redis://default:secret@host:6379") == "redis://default:secret@host:6379"
+    assert sanitize("rediss://host:6379") == "rediss://host:6379"
+    assert sanitize("host.internal:6379") == "redis://host.internal:6379"
+    assert sanitize("none") == ""
+    assert sanitize("") == ""

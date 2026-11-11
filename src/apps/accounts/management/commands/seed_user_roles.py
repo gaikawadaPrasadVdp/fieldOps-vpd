@@ -376,17 +376,21 @@ class Command(BaseCommand):
 
                     membership=membership,
 
-                    defaults={"company_name": "Acme Corporation", "is_enabled": True}
+                    defaults={"company_name": "Acme Corporation", "is_enabled": True, "auto_grant_assets": True}
 
                 )
+
+                if not portal_acc.auto_grant_assets:
+
+                    portal_acc.auto_grant_assets = True
+
+                    portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
 
                 from apps.assets.models import Asset
 
                 from apps.portal.models import PortalAssetGrant
 
-                first_asset = Asset.objects.filter(organization=org).exclude(status__in=["RETIRED", "DISPOSED"]).first()
-
-                if first_asset:
+                for active_asset in Asset.objects.filter(organization=org).exclude(status__in=["RETIRED", "DISPOSED"]):
 
                     PortalAssetGrant.objects.unscoped().get_or_create(
 
@@ -394,7 +398,7 @@ class Command(BaseCommand):
 
                         portal_account=portal_acc,
 
-                        asset=first_asset,
+                        asset=active_asset,
 
                     )
 

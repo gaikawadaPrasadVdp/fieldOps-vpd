@@ -1,8 +1,8 @@
-"""Pluggable assignment checks owned by the Work Order module.
+"""Assignment rules and eligibility validation for work orders.
 
-Shift, skills, workload capacity, and technician location are not represented in
-this checkout. The existing, enforceable rules are kept here and missing shift
-data is surfaced as a warning rather than silently treated as verified.
+Validates active membership, technician dispatchability, active schedule conflicts,
+workload capacity limits (max_active_jobs), leave status, operating calendar rules,
+and technician shift schedules with warnings for out-of-shift assignments.
 """
 from zoneinfo import ZoneInfo
 
