@@ -14,8 +14,8 @@ def seed_default_snapshots(apps, schema_editor):
                 organization=org,
                 snapshot_type="DAILY",
                 section="OPERATIONS",
-                period_start=period_start,
-                period_end=today,
+                period_from=period_start,
+                period_to=today,
                 metrics={"open_work_orders": 0, "completed_work_orders": 0, "baseline": True},
                 notes="Baseline operations KPI snapshot",
             )
