@@ -403,7 +403,7 @@ def home(request):
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
-    if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
+    if (getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False)) and not request.membership:
         return redirect("platform_admin:organizations")
 
     if request.tenant_error:

@@ -2266,7 +2266,7 @@ document.addEventListener("click", function (e) {
           // Broadcast to other tabs AFTER the server has completed logout
           broadcastLogout();
           clearClientCookies();
-          window.location.replace("/accounts/login/?logged_out=1");
+          window.location.replace("/accounts/login/?logged_out=1&next=%2Fapp%2F");
         });
     }
   });
