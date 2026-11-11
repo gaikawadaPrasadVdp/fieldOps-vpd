@@ -94,11 +94,12 @@ body.fx-app {
   flex: 0 0 var(--fx-sidebar-w);
   background: var(--fx-nav-bg);
   color: var(--fx-nav-text);
-  position: sticky;
+  position: fixed;
   top: 0;
+  bottom: 0;
+  left: 0;
   height: 100vh;
   height: 100dvh;
-  align-self: flex-start;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -238,6 +239,9 @@ body.fx-app {
   flex-direction: column;
   overflow: visible;
   background: var(--fx-bg);
+  margin-left: var(--fx-sidebar-w);
+  width: calc(100% - var(--fx-sidebar-w));
+  max-width: calc(100% - var(--fx-sidebar-w));
 }
 
 .fx-topbar {
@@ -279,6 +283,12 @@ body.fx-app {
 
   .fx-nav-open .fx-sidebar {
     left: 0;
+  }
+
+  .fx-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .fx-sidebar-backdrop {
@@ -2167,11 +2177,25 @@ html:not(:has(body.fx-public-site)), body:not(.fx-public-site) {
   overflow-x: hidden !important;
 }
 
-.fx-main {
-  flex: 1 1 auto !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: hidden !important;
+@media (min-width: 992px) {
+  .fx-main {
+    flex: 1 1 auto !important;
+    margin-left: var(--fx-sidebar-w) !important;
+    max-width: calc(100% - var(--fx-sidebar-w)) !important;
+    width: calc(100% - var(--fx-sidebar-w)) !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+}
+@media (max-width: 991.98px) {
+  .fx-main {
+    flex: 1 1 auto !important;
+    margin-left: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
 }
 
 .fx-content {

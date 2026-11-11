@@ -338,6 +338,10 @@ class WorkOrderCompleteSerializer(StrictInputSerializer):
     def validate(self, attrs):
         if not attrs.get("resolution_notes") and attrs.get("summary"):
             attrs["resolution_notes"] = attrs["summary"]
+        # ``summary`` is an accept-only alias for resolution notes (documented in the
+        # schema): it must never reach the service layer as a keyword argument
+        # (QA E2E_023, run 2026-11-10: complete with {"summary": ...} returned 500).
+        attrs.pop("summary", None)
         if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
             raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
         try:

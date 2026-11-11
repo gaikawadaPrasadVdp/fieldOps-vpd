@@ -48,6 +48,10 @@ def items_for(org, template):
 
 def _visibility(membership):
     full = rbac.site_scope(membership, "inspection.view")
+    if not full.all_sites and not full.site_ids:
+        asset_scope = rbac.site_scope(membership, "asset.view")
+        if asset_scope.all_sites or asset_scope.site_ids:
+            full = asset_scope
     if full.all_sites:
         return Q()
     cond = Q(pk__isnull=True)  # matches nothing

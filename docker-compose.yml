@@ -44,8 +44,8 @@ services:
   web:
     <<: *app
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 4 --worker-class gthread --preload --timeout 120 --access-logfile - --forwarded-allow-ips *
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       migrate: {condition: service_completed_successfully}
       db: {condition: service_healthy}
