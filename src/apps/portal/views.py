@@ -472,6 +472,7 @@ class AccountEditView(TenantPermissionMixin, View):
             "full_name": user.full_name,
             "phone": user.phone,
             "is_enabled": account.is_enabled,
+            "auto_grant_assets": account.auto_grant_assets,
             "notes": account.notes,
         })
         return render(
@@ -524,6 +525,7 @@ class AccountEditView(TenantPermissionMixin, View):
             company_name=cd["company_name"],
             notes=cd["notes"],
             is_enabled=cd["is_enabled"],
+            auto_grant_assets=cd["auto_grant_assets"],
             actor=request.user,
         )
 

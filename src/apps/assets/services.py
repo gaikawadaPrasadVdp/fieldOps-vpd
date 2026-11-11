@@ -145,6 +145,12 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
             generate_identifier(asset, kind="QR", actor=actor, request=request)
     except Exception:
         pass
+    try:
+        with transaction.atomic():
+            from apps.portal.services import sync_portal_grants_for_asset
+            sync_portal_grants_for_asset(asset, actor=actor)
+    except Exception:
+        pass
     return asset
 
 
@@ -197,6 +203,12 @@ def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNS
                      before={"site_id": before["site_id"], "zone_id": before["zone_id"]},
                      after={"site_id": after["site_id"], "zone_id": after["zone_id"]},
                      metadata={"reason": reason}, request=request)
+        try:
+            with transaction.atomic():
+                from apps.portal.services import sync_portal_grants_for_asset
+                sync_portal_grants_for_asset(asset, actor=actor)
+        except Exception:
+            pass
     return asset
 
 

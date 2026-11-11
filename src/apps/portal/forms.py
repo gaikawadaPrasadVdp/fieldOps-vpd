@@ -177,6 +177,11 @@ class PortalAccountEditForm(BootstrapFormMixin, forms.Form):
         label="Portal Access Enabled",
         help_text="When enabled, this user can sign in and report service requests.",
     )
+    auto_grant_assets = forms.BooleanField(
+        required=False,
+        label="Auto-Sync New Sites & Assets",
+        help_text="When enabled, newly registered organization sites and assets are automatically available in this client's portal dropdowns.",
+    )
     notes = forms.CharField(
         required=False,
         label="Account Notes",
