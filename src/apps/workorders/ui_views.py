@@ -1171,7 +1171,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 }.get(getattr(wo.source_request, "severity", ""), "")
 
             kwargs = {"work_order": wo, "initial": {"work_type": initial_work_type, "priority": initial_priority,
-                                   "planned_start": wo.planned_start, "planned_end": wo.planned_end,
+                                   "planned_start": wo.planned_start or timezone.localtime(timezone.now()).replace(second=0, microsecond=0),
+                                   "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
         elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update"):

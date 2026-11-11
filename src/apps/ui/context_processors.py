@@ -13,17 +13,18 @@ def _resolve_active(sections, req_path):
     """Marks the single most specific matching nav item as active."""
     best_item = None
     best_len = -1
-    for sec, items in sections.items():
+    for _sec, items in sections.items():
         for item in items:
-            mp = item.get("match_prefix", "") or item.get("url", "")
-            if mp == "/app/" or mp == "/app":
-                if req_path.rstrip("/") == "/app" and len(mp) > best_len:
-                    best_len = len(mp)
-                    best_item = item
-            elif mp and req_path.startswith(mp):
-                if len(mp) > best_len:
-                    best_len = len(mp)
-                    best_item = item
+            prefixes = item.get("match_prefixes") or [item.get("match_prefix", "") or item.get("url", "")]
+            for mp in prefixes:
+                if mp == "/app/" or mp == "/app":
+                    if req_path.rstrip("/") == "/app" and len(mp) > best_len:
+                        best_len = len(mp)
+                        best_item = item
+                elif mp and req_path.startswith(mp):
+                    if len(mp) > best_len:
+                        best_len = len(mp)
+                        best_item = item
     if best_item:
         best_item["active"] = True
 
@@ -435,6 +436,7 @@ def shell(request):
                 {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
                 {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
                 {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+                {"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]},
             ]
         }
         sections = _filter_valid_nav_items(sections)

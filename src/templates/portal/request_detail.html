@@ -519,7 +519,7 @@
               </div>
               <div class="small text-body mt-1">
                 {{ h.action|title }}
-                {% if h.reason and h.action == 'reject' or h.action == 'reopen' %}<span class="text-body-secondary">— {{ h.reason }}</span>{% endif %}
+                {% if h.reason and h.action == 'reject' or h.reason and h.action == 'reopen' or h.reason and h.action == 'work_order_paused' %}<span class="text-body-secondary">— {{ h.reason }}</span>{% endif %}
               </div>
             </div>
             {% endfor %}

@@ -434,6 +434,8 @@ def update_request(sr: ServiceRequest, *, actor, request=None, **changes) -> Ser
     if after != before and before.get("severity") != after.get("severity"):
         _sla().on_request_updated(sr)  # M11: a new severity re-targets the open SLA
     if after != before:
+        _history(sr, from_status="", to_status=sr.status, action="request_updated",
+                 reason="Request details updated", actor=actor, source="manual")
         audit.record("incident.updated", actor=actor, organization=sr.organization, target=sr, before=before,
                      after=after, request=request)
     return sr
@@ -600,6 +602,74 @@ def on_work_order_closed(sr: ServiceRequest, *, actor, request=None):
         if not blockers:
             _apply(sr, "close", reason="Linked work order closed and client confirmation present", actor=actor, source="work_order", request=request)
             _notify_reporter(sr, "close", "")
+
+
+_WORK_ORDER_ACTIVITY_MAP = {
+    "planned": ("work_order_planned", "Work order planned"),
+    "assigned": ("work_order_assigned", "Technician assigned"),
+    "reassigned": ("work_order_reassigned", "Technician reassigned"),
+    "rescheduled": ("work_order_rescheduled", "Work order rescheduled"),
+    "dispatched": ("work_order_dispatched", "Work order dispatched"),
+    "held": ("work_order_paused", "Work order paused (On Hold)"),
+    "resumed": ("work_order_resumed", "Work order resumed"),
+    "submitted_for_review": ("work_order_review", "Submitted for supervisor review"),
+    "work_update": ("work_order_update", "Work update recorded"),
+    "updated": ("work_order_updated", "Work order updated"),
+    "labor_recorded": ("work_order_labor", "Labor recorded"),
+    "material_recorded": ("work_order_material", "Material recorded"),
+    "evidence_added": ("work_order_evidence", "Evidence attached"),
+    "provisional_checklist_updated": ("work_order_checklist", "Checklist notes updated"),
+    "checklist_reference_registered": ("work_order_checklist", "Checklist reference registered"),
+}
+
+
+def on_work_order_activity(
+    sr: ServiceRequest,
+    *,
+    work_order,
+    action: str,
+    from_status: str = "",
+    to_status: str = "",
+    notes: str = "",
+    metadata=None,
+    actor=None,
+):
+    """Record every linked work-order activity/status update into ServiceRequestHistory."""
+    mapped_action, default_label = _WORK_ORDER_ACTIVITY_MAP.get(
+        action, (f"work_order_{action}"[:30], action.replace("_", " ").title())
+    )
+    meta = metadata or {}
+    wo_num = getattr(work_order, "order_number", "") or "Work order"
+    clean_notes = (notes or "").strip()
+
+    if action == "held":
+        detail = f"{wo_num} paused: {clean_notes}" if clean_notes else f"{wo_num} paused (On Hold)"
+    elif action == "resumed":
+        detail = f"{wo_num} resumed"
+    elif action in ("assigned", "reassigned") and getattr(work_order, "assigned_to_id", None):
+        tech_name = work_order.assigned_to.user.display_name
+        prefix = "Reassigned" if action == "reassigned" else "Assigned"
+        detail = f"{wo_num}: {prefix} to {tech_name}"
+        if clean_notes:
+            detail = f"{detail} ({clean_notes})"
+    elif action == "labor_recorded" and meta.get("hours"):
+        detail = f"{wo_num}: {meta['hours']}h labor recorded"
+    elif clean_notes:
+        detail = f"{wo_num}: {clean_notes}"
+    else:
+        detail = f"{wo_num}: {default_label}"
+
+    effective_to = (to_status or getattr(work_order, "status", "") or sr.status)[:20]
+    effective_from = from_status[:20] if (from_status and from_status != effective_to) else ""
+    _history(
+        sr,
+        from_status=effective_from,
+        to_status=effective_to,
+        action=mapped_action[:30],
+        reason=detail[:500],
+        actor=actor,
+        source="work_order",
+    )
 
 
 # --- downtime ------------------------------------------------------------------------------------------------
