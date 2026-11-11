@@ -20,6 +20,24 @@ def cleanup_legacy_columns(apps, schema_editor):
                     ALTER TABLE dashboards_reportsnapshot ALTER COLUMN kind DROP NOT NULL;
                     ALTER TABLE dashboards_reportsnapshot DROP COLUMN IF EXISTS kind;
                 END IF;
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'dashboards_reportsnapshot'
+                      AND column_name = 'period_from'
+                ) THEN
+                    ALTER TABLE dashboards_reportsnapshot ALTER COLUMN period_from DROP NOT NULL;
+                    ALTER TABLE dashboards_reportsnapshot DROP COLUMN IF EXISTS period_from;
+                END IF;
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'dashboards_reportsnapshot'
+                      AND column_name = 'period_to'
+                ) THEN
+                    ALTER TABLE dashboards_reportsnapshot ALTER COLUMN period_to DROP NOT NULL;
+                    ALTER TABLE dashboards_reportsnapshot DROP COLUMN IF EXISTS period_to;
+                END IF;
             END $$;
             """
         )

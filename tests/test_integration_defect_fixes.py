@@ -80,6 +80,11 @@ def test_avatar_initials_filter():
 
     assert avatar_initials("John Doe") == "JD"
     assert avatar_initials("Jane Marie Doe") == "JD"
+    assert avatar_initials("maintenance planner") == "MP"
+    assert avatar_initials("Maintenance Planner") == "MP"
+    assert avatar_initials("maintenance_planner") == "MP"
+    assert avatar_initials("maintenance-planner") == "MP"
+    assert avatar_initials("maintenance.planner@fieldops.local") == "MP"
     assert avatar_initials("Alice") == "AL"
     assert avatar_initials("admin@example.com") == "AD"
     assert avatar_initials("jane.smith@fieldops.local") == "JS"

@@ -8,7 +8,7 @@
   <div>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit Trail</a></li>
         <li class="breadcrumb-item active" aria-current="page">Compliance Reports</li>
       </ol>
     </nav>
@@ -19,7 +19,7 @@
   </div>
   <div>
     <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:list' %}">
-      {% icon 'shield' 14 %} Back to Dashboard
+      {% icon 'arrow-left' 14 %} Back to Audit Trail
     </a>
   </div>
 </div>

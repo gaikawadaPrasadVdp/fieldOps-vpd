@@ -25,7 +25,11 @@ def platform_admin_required(view):
 
 @platform_admin_required
 def organizations(request):
-    services.process_due_scheduled_deletions()
+    try:
+        services.process_due_scheduled_deletions()
+    except Exception as exc:
+        import logging
+        logging.getLogger("django.request").warning("Background scheduled deletion check failed: %s", exc)
     filter_form = PlatformOrganizationFilterForm(request.GET)
     filter_form.is_valid()
     q = filter_form.cleaned_data.get("q", "").strip() if filter_form.is_valid() else ""
