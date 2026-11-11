@@ -194,6 +194,26 @@ else:
         }
     }
 
+# --- Shared login-throttle counter store --------------------------------------------------------
+# The documented 10/min login rate limit (docs/AUTH_RBAC_FOUNDATION.md §9.3) must hold
+# across workers and instances. Redis is used when configured; otherwise the database,
+# so the counter stays shared even on deployments without a cache service. Before this
+# existed the limit silently degraded to per-process memory when REDIS_URL was absent
+# (QA run 2026-11-10, DEF-002: 13 rapid bad logins were all answered 401).
+if REDIS_URL:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "fieldops-login-throttle",
+    }
+else:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "core_login_throttle",
+        "KEY_PREFIX": "fieldops-login-throttle",
+        "OPTIONS": {"MAX_ENTRIES": 50000, "CULL_FREQUENCY": 3},
+    }
+
 # --- Celery -----------------------------------------------------------------------------------
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL or "memory://")
 CELERY_RESULT_BACKEND = None
