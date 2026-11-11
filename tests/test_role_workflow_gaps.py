@@ -227,3 +227,80 @@ def test_module_14_dashboards_hub_and_api(client, as_user, org_a, site_a1, make_
     assert "maintenance" in data["sections"]
     assert "service" in data["sections"]
     assert "inventory" in data["sections"]
+
+
+def test_all_submodules_reachable_from_ui_navigation(client, rf, org_a, site_a1, owner_a, make_member):
+    """Previously URL-only pages (Providers, Snapshots, Technicians, Profile, Incident Dashboard, New Role) are wired into UI."""
+    from apps.ui.context_processors import shell
+    from apps.tenancy.models import Membership
+
+    # 1. Owner sidebar & pages
+    owner_m = Membership.objects.unscoped().get(organization=org_a, user=owner_a)
+    req = rf.get("/app/")
+    req.user = owner_a
+    req.organization = org_a
+    req.membership = owner_m
+    owner_nav = shell(req)["shell_nav_sections"]
+
+    assert any(it["url"] == "/app/contracts/providers/" for it in owner_nav["Commercial"])
+    assert any(it["url"] == "/app/dashboards/snapshots/" for it in owner_nav["Analytics & Governance"])
+    assert any(it["url"] == "/app/workspace/technicians/" for it in owner_nav["Administration"])
+    assert any(it["url"] == "/app/incidents/dashboard/" for it in owner_nav["Operations"])
+
+    client.force_login(owner_a)
+    # Providers page renders Commercial section tabs including Providers
+    r_prov = client.get("/app/contracts/providers/")
+    assert r_prov.status_code == 200
+    assert b"/app/contracts/agreements/" in r_prov.content
+    assert b"/app/contracts/expiry/" in r_prov.content
+    assert b"/app/contracts/providers/" in r_prov.content
+
+    # Expiring coverage renders Commercial section tabs including Providers
+    r_exp = client.get("/app/contracts/expiry/")
+    assert r_exp.status_code == 200
+    assert b"/app/contracts/providers/" in r_exp.content
+
+    # New agreement form includes inline + Add provider link
+    r_ag_new = client.get("/app/contracts/agreements/new/")
+    assert r_ag_new.status_code == 200
+    assert b"/app/contracts/providers/new/" in r_ag_new.content
+
+    # Dashboards hub links to KPI Snapshots
+    r_dash = client.get("/app/dashboards/")
+    assert r_dash.status_code == 200
+    assert b"/app/dashboards/snapshots/" in r_dash.content
+
+    # Incidents list links to Incident Dashboard
+    r_inc = client.get("/app/incidents/")
+    assert r_inc.status_code == 200
+    assert b"/app/incidents/dashboard/" in r_inc.content
+
+    # Roles page links to New custom role
+    r_roles = client.get("/app/roles/")
+    assert r_roles.status_code == 200
+    assert b"/app/roles/new/" in r_roles.content
+
+    # 2. Service Manager sees Commercial (with Providers & Expiring coverage) & Portal Accounts
+    sm = make_member(org_a, "sm.nav@alpha.test", "service_manager")
+    req_sm = rf.get("/app/")
+    req_sm.user = sm.user
+    req_sm.organization = org_a
+    req_sm.membership = sm
+    sm_nav = shell(req_sm)["shell_nav_sections"]
+    assert any(it["url"] == "/app/contracts/providers/" for it in sm_nav["Commercial"])
+    assert any(it["url"] == "/app/contracts/expiry/" for it in sm_nav["Commercial"])
+    assert any(it["url"] == "/app/portal/accounts/" for it in sm_nav["Service Assurance"])
+
+    # 3. Technician sees My Profile & Shift in sidebar and My Jobs header
+    tech = make_member(org_a, "tech.profnav@alpha.test", "technician")
+    req_t = rf.get("/app/workspace/")
+    req_t.user = tech.user
+    req_t.organization = org_a
+    req_t.membership = tech
+    tech_nav = shell(req_t)["shell_nav_sections"]
+    assert any(it["url"] == "/app/workspace/profile/" for it in tech_nav["Field Execution"])
+
+    client.force_login(tech.user)
+    r_jobs = client.get("/app/workspace/")
+    assert r_jobs.status_code == 200
+    assert b"/app/workspace/profile/" in r_jobs.content

@@ -7,18 +7,19 @@
     <h1>Expiring coverage</h1>
     <div class="text-body-secondary">Active agreements ending within {{ days }} days, and active agreements that have already lapsed.</div>
   </div>
-  <form method="get" class="d-flex gap-2 align-items-center">
-    <select class="form-select form-select-sm" name="days" aria-label="Window">
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+    <select class="form-select w-auto pe-5" name="days" aria-label="Window">
       {% for d in windows %}
         <option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} days</option>
       {% endfor %}
     </select>
-    <button class="btn btn-sm btn-outline-secondary">Apply</button>
-    <a class="btn btn-sm btn-outline-secondary" href="?days={{ days }}&amp;export=csv" title="Download expiring agreements report as CSV">
-      {% icon 'download' 14 %} Export CSV
+    <button class="btn btn-outline-secondary text-nowrap">Apply</button>
+    <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 text-nowrap" href="?days={{ days }}&amp;export=csv" title="Download expiring agreements report as CSV">
+      {% icon 'download' 15 %} Export CSV
     </a>
   </form>
 </div>
+{% include "components/_section_tabs.html" with section="Commercial" %}
 
 <div class="fx-card mb-3">
   <div class="fx-card-header">Expiring soon</div>
