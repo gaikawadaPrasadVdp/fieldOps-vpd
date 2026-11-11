@@ -139,6 +139,16 @@ api_v1 = [
 ]
 
 
+def _api_v1_not_found(request, *args, **kwargs):
+    """Return structured JSON 404 for unmatched /api/v1/ routes even when DEBUG=True."""
+    from apps.ui.views import _api_error_json
+
+    return _api_error_json(request, "not_found", "Not found.", 404)
+
+
+api_v1.append(re_path(r"^.*$", _api_v1_not_found))
+
+
 from django.views import View
 from django.shortcuts import redirect
 

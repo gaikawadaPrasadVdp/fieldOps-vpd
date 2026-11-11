@@ -317,6 +317,51 @@ def seed():
         m2 = asset_services.create_meter(root_chiller, name="Energy Consumption", unit="kWh", actor=admin_user)
         asset_services.record_reading(m2, value=Decimal("245100.0"), notes="End of month telemetry", actor=admin_user)
 
+    # 8. Baseline Technician Profiles, Webhook & Report Snapshot
+    from apps.core.models import WebhookEndpoint
+    from apps.core.tenant import tenant_context
+    from apps.dashboards.models import ReportSnapshot
+    from apps.workorders.models import TechnicianProfile as WorkOrderTechProfile
+    from apps.workspace.models import TechnicianProfile as WorkspaceTechProfile
+
+    with tenant_context(org):
+        tech_user = User.objects.filter(email="lead.technician@apexindustrial.com").first()
+        if tech_user:
+            tech_membership = Membership.objects.unscoped().filter(organization=org, user=tech_user, status=Membership.Status.ACTIVE).first()
+            if tech_membership:
+                WorkOrderTechProfile.objects.unscoped().get_or_create(
+                    membership=tech_membership,
+                    defaults={"organization": org, "skills": ["HVAC", "Electrical"], "is_dispatchable": True},
+                )
+                ws_prof, _ = WorkspaceTechProfile.objects.unscoped().get_or_create(
+                    membership=tech_membership,
+                    defaults={"organization": org, "max_active_jobs": 50, "availability_status": "AVAILABLE"},
+                )
+                if ws_prof.max_active_jobs < 50 or ws_prof.availability_status != "AVAILABLE":
+                    ws_prof.max_active_jobs = max(ws_prof.max_active_jobs, 50)
+                    ws_prof.availability_status = "AVAILABLE"
+                    ws_prof.save(update_fields=["max_active_jobs", "availability_status", "updated_at"])
+
+        if not WebhookEndpoint.objects.unscoped().filter(organization=org).exists():
+            WebhookEndpoint.objects.create(
+                organization=org,
+                name="Default Integration Webhook",
+                target_url="https://hooks.example.invalid/fieldops-events",
+                event_pattern="work_order.*",
+                is_active=False,
+            )
+
+        if not ReportSnapshot.objects.unscoped().filter(organization=org).exists():
+            ReportSnapshot.objects.create(
+                organization=org,
+                snapshot_type="DAILY",
+                section="OPERATIONS",
+                period_start=date.today() - timedelta(days=1),
+                period_end=date.today(),
+                metrics={"open_work_orders": 0, "completed_work_orders": 0, "baseline": True},
+                notes="Baseline operations KPI snapshot",
+            )
+
     print(f"[OK] Full Asset Hierarchy Tree created under {root_chiller.asset_tag}")
     print("\n=======================================================")
     print("DEMO CREDENTIALS READY FOR LOGIN:")
