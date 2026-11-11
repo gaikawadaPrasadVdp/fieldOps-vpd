@@ -64,13 +64,14 @@ class RoleListView(TenantPermissionMixin, View):
 
         from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
 
-        # Available roles in this organization (Owner first, then alphabetically)
+        # Available roles in this organization (Owner first, system + custom roles)
         all_roles = list(
             Role.objects.for_organization(org)
-            .filter(system_key__in=PRIMARY_ROLE_KEYS)
+            .filter(Q(system_key__in=PRIMARY_ROLE_KEYS) | Q(system_key=""))
             .prefetch_related("role_permissions__permission")
             .order_by("-is_owner", "name")
         )
+        custom_roles = [r for r in all_roles if not r.is_system]
 
         sites = list(Site.objects.filter(organization=org).order_by("name"))
 
@@ -113,6 +114,7 @@ class RoleListView(TenantPermissionMixin, View):
                 "q": q,
                 "role_filter": role_filter,
                 "roles": all_roles,
+                "custom_roles": custom_roles,
                 "role_presets": role_presets,
                 "matrix": matrix,
                 "sites": sites,

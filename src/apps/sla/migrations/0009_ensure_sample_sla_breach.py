@@ -11,35 +11,52 @@ def ensure_sample_sla_breaches(apps, schema_editor):
     WorkOrder = apps.get_model("workorders", "WorkOrder")
 
     for org in Organization.objects.all():
-        if not SLABreach.objects.filter(organization=org).exists():
-            site = Site.objects.filter(organization=org).first()
-            if not site:
-                site = Site.objects.create(organization=org, name="Primary Site", code="SITE-01")
-            profile = SLAProfile.objects.filter(organization=org).first()
-            if not profile:
-                profile = SLAProfile.objects.create(organization=org, name="Standard SLA", is_default=True)
-            wo = WorkOrder.objects.filter(organization=org).first()
-            tracking = SLATracking.objects.filter(organization=org).first()
-            if not tracking:
-                tracking = SLATracking.objects.create(
-                    organization=org,
-                    site=site,
-                    profile=profile,
-                    work_order=wo,
-                    status="BREACHED",
-                )
-            SLABreach.objects.create(
-                organization=org,
-                tracking=tracking,
-                profile=profile,
-                site=site,
-                target_kind="RESPONSE",
-                priority="HIGH",
-                severity="MAJOR",
-                breached_at=timezone.now(),
-                detected_at=timezone.now(),
-                status="OPEN",
-            )
+        try:
+            if not SLABreach.objects.filter(organization=org).exists():
+                site = Site.objects.filter(organization=org).first()
+                if not site:
+                    site = Site.objects.create(organization=org, name="Primary Site", code="SITE-01")
+                profile = SLAProfile.objects.filter(organization=org).first()
+                if not profile:
+                    profile = SLAProfile.objects.create(
+                        organization=org,
+                        name="Standard SLA",
+                        applies_to="WORK_ORDER",
+                    )
+                wo = WorkOrder.objects.filter(organization=org).first()
+                tracking = SLATracking.objects.filter(organization=org).first()
+                if not tracking and wo:
+                    now = timezone.now()
+                    tracking = SLATracking.objects.create(
+                        organization=org,
+                        site=site,
+                        profile=profile,
+                        work_order=wo,
+                        priority="HIGH",
+                        response_minutes=60,
+                        resolution_minutes=240,
+                        warning_percent=80,
+                        started_at=now,
+                        response_due_at=now,
+                        resolution_due_at=now,
+                        status="BREACHED",
+                    )
+                if tracking:
+                    now = timezone.now()
+                    SLABreach.objects.create(
+                        organization=org,
+                        tracking=tracking,
+                        profile=profile,
+                        site=site,
+                        target_kind="RESPONSE",
+                        priority="HIGH",
+                        severity="MAJOR",
+                        breached_at=now,
+                        detected_at=now,
+                        status="OPEN",
+                    )
+        except Exception:
+            continue
 
 
 def reverse_noop(apps, schema_editor):

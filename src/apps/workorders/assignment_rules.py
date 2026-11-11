@@ -106,6 +106,17 @@ def validate_assignment(work_order, technician):
     if work_order.planned_end <= work_order.planned_start:
         raise ValidationFailed("Scheduled end must be after scheduled start.", code="invalid_schedule")
 
+    from .models import TechnicianProfile
+    if TechnicianProfile.objects.filter(
+        organization=work_order.organization,
+        membership=technician,
+        is_dispatchable=False,
+    ).exists():
+        raise Conflict(
+            "Technician is not currently available for dispatch.",
+            code="technician_not_dispatchable",
+        )
+
     conflict = WorkOrder.objects.for_organization(work_order.organization).filter(
         assigned_to=technician,
         status__in=ACTIVE_ASSIGNMENT_STATES,

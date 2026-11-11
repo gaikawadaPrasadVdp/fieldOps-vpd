@@ -162,21 +162,15 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
         return cleaned
 
     def clean_title(self):
-        title = self.cleaned_data["title"].strip()
-        validate_alphabetical_description(title, field_label="Title")
-        return title
-
-    def clean_title(self):
         title = (self.cleaned_data.get("title") or "").strip()
-        if title:
-            validate_alphabetical_description(title, field_label="Title")
+        if not title:
+            return title
+        if any(not (character.isalnum() or character.isspace() or character in "-_.,'\"") for character in title):
+            raise forms.ValidationError("Title can contain letters, numbers, hyphens, underscores, and spaces only.")
         return title
 
     def clean_description(self):
-        description = (self.cleaned_data.get("description") or "").strip()
-        if description:
-            validate_alphabetical_description(description, field_label="Description")
-        return description
+        return (self.cleaned_data.get("description") or "").strip()
 
 class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
     site = forms.ModelChoiceField(queryset=Site.objects.none())

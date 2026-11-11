@@ -328,12 +328,8 @@ def test_incident_pages_render_and_report_form_creates_a_request(client, owner_a
     for tab in ("overview", "evidence", "history"):
         assert client.get(f"/app/incidents/{sr.pk}/?tab={tab}").status_code == 200
     assert client.get("/app/incidents/new/").status_code == 200
-    now_str = timezone.now().strftime("%Y-%m-%dT%H:%M")
-    res = client.post("/app/incidents/new/", {
-        "asset": str(pump.pk), "kind": "INCIDENT", "title": "UI reported fault",
-        "severity": "HIGH", "service_impact": "NONE",
-        "occurred_at": now_str, "downtime_started_at": now_str,
-    })
+    res = client.post("/app/incidents/new/", {"asset": str(pump.pk), "kind": "INCIDENT", "title": "UI reported fault",
+                                              "severity": "HIGH", "service_impact": "NONE"})
     assert res.status_code == 302
     assert ServiceRequest.objects.for_organization(org_a).filter(title="UI reported fault").exists()
 
@@ -716,7 +712,6 @@ def test_ui_duplicate_warning_and_link_submission(client, org_a, pump, ops):
         service_impact="FULL_OUTAGE",
     )
 
-    now_str = timezone.now().strftime("%Y-%m-%dT%H:%M")
     # Submitting duplicate returns 409 and renders duplicate alert card
     res = client.post("/app/incidents/new/", {
         "asset": str(pump.pk),
@@ -726,8 +721,6 @@ def test_ui_duplicate_warning_and_link_submission(client, org_a, pump, ops):
         "failure_category": "MECHANICAL",
         "severity": "CRITICAL",
         "service_impact": "FULL_OUTAGE",
-        "occurred_at": now_str,
-        "downtime_started_at": now_str,
     })
     assert res.status_code == 409
     assert initial.number.encode() in res.content
@@ -748,8 +741,6 @@ def test_ui_duplicate_warning_and_link_submission(client, org_a, pump, ops):
         "severity": "CRITICAL",
         "service_impact": "FULL_OUTAGE",
         "impact_notes": "Verified on shift B",
-        "occurred_at": now_str,
-        "downtime_started_at": now_str,
     })
     assert link_res.status_code == 302
     assert f"/app/incidents/{initial.pk}/?duplicate_review=1" == link_res.url
@@ -936,15 +927,3 @@ def test_incident_form_and_service_reject_dates_older_than_90_days(client, owner
     )
     assert res.status_code == 400
     assert b"The time of the failure cannot be more than 90 days in the past." in res.content
-
-def test_incident_create_requires_occurred_at_and_downtime_started(client, owner_a, org_a, pump):
-    client.force_login(owner_a)
-    res = client.post("/app/incidents/new/", {
-        "asset": str(pump.pk),
-        "kind": "INCIDENT",
-        "title": "Missing mandatory fields",
-        "severity": "HIGH",
-        "service_impact": "NONE",
-    })
-    assert res.status_code == 400
-    assert b"This field is required" in res.content

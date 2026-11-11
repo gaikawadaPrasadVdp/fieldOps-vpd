@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from django.db.models import Q
@@ -8,13 +9,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.api import StandardPagination
+from apps.core.apiutils import ID_PARAM, paginate, query_param
 from apps.core.exceptions import ValidationFailed
 from apps.rbac import services as rbac
-from apps.sites.models import Site
+from apps.sites import selectors as site_selectors
+from apps.sites.models import Shift, Site
 from apps.tenancy.api import TenantAPIMixin
+from apps.tenancy.models import Membership
 
 from . import services
-from .models import WorkOrder
+from .models import TechnicianProfile, WorkOrder
 from .serializers import (
     AssignSerializer,
     ChecklistReferenceSerializer,
@@ -25,6 +29,7 @@ from .serializers import (
     ExpectedVersionSerializer,
     LaborInputSerializer,
     MaterialInputSerializer,
+    MaterialSerializer,
     PlanSerializer,
     ReassignSerializer,
     ProvisionalChecklistSerializer,
@@ -382,6 +387,12 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         return self._action(pk, services.record_labor, LaborInputSerializer)
 
     @extend_schema(
+        methods=["GET"],
+        responses={200: MaterialSerializer(many=True)},
+        description="List parts/materials used.",
+    )
+    @extend_schema(
+        methods=["POST"],
         request=MaterialInputSerializer,
         responses={201: inline_serializer("WorkOrderMaterialRecordResponse", fields={"id": serializers.CharField(), "work_order": serializers.CharField()})},
         description="Record parts/materials used."
@@ -390,7 +401,6 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def materials(self, request, pk=None):
         if request.method == "GET":
             wo = self.get_object()
-            from .serializers import MaterialSerializer
             qs = wo.material_entries.all().order_by("-created_at")
             page = self.paginate_queryset(qs)
             if page is not None:
@@ -415,9 +425,146 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         wo = self.get_object()
         return Response(WorkOrderEventSerializer(wo.events.all(), many=True).data)
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                "WorkOrderClosureResponse",
+                fields={"blockers": serializers.ListField(child=serializers.CharField())},
+            )
+        }
+    )
     @action(detail=True, methods=["get"])
     def closure(self, request, pk=None):
         wo = self.get_object()
         blockers = services.closure_blockers(wo)
         return Response({"blockers": blockers})
+
+
+class WorkOrderTechnicianProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TechnicianProfile
+        fields = [
+            "id", "membership", "primary_shift", "skills", "certifications",
+            "daily_capacity_hours", "is_dispatchable", "notes", "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class WorkOrderTechnicianProfileWriteSerializer(serializers.Serializer):
+    membership = serializers.UUIDField()
+    primary_shift = serializers.UUIDField(required=False, allow_null=True)
+    skills = serializers.ListField(child=serializers.CharField(max_length=80), required=False)
+    certifications = serializers.ListField(child=serializers.CharField(max_length=80), required=False)
+    daily_capacity_hours = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0.25"),
+        max_value=Decimal("24.00"),
+        required=False,
+    )
+    is_dispatchable = serializers.BooleanField(required=False)
+    notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
+class WorkOrderTechnicianProfileUpdateSerializer(WorkOrderTechnicianProfileWriteSerializer):
+    membership = None
+
+
+@extend_schema(parameters=[ID_PARAM])
+class TechnicianProfileViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
+    permission_map = {
+        "list": "user.view",
+        "retrieve": "user.view",
+        "create": "user.update",
+        "partial_update": "user.update",
+        "destroy": "user.update",
+    }
+
+    def _queryset(self, request):
+        return TechnicianProfile.objects.for_organization(request.organization).select_related(
+            "membership__user", "primary_shift__site"
+        )
+
+    def _profile(self, request, pk) -> TechnicianProfile:
+        return site_selectors.scoped_get(self._queryset(request), pk, "Technician profile")
+
+    def _resolve_shift(self, org, shift_id):
+        if shift_id is None:
+            return None
+        shift = Shift.objects.for_organization(org).select_related("site").filter(pk=shift_id).first()
+        if not shift or shift.site.status != Site.Status.ACTIVE:
+            raise ValidationFailed("Shift was not found for an active site in this organization.", code="invalid_shift")
+        return shift
+
+    @extend_schema(
+        parameters=[
+            query_param("membership", "membership id", OpenApiTypes.UUID),
+            query_param("skills", "required skill tag"),
+            query_param("is_dispatchable", "true | false"),
+        ],
+        responses=WorkOrderTechnicianProfileSerializer,
+    )
+    def list(self, request):
+        qs = self._queryset(request)
+        membership_id = (request.query_params.get("membership") or "").strip()
+        if membership_id:
+            try:
+                qs = qs.filter(membership_id=UUID(membership_id))
+            except ValueError:
+                qs = qs.none()
+        skill = (request.query_params.get("skills") or "").strip()
+        if skill:
+            qs = qs.filter(skills__contains=[skill])
+        disp = request.query_params.get("is_dispatchable")
+        if disp is not None:
+            qs = qs.filter(is_dispatchable=disp.lower() in ("true", "1", "yes"))
+        return paginate(request, qs.order_by("id"), WorkOrderTechnicianProfileSerializer)
+
+    @extend_schema(responses=WorkOrderTechnicianProfileSerializer)
+    def retrieve(self, request, pk=None):
+        return Response(WorkOrderTechnicianProfileSerializer(self._profile(request, pk)).data)
+
+    @extend_schema(request=WorkOrderTechnicianProfileWriteSerializer, responses={201: WorkOrderTechnicianProfileSerializer})
+    def create(self, request):
+        ser = WorkOrderTechnicianProfileWriteSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        d = dict(ser.validated_data)
+
+        membership_id = d.pop("membership")
+        membership = Membership.objects.filter(organization=request.organization, pk=membership_id).first()
+        if membership is None:
+            raise ValidationFailed("Membership was not found in this organization.", code="invalid_membership")
+
+        if "primary_shift" in d:
+            d["primary_shift"] = self._resolve_shift(request.organization, d["primary_shift"])
+
+        profile, created = TechnicianProfile.objects.update_or_create(
+            organization=request.organization,
+            membership=membership,
+            defaults=d,
+        )
+        return Response(
+            WorkOrderTechnicianProfileSerializer(profile).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @extend_schema(request=WorkOrderTechnicianProfileUpdateSerializer, responses=WorkOrderTechnicianProfileSerializer)
+    def partial_update(self, request, pk=None):
+        profile = self._profile(request, pk)
+        ser = WorkOrderTechnicianProfileUpdateSerializer(data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        d = dict(ser.validated_data)
+        if "primary_shift" in d:
+            d["primary_shift"] = self._resolve_shift(request.organization, d["primary_shift"])
+        for k, v in d.items():
+            setattr(profile, k, v)
+        profile.save()
+        return Response(WorkOrderTechnicianProfileSerializer(profile).data)
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request, pk=None):
+        profile = self._profile(request, pk)
+        profile.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 

@@ -1,9 +1,13 @@
+import time
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.audit import services as audit
 
@@ -11,17 +15,45 @@ from . import services
 from .forms import EmailAuthenticationForm, ProfileForm
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class LoginView(auth_views.LoginView):
     template_name = "accounts/login.html"
     authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "GET" and (request.GET.get("logout") or request.GET.get("logged_out")):
+            if request.user.is_authenticated:
+                from django.contrib.auth import logout as auth_logout
+                auth_logout(request)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
-        response = super().form_valid(form)
         user = form.get_user()
         if user:
             services.activate_pending_memberships(user, request=self.request)
+        response = super().form_valid(form)
+        self.request.session["_last_activity_ts"] = int(time.time())
+        if user and not (getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False)):
+            from apps.tenancy import selectors
+            memberships = list(selectors.active_memberships(user))
+            if len(memberships) == 1:
+                self.request.session[selectors.SESSION_KEY] = str(memberships[0].organization_id)
         return response
+
+    def get_success_url(self):
+        redirect_to = self.get_redirect_url()
+        user = self.request.user
+        is_platform = bool(getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False))
+
+        # Security & routing boundary: Non-platform users must NEVER be routed to /platform/*
+        if redirect_to and redirect_to.startswith("/platform/") and not is_platform:
+            redirect_to = None
+
+        if not redirect_to:
+            return reverse("ui:home")
+
+        return redirect_to
 
 
 class LogoutView(auth_views.LogoutView):
@@ -47,18 +79,18 @@ class LogoutView(auth_views.LogoutView):
             domain=settings.SESSION_COOKIE_DOMAIN,
             path=settings.SESSION_COOKIE_PATH or "/",
         )
-        response.delete_cookie(
-            settings.CSRF_COOKIE_NAME,
-            domain=settings.CSRF_COOKIE_DOMAIN,
-            path=settings.CSRF_COOKIE_PATH or "/",
-        )
         for cookie_name in request.COOKIES:
+            if cookie_name == settings.CSRF_COOKIE_NAME:
+                continue
             response.delete_cookie(
                 cookie_name,
                 domain=settings.SESSION_COOKIE_DOMAIN,
                 path=settings.SESSION_COOKIE_PATH or "/",
             )
-        response["Clear-Site-Data"] = '"cookies"'
+        response["Clear-Site-Data"] = '"cache"'
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
         return response
 
 

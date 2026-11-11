@@ -63,6 +63,47 @@ def validate_alphabetical_name(value: str | None, field_label: str = "Name", min
     return val
 
 
+_HTML_TAG_RE = re.compile(r"<[^>]*>|[<>]|javascript:|onerror=|onload=", re.IGNORECASE)
+_REPEATED_CHARS_RE = re.compile(r"(.)\1{4,}|\S{35,}")
+_BUSINESS_NAME_RE = re.compile(r"^[A-Za-z0-9\s.,'&\-/()#]+$")
+
+
+def validate_business_name(value: str | None, field_label: str = "Name", min_len: int = 2, max_len: int = 150) -> str:
+    """Validates business/provider name against XSS, HTML tags, repetitive spam, and non-standard symbols."""
+    if not value or not str(value).strip():
+        raise ValidationError(f"{field_label} is required.")
+    val = str(value).strip()
+    if len(val) < min_len:
+        raise ValidationError(f"{field_label} must be at least {min_len} characters.")
+    if len(val) > max_len:
+        raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
+    if _HTML_TAG_RE.search(val):
+        raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
+    if _REPEATED_CHARS_RE.search(val):
+        raise ValidationError(f"{field_label} contains invalid repetitive character patterns.")
+    if not any(c.isalnum() for c in val):
+        raise ValidationError(f"{field_label} must contain letters or numbers.")
+    if not _BUSINESS_NAME_RE.match(val):
+        raise ValidationError(f"{field_label} contains invalid characters. Only letters, numbers, spaces, and . , ' & - / ( ) # are allowed.")
+    return val
+
+
+def validate_safe_text(value: str | None, field_label: str = "Notes", max_len: int = 500, required: bool = False) -> str:
+    """Validates general notes/text fields against HTML/script injection and repetitive spam."""
+    if not value or not str(value).strip():
+        if required:
+            raise ValidationError(f"{field_label} is required.")
+        return ""
+    val = str(value).strip()
+    if len(val) > max_len:
+        raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
+    if _HTML_TAG_RE.search(val):
+        raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
+    if _REPEATED_CHARS_RE.search(val):
+        raise ValidationError(f"{field_label} contains invalid repetitive character patterns.")
+    return val
+
+
 _EMAIL_STRICT_RE = re.compile(
     r"^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$"
 )
@@ -148,3 +189,38 @@ class ClientOnboardingForm(BootstrapFormMixin, forms.Form):
 
     def clean_phone(self):
         return validate_phone_number(self.cleaned_data.get("phone"))
+
+
+class DashboardFilterForm(BootstrapFormMixin, forms.Form):
+    """Standardized validation form for dashboard GET parameters."""
+    days = forms.CharField(required=False, initial="30")
+    site = forms.CharField(required=False)
+    q = forms.CharField(required=False, max_length=100)
+
+    def clean_days(self):
+        val = self.cleaned_data.get("days")
+        if not val:
+            return 30
+        try:
+            num = int(str(val).strip())
+            if num < 1 or num > 365:
+                return 30
+            return num
+        except (ValueError, TypeError):
+            return 30
+
+    def clean_site(self):
+        val = self.cleaned_data.get("site")
+        if not val:
+            return None
+        import uuid
+        try:
+            return str(uuid.UUID(str(val).strip()))
+        except (ValueError, TypeError):
+            return None
+
+    def clean_q(self):
+        val = self.cleaned_data.get("q")
+        if not val:
+            return ""
+        return validate_safe_text(val, field_label="Search query", max_len=100, required=False)

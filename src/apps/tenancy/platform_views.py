@@ -7,7 +7,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.audit.models import AuditLog
 from apps.core.exceptions import Conflict, ValidationFailed
 
-from .forms import PlatformOrganizationCreateForm
+from .forms import PlatformOrganizationCreateForm, PlatformOrganizationFilterForm
+from apps.ui.pagination import paginate_dashboard_queryset
 from .models import Organization
 from . import services
 
@@ -25,15 +26,18 @@ def platform_admin_required(view):
 @platform_admin_required
 def organizations(request):
     services.process_due_scheduled_deletions()
+    filter_form = PlatformOrganizationFilterForm(request.GET)
+    filter_form.is_valid()
+    q = filter_form.cleaned_data.get("q", "").strip() if filter_form.is_valid() else ""
+    status_filter = filter_form.cleaned_data.get("status", "") if filter_form.is_valid() else ""
+
     qs = Organization.objects.order_by("name")
-    q = request.GET.get("q", "").strip()
-    status_filter = request.GET.get("status", "").strip().upper()
     if q:
         qs = qs.filter(name__icontains=q)
     if status_filter in dict(Organization.Status.choices):
         qs = qs.filter(status=status_filter)
 
-    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    page, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=25)
     return render(
         request,
         "tenancy/platform_organizations.html",
@@ -41,6 +45,8 @@ def organizations(request):
             "page": page,
             "q": q,
             "status_filter": status_filter,
+            "filter_form": filter_form,
+            "preserved_params": preserved_params,
             "total_count": Organization.objects.count(),
             "active_count": Organization.objects.filter(status=Organization.Status.ACTIVE).count(),
             "suspended_count": Organization.objects.filter(status=Organization.Status.SUSPENDED).count(),

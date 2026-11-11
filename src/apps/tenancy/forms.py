@@ -219,11 +219,10 @@ class InviteForm(BootstrapFormMixin, forms.Form):
         label="Password",
         widget=forms.PasswordInput(render_value=True, attrs={
             "placeholder": "FieldOps@2026!",
-            "required": "required",
             "autocomplete": "new-password",
             "minlength": "8",
         }),
-        help_text="Initial password for login (default: FieldOps@2026!). The user can change this in their dashboard."
+        help_text="Initial password for login (default: FieldOps@2026!). Leave blank to send an invitation email instead."
     )
 
     def __init__(self, *args, org, membership=None, **kwargs):
@@ -239,9 +238,9 @@ class InviteForm(BootstrapFormMixin, forms.Form):
         if self.org and getattr(self.org, "pk", None):
             try:
                 from apps.accounts.models import User
-                from apps.tenancy.models import Membership
+                from apps.tenancy.selectors import is_organization_member
                 user = User.objects.filter(email__iexact=email).first()
-                if user and Membership.objects.unscoped().filter(user=user, organization=self.org).exists():
+                if user and is_organization_member(user, self.org):
                     raise forms.ValidationError(
                         f"A member with email '{email}' already exists in this organization."
                     )
@@ -258,7 +257,9 @@ class InviteForm(BootstrapFormMixin, forms.Form):
     def clean_password(self):
         pwd = (self.cleaned_data.get("password") or "").strip()
         if not pwd:
-            raise forms.ValidationError("Password is required.")
+            if self.fields["password"].required:
+                raise forms.ValidationError("Password is required.")
+            return ""
         if len(pwd) < 8:
             raise forms.ValidationError("Password must be at least 8 characters.")
         return pwd
@@ -467,3 +468,12 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
     def clean_country(self):
         return (self.cleaned_data.get("country", "") or "").strip().upper()[:2]
 
+
+
+class PlatformOrganizationFilterForm(forms.Form):
+    """Validates platform organizations search and status filter."""
+    q = forms.CharField(max_length=150, required=False)
+    status = forms.ChoiceField(
+        choices=[("", "All Statuses"), ("ACTIVE", "Active"), ("SUSPENDED", "Inactive / Suspended")],
+        required=False,
+    )

@@ -13,57 +13,108 @@
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="run-check" type="submit">
-        <i class="bi bi-play-circle" id="run-check-icon"></i>
+        <span id="run-check-icon">{% icon 'refresh-cw' 16 %}</span>
         <span id="run-check-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
         <span id="run-check-text">Run Check Now</span>
       </button>
     </form>
     {% endif %}
-    <a class="btn btn-outline-secondary" href="{% url 'sla:breaches' %}">Breaches</a>
   </div>
 </div>
 
 {% include "sla/_tabs.html" %}
 
-<div class="row g-3 mb-3" id="sla-kpi-row">
-  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Running</div><div class="kpi-value" id="sum-active">{{ summary.active }}</div></div></div></div>
-  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Paused</div><div class="kpi-value">{{ summary.paused }}</div></div></div></div>
-  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Open breaches</div><div class="kpi-value" id="sum-breaches">{{ summary.breaches_open }}</div></div></div></div>
-  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Resolution compliance</div><div class="kpi-value">{% if summary.resolution.compliance_percent is None %}&mdash;{% else %}{{ summary.resolution.compliance_percent }}%{% endif %}</div></div></div></div>
-</div>
+<div id="trackings-content" class="w-100">
+  <!-- Standardized KPI Cards Row -->
+  <div class="row g-3 mb-4" id="sla-kpi-row">
+    <div class="col-12 col-sm-6 col-lg-3">
+      {% include "components/_kpi_card.html" with title="Running" value=summary.active|default:0 tone="primary" icon="play" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      {% include "components/_kpi_card.html" with title="Paused" value=summary.paused|default:0 tone="warning" icon="pause" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      {% include "components/_kpi_card.html" with title="Open Breaches" value=summary.breaches_open|default:0 tone="danger" icon="alert-circle" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      {% if summary.resolution.compliance_percent is None %}
+        {% include "components/_kpi_card.html" with title="Resolution Compliance" value="&mdash;" tone="info" icon="check" %}
+      {% else %}
+        {% include "components/_kpi_card.html" with title="Resolution Compliance" value=summary.resolution.compliance_percent|stringformat:"s"|add:"%" tone="info" icon="check" %}
+      {% endif %}
+    </div>
+  </div>
 
-<section id="tracking-list" class="mb-4">
-<div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom" id="tracking-filter-form"
-        hx-get="{% url 'sla:trackings' %}"
-        hx-trigger="submit"
-        hx-target="#trackings-table-container"
-        hx-select="#trackings-table-container"
-        hx-swap="outerHTML"
-        hx-push-url="true">
-    <input class="form-control form-control-sm" style="max-width:220px" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Number or title" aria-label="Search" autocomplete="off">
-    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>
-      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="status" aria-label="Status"><option value="">Any status</option>
-      <option value="ACTIVE" {% if filters.status == "ACTIVE" %}selected{% endif %}>Running</option><option value="PAUSED" {% if filters.status == "PAUSED" %}selected{% endif %}>Paused</option>
-      <option value="BREACHED" {% if filters.status == "BREACHED" %}selected{% endif %}>Breached</option><option value="UNDER_REVIEW" {% if filters.status == "UNDER_REVIEW" %}selected{% endif %}>Under Review</option><option value="COMPLETED" {% if filters.status == "COMPLETED" %}selected{% endif %}>Completed</option><option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>Closed</option><option value="CANCELLED" {% if filters.status == "CANCELLED" %}selected{% endif %}>Cancelled</option></select>
-    <select class="form-select form-select-sm" style="max-width:190px" name="subject" aria-label="Item type"><option value="">All</option>
-      <option value="REQUEST" {% if filters.subject == "REQUEST" %}selected{% endif %}>Incident / Breakdown</option><option value="WORK_ORDER" {% if filters.subject == "WORK_ORDER" %}selected{% endif %}>Work Order</option></select>
-    <a class="btn btn-sm btn-outline-secondary text-decoration-none" href="{% url 'sla:trackings' %}" id="reset-filter-btn" title="Clear all filters">Reset</a>
-  </form>
+  <section id="tracking-list" class="mb-4 w-100">
+  <div class="fx-card shadow-sm mb-4 w-100" id="trackings-card">
+    <form method="get" action="{% url 'sla:trackings' %}" class="p-3 border-bottom bg-light-subtle w-100" id="tracking-filter-form" hx-get="{% url 'sla:trackings' %}" hx-trigger="none" hx-target="#trackings-table-container" hx-select="#trackings-table-container" hx-push-url="true">
+      <div class="row g-2 align-items-center w-100 m-0">
+        <div class="col-12 col-sm-6 col-lg-4 ps-0">
+          <div class="input-group input-group-sm w-100">
+            <span class="input-group-text bg-white text-secondary">{% icon 'search' 14 %}</span>
+            <input class="form-control" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Number or title..." aria-label="Search" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="col-6 col-sm-3 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="site" aria-label="Site">
+            <option value="">All sites</option>
+            {% for s in sites %}
+              <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-3 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="status" aria-label="Status">
+            <option value="">Any status</option>
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-lg-2">
+          <select class="form-select form-select-sm w-100" name="subject" aria-label="Item type">
+            <option value="">All item types</option>
+            <option value="REQUEST" {% if filters.subject == "REQUEST" %}selected{% endif %}>Incident / Breakdown</option>
+            <option value="WORK_ORDER" {% if filters.subject == "WORK_ORDER" %}selected{% endif %}>Work Order</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-auto col-lg-2 ms-auto pe-0 d-flex justify-content-end">
+          <a class="btn btn-sm btn-outline-secondary px-3 w-100 w-lg-auto" href="{% url 'sla:trackings' %}" id="reset-filter-btn" title="Clear all filters">Reset</a>
+        </div>
+      </div>
+    </form>
+
   <div id="trackings-table-container">
-    <div class="table-responsive">
-      <table class="table fx-table" id="trackings-table">
+    <div class="table-responsive w-100">
+      <table class="table fx-table align-middle mb-0 w-100" id="trackings-table">
         <thead>
-          <tr><th>Item</th><th>Site</th><th>Priority</th><th>Profile</th><th>Response</th><th>Resolution</th><th>Status</th></tr>
+          <tr>
+            <th style="width: 22%;">Item</th>
+            <th style="width: 12%;">Site</th>
+            <th style="width: 10%;">Priority</th>
+            <th style="width: 24%;">Profile</th>
+            <th style="width: 14%;">Response</th>
+            <th style="width: 14%;">Resolution</th>
+            <th style="width: 4%;">Status</th>
+          </tr>
         </thead>
         <tbody>
           {% for t in page %}
           <tr>
-            <td><a href="{% url 'sla:tracking' t.pk %}">{% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}</a><div class="small text-body-secondary">{% if t.request %}{{ t.request.title|truncatechars:40 }}{% else %}{{ t.work_order.title|truncatechars:40 }}{% endif %}</div></td>
-            <td class="text-nowrap">{{ t.site.code }}</td>
+            <td>
+              <a class="fw-semibold text-primary text-decoration-none" href="{% url 'sla:tracking' t.pk %}">{% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}</a>
+              <div class="small text-body-secondary text-truncate" style="max-width: 240px;">{% if t.request %}{{ t.request.title }}{% else %}{{ t.work_order.title }}{% endif %}</div>
+            </td>
+            <td class="text-nowrap"><span class="fw-medium text-body">{{ t.site.code }}</span></td>
             <td>{% status_badge t.priority %}</td>
-            <td class="small">{{ t.profile.name }}{% if t.use_business_hours %} <span class="badge bg-light text-primary border" title="Operating business hours"><i class="bi bi-clock"></i> Biz Hrs</span>{% endif %}<div class="text-body-secondary">{{ t.selection_reason|default:"Organization policy" }}</div></td>
+            <td class="small">
+              <span class="fw-medium">{{ t.profile.name }}</span>{% if t.use_business_hours %} <span class="badge bg-light text-primary border" title="Operating business hours">{% icon 'clock' 12 %} Biz Hrs</span>{% endif %}
+              <div class="text-body-secondary">{{ t.selection_reason|default:"Organization policy" }}</div>
+            </td>
             <td>{% status_badge t.response_state %}<div class="small text-body-secondary">due {{ t.response_due_at|date:"d M H:i" }}</div></td>
             <td>{% status_badge t.resolution_state %}<div class="small text-body-secondary">due {{ t.resolution_due_at|date:"d M H:i" }}</div></td>
             <td>{% status_badge t.status %}</td>
@@ -78,11 +129,12 @@
   </div>
 </div>
 </section>
+</div>
 
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("run-check-form");
   const btn = document.getElementById("run-check");
@@ -90,38 +142,89 @@ document.addEventListener("DOMContentLoaded", () => {
   const spinner = document.getElementById("run-check-spinner");
   const text = document.getElementById("run-check-text");
 
-  // Automatic filtering for search input, dropdowns, and checkboxes
-  const filterForm = document.getElementById("tracking-filter-form");
-  if (filterForm) {
-    const qInput = filterForm.querySelector('input[name="q"]');
-    const selects = filterForm.querySelectorAll("select");
-    const checkEl = filterForm.querySelector('input[type="checkbox"]');
+  let debounceTimer = null;
+  let activeFetchController = null;
 
-    let debounceTimer = null;
-    const triggerFilter = () => {
-      if (window.htmx) {
-        htmx.trigger(filterForm, "submit");
-      } else {
-        filterForm.submit();
+  async function applyTrackingFilters() {
+    const filterForm = document.getElementById("tracking-filter-form");
+    if (!filterForm) return;
+    const baseAction = filterForm.getAttribute("action") || window.location.pathname;
+    const params = new URLSearchParams();
+    new FormData(filterForm).forEach((val, key) => {
+      if (typeof val === "string" && val.trim() !== "") {
+        params.append(key, val.trim());
       }
-    };
-
-    if (qInput) {
-      qInput.addEventListener("input", () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(triggerFilter, 300);
-      });
-      qInput.addEventListener("search", triggerFilter);
-    }
-
-    selects.forEach(s => {
-      s.addEventListener("change", triggerFilter);
     });
+    const qs = params.toString();
+    const targetUrl = qs ? `${baseAction}?${qs}` : baseAction;
 
-    if (checkEl) {
-      checkEl.addEventListener("change", triggerFilter);
+    if (activeFetchController) {
+      activeFetchController.abort();
+    }
+    activeFetchController = new AbortController();
+
+    try {
+      const resp = await fetch(targetUrl, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        signal: activeFetchController.signal
+      });
+      if (!resp.ok) {
+        filterForm.submit();
+        return;
+      }
+      const htmlText = await resp.text();
+      const doc = new DOMParser().parseFromString(htmlText, "text/html");
+
+      const newContainer = doc.getElementById("trackings-table-container");
+      const curContainer = document.getElementById("trackings-table-container");
+      if (newContainer && curContainer) {
+        curContainer.innerHTML = newContainer.innerHTML;
+      }
+
+      const newKpis = doc.getElementById("sla-kpi-row");
+      const curKpis = document.getElementById("sla-kpi-row");
+      if (newKpis && curKpis) {
+        curKpis.innerHTML = newKpis.innerHTML;
+      }
+
+      window.history.replaceState(null, "", targetUrl);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      filterForm.submit();
     }
   }
+
+  // Event delegation on document so listeners never break across partial DOM refreshes
+  document.addEventListener("change", (e) => {
+    const target = e.target;
+    if (target && target.closest("#tracking-filter-form")) {
+      applyTrackingFilters();
+    }
+  });
+
+  document.addEventListener("input", (e) => {
+    const target = e.target;
+    if (target && target.matches('#tracking-filter-form input[name="q"]')) {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applyTrackingFilters, 300);
+    }
+  });
+
+  document.addEventListener("search", (e) => {
+    const target = e.target;
+    if (target && target.matches('#tracking-filter-form input[name="q"]')) {
+      clearTimeout(debounceTimer);
+      applyTrackingFilters();
+    }
+  });
+
+  document.addEventListener("submit", (e) => {
+    if (e.target && e.target.id === "tracking-filter-form") {
+      e.preventDefault();
+      clearTimeout(debounceTimer);
+      applyTrackingFilters();
+    }
+  });
 
   function showToast(msg) {
     let container = document.querySelector(".fx-toast-container");
@@ -177,36 +280,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await resp.json();
         if (!data.ok) throw new Error(data.message || "Execution error");
 
-        // Show top alert message
         if (data.message) {
           showToast(data.message);
         }
 
-        // Refresh existing tracking table and KPI cards with current filters, page, and tab intact
-        try {
-          const refreshResp = await fetch(window.location.href, {
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-          });
-          if (refreshResp.ok) {
-            const htmlText = await refreshResp.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlText, "text/html");
-
-            const newTableSection = doc.getElementById("tracking-list");
-            const currentTableSection = document.getElementById("tracking-list");
-            if (newTableSection && currentTableSection) {
-              currentTableSection.innerHTML = newTableSection.innerHTML;
-            }
-
-            const newKpis = doc.getElementById("sla-kpi-row");
-            const currentKpis = document.getElementById("sla-kpi-row");
-            if (newKpis && currentKpis) {
-              currentKpis.innerHTML = newKpis.innerHTML;
-            }
-          }
-        } catch (refreshErr) {
-          console.warn("Table refresh warning:", refreshErr);
-        }
+        await applyTrackingFilters();
 
       } catch (err) {
         console.error(err);

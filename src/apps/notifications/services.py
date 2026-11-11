@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import logging
+
 from django.db import transaction
 
 from .models import Notification
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_delay_notification(pks: list[str]):
+    from .tasks import send_notification_email
+
+    try:
+        send_notification_email.delay(pks)
+    except Exception:
+        logger.exception("Failed to queue notification emails for %s notification(s)", len(pks))
 
 
 def notify(org, recipients, *, title: str, body: str = "", link: str = "", level: str = Notification.Level.INFO,
@@ -22,10 +35,8 @@ def notify(org, recipients, *, title: str, body: str = "", link: str = "", level
         n.save()
         created.append(n)
     if email and created:
-        from .tasks import send_notification_email
-
         pks = [str(n.pk) for n in created]
-        transaction.on_commit(lambda: send_notification_email.delay(pks))
+        transaction.on_commit(lambda: _safe_delay_notification(pks))
     return created
 
 

@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                     "membership",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="technician_profile",
+                        related_name="workorder_technician_profile",
                         to="tenancy.membership",
                     ),
                 ),

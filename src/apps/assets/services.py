@@ -140,8 +140,15 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
     audit.record("asset.created", actor=actor, organization=org, target=asset,
                  after=audit.snapshot(asset, ASSET_FIELDS + ["status"]), request=request)
     try:
-        from apps.identification.services import generate_identifier
-        generate_identifier(asset, kind="QR", actor=actor, request=request)
+        with transaction.atomic():
+            from apps.identification.services import generate_identifier
+            generate_identifier(asset, kind="QR", actor=actor, request=request)
+    except Exception:
+        pass
+    try:
+        with transaction.atomic():
+            from apps.portal.services import sync_portal_grants_for_asset
+            sync_portal_grants_for_asset(asset, actor=actor)
     except Exception:
         pass
     return asset
@@ -196,6 +203,12 @@ def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNS
                      before={"site_id": before["site_id"], "zone_id": before["zone_id"]},
                      after={"site_id": after["site_id"], "zone_id": after["zone_id"]},
                      metadata={"reason": reason}, request=request)
+        try:
+            with transaction.atomic():
+                from apps.portal.services import sync_portal_grants_for_asset
+                sync_portal_grants_for_asset(asset, actor=actor)
+        except Exception:
+            pass
     return asset
 
 
@@ -228,21 +241,22 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
                  before={"status": previous}, after={"status": new},
                  metadata={"action": action, "reason": reason, "source": source}, request=request)
     try:
-        from apps.core.outbox import publish_integration_event
-        publish_integration_event(
-            asset.organization,
-            event_type="asset.status_changed",
-            aggregate_type="asset",
-            aggregate_id=str(asset.pk),
-            payload={
-                "asset_tag": asset.asset_tag,
-                "from_status": previous,
-                "to_status": new,
-                "action": action,
-                "reason": reason,
-                "source": source,
-            },
-        )
+        with transaction.atomic():
+            from apps.core.outbox import publish_integration_event
+            publish_integration_event(
+                asset.organization,
+                event_type="asset.status_changed",
+                aggregate_type="asset",
+                aggregate_id=str(asset.pk),
+                payload={
+                    "asset_tag": asset.asset_tag,
+                    "from_status": previous,
+                    "to_status": new,
+                    "action": action,
+                    "reason": reason,
+                    "source": source,
+                },
+            )
     except Exception:
         pass
     return asset

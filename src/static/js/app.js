@@ -474,7 +474,7 @@ document.body.addEventListener("htmx:afterSettle", setupResponsiveTables);
    Universal Password Visibility Toggle
    ========================================================================== */
 document.addEventListener("click", function (e) {
-  var toggleBtn = e.target.closest(".fx-password-toggle");
+  var toggleBtn = e.target.closest(".fx-password-toggle, #fx-pw-toggle");
   if (!toggleBtn) return;
   e.preventDefault();
   e.stopPropagation();
@@ -482,7 +482,7 @@ document.addEventListener("click", function (e) {
   var targetId = toggleBtn.getAttribute("data-target");
   var input = targetId ? document.getElementById(targetId) : null;
   if (!input) {
-    var group = toggleBtn.closest(".input-group");
+    var group = toggleBtn.closest(".fx-input-wrapper, .input-group");
     if (group) {
       input = group.querySelector("input[type='password'], input[type='text']");
     }
@@ -493,21 +493,30 @@ document.addEventListener("click", function (e) {
       input = prev;
     }
   }
+  if (!input) {
+    input = document.getElementById("id_password");
+  }
   if (!input) return;
 
   var isPassword = (input.type === "password");
   input.type = isPassword ? "text" : "password";
 
-  var showIcon = toggleBtn.querySelector(".fx-pw-show");
-  var hideIcon = toggleBtn.querySelector(".fx-pw-hide");
+  var showIcon = toggleBtn.querySelector(".fx-pw-show, #fx-pw-icon-eye");
+  var hideIcon = toggleBtn.querySelector(".fx-pw-hide, #fx-pw-icon-eye-off");
   if (showIcon && hideIcon) {
     if (isPassword) {
+      // Switched to visible text: show hide-icon (eye-off)
+      showIcon.style.display = "none";
       showIcon.classList.add("d-none");
+      hideIcon.style.display = "inline-flex";
       hideIcon.classList.remove("d-none");
       toggleBtn.setAttribute("aria-label", "Hide password");
       toggleBtn.setAttribute("title", "Hide password");
     } else {
+      // Switched to hidden password: show show-icon (eye)
+      showIcon.style.display = "inline-flex";
       showIcon.classList.remove("d-none");
+      hideIcon.style.display = "none";
       hideIcon.classList.add("d-none");
       toggleBtn.setAttribute("aria-label", "Show password");
       toggleBtn.setAttribute("title", "Show password");
@@ -1498,6 +1507,10 @@ document.addEventListener("click", function (e) {
         setFieldError(nameEl, "Asset name must be at least 2 characters.");
         return false;
       }
+      if (val.length > 200) {
+        setFieldError(nameEl, "Asset name cannot exceed 200 characters.");
+        return false;
+      }
       if (/\d/.test(val)) {
         setFieldError(nameEl, "Asset name must contain only alphabetical characters and cannot contain numbers.");
         return false;
@@ -1513,7 +1526,9 @@ document.addEventListener("click", function (e) {
     if (nameEl) {
       nameEl.addEventListener("input", function () {
         var val = this.value;
-        if (/\d/.test(val)) {
+        if (val.trim().length > 200) {
+          setFieldError(this, "Asset name cannot exceed 200 characters.");
+        } else if (/\d/.test(val)) {
           setFieldError(this, "Asset name must contain only alphabetical characters and cannot contain numbers.");
         } else if (!/^[a-zA-Z\s'-]*$/.test(val)) {
           setFieldError(this, "Asset name must contain only alphabetical characters.");
@@ -2073,45 +2088,295 @@ document.addEventListener("click", function (e) {
     }
   });
 
-  // Enterprise Login Password Visibility Toggle
-  document.addEventListener("click", function (e) {
-    var toggle = e.target.closest("#fx-pw-toggle");
-    if (!toggle) return;
-    e.preventDefault();
-    var pwInput = document.getElementById("id_password");
-    var eyeIcon = document.getElementById("fx-pw-icon-eye");
-    var eyeOffIcon = document.getElementById("fx-pw-icon-eye-off");
-    if (pwInput) {
-      var isPassword = pwInput.getAttribute("type") === "password";
-      pwInput.setAttribute("type", isPassword ? "text" : "password");
-      // if (eyeIcon) eyeIcon.style.display = isPassword ? "none" : "block";
-      // if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? "block" : "none";
-      // toggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
-    }
-  });
-  // Prevent decimal/exponent characters on integer/whole-number inputs with step="1"
-  document.addEventListener("keydown", function (e) {
-    if (e.target && e.target.matches && e.target.matches('input[type="number"][step="1"]')) {
-      if (['.', 'e', 'E', '+', ','].includes(e.key)) {
-        e.preventDefault();
-      }
-      if (e.target.min && parseFloat(e.target.min) >= 0 && e.key === '-') {
-        e.preventDefault();
-      }
-    }
-  });
+  // Enterprise Login Password Visibility Toggle handled by universal .fx-password-toggle
 })();
 
 // Global loading bar during HTMX navigation, filtering and swaps
-document.addEventListener("htmx:beforeRequest", function () {
-  var l = document.getElementById("global-loading-indicator");
-  if (l) l.classList.add("is-active");
-});
-document.addEventListener("htmx:afterRequest", function () {
-  var l = document.getElementById("global-loading-indicator");
-  if (l) l.classList.remove("is-active");
-});
-document.addEventListener("htmx:requestError", function () {
-  var l = document.getElementById("global-loading-indicator");
-  if (l) l.classList.remove("is-active");
-});
+  document.addEventListener("htmx:beforeRequest", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.add("is-active");
+  });
+  document.addEventListener("htmx:afterRequest", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.remove("is-active");
+  });
+  document.addEventListener("htmx:requestError", function () {
+    var l = document.getElementById("global-loading-indicator");
+    if (l) l.classList.remove("is-active");
+  });
+
+
+/* Cross-Tab Authentication Synchronization
+   Instant multi-tab logout without manual page refresh via BroadcastChannel & localStorage events. */
+(function () {
+  var AUTH_CHANNEL_NAME = "nexus_auth_sync";
+  var LOGOUT_STORAGE_KEY = "nexus_logout_event";
+
+  function clearClientCookies() {
+    try {
+      sessionStorage.clear();
+      var cookies = document.cookie.split(";");
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var eqPos = cookie.indexOf("=");
+        var name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name && name !== "csrftoken") {
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+        }
+      }
+    } catch (e) {}
+  }
+
+  function redirectToLogin() {
+    clearClientCookies();
+    var path = window.location.pathname;
+    // Do not redirect if already on login, activate, or public landing
+    if (
+      path.startsWith("/accounts/login") ||
+      path.startsWith("/accounts/activate") ||
+      path.startsWith("/accounts/password-reset") ||
+      path === "/" ||
+      path.startsWith("/product") ||
+      path.startsWith("/solutions") ||
+      path.startsWith("/modules") ||
+      path.startsWith("/features") ||
+      path.startsWith("/resources") ||
+      path.startsWith("/about") ||
+      path.startsWith("/contact") ||
+      path.startsWith("/register")
+    ) {
+      return;
+    }
+    var next = encodeURIComponent(path + window.location.search);
+    window.location.replace("/accounts/login/?logged_out=1&next=" + next);
+  }
+
+  // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
+  if (typeof window.BroadcastChannel === "function") {
+    try {
+      var authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+      authChannel.onmessage = function (event) {
+        if (event.data && event.data.type === "LOGOUT") {
+          redirectToLogin();
+        }
+      };
+    } catch (e) {}
+  }
+
+  // 2. Storage event listener (fallback for all browsers/webviews; fires in other tabs)
+  window.addEventListener("storage", function (event) {
+    if (event.key === LOGOUT_STORAGE_KEY) {
+      redirectToLogin();
+    }
+  });
+
+  // 3. Broadcast logout notification to other open tabs
+  function broadcastLogout() {
+    if (typeof window.BroadcastChannel === "function") {
+      try {
+        var ch = new BroadcastChannel(AUTH_CHANNEL_NAME);
+        ch.postMessage({ type: "LOGOUT", timestamp: Date.now() });
+      } catch (e) {}
+    }
+    try {
+      localStorage.setItem(LOGOUT_STORAGE_KEY, Date.now().toString());
+    } catch (e) {}
+  }
+
+  // Page load timestamp for detecting stale bfcache restorations
+  window.__fx_page_loaded_at = Date.now();
+
+  // If successfully loaded an authenticated workspace page, clear any old logout marker
+  var currentPath = window.location.pathname;
+  if (currentPath.startsWith("/app/") || currentPath.startsWith("/portal/")) {
+    try {
+      localStorage.removeItem(LOGOUT_STORAGE_KEY);
+    } catch (e) {}
+  }
+
+  // Handle back/forward navigation and bfcache restoration
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) {
+      // Restored from browser back/forward cache (bfcache) - force reload from server
+      window.location.reload();
+      return;
+    }
+    // Check if user navigated back to an authenticated page after a logout occurred
+    var p = window.location.pathname;
+    if (p.startsWith("/app/") || p.startsWith("/portal/")) {
+      try {
+        var lastLogout = localStorage.getItem(LOGOUT_STORAGE_KEY);
+        if (lastLogout && parseInt(lastLogout, 10) > (window.__fx_page_loaded_at || 0)) {
+          window.location.replace("/accounts/login/?logged_out=1");
+        }
+      } catch (e) {}
+    }
+  });
+
+  // 4. Handle Sign out button click / form submission with explicit API fetch
+  document.addEventListener("click", function (e) {
+    var elem = e.target.closest("#fx-logout-btn, button, a");
+    if (!elem) return;
+
+    var form = elem.form || elem.closest("form");
+    var isLogoutForm = form && form.action && form.action.indexOf("/accounts/logout/") !== -1;
+    var isLogoutBtn = elem.id === "fx-logout-btn" || (elem.textContent && elem.textContent.trim().toLowerCase() === "sign out");
+
+    if (isLogoutForm || isLogoutBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var logoutUrl = (form && form.action) ? form.action : "/accounts/logout/";
+      var csrfInput = form ? form.querySelector("input[name='csrfmiddlewaretoken']") : null;
+      var csrfToken = csrfInput ? csrfInput.value : "";
+      if (!csrfToken) {
+        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        if (match) csrfToken = match[1];
+      }
+
+      elem.disabled = true;
+
+      var bodyParams = new URLSearchParams();
+      if (csrfToken) {
+        bodyParams.append("csrfmiddlewaretoken", csrfToken);
+      }
+
+      // Explicit POST API call with credentials & CSRF body
+      fetch(logoutUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: bodyParams.toString(),
+      })
+        .finally(function () {
+          // Broadcast to other tabs AFTER the server has completed logout
+          broadcastLogout();
+          clearClientCookies();
+          window.location.replace("/accounts/login/?logged_out=1");
+        });
+    }
+  });
+
+  // 5. Automatic Client-Side Session Idle Timeout & Auto Sign-Out
+  var layoutEl = document.getElementById("fx-layout");
+  var idlePath = window.location.pathname || "";
+  if (
+    layoutEl &&
+    !idlePath.startsWith("/accounts/login") &&
+    !idlePath.startsWith("/accounts/logout")
+  ) {
+    var IDLE_ACTIVITY_KEY = "nexus_last_activity_at";
+    var rawIdleMs = parseInt(layoutEl.getAttribute("data-idle-timeout-ms") || "1800000", 10);
+    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 1800000;
+    var lastActivityAt = Date.now();
+    var lastSyncedAt = 0;
+    var idleLogoutTriggered = false;
+    var idleIntervalId = null;
+
+    function syncActivityTimestamp(force) {
+      var now = Date.now();
+      lastActivityAt = now;
+      if (force || (now - lastSyncedAt) >= 5000) {
+        lastSyncedAt = now;
+        try {
+          localStorage.setItem(IDLE_ACTIVITY_KEY, String(now));
+        } catch (e) {}
+      }
+    }
+
+    function getEffectiveLastActivity() {
+      var latest = lastActivityAt;
+      try {
+        var stored = parseInt(localStorage.getItem(IDLE_ACTIVITY_KEY) || "0", 10);
+        if (!isNaN(stored) && stored > latest) {
+          latest = stored;
+        }
+      } catch (e) {}
+      return latest;
+    }
+
+    function performIdleSignOut() {
+      if (idleLogoutTriggered) return;
+      idleLogoutTriggered = true;
+      if (idleIntervalId) {
+        clearInterval(idleIntervalId);
+        idleIntervalId = null;
+      }
+
+      var logoutForm = document.getElementById("fx-logout-form");
+      var logoutUrl = (logoutForm && logoutForm.action) ? logoutForm.action : "/accounts/logout/";
+      var csrfInput = logoutForm ? logoutForm.querySelector("input[name='csrfmiddlewaretoken']") : null;
+      var csrfToken = csrfInput ? csrfInput.value : "";
+      if (!csrfToken) {
+        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        if (match) csrfToken = match[1];
+      }
+
+      var bodyParams = new URLSearchParams();
+      if (csrfToken) {
+        bodyParams.append("csrfmiddlewaretoken", csrfToken);
+      }
+
+      var nextParam = encodeURIComponent(window.location.pathname + window.location.search);
+      fetch(logoutUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: bodyParams.toString(),
+      }).finally(function () {
+        try {
+          localStorage.removeItem(IDLE_ACTIVITY_KEY);
+        } catch (e) {}
+        broadcastLogout();
+        clearClientCookies();
+        window.location.replace("/accounts/login/?logged_out=1&next=" + nextParam);
+      });
+    }
+
+    function checkIdleExpiration() {
+      if (idleLogoutTriggered) return;
+      if ((Date.now() - getEffectiveLastActivity()) >= idleTimeoutMs) {
+        performIdleSignOut();
+      }
+    }
+
+    syncActivityTimestamp(true);
+    ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evtName) {
+      document.addEventListener(evtName, function () {
+        if (!idleLogoutTriggered) {
+          syncActivityTimestamp(false);
+        }
+      }, { passive: true });
+    });
+
+    window.addEventListener("storage", function (e) {
+      if (e.key === IDLE_ACTIVITY_KEY && e.newValue) {
+        var parsed = parseInt(e.newValue, 10);
+        if (!isNaN(parsed) && parsed > lastActivityAt) {
+          lastActivityAt = parsed;
+        }
+      }
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") {
+        checkIdleExpiration();
+      }
+    });
+    window.addEventListener("focus", checkIdleExpiration);
+
+    var pollMs = Math.min(Math.max(Math.floor(idleTimeoutMs / 4), 1000), 15000);
+    idleIntervalId = setInterval(checkIdleExpiration, pollMs);
+  }
+})();

@@ -2,7 +2,7 @@ from datetime import timedelta
 from django.apps import apps
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -294,7 +294,40 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         return Response(ServiceRequestSerializer(self._obj(request, pk)).data)
 
-    @extend_schema(request=CheckDuplicateSerializer)
+    @extend_schema(
+        methods=["GET"],
+        parameters=[
+            query_param("asset", "Asset UUID", OpenApiTypes.UUID),
+            query_param("kind", "INCIDENT | SERVICE_REQUEST"),
+            query_param("failure_category", "Failure category"),
+            query_param("service_impact", "NONE | DEGRADED | PARTIAL_OUTAGE | FULL_OUTAGE"),
+            query_param("severity", "LOW | MEDIUM | HIGH | CRITICAL"),
+            query_param("description", "Problem description"),
+            query_param("title", "Request title"),
+        ],
+        responses={
+            200: inline_serializer(
+                "CheckDuplicateResponse",
+                fields={
+                    "duplicate_found": serializers.BooleanField(),
+                    "duplicates": serializers.ListField(child=serializers.DictField()),
+                },
+            )
+        },
+    )
+    @extend_schema(
+        methods=["POST"],
+        request=CheckDuplicateSerializer,
+        responses={
+            200: inline_serializer(
+                "CheckDuplicatePostResponse",
+                fields={
+                    "duplicate_found": serializers.BooleanField(),
+                    "duplicates": serializers.ListField(child=serializers.DictField()),
+                },
+            )
+        },
+    )
     @action(detail=False, methods=["get", "post"], url_path="check-duplicate")
     def check_duplicate(self, request):
         """Checks for existing active duplicate incidents linked to the target asset."""
@@ -443,6 +476,18 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
                                     request=request)
         return Response(RequestEvidenceSerializer(att).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(methods=["GET"], responses=ServiceRequestCommentSerializer(many=True))
+    @extend_schema(
+        methods=["POST"],
+        request=inline_serializer(
+            "ServiceRequestCommentCreateRequest",
+            fields={
+                "body": serializers.CharField(),
+                "is_internal": serializers.BooleanField(required=False, default=False),
+            },
+        ),
+        responses={201: ServiceRequestCommentSerializer},
+    )
     @action(detail=True, methods=["get", "post"])
     def comments(self, request, pk=None):
         sr = self._obj(request, pk)

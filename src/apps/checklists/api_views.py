@@ -95,7 +95,7 @@ class ResponseSerializer(serializers.ModelSerializer):
 class FindingSerializer(serializers.ModelSerializer):
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Finding
@@ -109,7 +109,7 @@ class InspectionSerializer(serializers.ModelSerializer):
     template_version = serializers.IntegerField(source="template.version", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Inspection

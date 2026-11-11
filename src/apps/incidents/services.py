@@ -299,13 +299,14 @@ def create_request(org, *, asset, reporter, title: str, description: str = "", k
 
         # Automatic warranty / AMC coverage check
         try:
-            from apps.contracts import services as contracts
-            ref_date = occurred_at.date() if occurred_at else None
-            cov_res = contracts.evaluate(org, locked_asset, on=ref_date, work_type="CORRECTIVE")
-            audit.record("incident.coverage_evaluated", actor=actor, organization=org, target=sr,
-                         after={"eligible": cov_res.eligible, "covered": cov_res.covered,
-                                "agreement": cov_res.best.agreement.reference if cov_res.best else None,
-                                "reason": cov_res.reason[:500]}, request=request)
+            with transaction.atomic():
+                from apps.contracts import services as contracts
+                ref_date = occurred_at.date() if occurred_at else None
+                cov_res = contracts.evaluate(org, locked_asset, on=ref_date, work_type="CORRECTIVE")
+                audit.record("incident.coverage_evaluated", actor=actor, organization=org, target=sr,
+                             after={"eligible": cov_res.eligible, "covered": cov_res.covered,
+                                    "agreement": cov_res.best.agreement.reference if cov_res.best else None,
+                                    "reason": cov_res.reason[:500]}, request=request)
         except Exception:
             pass
 

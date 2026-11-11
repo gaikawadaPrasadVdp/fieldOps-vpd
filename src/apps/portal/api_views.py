@@ -117,12 +117,34 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
         )
 
     @extend_schema(request=None)
-    @extend_schema(request=None)
     @action(detail=True, methods=["post"])
     def toggle(self, request, pk=None):
         account = self.get_object()
         updated = services.toggle_portal_account(account, actor=request.user)
         return Response(PortalAccountSerializer(updated).data)
+
+
+class PortalMeUserSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    full_name = serializers.CharField()
+
+
+class PortalMeOrgSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    slug = serializers.CharField()
+
+
+class PortalMeSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    membership = serializers.UUIDField()
+    membership_status = serializers.CharField()
+    company_name = serializers.CharField()
+    is_enabled = serializers.BooleanField()
+    created_at = serializers.DateTimeField(allow_null=True)
+    user = PortalMeUserSerializer()
+    organization = PortalMeOrgSerializer()
 
 
 class PortalMeView(TenantAPIMixin, APIView):
@@ -133,7 +155,7 @@ class PortalMeView(TenantAPIMixin, APIView):
     }
 
     @extend_schema(
-        responses={200: PortalAccountSerializer},
+        responses={200: PortalMeSerializer},
         summary="Get client portal profile",
         description="Returns portal account details for the authenticated client in the active tenant organization.",
     )

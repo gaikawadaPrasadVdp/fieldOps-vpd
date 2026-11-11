@@ -34,17 +34,22 @@ class RequestForm(BootstrapFormMixin, forms.Form):
                                        help_text="e.g. Mechanical, Electrical, Hydraulic, etc.")
     assigned_team = forms.CharField(max_length=100, required=False, label="Assigned team",
                                     help_text="Optional maintenance team to route to")
-    occurred_at = dt_field("When did it happen?", required=True)
-    downtime_started_at = dt_field("Downtime started", required=True)
+    occurred_at = dt_field("When did it happen? (blank = now)")
+    downtime_started_at = dt_field("Downtime started (if the asset is down)")
     override_duplicate = forms.BooleanField(required=False, widget=forms.HiddenInput())
     override_reason = forms.CharField(max_length=500, required=False, label="Override reason",
                                       widget=forms.Textarea(attrs={"rows": 2}),
                                       help_text="Mandatory reason if creating a duplicate incident")
 
-    def __init__(self, *args, assets=None, editing=False, **kwargs):
+    def __init__(self, *args, assets=None, editing=False, is_client=False, **kwargs):
         super().__init__(*args, **kwargs)
         if assets is not None:
             self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
+        if is_client:
+            self.fields["occurred_at"].required = False
+            self.fields["downtime_started_at"].required = False
+            self.fields["occurred_at"].label = "When did it happen? (blank = now)"
+            self.fields["downtime_started_at"].label = "Downtime started (if the asset is down)"
         if editing:
             for f in ("override_duplicate", "override_reason"):
                 if f in self.fields:

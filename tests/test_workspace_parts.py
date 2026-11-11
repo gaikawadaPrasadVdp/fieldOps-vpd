@@ -152,6 +152,7 @@ def test_consume_job_part_negative_paths(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-102", reason="Stock in")
     line = inventory.request_part(wo, part, "2.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "2.000", actor=stores.user)
     inventory.issue(line, wh, "2.000", actor=stores.user)
 
     # 1. Overconsumption exceeds outstanding
@@ -198,6 +199,7 @@ def test_job_part_consume_html_view(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-103", reason="Stock in")
     line = inventory.request_part(wo, part, "4.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "4.000", actor=stores.user)
     inventory.issue(line, wh, "4.000", actor=stores.user)
 
     client = Client()
@@ -243,6 +245,7 @@ def test_job_part_consume_api_view(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-104", reason="Stock in")
     line = inventory.request_part(wo, part, "3.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "3.000", actor=stores.user)
     inventory.issue(line, wh, "3.000", actor=stores.user)
 
     api = APIClient()

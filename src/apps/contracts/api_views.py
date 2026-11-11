@@ -42,6 +42,37 @@ class ProviderWriteSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
+    def validate_name(self, value):
+        from apps.ui.forms import validate_business_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_business_name(value, field_label="Provider name")
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_contact_name(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_alphabetical_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_alphabetical_name(value, field_label="Contact name", min_len=2, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_notes(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_safe_text
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_safe_text(value, field_label="Notes", max_len=500, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
 
 class ProviderPatchSerializer(ProviderWriteSerializer):
     name = serializers.CharField(max_length=150, required=False)
@@ -246,13 +277,18 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     def perform_content_negotiation(self, request, force=False):
         if getattr(self, "action", None) in ("export", "download"):
-            from rest_framework.renderers import BaseRenderer
+            from rest_framework.renderers import BaseRenderer, JSONRenderer
 
             class PassthroughRenderer(BaseRenderer):
                 media_type = "*/*"
                 format = "raw"
 
                 def render(self, data, accepted_media_type=None, renderer_context=None):
+                    response = renderer_context.get("response") if renderer_context else None
+                    if (response is not None and getattr(response, "exception", False)) or isinstance(data, (dict, list)):
+                        if response is not None:
+                            response["Content-Type"] = "application/json; charset=utf-8"
+                        return JSONRenderer().render(data, "application/json", renderer_context)
                     return data
 
             return (PassthroughRenderer(), "*/*")
@@ -349,9 +385,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(AgreementSerializer(self._ag(request, pk)).data)
 
     @extend_schema(parameters=[query_param("days", "look-ahead window in days (default 60, max 365)",
-                                           OpenApiTypes.INT)], responses=AgreementSerializer)
-    @action(detail=False, methods=["get"])
-    @extend_schema(parameters=[query_param("days", "integer days")], responses=AgreementSerializer)
+                                           OpenApiTypes.INT)], responses=AgreementSerializer(many=True))
     @action(detail=False, methods=["get"])
     def expiring(self, request):
         try:
@@ -360,7 +394,6 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
             raise ValidationFailed("days must be a whole number.", code="invalid_number") from exc
         return paginate(request, selectors.expiring(request.membership, request.organization, days),
                         AgreementSerializer)
-
 
     @extend_schema(parameters=[
         query_param("format", "csv | xlsx | pdf (default csv)"),
@@ -371,7 +404,11 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         query_param("provider", "provider id", OpenApiTypes.UUID),
         query_param("asset", "asset id", OpenApiTypes.UUID),
         query_param("ordering", "ordering field"),
-    ], responses={200: OpenApiTypes.BINARY})
+    ], responses={
+        (200, "text/csv"): OpenApiTypes.BINARY,
+        (200, "application/pdf"): OpenApiTypes.BINARY,
+        (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+    })
     @action(detail=False, methods=["get"])
     def export(self, request):
         fmt = (request.query_params.get("format") or request.query_params.get("export_format") or "csv").lower()
@@ -392,7 +429,10 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         resp["X-Content-Type-Options"] = "nosniff"
         return resp
 
-    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    @extend_schema(responses={
+        (200, "application/pdf"): OpenApiTypes.BINARY,
+        (200, "text/csv"): OpenApiTypes.BINARY,
+    })
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
         ag = self._ag(request, pk, "contract.view")
