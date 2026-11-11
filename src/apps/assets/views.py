@@ -7,7 +7,7 @@ import csv
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -40,8 +40,8 @@ TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
 
 
-def _asset(request, pk, code=None) -> Asset:
-    asset = or404(selectors.get_asset, request.membership, request.organization, pk)
+def _asset(request, pk, code=None, *, with_parent: bool = False) -> Asset:
+    asset = or404(selectors.get_asset, request.membership, request.organization, pk, with_parent=with_parent)
     if code:
         need(request, code, asset.site_id)
     return asset
@@ -88,29 +88,30 @@ class AssetHierarchyHubView(AssetBase):
         m, org = request.membership, request.organization
         assets_qs = selectors.assets_for(m, org)
 
-        # Metrics & KPI Calculations
-        total_assets = assets_qs.count()
-        roots_with_children = assets_qs.filter(parent_link__isnull=True, child_links__isnull=False).distinct()
-        total_assemblies = roots_with_children.count()
-        total_components = AssetComponent.objects.for_organization(org).count()
-        replaceable_parts = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART").count()
-        parts_without_num = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART", part_number="").count()
+        # Consolidated AssetComponent KPI counts (1 query instead of 3)
+        comp_stats = AssetComponent.objects.for_organization(org).aggregate(
+            total_components=Count("pk"),
+            replaceable_parts=Count("pk", filter=Q(relationship_type="REPLACEABLE_PART")),
+            parts_without_num=Count("pk", filter=Q(relationship_type="REPLACEABLE_PART", part_number="")),
+        )
 
-        from apps.incidents.models import ServiceRequest
-        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
-        total_breakdowns = ServiceRequest.objects.filter(
-            organization=org,
-            asset_id__in=assets_qs.values_list("id", flat=True),
-            status__in=ACTIVE_INCIDENT_STATUSES,
-        ).values("asset_id").distinct().count()
+        roots = list(
+            assets_qs.filter(parent_link__isnull=True)
+            .annotate(child_count=Count("child_links", distinct=True))
+            .filter(child_count__gt=0)
+            .order_by("asset_tag")
+        )
+        total_assemblies = len(roots)
 
         # Selected Root Asset for Tree View
-        root_id = request.GET.get("root")
-        selected_root = None
+        root_id = (request.GET.get("root") or "").strip()
         if root_id:
-            selected_root = assets_qs.filter(pk=selectors._uuid_or_none(root_id)).first()
-        if not selected_root:
-            selected_root = roots_with_children.first()
+            root_pk = selectors._uuid_or_none(root_id)
+            selected_root = next((r for r in roots if r.pk == root_pk), None) if root_pk else None
+            if selected_root is None and root_pk:
+                selected_root = assets_qs.filter(pk=root_pk).first()
+        else:
+            selected_root = roots[0] if roots else None
 
         tree = hierarchy.build_tree(selected_root) if selected_root else None
         total_nodes = len(hierarchy.flatten(tree)) if tree else 0
@@ -123,13 +124,11 @@ class AssetHierarchyHubView(AssetBase):
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
 
         return render(request, "assets/hierarchy_hub.html", {
-            "total_assets": total_assets,
             "total_assemblies": total_assemblies,
-            "total_components": total_components,
-            "replaceable_parts": replaceable_parts,
-            "parts_without_num": parts_without_num,
-            "total_breakdowns": total_breakdowns,
-            "roots": roots_with_children.select_related("site", "category"),
+            "total_components": comp_stats["total_components"],
+            "replaceable_parts": comp_stats["replaceable_parts"],
+            "parts_without_num": comp_stats["parts_without_num"],
+            "roots": roots,
             "selected_root": selected_root,
             "tree": tree,
             "can_manage": can_manage,
@@ -184,22 +183,48 @@ class AssetListView(AssetBase):
             return response
 
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+        page_items = list(page)
+        root_ids = [a.pk for a in page_items if getattr(a, "parent_link", None) is None]
+        counts_by_parent = (
+            dict(
+                AssetComponent.objects.filter(parent_id__in=root_ids)
+                .values_list("parent_id")
+                .annotate(c=Count("pk"))
+            )
+            if root_ids
+            else {}
+        )
+        for a in page_items:
+            a.child_count = counts_by_parent.get(a.pk, 0)
 
-        total_count = base_assets.count()
-        active_count = base_assets.filter(status=ACTIVE).count()
-        maintenance_count = base_assets.filter(status=UNDER_MAINTENANCE).count()
-        out_of_service_count = base_assets.filter(status=OUT_OF_SERVICE).count()
+        is_table_htmx = (
+            request.headers.get("HX-Request") == "true"
+            and request.headers.get("HX-Target") == "asset-list-card"
+        )
+        if is_table_htmx:
+            kpis = {"total_count": 0, "active_count": 0, "maintenance_count": 0, "out_of_service_count": 0}
+            sites = []
+            categories = []
+        else:
+            kpis = base_assets.aggregate(
+                total_count=Count("pk"),
+                active_count=Count("pk", filter=Q(status=ACTIVE)),
+                maintenance_count=Count("pk", filter=Q(status=UNDER_MAINTENANCE)),
+                out_of_service_count=Count("pk", filter=Q(status=OUT_OF_SERVICE)),
+            )
+            sites = site_selectors.sites_for(m, org, "asset.view").order_by("code")
+            categories = selectors.categories_for(org)
 
         return render(request, "assets/list.html", {
             "page": page, "filters": request.GET,
-            "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
-            "categories": selectors.categories_for(org), "statuses": Asset.Status.choices,
+            "sites": sites,
+            "categories": categories, "statuses": Asset.Status.choices,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
             "can_categories": rbac.has_permission(m, "asset.category.manage"),
-            "total_count": total_count,
-            "active_count": active_count,
-            "maintenance_count": maintenance_count,
-            "out_of_service_count": out_of_service_count,
+            "total_count": kpis["total_count"],
+            "active_count": kpis["active_count"],
+            "maintenance_count": kpis["maintenance_count"],
+            "out_of_service_count": kpis["out_of_service_count"],
         })
 
 
@@ -257,9 +282,14 @@ class ComponentListView(AssetBase):
                 ])
             return response
 
-        total_items = base_qs.count()
-        total_replaceable = base_qs.filter(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART).count()
-        missing_parts = base_qs.filter(Q(part_number__isnull=True) | Q(part_number="")).count()
+        comp_stats = base_qs.aggregate(
+            total_items=Count("pk"),
+            total_replaceable=Count("pk", filter=Q(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART)),
+            missing_parts=Count("pk", filter=Q(part_number__isnull=True) | Q(part_number="")),
+        )
+        total_items = comp_stats["total_items"]
+        total_replaceable = comp_stats["total_replaceable"]
+        missing_parts = comp_stats["missing_parts"]
 
         from apps.incidents.models import ServiceRequest
         from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
@@ -273,7 +303,8 @@ class ComponentListView(AssetBase):
         ).values("asset_id").distinct().count()
 
         page = Paginator(qs, 25).get_page(request.GET.get("page"))
-        batch_annotate_assets_health([comp.child for comp in page], organization=org)
+        page_items = list(page)
+        batch_annotate_assets_health([comp.child for comp in page_items], organization=org)
 
         return render(request, "assets/component_list.html", {
             "page": page,
@@ -504,7 +535,7 @@ class AssetDetailView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
-        asset = _asset(request, pk)
+        asset = _asset(request, pk, with_parent=True)
         m, org = request.membership, request.organization
         tab = request.GET.get("tab", "overview")
         available_tabs = [
@@ -593,7 +624,7 @@ class AssetDetailView(AssetBase):
                 ctx["edit_link_form"] = ComponentEditForm(initial={
                     "relationship_type": link.relationship_type, "quantity": link.quantity,
                     "part_number": link.part_number, "notes": link.notes})
-                below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset))}
+                below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset, annotate_health=False))}
                 # Only root assets can be candidates for new parent
                 ctx["move_form"] = ComponentMoveForm(candidates=base.filter(parent_link__isnull=True).exclude(pk__in=below))
 
@@ -871,7 +902,7 @@ class ComponentReplaceView(AssetBase):
     def post(self, request, pk):
         link = _link(request, pk)
         child = link.child
-        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
+        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child, annotate_health=False))}
         parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, child.pk} | below
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
         parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
@@ -902,7 +933,7 @@ class ComponentDetailModalView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
-        asset = _asset(request, pk)
+        asset = _asset(request, pk, with_parent=True)
         tree = hierarchy.build_tree(asset)
         ancestors = list(reversed(hierarchy.ancestors(asset)))
         return render(request, "assets/_detail_modal.html", {

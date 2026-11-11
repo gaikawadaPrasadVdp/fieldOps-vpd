@@ -141,28 +141,42 @@ def assert_site_active(site: Site):
 # --- zones -----------------------------------------------------------------------------------------
 
 
-def _depth_above(zone: Zone | None) -> int:
+def _depth_above(zone: Zone | None, *, parent_map: dict | None = None) -> int:
     """Number of ancestors of ``zone`` including itself (walks up; bounded, detects corrupt cycles)."""
+    if zone is None:
+        return 0
+    if parent_map is None:
+        parent_map = dict(Zone.objects.filter(site_id=zone.site_id).values_list("pk", "parent_id"))
     depth = 0
     seen = set()
-    while zone is not None:
-        if zone.pk in seen:
+    cur_id = zone.pk
+    while cur_id is not None:
+        if cur_id in seen:
             raise ValidationFailed("Zone hierarchy contains a cycle.", code="zone_cycle")
-        seen.add(zone.pk)
+        seen.add(cur_id)
         depth += 1
-        zone = zone.parent
+        cur_id = parent_map.get(cur_id)
     return depth
 
 
-def _height_below(zone: Zone) -> int:
+def _height_below(zone: Zone, *, parent_map: dict | None = None) -> int:
     """Levels of descendants below ``zone`` (0 = leaf)."""
+    if parent_map is None:
+        parent_map = dict(Zone.objects.filter(site_id=zone.site_id).values_list("pk", "parent_id"))
+    children_by_parent: dict = {}
+    for pk, pid in parent_map.items():
+        if pid is not None:
+            children_by_parent.setdefault(pid, []).append(pk)
     level = [zone.pk]
     height = 0
+    seen = {zone.pk}
     while True:
-        level = list(Zone.objects.filter(parent_id__in=level).values_list("pk", flat=True))
-        if not level:
+        nxt = [cid for pid in level for cid in children_by_parent.get(pid, []) if cid not in seen]
+        if not nxt:
             return height
         height += 1
+        seen.update(nxt)
+        level = nxt
         if height > MAX_ZONE_DEPTH:
             return height
 
@@ -176,14 +190,19 @@ def validate_zone_parent(site: Site, zone: Zone | None, parent: Zone | None, zon
         raise ValidationFailed("A building must be a top-level location of the site.", code="invalid_parent")
     if parent.status != "ACTIVE":
         raise ValidationFailed("The parent location is inactive.", code="invalid_parent")
+    parent_map = dict(Zone.objects.filter(site=site).values_list("pk", "parent_id"))
     if zone is not None:
-        node = parent
-        while node is not None:  # parent chain must not reach the zone itself
-            if node.pk == zone.pk:
+        cur_id = parent.pk
+        seen = set()
+        while cur_id is not None:  # parent chain must not reach the zone itself
+            if cur_id == zone.pk:
                 raise ValidationFailed("A location cannot be placed under itself or its own descendant.",
                                        code="zone_cycle")
-            node = node.parent
-    total = _depth_above(parent) + 1 + (_height_below(zone) if zone is not None else 0)
+            if cur_id in seen:
+                raise ValidationFailed("Zone hierarchy contains a cycle.", code="zone_cycle")
+            seen.add(cur_id)
+            cur_id = parent_map.get(cur_id)
+    total = _depth_above(parent, parent_map=parent_map) + 1 + (_height_below(zone, parent_map=parent_map) if zone is not None else 0)
     if total > MAX_ZONE_DEPTH:
         raise ValidationFailed(f"Location hierarchy is limited to {MAX_ZONE_DEPTH} levels.", code="zone_too_deep")
 

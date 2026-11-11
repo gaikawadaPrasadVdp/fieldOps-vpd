@@ -455,7 +455,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         """This asset with all of its descendants, plus the chain of ancestors (root first)."""
         asset = self._asset(request, pk)
         path = [{"id": str(a.pk), "asset_tag": a.asset_tag} for a in reversed(hierarchy.ancestors(asset))]
-        return Response({"path": path, "tree": tree_node(hierarchy.build_tree(asset))})
+        return Response({"path": path, "tree": tree_node(hierarchy.build_tree(asset, annotate_health=False))})
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     @action(detail=True, methods=["get"])
@@ -592,7 +592,7 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
         # Build the same safe candidate set as the HTML view: exclude the current child's entire subtree
         # and all ancestors of the parent (to prevent cycles).
         child = link.child
-        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
+        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child, annotate_health=False))}
         parent_ancestors = (
             {a.pk for a in hierarchy.ancestors(link.parent)}
             | {link.parent_id, child.pk}

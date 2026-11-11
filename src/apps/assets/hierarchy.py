@@ -35,7 +35,9 @@ def ancestors(asset: Asset) -> list[Asset]:
     seen = {asset.pk}
     node = asset
     while True:
-        link = AssetComponent.objects.filter(child=node).select_related("parent").first()
+        link = AssetComponent.objects.filter(child=node).select_related(
+            "parent", "parent__category", "parent__site"
+        ).first()
         if link is None:
             return chain
         node = link.parent
@@ -258,13 +260,14 @@ def build_tree(root: Asset, *, annotate_health: bool = True) -> dict:
             break
         nxt = {}
         for link in links:
+            link.parent = level[link.parent_id]["asset"]
             child_node = {"asset": link.child, "link": link, "children": [], "depth": depth}
             level[link.parent_id]["children"].append(child_node)
             nxt[link.child_id] = child_node
         level = nxt
     if annotate_health and root:
         try:
-            annotate_tree_health(node, organization=root.organization)
+            annotate_tree_health(node, organization=root.organization_id)
         except Exception:
             pass
     return node
@@ -280,7 +283,7 @@ def flatten(node: dict) -> list[dict]:
 def validate_tree(root: Asset) -> dict:
     """Integrity report for the subtree below ``root`` (the API 'validate' action)."""
     issues = []
-    tree = build_tree(root)
+    tree = build_tree(root, annotate_health=False)
     nodes = flatten(tree)
     for n in nodes:
         link = n["link"]
