@@ -28,7 +28,7 @@ def reverse_noop(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("dashboards", "0002_sync_schema"),
+        ("dashboards", "0004_cleanup_legacy_reportsnapshot_columns"),
     ]
 
     operations = [
