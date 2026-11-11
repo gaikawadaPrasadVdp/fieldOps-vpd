@@ -132,9 +132,9 @@
               <span class="badge bg-light text-secondary border" title="Component of {{ a.parent_link.parent.asset_tag }}">
                 {% icon 'git-branch' 12 %} {{ a.parent_link.get_relationship_type_display }}: {{ a.parent_link.parent.asset_tag }}
               </span>
-            {% elif a.child_links.exists %}
+            {% elif a.child_count %}
               <span class="badge text-primary border border-primary-subtle" style="background: rgba(11, 31, 58, 0.06);">
-                {% icon 'layers' 12 %} Assembly Root ({{ a.child_links.count }})
+                {% icon 'layers' 12 %} Assembly Root ({{ a.child_count }})
               </span>
             {% else %}
               <span class="text-muted small">Standalone</span>
