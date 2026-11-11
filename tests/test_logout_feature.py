@@ -169,3 +169,42 @@ def test_logout_then_login_lands_at_app(client, owner_a):
     assert r_login_post.request["PATH_INFO"] == "/app/"
     assert any(dest == "/app/" for dest, _ in r_login_post.redirect_chain)
 
+
+def test_login_submit_with_slash_next_redirects_to_app(client, owner_a):
+    """When user submits login form with next='/' (or from root landing), they must redirect to /app/."""
+    from tests.conftest import PASSWORD
+    owner_a.set_password(PASSWORD)
+    owner_a.save()
+
+    # Form markup check: visiting /accounts/login/?next=/ sets hidden next value to /app/
+    resp_page = client.get("/accounts/login/?next=/")
+    assert resp_page.status_code == 200
+    assert '<input type="hidden" name="next" value="/app/">' in resp_page.content.decode("utf-8")
+
+    # POST with next='/' explicitly should still safely redirect to /app/
+    resp_post = client.post(
+        "/accounts/login/",
+        {"username": owner_a.email, "password": PASSWORD, "next": "/"},
+        follow=True,
+    )
+    assert resp_post.status_code == 200
+    assert resp_post.request["PATH_INFO"] == "/app/"
+    assert any(dest == "/app/" for dest, _ in resp_post.redirect_chain)
+
+
+def test_login_submit_with_accounts_next_redirects_to_app(client, owner_a):
+    """When user arrives with next pointing to /accounts/*, login redirects to /app/."""
+    from tests.conftest import PASSWORD
+    owner_a.set_password(PASSWORD)
+    owner_a.save()
+
+    resp_post = client.post(
+        "/accounts/login/",
+        {"username": owner_a.email, "password": PASSWORD, "next": "/accounts/login/"},
+        follow=True,
+    )
+    assert resp_post.status_code == 200
+    assert resp_post.request["PATH_INFO"] == "/app/"
+    assert any(dest == "/app/" for dest, _ in resp_post.redirect_chain)
+
+
