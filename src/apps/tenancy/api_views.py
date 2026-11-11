@@ -154,8 +154,10 @@ class PlatformOrganizationViewSet(PlatformAPIMixin, viewsets.ViewSet):
     @action(detail=True, methods=["post"])
     def set_status(self, request, pk=None):
         org = self._get_org(pk)
-        active = bool(request.data.get("active", True))
-        reason = request.data.get("reason", "") or ("Deactivated via platform API" if not active else "")
+        ser = PlatformOrganizationStatusSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        active = ser.validated_data["active"]
+        reason = ser.validated_data.get("reason", "") or ("Deactivated via platform API" if not active else "")
         services.set_organization_status(org, active=active, actor=request.user, reason=reason, request=request)
         return Response(OrganizationSerializer(org).data)
 

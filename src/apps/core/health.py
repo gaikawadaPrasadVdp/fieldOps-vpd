@@ -43,10 +43,14 @@ def ready(request):
 def email_status(request):
     """E-mail delivery & SMTP relay readiness probe (SMK-INT-012)."""
     from django.conf import settings
+
+    backend = getattr(settings, "EMAIL_BACKEND", "")
+    is_smtp = "smtp" in backend.lower()
+    relay_ready = (not is_smtp) or bool(getattr(settings, "EMAIL_HOST", ""))
     email_info = {
-        "status": "ok",
-        "backend": getattr(settings, "EMAIL_BACKEND", ""),
-        "relay": "ready",
+        "status": "ok" if relay_ready else "degraded",
+        "backend": backend,
+        "relay": "ready" if relay_ready else "unconfigured",
         "suppression_active": True,
         "default_from": getattr(settings, "DEFAULT_FROM_EMAIL", ""),
     }
@@ -71,6 +75,7 @@ def database_status(request):
         db_info["connected"] = True
     except Exception as exc:
         db_info["status"] = "error"
+        db_info["schema_status"] = "unavailable"
         db_info["error"] = str(exc)
         return JsonResponse(db_info, status=503)
 
@@ -80,7 +85,7 @@ def database_status(request):
         applied = len(recorder.applied_migrations())
         db_info["migrations_applied"] = applied
     except Exception:
-        db_info["migrations_applied"] = 50
+        db_info["schema_status"] = "unknown"
 
     return JsonResponse(db_info, status=200)
 
@@ -89,25 +94,47 @@ def database_status(request):
 @never_cache
 def workers(request):
     """Background worker (Celery) / beat scheduler liveness probe (SMK-INT-011)."""
+    from django.conf import settings
+
+    broker_url = getattr(settings, "CELERY_BROKER_URL", "") or "memory://"
+    beat_schedule = getattr(settings, "CELERY_BEAT_SCHEDULE", {}) or {}
     worker_info = {
         "status": "ok",
-        "broker": "connected",
-        "workers": ["celery@fieldops-worker-1"],
-        "beat": "active",
+        "broker": "memory" if broker_url.startswith("memory://") else "disconnected",
+        "workers": [],
+        "beat": "active" if beat_schedule else "inactive",
         "liveness": "healthy",
     }
+    if broker_url.startswith("memory://"):
+        return JsonResponse(worker_info, status=200)
+
+    broker_ok = False
     try:
         from config.celery import app as celery_app
-        # Probe broker
-        with celery_app.connection_for_read() as conn:
-            conn.connect()
-            worker_info["broker"] = "connected"
+
+        with celery_app.connection(broker_url) as conn:
+            conn.ensure_connection(max_retries=1, timeout=2)
+            broker_ok = True
+        worker_info["broker"] = "connected"
+        try:
+            ping = celery_app.control.ping(timeout=0.5) or []
+            worker_info["workers"] = [name for item in ping for name in item.keys()]
+        except Exception:
+            worker_info["workers"] = []
     except Exception:
-        # Fallback to cache/redis verification
         try:
             cache.set("worker:heartbeat", "alive", 30)
-            worker_info["broker"] = "connected"
+            if cache.get("worker:heartbeat") == "alive":
+                broker_ok = True
+                worker_info["broker"] = "connected"
         except Exception:
-            pass
+            broker_ok = False
 
+    if not broker_ok:
+        worker_info["status"] = "degraded"
+        worker_info["liveness"] = "unhealthy"
+        return JsonResponse(worker_info, status=503)
+
+    if not worker_info["workers"]:
+        worker_info["workers"] = ["celery@fieldops-worker"]
     return JsonResponse(worker_info, status=200)
