@@ -11,8 +11,8 @@
      ========================================================================= -->
 
 <section class="fx-video-showcase-section" aria-label="Asset Management video showcase">
-  <video class="fx-showcase-video" autoplay muted loop playsinline preload="metadata">
-    <source src="{% static 'images/fieldopusnexuslatest.mp4' %}" type="video/mp4">
+  <video class="fx-showcase-video" autoplay muted loop playsinline preload="auto">
+    <source src="{% static 'images/rafieldopusnexus.mp4' %}" type="video/mp4">
   </video>
 </section>
 
@@ -1186,7 +1186,7 @@
       <!-- ── Modules Cards (5–8) ── -->
 
       <!-- Workforce Management -->
-      <a href="{% url 'ui:public_module' 'workforce-management' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_platform' 'workforce-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-workforce.jpg' %}" alt="Workforce Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
@@ -1205,7 +1205,7 @@
       </a>
 
       <!-- Maintenance Management -->
-      <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_platform' 'maintenance-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-maintenance.jpg' %}" alt="Maintenance Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
@@ -1224,7 +1224,7 @@
       </a>
 
       <!-- Analytics & Reporting -->
-      <a href="{% url 'ui:public_module' 'analytics-reporting' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_platform' 'analytics-reporting' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-analytics.jpg' %}" alt="Analytics &amp; Reporting" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
@@ -1243,7 +1243,7 @@
       </a>
 
       <!-- Audit & Traceability -->
-      <a href="{% url 'ui:public_module' 'audit-traceability' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_platform' 'audit-traceability' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/audit-traceability.jpg' %}" alt="Audit &amp; Traceability" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
@@ -1501,7 +1501,7 @@
 
         </p>
 
-        <div class="d-flex flex-column gap-3 mb-5">
+        <div class="d-flex flex-column gap-3 mb-0">
 
           <div class="d-flex align-items-center gap-3">
 
@@ -1600,22 +1600,6 @@
           </div>
 
         </div>
-
-        <a
-
-          href="#modules"
-
-          class="d-inline-flex align-items-center gap-2 pb-2 text-decoration-none fw-bold"
-
-          style="color: #f5c451; border-bottom: 2px solid #f5c451"
-
-        >
-
-          <span>Explore the Platform</span>
-
-          {% icon 'arrow-right' 16 %}
-
-        </a>
 
       </div>
 
