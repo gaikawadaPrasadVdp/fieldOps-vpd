@@ -338,3 +338,19 @@ def sort_icon(context, field):
     return mark_safe('<span class="text-muted opacity-50 ms-1" style="font-size: 0.75em;">↕</span>')
 
 
+
+
+@register.filter
+def avatar_initials(value):
+    """Extract clean 2-letter uppercase initials from name or email (e.g. 'John Doe' -> 'JD')."""
+    if not value:
+        return ""
+    val_str = str(value).strip()
+    if "@" in val_str and " " not in val_str:
+        val_str = val_str.split("@")[0]
+    parts = val_str.replace(".", " ").replace("_", " ").replace("-", " ").split()
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[-1][0]).upper()
+    elif len(parts) == 1:
+        return parts[0][:2].upper()
+    return ""

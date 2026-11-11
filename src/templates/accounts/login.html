@@ -212,38 +212,7 @@
       csrfInput.value = cookieToken;
     }
   }
-  // Password visibility toggle
-  var toggle = document.getElementById("fx-pw-toggle");
-  var input = document.getElementById("id_password");
-  if (toggle && input) {
-    toggle.addEventListener("click", function(e) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      var isPass = (input.type === "password");
-      input.type = isPass ? "text" : "password";
-
-      var showIcon = toggle.querySelector(".fx-pw-show");
-      var hideIcon = toggle.querySelector(".fx-pw-hide");
-      if (showIcon && hideIcon) {
-        if (isPass) {
-          showIcon.classList.add("d-none");
-          showIcon.style.display = "none";
-          hideIcon.classList.remove("d-none");
-          hideIcon.style.display = "inline-flex";
-          toggle.setAttribute("aria-label", "Hide password");
-          toggle.setAttribute("title", "Hide password");
-        } else {
-          showIcon.classList.remove("d-none");
-          showIcon.style.display = "inline-flex";
-          hideIcon.classList.add("d-none");
-          hideIcon.style.display = "none";
-          toggle.setAttribute("aria-label", "Show password");
-          toggle.setAttribute("title", "Show password");
-        }
-      }
-      try { input.focus(); } catch (err) {}
-    });
-  }
+// Password visibility handled globally in app.js
 
   // Client-side empty validation & clean error presentation
   var form = document.getElementById("fx-login-form");

@@ -173,7 +173,7 @@ def test_sidebar_navigation_caching_and_active_isolation():
 
         # Verify active state resolved correctly for /app/work-orders/ on the cloned cached copy
         overview_item = ctx2["shell_nav_sections"]["Overview"][0]
-        workorders_item = ctx2["shell_nav_sections"]["Operations"][1]
+        workorders_item = [item for item in ctx2["shell_nav_sections"]["Operations"] if item["label"] == "Work Orders"][0]
         assert overview_item.get("active") is not True
         assert workorders_item.get("active") is True
 

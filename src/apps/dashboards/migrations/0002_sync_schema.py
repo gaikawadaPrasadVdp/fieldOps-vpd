@@ -47,6 +47,7 @@ def ensure_reportsnapshot_table(apps, schema_editor):
                 ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();
             ALTER TABLE dashboards_reportsnapshot
                 ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
+            ALTER TABLE dashboards_reportsnapshot DROP COLUMN IF EXISTS kind;
 
             CREATE INDEX IF NOT EXISTS dashboards_reportsnapshot_created_by_id_idx
                 ON dashboards_reportsnapshot (created_by_id);

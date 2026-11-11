@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Sum
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -816,7 +817,10 @@ def create_shift(
         is_active=is_active,
         notes=notes or "",
     )
-    shift.full_clean()
+    try:
+        shift.full_clean()
+    except ValidationError as exc:
+        raise ValidationFailed(exc.message_dict if hasattr(exc, "message_dict") else str(exc))
     shift.save()
 
     if actor:
@@ -843,7 +847,10 @@ def update_shift(
     for field, val in kwargs.items():
         if hasattr(shift, field):
             setattr(shift, field, val)
-    shift.full_clean()
+    try:
+        shift.full_clean()
+    except ValidationError as exc:
+        raise ValidationFailed(exc.message_dict if hasattr(exc, "message_dict") else str(exc))
     shift.save()
 
     if actor:

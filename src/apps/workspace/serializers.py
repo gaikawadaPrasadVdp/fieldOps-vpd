@@ -341,6 +341,13 @@ class ShiftWriteSerializer(serializers.ModelSerializer):
             "notes",
         ]
 
+    def validate(self, attrs):
+        start = attrs.get("start_time") or (self.instance.start_time if self.instance else None)
+        end = attrs.get("end_time") or (self.instance.end_time if self.instance else None)
+        if start and end and start == end:
+            raise serializers.ValidationError({"start_time": ["Shift start and end time cannot be identical."]})
+        return attrs
+
 
 class TechnicianProfileSerializer(serializers.ModelSerializer):
     membership_id = serializers.UUIDField(read_only=True)

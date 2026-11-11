@@ -230,8 +230,8 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
     reason = (reason or "").strip()
     if not reason:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
-    if source == "manual" and any(c.isdigit() for c in reason):
-        raise ValidationFailed("Reason must contain only alphabetical characters and cannot contain numbers.", code="invalid_reason")
+    if source == "manual" and reason.isdigit():
+        raise ValidationFailed("Reason must contain descriptive text and cannot be numbers only.", code="invalid_reason")
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     previous, new = ASSET_STATUS.apply(asset, action)
     asset.save(update_fields=["status", "updated_at"])
@@ -257,8 +257,9 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
                     "source": source,
                 },
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger("apps.assets").warning("Failed to publish asset status changed integration event: %s", exc)
     return asset
 
 

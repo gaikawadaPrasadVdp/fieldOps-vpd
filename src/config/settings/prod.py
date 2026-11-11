@@ -22,14 +22,12 @@ if render_hostname:
         CSRF_TRUSTED_ORIGINS.append(trusted)
 
 for default_origin in (
-    "https://*.onrender.com",
     "https://fieldops.onrender.com",
     "https://fieldops-qry5.onrender.com",
-    "https://feildops.onrender.com",
 ):
     if default_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(default_origin)
 
-for default_host in (".onrender.com", "fieldops.onrender.com", "fieldops-qry5.onrender.com", "feildops.onrender.com"):
+for default_host in ("fieldops.onrender.com", "fieldops-qry5.onrender.com"):
     if default_host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(default_host)
