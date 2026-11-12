@@ -55,6 +55,50 @@ def seed_system_roles(org, prune_extra: bool = False) -> dict[str, Role]:
     roles: dict[str, Role] = {}
     for tpl in TEMPLATES:
         role = Role.objects.unscoped().filter(organization=org, system_key=tpl.key).first()
+
+        # Handle pre-existing duplicate or custom roles that share the template's target name
+        # to prevent UniqueConstraint violations (lower(name), organization_id)
+        existing_with_name_qs = (
+            Role.objects.unscoped()
+            .filter(organization=org, name__iexact=tpl.name)
+            .exclude(pk=role.pk if role else None)
+        )
+        for existing_with_name in list(existing_with_name_qs):
+            if role is None:
+                role = existing_with_name
+                role.system_key = tpl.key
+                role.is_owner = tpl.is_owner
+                role.name = tpl.name
+                role.description = tpl.description
+                role.save(update_fields=["system_key", "is_owner", "name", "description"])
+            else:
+                # Merge assignments from existing_with_name into the canonical role
+                for mr in MembershipRole.objects.filter(role=existing_with_name):
+                    if not MembershipRole.objects.filter(membership=mr.membership, role=role, site=mr.site).exists():
+                        mr.role = role
+                        mr.save(update_fields=["role"])
+                    else:
+                        mr.delete()
+
+                try:
+                    from apps.sla.models import EscalationTier
+                    EscalationTier.objects.filter(notify_role=existing_with_name).update(notify_role=role)
+                except Exception:
+                    pass
+
+                for rp in RolePermission.objects.filter(role=existing_with_name):
+                    if not RolePermission.objects.filter(role=role, permission=rp.permission).exists():
+                        rp.role = role
+                        rp.save(update_fields=["role"])
+                    else:
+                        rp.delete()
+
+                try:
+                    existing_with_name.delete()
+                except Exception:
+                    existing_with_name.name = f"{tpl.name} (Archived)"
+                    existing_with_name.save(update_fields=["name"])
+
         if role is None:
             role = Role(organization=org, name=tpl.name, description=tpl.description,
                         system_key=tpl.key, is_owner=tpl.is_owner)
