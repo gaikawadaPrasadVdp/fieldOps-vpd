@@ -132,3 +132,127 @@ def test_owner_admin_full_prd_navigation_sections():
     assert "Roles & Permissions" in admin_labels
     assert "Technicians & Shifts" in admin_labels
     assert "Portal Accounts" in admin_labels
+
+
+def test_service_dispatcher_sidebar_mandatory_modules_only():
+    """Service Dispatcher must see only PRD-mandated dispatch modules."""
+    rf = RequestFactory()
+    req = rf.get("/app/")
+    req.user = MagicMock(is_authenticated=True, is_platform_admin=False)
+
+    membership = MagicMock()
+    membership.is_active = True
+    membership.portal_account = None
+    membership.is_owner = False
+    req.membership = membership
+    req.active_memberships = []
+    req.organization = MagicMock(name="Acme Corp")
+    req.tenant_error = None
+
+    from apps.rbac import services as rbac
+    from apps.rbac.models import MembershipRole
+
+    allowed = {
+        "incident.view", "work_order.view", "inspection.view",
+        "asset.view", "qr.scan", "sla.view", "report.view",
+    }
+    with patch.object(rbac, "is_owner", return_value=False), \
+         patch.object(rbac, "has_permission", return_value=False), \
+         patch.object(rbac, "has_permission_anywhere", side_effect=lambda m, code: code in allowed), \
+         patch("apps.ui.context_processors.is_client_membership", return_value=False), \
+         patch.object(MembershipRole.objects, "filter") as mock_filter:
+        mock_filter.return_value.values_list.return_value = ["service_dispatcher"]
+        ctx = shell(req)
+
+    sections = ctx.get("shell_nav_sections", {})
+    assert list(sections.keys()) == [
+        "Overview", "Operations", "Assets", "Service Level Agreements", "Analytics"
+    ]
+    assert [i["label"] for i in sections["Overview"]] == ["Operational Overview"]
+    assert [i["label"] for i in sections["Operations"]] == [
+        "Incidents & Requests", "Incident Dashboard", "Work Orders", "Inspections"
+    ]
+    assert [i["label"] for i in sections["Assets"]] == ["Assets", "Scan QR"]
+    assert [i["label"] for i in sections["Service Level Agreements"]] == ["SLA & Escalation"]
+    assert [i["label"] for i in sections["Analytics"]] == ["Analytics Hub"]
+
+
+def test_service_dispatcher_sidebar_respects_permissions():
+    """Service Dispatcher sidebar items are hidden when permissions are revoked."""
+    rf = RequestFactory()
+    req = rf.get("/app/")
+    req.user = MagicMock(is_authenticated=True, is_platform_admin=False)
+
+    membership = MagicMock()
+    membership.is_active = True
+    membership.portal_account = None
+    membership.is_owner = False
+    req.membership = membership
+    req.active_memberships = []
+    req.organization = MagicMock(name="Acme Corp")
+    req.tenant_error = None
+
+    from apps.rbac import services as rbac
+    from apps.rbac.models import MembershipRole
+
+    allowed = {"incident.view", "work_order.view"}
+    with patch.object(rbac, "is_owner", return_value=False), \
+         patch.object(rbac, "has_permission", return_value=False), \
+         patch.object(rbac, "has_permission_anywhere", side_effect=lambda m, code: code in allowed), \
+         patch("apps.ui.context_processors.is_client_membership", return_value=False), \
+         patch.object(MembershipRole.objects, "filter") as mock_filter:
+        mock_filter.return_value.values_list.return_value = ["service_dispatcher"]
+        ctx = shell(req)
+
+    sections = ctx.get("shell_nav_sections", {})
+    assert list(sections.keys()) == ["Overview", "Operations"]
+    assert [i["label"] for i in sections["Operations"]] == [
+        "Incidents & Requests", "Incident Dashboard", "Work Orders"
+    ]
+
+
+def test_maintenance_planner_sidebar_mandatory_modules_only():
+    """Maintenance Planner must see only PRD-mandated PM & planning modules."""
+    rf = RequestFactory()
+    req = rf.get("/app/")
+    req.user = MagicMock(is_authenticated=True, is_platform_admin=False)
+
+    membership = MagicMock()
+    membership.is_active = True
+    membership.portal_account = None
+    membership.is_owner = False
+    req.membership = membership
+    req.active_memberships = []
+    req.organization = MagicMock(name="Acme Corp")
+    req.tenant_error = None
+
+    from apps.rbac import services as rbac
+    from apps.rbac.models import MembershipRole
+
+    allowed = {
+        "maintenance.view", "work_order.view", "checklist.view",
+        "inspection.view", "asset.view", "qr.scan", "report.view",
+    }
+    with patch.object(rbac, "is_owner", return_value=False), \
+         patch.object(rbac, "has_permission", return_value=False), \
+         patch.object(rbac, "has_permission_anywhere", side_effect=lambda m, code: code in allowed), \
+         patch("apps.ui.context_processors.is_client_membership", return_value=False), \
+         patch.object(MembershipRole.objects, "filter") as mock_filter:
+        mock_filter.return_value.values_list.return_value = ["maintenance_planner"]
+        ctx = shell(req)
+
+    sections = ctx.get("shell_nav_sections", {})
+    assert list(sections.keys()) == [
+        "Overview", "Maintenance Planning", "Operations", "Assets", "Analytics"
+    ]
+    assert [i["label"] for i in sections["Overview"]] == ["Operational Overview"]
+    assert [i["label"] for i in sections["Maintenance Planning"]] == [
+        "Maintenance Plans", "Due & Upcoming", "PM History"
+    ]
+    assert [i["label"] for i in sections["Operations"]] == [
+        "Work Orders", "Checklists", "Inspections"
+    ]
+    assert [i["label"] for i in sections["Assets"]] == ["Assets", "Scan QR"]
+    assert [i["label"] for i in sections["Analytics"]] == ["Analytics Hub"]
+
+

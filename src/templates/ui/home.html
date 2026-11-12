@@ -100,12 +100,24 @@
         </a>
       </div>
     </div>
+    <style>
+      .fx-shift-progress { border-radius: 4px; }
+      .fx-shift-progress--overtime { background: linear-gradient(90deg, #F59E0B 0%, #D97706 100%); }
+      .fx-shift-progress--high { background: linear-gradient(90deg, #10B981 0%, #059669 100%); }
+      .fx-shift-progress--normal { background: linear-gradient(90deg, #3B82F6 0%, #1D4ED8 100%); }
+    </style>
     <div class="progress" style="height: 8px; background-color: #E2E8F0; border-radius: 4px;">
-      <div class="progress-bar" role="progressbar"
-           style="width: {{ capacity_summary.progress_pct }}%; background: {% if capacity_summary.is_overtime %}linear-gradient(90deg, #F59E0B 0%, #D97706 100%){% elif capacity_summary.utilization_pct >= 80 %}linear-gradient(90deg, #10B981 0%, #059669 100%){% else %}linear-gradient(90deg, #3B82F6 0%, #1D4ED8 100%){% endif %}; border-radius: 4px;"
+      <div class="progress-bar fx-shift-progress {% if capacity_summary.is_overtime %}fx-shift-progress--overtime{% elif capacity_summary.utilization_pct >= 80 %}fx-shift-progress--high{% else %}fx-shift-progress--normal{% endif %}"
+           role="progressbar"
+           data-progress-pct="{{ capacity_summary.progress_pct }}"
            aria-valuenow="{{ capacity_summary.utilization_pct }}" aria-valuemin="0" aria-valuemax="100">
       </div>
     </div>
+    <script>
+      document.querySelectorAll('.fx-shift-progress[data-progress-pct]').forEach(function (el) {
+        el.style.width = el.getAttribute('data-progress-pct') + '%';
+      });
+    </script>
   </div>
 </div>
 {% endif %}
@@ -258,6 +270,275 @@
           <a href="{% url 'identification:scan' %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
             {% icon 'qr' 14 %} Scan Equipment Barcode
           </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_dispatcher %}
+    <!-- Dispatcher Step 1: Incoming Service Requests (Triage / Approve / Convert) -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'bell' 16 %}
+          <span class="fw-bold text-dark">Incoming Service Requests (Triage &amp; Convert)</span>
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">{{ dispatcher_requests|length }} Pending</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'incidents:list' %}">
+          All Requests &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if dispatcher_requests %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-secondary">
+              <tr>
+                <th class="ps-3 py-2">Request #</th>
+                <th class="py-2">Issue &amp; Location</th>
+                <th class="py-2">Priority</th>
+                <th class="py-2">Status</th>
+                <th class="pe-3 py-2 text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in dispatcher_requests %}
+              <tr>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'incidents:detail' req.pk %}" class="text-decoration-none">{{ req.number }}</a>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark small">{{ req.title }}</div>
+                  <div class="text-secondary small">
+                    {% icon 'pin' 12 %} {{ req.site.name }}
+                    {% if req.asset %} &bull; {% icon 'box' 12 %} {{ req.asset.name }}{% endif %}
+                  </div>
+                </td>
+                <td>
+                  <span class="badge {% if req.priority == 'CRITICAL' %}bg-danger{% elif req.priority == 'HIGH' %}bg-warning text-dark{% elif req.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                    {{ req.get_priority_display }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ req.get_status_display }}</span>
+                </td>
+                <td class="pe-3 text-end">
+                  <a href="{% url 'incidents:detail' req.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2">
+                    {% if req.status == 'NEW' %}Triage{% elif req.status == 'TRIAGED' %}Approve{% else %}Create WO{% endif %} &rarr;
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-secondary small">
+          No service requests awaiting triage, approval, or work order conversion.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Dispatcher Step 2: Work Order Dispatch Queue (Plan / Assign / Dispatch) -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'clipboard' 16 %}
+          <span class="fw-bold text-dark">Work Order Dispatch Queue (Plan, Assign &amp; Dispatch)</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ dispatcher_work_orders|length }} Queued</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'workorders:list' %}">
+          All Work Orders &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if dispatcher_work_orders %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-secondary">
+              <tr>
+                <th class="ps-3 py-2">Order #</th>
+                <th class="py-2">Work Order &amp; Site</th>
+                <th class="py-2">Technician</th>
+                <th class="py-2">Status</th>
+                <th class="pe-3 py-2 text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wo in dispatcher_work_orders %}
+              <tr>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'workorders:detail' wo.pk %}" class="text-decoration-none">{{ wo.order_number }}</a>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark small">{{ wo.title }}</div>
+                  <div class="text-secondary small">
+                    {% icon 'pin' 12 %} {{ wo.site.name }}
+                    {% if wo.asset %} &bull; {% icon 'box' 12 %} {{ wo.asset.name }}{% endif %}
+                  </div>
+                </td>
+                <td class="small">
+                  {% if wo.assigned_to %}
+                    <span class="text-dark fw-medium">{{ wo.assigned_to.user.display_name }}</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Unassigned</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge {% if wo.status == 'ON_HOLD' %}bg-warning text-dark{% elif wo.status == 'ASSIGNED' %}bg-info text-dark{% else %}bg-light text-dark border{% endif %}">
+                    {{ wo.get_status_display }}
+                  </span>
+                </td>
+                <td class="pe-3 text-end">
+                  <a href="{% url 'workorders:detail' wo.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2">
+                    {% if wo.status == 'DRAFT' %}Plan{% elif wo.status == 'PLANNED' %}Assign{% elif wo.status == 'ASSIGNED' %}Dispatch{% else %}Reschedule{% endif %} &rarr;
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-secondary small">
+          No work orders currently waiting for planning, assignment, or dispatch.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_planner and planner_show_schedules %}
+    <!-- Planner Step 1: Due & Upcoming PM Schedules -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'clock' 16 %}
+          <span class="fw-bold text-dark">Active PM Recurrence Schedules</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ planner_due_schedules|length }} Scheduled</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'maintenance:due' %}">
+          Due &amp; Upcoming &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if planner_due_schedules %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-secondary">
+              <tr>
+                <th class="ps-3 py-2">Maintenance Plan</th>
+                <th class="py-2">Site &amp; Asset</th>
+                <th class="py-2">Trigger</th>
+                <th class="py-2">Next Due</th>
+                <th class="pe-3 py-2 text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sch in planner_due_schedules %}
+              <tr>
+                <td class="ps-3 fw-semibold text-dark small">
+                  <a href="{% url 'maintenance:plan' sch.plan.pk %}" class="text-decoration-none text-dark">{{ sch.plan.name }}</a>
+                </td>
+                <td class="small text-secondary">
+                  {% icon 'pin' 12 %} {{ sch.plan.site.name }}
+                  {% if sch.plan.asset %} &bull; {% icon 'box' 12 %} {{ sch.plan.asset.name }}{% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ sch.get_trigger_type_display }}</span>
+                </td>
+                <td class="small">
+                  {% if sch.next_due_date %}
+                    {{ sch.next_due_date|date:"Y-m-d" }}
+                  {% elif sch.next_due_value %}
+                    {{ sch.next_due_value }} {{ sch.meter.unit|default:"units" }}
+                  {% else %}
+                    &mdash;
+                  {% endif %}
+                </td>
+                <td class="pe-3 text-end">
+                  <a href="{% url 'maintenance:schedule' sch.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2">
+                    Manage &rarr;
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-secondary small">
+          No active preventive maintenance schedules configured.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_planner and planner_show_work_orders %}
+    <!-- Planner Step 2: Preventive Work Order Planning Queue -->
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'wrench' 16 %}
+          <span class="fw-bold text-dark">Preventive Work Order Planning Queue</span>
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">{{ planner_work_orders|length }} Active</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'workorders:list' %}">
+          All Work Orders &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if planner_work_orders %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-secondary">
+              <tr>
+                <th class="ps-3 py-2">Order #</th>
+                <th class="py-2">PM Job &amp; Site</th>
+                <th class="py-2">Technician</th>
+                <th class="py-2">Status</th>
+                <th class="pe-3 py-2 text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wo in planner_work_orders %}
+              <tr>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'workorders:detail' wo.pk %}" class="text-decoration-none">{{ wo.order_number }}</a>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark small">{{ wo.title }}</div>
+                  <div class="text-secondary small">
+                    {% icon 'pin' 12 %} {{ wo.site.name }}
+                    {% if wo.asset %} &bull; {% icon 'box' 12 %} {{ wo.asset.name }}{% endif %}
+                  </div>
+                </td>
+                <td class="small">
+                  {% if wo.assigned_to %}
+                    <span class="text-dark fw-medium">{{ wo.assigned_to.user.display_name }}</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Unassigned</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ wo.get_status_display }}</span>
+                </td>
+                <td class="pe-3 text-end">
+                  <a href="{% url 'workorders:detail' wo.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2">
+                    {% if wo.status == 'DRAFT' %}Plan{% elif wo.status == 'PLANNED' %}Assign{% else %}Review{% endif %} &rarr;
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-secondary small">
+          No preventive maintenance work orders currently in planning backlog.
         </div>
         {% endif %}
       </div>
