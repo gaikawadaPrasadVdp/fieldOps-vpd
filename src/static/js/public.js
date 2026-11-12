@@ -1807,11 +1807,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/workflow-field-operations.jpg', caption: 'Real-time asset telemetry and condition monitoring' },
+          { src: '/static/images/workflow-field-operations.webp', caption: 'Real-time asset telemetry and condition monitoring' },
 
-          { src: '/static/images/workflow-asset-management.jpg', caption: 'Asset health diagnostics and predictive condition tracking' },
+          { src: '/static/images/workflow-asset-management.webp', caption: 'Asset health diagnostics and predictive condition tracking' },
 
-          { src: '/static/images/operational-visibility.jpg', caption: 'Plant-wide equipment telemetry overview' }
+          { src: '/static/images/operational-visibility.webp', caption: 'Plant-wide equipment telemetry overview' }
 
         ]
 
@@ -1849,11 +1849,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/workflow-service-requests.jpg', caption: 'Automated service request intake and SLA contract triage' },
+          { src: '/static/images/workflow-service-requests.webp', caption: 'Automated service request intake and SLA contract triage' },
 
-          { src: '/static/images/connected-data.jpg', caption: 'Centralized incident ticket management and priority queue' },
+          { src: '/static/images/connected-data.webp', caption: 'Centralized incident ticket management and priority queue' },
 
-          { src: '/static/images/smarter-workflows.jpg', caption: 'Intelligent ticket routing and customer notification tracking' }
+          { src: '/static/images/smarter-workflows.webp', caption: 'Intelligent ticket routing and customer notification tracking' }
 
         ]
 
@@ -1891,11 +1891,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/module-work-orders.jpg', caption: 'Detailed work order formulation and procedural checklist design' },
+          { src: '/static/images/module-work-orders.webp', caption: 'Detailed work order formulation and procedural checklist design' },
 
-          { src: '/static/images/module-maintenance.jpg', caption: 'Preventive and corrective maintenance job planning' },
+          { src: '/static/images/module-maintenance.webp', caption: 'Preventive and corrective maintenance job planning' },
 
-          { src: '/static/images/fieldops-workflow-visual.jpg', caption: 'End-to-end maintenance workflow orchestration' }
+          { src: '/static/images/fieldops-workflow-visual.webp', caption: 'End-to-end maintenance workflow orchestration' }
 
         ]
 
@@ -1933,11 +1933,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/module-workforce.jpg', caption: 'Intelligent technician scheduling and GPS-enabled dispatch' },
+          { src: '/static/images/module-workforce.webp', caption: 'Intelligent technician scheduling and GPS-enabled dispatch' },
 
-          { src: '/static/images/workflow-field-operations.jpg', caption: 'Mobile field engineer dispatch and work order synchronization' },
+          { src: '/static/images/workflow-field-operations.webp', caption: 'Mobile field engineer dispatch and work order synchronization' },
 
-          { src: '/static/images/module-organization.jpg', caption: 'Field workforce management and real-time resource tracking' }
+          { src: '/static/images/module-organization.webp', caption: 'Field workforce management and real-time resource tracking' }
 
         ]
 
@@ -1975,11 +1975,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/workflow-inventory-management.jpg', caption: 'Depot parts staging and serialized barcode inventory checkout' },
+          { src: '/static/images/workflow-inventory-management.webp', caption: 'Depot parts staging and serialized barcode inventory checkout' },
 
-          { src: '/static/images/module-inventory.jpg', caption: 'Real-time stock level monitoring and component reservation' },
+          { src: '/static/images/module-inventory.webp', caption: 'Real-time stock level monitoring and component reservation' },
 
-          { src: '/static/images/module-assets.jpg', caption: 'Asset-linked parts consumption and inventory traceability' }
+          { src: '/static/images/module-assets.webp', caption: 'Asset-linked parts consumption and inventory traceability' }
 
         ]
 
@@ -2017,11 +2017,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/workflow-approval.jpg', caption: 'Quality assurance verification and photographic proof review' },
+          { src: '/static/images/workflow-approval.webp', caption: 'Quality assurance verification and photographic proof review' },
 
-          { src: '/static/images/workflow-insights.jpg', caption: 'Field supervisor inspection metrics and job performance review' },
+          { src: '/static/images/workflow-insights.webp', caption: 'Field supervisor inspection metrics and job performance review' },
 
-          { src: '/static/images/smarter-workflows.jpg', caption: 'Engineering compliance validation and checklist sign-off' }
+          { src: '/static/images/smarter-workflows.webp', caption: 'Engineering compliance validation and checklist sign-off' }
 
         ]
 
@@ -2059,11 +2059,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/resources_hero.jpg', caption: 'On-site client sign-off and cryptographic digital signature capture' },
+          { src: '/static/images/resources_hero.webp', caption: 'On-site client sign-off and cryptographic digital signature capture' },
 
-          { src: '/static/images/module-service.jpg', caption: 'Client service verification and satisfaction tracking' },
+          { src: '/static/images/module-service.webp', caption: 'Client service verification and satisfaction tracking' },
 
-          { src: '/static/images/connected-data.jpg', caption: 'Client portal service history and completion confirmation' }
+          { src: '/static/images/connected-data.webp', caption: 'Client portal service history and completion confirmation' }
 
         ]
 
@@ -2101,11 +2101,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         images: [
 
-          { src: '/static/images/audit-traceability.jpg', caption: 'Cryptographic audit package archive and ERP financial reconciliation' },
+          { src: '/static/images/audit-traceability.webp', caption: 'Cryptographic audit package archive and ERP financial reconciliation' },
 
-          { src: '/static/images/module-analytics.jpg', caption: 'SLA compliance analytics and operational KPI reporting' },
+          { src: '/static/images/module-analytics.webp', caption: 'SLA compliance analytics and operational KPI reporting' },
 
-          { src: '/static/images/workflow-insights.jpg', caption: 'Post-closure operational insights and reliability benchmarking' }
+          { src: '/static/images/workflow-insights.webp', caption: 'Post-closure operational insights and reliability benchmarking' }
 
         ]
 
