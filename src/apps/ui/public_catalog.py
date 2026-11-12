@@ -10,7 +10,7 @@ DETAIL_PAGES = {
         "subtitle": "ENTERPRISE OPERATIONS PLATFORM",
         "tagline": "Explore the complete FieldOps Nexus enterprise platform.",
         "description": "Unified, end-to-end operational visibility connecting service intake, asset management, automated scheduling, inventory control, and executive analytics into one seamless platform.",
-        "image_path": "images/operational-visibility.jpg",
+        "image_path": "images/operational-visibility.webp",
         "overlay_label": "FieldOps Nexus Enterprise Architecture Active",
         "metrics": [
             ["100%", "Operational Connectivity", "Single source of truth uniting dispatch, assets, inventory, and field personnel"],
@@ -34,7 +34,7 @@ DETAIL_PAGES = {
         "subtitle": "CONNECTED OPERATIONS ENGINE",
         "tagline": "Discover the essential tools for connected operations.",
         "description": "High-velocity field execution tools engineered for reliability, accuracy, and operational excellence across modern industrial and enterprise facilities.",
-        "image_path": "images/fieldops-workflow-visual.jpg",
+        "image_path": "images/fieldops-workflow-visual.webp",
         "overlay_label": "FieldOps Nexus Core Capabilities Active",
         "metrics": [
             ["8-Stage", "Service Flow Orchestration", "Standardized process execution from initial triage to verified supervisor closure"],
@@ -58,7 +58,7 @@ DETAIL_PAGES = {
         "subtitle": "SCALABLE SYSTEMS & INTEGRATION ARCHITECTURE",
         "tagline": "Understand the platform architecture and system integration.",
         "description": "Enterprise-grade multi-tenant foundation designed for seamless integration with legacy ERPs, SCADA telemetry, and mission-critical enterprise ecosystems.",
-        "image_path": "images/connected-data.jpg",
+        "image_path": "images/connected-data.webp",
         "overlay_label": "Enterprise Multi-Site Architecture Active",
         "metrics": [
             ["REST & Webhooks", "Open Integration API", "Bi-directional connectors for SAP, Oracle, NetSuite, SCADA, and IoT sensors"],
@@ -82,7 +82,7 @@ DETAIL_PAGES = {
         "subtitle": "CONNECTED ENTERPRISE ECOSYSTEM",
         "tagline": "Connect operational systems and enterprise applications.",
         "description": "Bridge field operations with corporate IT, supply chain ERPs, and facility IoT networks through resilient, high-performance connectors and webhooks.",
-        "image_path": "images/connected-data.jpg",
+        "image_path": "images/connected-data.webp",
         "overlay_label": "Integration Hub & Webhook Gateway Active",
         "metrics": [
             ["50+", "Pre-Built Connectors", "Turnkey integrations for leading ERP, CRM, IoT, and supply chain software solutions"],
@@ -106,7 +106,7 @@ DETAIL_PAGES = {
         "subtitle": "ENTERPRISE HIERARCHY & SITE CONFIGURATION",
         "tagline": "Bring sites, teams, zones, and business units into one connected view.",
         "description": "Define and manage your entire organizational structure — from enterprise groups and regional divisions down to individual sites, departments, and teams. Control access boundaries, asset ownership, and workforce allocation with precision.",
-        "image_path": "images/module-organization.jpg",
+        "image_path": "images/module-organization.webp",
         "overlay_label": "Enterprise Multi-Site Architecture Active",
         "metrics": [
             ["12+", "Hierarchy Levels", "Multi-tenant boundaries, regional divisions, plant sites, and zones"],
@@ -131,7 +131,7 @@ DETAIL_PAGES = {
         "subtitle": "ENTERPRISE ASSET TRACKING & HIERARCHY",
         "tagline": "Know the condition, history, and location of every critical asset.",
         "description": "Track physical assets across complex enterprise sites, maintain granular parent-child hierarchies, and monitor live operational telemetry with zero blind spots.",
-        "image_path": "images/module-assets.jpg",
+        "image_path": "images/module-assets.webp",
         "overlay_label": "Live Telemetry & Vibration Analysis Active",
         "metrics": [
             ["2,846", "Active Assets Monitored", "Across 14 enterprise facilities and regional operating plants"],
@@ -156,7 +156,7 @@ DETAIL_PAGES = {
         "subtitle": "CUSTOMER INTAKE & SLA TRIAGE",
         "tagline": "Deliver responsive, predictable service from intake to resolution.",
         "description": "Streamline client service requests, enforce strict contractual SLAs, and route tickets intelligently to eliminate operational bottlenecks.",
-        "image_path": "images/module-service.jpg",
+        "image_path": "images/module-service.webp",
         "overlay_label": "Dynamic SLA Priority Triage Active",
         "metrics": [
             ["14 min", "Avg. Initial Response", "Automated triage and priority routing across all ticket intake channels"],
@@ -181,7 +181,7 @@ DETAIL_PAGES = {
         "subtitle": "END-TO-END TASK ORCHESTRATION",
         "tagline": "Plan, assign, and track work orders with absolute clarity.",
         "description": "Equip planners and technicians with clear digital work orders, parts staging, safety checklists, and audit-ready digital signatures.",
-        "image_path": "images/module-work-orders.jpg",
+        "image_path": "images/module-work-orders.webp",
         "overlay_label": "Work Order Lifecycle #WO-8820 In Progress",
         "metrics": [
             ["142", "Active Work Orders", "Scheduled across mechanical, electrical, and facility teams"],
@@ -206,7 +206,7 @@ DETAIL_PAGES = {
         "subtitle": "MULTI-WAREHOUSE & VAN STOCK CONTROL",
         "tagline": "Keep essential parts moving without overstocking.",
         "description": "Eliminate stockouts and delays with multi-location inventory tracking, automated min/max reordering, and barcode scanning.",
-        "image_path": "images/module-inventory.jpg",
+        "image_path": "images/module-inventory.webp",
         "overlay_label": "Multi-Bin Stock Ledger Verified",
         "metrics": [
             ["$1.2M", "Tracked Parts Value", "Maintained across central warehouses, plant tool cribs, and fleet vans"],
@@ -231,7 +231,7 @@ DETAIL_PAGES = {
         "subtitle": "PREVENTIVE & PREDICTIVE SCHEDULING",
         "tagline": "Stay ahead of equipment downtime with proactive maintenance.",
         "description": "Automate preventive maintenance schedules, track equipment health degradation, and shift from reactive firefighting to predictive reliability.",
-        "image_path": "images/module-maintenance.jpg",
+        "image_path": "images/module-maintenance.webp",
         "overlay_label": "Automated PM Recurrence Calibrated",
         "metrics": [
             ["96.4%", "PM Schedule Compliance", "Proactive work completion within approved maintenance grace windows"],
@@ -256,7 +256,7 @@ DETAIL_PAGES = {
         "subtitle": "TECHNICIAN DISPATCH & SKILL MATRICES",
         "tagline": "Give every field team member the context to do their best work.",
         "description": "Coordinate technician schedules, track real-time job progression, and empower field teams with intuitive mobile tools.",
-        "image_path": "images/module-workforce.jpg",
+        "image_path": "images/module-workforce.webp",
         "overlay_label": "Technician Fleet Radar Active",
         "metrics": [
             ["88%", "Field Wrench Time", "Minimizing administrative paperwork and transit dead-time through smart dispatch"],
@@ -281,7 +281,7 @@ DETAIL_PAGES = {
         "subtitle": "EXECUTIVE OPERATIONAL INTELLIGENCE",
         "tagline": "Turn operational data into confident decisions.",
         "description": "Gain full executive visibility into equipment MTTR, technician utilization, parts spend, and SLA performance across all enterprise locations.",
-        "image_path": "images/module-analytics.jpg",
+        "image_path": "images/module-analytics.webp",
         "overlay_label": "Live KPI Pipeline Streaming",
         "metrics": [
             ["50+", "Standard KPI Metrics", "Covering equipment reliability, labor efficiency, inventory turns, and SLA health"],
@@ -306,7 +306,7 @@ DETAIL_PAGES = {
         "subtitle": "OPERATIONAL ACTIVITY & VERIFICATION HISTORY",
         "tagline": "Maintain a complete history of all operational activities.",
         "description": "Maintain clear operational history for internal reviews with digital activity records, photographic attachments, and timestamped supervisor sign-offs.",
-        "image_path": "images/audit-traceability.jpg",
+        "image_path": "images/audit-traceability.webp",
         "overlay_label": "Append-Only Immutable Ledger Verified",
         "metrics": [
             ["Immutable", "Append-Only Ledger", "Cryptographic hashing ensuring zero retroactive record manipulation"],
@@ -331,7 +331,7 @@ DETAIL_PAGES = {
         "subtitle": "HEAVY INDUSTRY & PRODUCTION UPTIME",
         "tagline": "Keep production-critical assets and lines running without downtime.",
         "description": "Maintain assembly lines, stamping presses, and robotic cells with precision preventive maintenance schedules and rapid breakdown dispatch.",
-        "image_path": "images/left.jpg",
+        "image_path": "images/left.webp",
         "overlay_label": "Automated Assembly Line Telemetry Active",
         "metrics": [
             ["45%", "Unscheduled Downtime Reduction", "Achieved through predictive component replacement and proactive PM cycles"],
@@ -356,7 +356,7 @@ DETAIL_PAGES = {
         "subtitle": "COMMERCIAL & CORPORATE INFRASTRUCTURE",
         "tagline": "Coordinate spaces, people, and tenant service delivery.",
         "description": "Manage HVAC chillers, elevators, fire suppression systems, and occupant work requests across multi-tenant commercial real estate.",
-        "image_path": "images/center.jpg",
+        "image_path": "images/center.webp",
         "overlay_label": "Building Automation & Life Safety Active",
         "metrics": [
             ["14M sq ft", "Managed Commercial Space", "Across corporate headquarters, medical centers, and mixed-use complexes"],
@@ -381,7 +381,7 @@ DETAIL_PAGES = {
         "subtitle": "RESPONSIVE FIELD EXECUTION",
         "tagline": "Deliver responsive service, proactive maintenance execution, and asset reliability wherever work happens.",
         "description": "Bridge the gap between work order intake, technician dispatch, van inventory, and verified completion to minimize operational disruptions.",
-        "image_path": "images/right.jpg",
+        "image_path": "images/right.webp",
         "overlay_label": "Live Field Service Dispatch Active",
         "metrics": [
             ["Multi-Tier", "SLA Contract Adherence", "Configurable policies across emergency repairs and scheduled servicing"],
@@ -406,7 +406,7 @@ DETAIL_PAGES = {
         "subtitle": "MISSION-CRITICAL PUBLIC ASSETS",
         "tagline": "Maintain the systems and assets that communities and enterprises depend on.",
         "description": "Ensure continuous reliability, regulatory compliance, and rapid incident response across power grids, municipal water facilities, transportation networks, and critical utilities.",
-        "image_path": "images/fieldops-workflow-visual.jpg",
+        "image_path": "images/fieldops-workflow-visual.webp",
         "overlay_label": "Continuous 24/7 Grid & Station Uptime Active",
         "metrics": [
             ["24/7/365", "Continuous Uptime Monitoring", "Automated telemetry alerts for electrical substations and pump stations"],
@@ -431,7 +431,7 @@ DETAIL_PAGES = {
         "subtitle": "SCALABLE MULTI-SITE INFRASTRUCTURE",
         "tagline": "Unify complex operations across your organization.",
         "description": "Standardize field operations across multi-country facilities with unified data governance, consolidated inventory, and executive dashboards.",
-        "image_path": "images/operational-visibility.jpg",
+        "image_path": "images/operational-visibility.webp",
         "overlay_label": "Enterprise Multi-Site Operations Console",
         "metrics": [
             ["48+", "Global Operating Sites", "Unified under standardized maintenance workflows and master data models"],
@@ -456,7 +456,7 @@ DETAIL_PAGES = {
         "subtitle": "SERVICE-LEVEL OBLIGATIONS & COMPLIANCE",
         "tagline": "Enforce commitments, eliminate response bottlenecks, and maintain audit-ready visibility.",
         "description": "Monitor service-level commitments, track response and resolution performance, and maintain visibility into operational service obligations.",
-        "image_path": "images/workflow-approval.jpg",
+        "image_path": "images/workflow-approval.webp",
         "overlay_label": "Active SLA Countdown Timers Monitored",
         "metrics": [
             ["99.4%", "Target SLA Adherence", "Real-time countdown clocks highlighting at-risk tickets before breach occurs"],
@@ -481,7 +481,7 @@ DETAIL_PAGES = {
         "subtitle": "DISTRIBUTED OPERATIONS & FACILITY GOVERNANCE",
         "tagline": "Bring sites, teams, assets, and service operations into one connected operational view.",
         "description": "Coordinate multi-facility portfolios with global standards, shared resource pools, and centralized visibility into asset health and maintenance compliance.",
-        "image_path": "images/module-organization.jpg",
+        "image_path": "images/module-organization.webp",
         "overlay_label": "Cross-Site Resource Coordination Active",
         "metrics": [
             ["60+", "Managed Operating Facilities", "Industrial plants, commercial distribution hubs, and service campuses"],
@@ -506,7 +506,7 @@ DETAIL_PAGES = {
         "subtitle": "UNIFIED SERVICE & OPERATIONAL INFORMATION",
         "tagline": "Connect operational information across teams, locations, assets, service requests, and work orders to support a consistent view of service operations.",
         "description": "Eliminate operational blind spots by linking every asset telemetry reading, customer service request, work order checklist, and inventory part into a unified relational data model.",
-        "image_path": "images/connected-data.jpg",
+        "image_path": "images/connected-data.webp",
         "overlay_label": "Relational Operational Graph Synced",
         "metrics": [
             ["0 Silos", "Unified Operational Schema", "Assets, requests, work orders, and spare parts fully integrated"],
@@ -531,7 +531,7 @@ DETAIL_PAGES = {
         "subtitle": "QUALITY ASSURANCE & SAFETY COMPLIANCE",
         "tagline": "Standardize field inspections and ensure regulatory compliance with digital SOPs.",
         "description": "Deploy dynamic inspection templates, enforce mandatory safety verification gates, and log corrective findings with photo documentation and digital sign-offs.",
-        "image_path": "images/workflow-field-operations.jpg",
+        "image_path": "images/workflow-field-operations.webp",
         "overlay_label": "Dynamic SOP & LOTO Safety Gates Active",
         "metrics": [
             ["100%", "Safety Gate Enforcement", "Technicians cannot advance work without completing mandatory PPE and hazard checklists"],
@@ -556,7 +556,7 @@ DETAIL_PAGES = {
         "subtitle": "COMMERCIAL ENTITLEMENTS & VENDOR AGREEMENTS",
         "tagline": "Protect service entitlements and avoid paying for covered repairs.",
         "description": "Track vendor agreements, verify active warranty coverage before ordering replacement parts, manage preventive maintenance service contracts, and receive timely expiration alerts.",
-        "image_path": "images/workflow-approval.jpg",
+        "image_path": "images/workflow-approval.webp",
         "overlay_label": "Warranty Coverage & SLA Entitlement Active",
         "metrics": [
             ["$310K", "Annual Warranty Recovery", "Saved by automatically identifying covered equipment before paying third-party repairs"],
@@ -581,7 +581,7 @@ DETAIL_PAGES = {
         "subtitle": "RAPID MOBILE ASSET TAGGING & DISPATCH",
         "tagline": "Bridge physical assets with digital records in one second.",
         "description": "Generate industrial barcode and QR labels, scan assets with any smartphone camera in the field, and instantly retrieve maintenance histories and submit work orders.",
-        "image_path": "images/module-assets.jpg",
+        "image_path": "images/module-assets.webp",
         "overlay_label": "High-Speed Optical Scanner Active",
         "metrics": [
             ["1 sec", "Mobile Asset Scan Time", "Instant asset card retrieval using standard smartphone and tablet cameras"],
@@ -606,7 +606,7 @@ DETAIL_PAGES = {
         "subtitle": "SELF-SERVICE INTAKE & REAL-TIME VISIBILITY",
         "tagline": "Provide clients and internal stakeholders with crystal-clear service tracking.",
         "description": "Multi-tenant self-service portal empowering customers and departmental requesters to submit tickets, track real-time technician progress, and approve completed work.",
-        "image_path": "images/smarter-workflows.jpg",
+        "image_path": "images/smarter-workflows.webp",
         "overlay_label": "Client Portal Self-Service Verified",
         "metrics": [
             ["70%", "Fewer Status Inquiry Calls", "Tenants track live ticket progress directly on mobile and web dashboards"],
@@ -631,7 +631,7 @@ DETAIL_PAGES = {
         "subtitle": "FIELD MOBILITY & JOB EXECUTION CONSOLE",
         "tagline": "Everything the field technician needs to get the job done right the first time.",
         "description": "Purpose-built field mobility workspace providing technicians with digital checklists, spare parts lookup, labor timers, equipment manuals, and offline capability.",
-        "image_path": "images/workflow-field-operations.jpg",
+        "image_path": "images/workflow-field-operations.webp",
         "overlay_label": "Technician Mobile Workspace Connected",
         "metrics": [
             ["Offline", "First Architecture", "Work without interruption in basement plant rooms and remote utility sites"],
@@ -656,7 +656,7 @@ DETAIL_PAGES = {
         "subtitle": "EQUIPMENT GENEALOGY & COMPONENT RELATIONSHIPS",
         "tagline": "Visualize complex equipment relationships from site level down to individual parts.",
         "description": "Build multi-tier asset trees, track parent-child equipment dependencies, maintain serial number component swaps, and analyze failure propagation.",
-        "image_path": "images/workflow-asset-management.jpg",
+        "image_path": "images/workflow-asset-management.webp",
         "overlay_label": "Multi-Tier Tree Lineage Active",
         "metrics": [
             ["7+ Tiers", "Deep Hierarchy Modeling", "Site > Building > System > Machine > Subassembly > Component > Part"],
