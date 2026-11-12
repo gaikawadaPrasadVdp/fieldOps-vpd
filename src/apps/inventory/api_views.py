@@ -4,7 +4,7 @@ Every view: ``TenantAPIMixin`` (identity -> ACTIVE membership -> organization) +
 denied) -> object lookup restricted to the caller's organization AND site scope (404) -> permission for the object's
 site (403) -> service (validation, locks, ledger, audit)."""
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -128,7 +128,7 @@ class TransferSerializer(serializers.Serializer):
 class MovementSerializer(serializers.ModelSerializer):
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True)
     part_number = serializers.CharField(source="part.part_number", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
+    work_order_number = serializers.SerializerMethodField()
     actor_email = serializers.SerializerMethodField()
 
     class Meta:
@@ -142,11 +142,18 @@ class MovementSerializer(serializers.ModelSerializer):
     def get_actor_email(self, obj) -> str | None:
         return obj.actor.email if obj.actor_id else None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
 
 class ReservationSerializer(serializers.ModelSerializer):
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True)
     part_number = serializers.CharField(source="part.part_number", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
 
     class Meta:
         model = PartReservation
@@ -154,12 +161,19 @@ class ReservationSerializer(serializers.ModelSerializer):
                   "part_number", "quantity", "status", "created_at", "updated_at"]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
 
 class PartLineSerializer(serializers.ModelSerializer):
     part_number = serializers.CharField(source="part.part_number", read_only=True)
     part_name = serializers.CharField(source="part.name", read_only=True)
     unit = serializers.CharField(source="part.unit", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True, default=None, allow_null=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     reserved = serializers.SerializerMethodField()
@@ -174,6 +188,13 @@ class PartLineSerializer(serializers.ModelSerializer):
     def get_reserved(self, obj) -> str:
         res = getattr(obj, "reservation", None)  # reverse one-to-one: absent -> None
         return str(res.quantity if res else 0)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
 
 
 class PartLineCreateSerializer(serializers.Serializer):

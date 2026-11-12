@@ -282,7 +282,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
         cycle = scoped_get(selectors.cycles_for(request.membership, request.organization), cycle.pk, "Cycle")
         return Response(CycleSerializer(cycle).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(responses=CycleSerializer)
+    @extend_schema(responses=CycleSerializer(many=True))
     @action(detail=True, methods=["get"])
     def cycles(self, request, pk=None):
         sch = self._sch(request, pk)
@@ -320,7 +320,7 @@ class MaintenanceCycleViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("plan", "plan id", OpenApiTypes.UUID),
                                query_param("schedule", "schedule id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=CycleSerializer)
+                   responses=CycleSerializer(many=True))
     def list(self, request):
         qs = selectors.filter_cycles(selectors.cycles_for(request.membership, request.organization),
                                      request.query_params)
