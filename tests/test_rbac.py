@@ -159,3 +159,31 @@ def test_new_member_permissions_displayed_in_roles_ui(client, owner_a, org_a):
     snippet = content[idx-100:idx+100]
     assert "checked" in snippet
 
+
+def test_seed_system_roles_reconciles_preexisting_role_name_collision(org_a, make_member):
+    # Simulate an organization with a legacy/custom role already named "Field Technician"
+    # while the system role for "technician" has an older name (e.g. "Technician")
+    tech_system_role = Role.objects.filter(organization=org_a, system_key="technician").first()
+    assert tech_system_role is not None
+    tech_system_role.name = "Technician"
+    tech_system_role.save(update_fields=["name"])
+
+    # Create a conflicting role with name "Field Technician" and assign a member to it
+    conflict_role = Role.objects.create(
+        organization=org_a,
+        name="Field Technician",
+        description="Conflicting custom role",
+        system_key="",
+    )
+    user_m = make_member(org_a, "conflict_member@alpha.test", "admin")
+    MembershipRole.objects.create(membership=user_m, role=conflict_role)
+
+    # Calling seed_system_roles must cleanly reconcile without IntegrityError
+    roles_dict = services.seed_system_roles(org_a)
+    assert roles_dict["technician"].name == "Field Technician"
+
+    # The member should now have been migrated to the system role
+    assert MembershipRole.objects.filter(membership=user_m, role=roles_dict["technician"]).exists()
+    assert not Role.objects.filter(pk=conflict_role.pk).exists()
+
+
