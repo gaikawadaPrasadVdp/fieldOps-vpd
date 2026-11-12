@@ -84,7 +84,7 @@
 {% block scripts %}{{ block.super }}
 <script src="{% static 'js/workorder-date-validation.js' %}?v=m06-plan-v2" defer></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 
   document.addEventListener("DOMContentLoaded", function () {
 
