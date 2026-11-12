@@ -151,3 +151,36 @@ def test_work_order_serializer_schema_fields():
     assert "approved" in wo_props
     assert "checklist_key" in wo_props
     assert "is_active" in wo_props
+
+
+@pytest.mark.django_db
+def test_docs_and_swagger_endpoints_route_and_redirect_without_trailing_slash():
+    """Verify /api/v1/docs, /docs, /swagger, /schema route cleanly without 404."""
+    from rest_framework.test import APIClient
+    client = APIClient()
+
+    # Without trailing slash
+    r = client.get("/api/v1/docs", follow=False, HTTP_HOST="localhost")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/api/v1/docs/"
+
+    # With trailing slash
+    r = client.get("/api/v1/docs/", follow=False, HTTP_HOST="localhost")
+    assert r.status_code == 200
+    assert "SwaggerUIBundle" in r.content.decode()
+
+    # /docs alias
+    r = client.get("/docs", follow=False, HTTP_HOST="localhost")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/api/v1/docs/"
+
+    # /swagger alias
+    r = client.get("/swagger", follow=False, HTTP_HOST="localhost")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/api/v1/docs/"
+
+    # /api/v1/schema without slash
+    r = client.get("/api/v1/schema", follow=False, HTTP_HOST="localhost")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/api/v1/schema/"
+
