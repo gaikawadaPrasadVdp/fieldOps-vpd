@@ -13857,3 +13857,29 @@ a.fx-footer-location-link:focus-visible {
     font-size: 11px;
   }
 }
+
+/* ==========================================================================
+   Inner Pages Initial & Scrolled Navbar Dark Navy Glassmorphism
+   (Strictly isolated from Home page .fx-page-home)
+   ========================================================================== */
+body.fx-public-site:not(.fx-page-home) .fx-pub-header {
+  background: rgba(7, 20, 38, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: none;
+  box-shadow: none;
+}
+
+body.fx-public-site:not(.fx-page-home) .fx-pub-header.is-scrolled {
+  background: rgba(7, 20, 38, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: none;
+  box-shadow: none;
+}
+
+body.fx-public-site:not(.fx-page-home) .fx-pub-header.has-mega-open {
+  background: #071426;
+  border-bottom: none;
+  box-shadow: none;
+}
