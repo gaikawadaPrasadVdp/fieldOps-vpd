@@ -272,3 +272,56 @@ def test_platform_audit_category_and_search_filters(client, platform_admin, org_
     assert "Filter Test Login" in res_search.content.decode()
     assert "Filter Test Org" not in res_search.content.decode()
 
+
+def test_platform_admin_overview_ui(client, platform_admin, org_a):
+    client.force_login(platform_admin)
+    response = client.get(reverse("platform_admin:overview"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Platform Overview" in content
+    assert "Organizations" in content
+    # Ensure tenant-internal operational metrics are NOT displayed (Rule D-008)
+    assert "Master Assets" not in content
+    assert "Facility Sites" not in content
+
+
+def test_platform_admin_overview_redirect_from_home(client, platform_admin):
+    client.force_login(platform_admin)
+    response = client.get(reverse("ui:home"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Platform Overview" in content
+    assert "Master Assets" not in content
+
+
+def test_non_platform_admin_blocked_from_overview(client, owner_a):
+    client.force_login(owner_a)
+    response = client.get(reverse("platform_admin:overview"))
+    assert response.status_code == 403
+
+
+def test_platform_admin_can_update_owner_credentials(client, platform_admin, org_a, owner_a):
+    client.force_login(platform_admin)
+    url = reverse("platform_admin:organization_owner_credentials", kwargs={"org_id": org_a.pk})
+
+    # Test password mismatch / length validation
+    short_res = client.post(url, {"new_password": "short", "confirm_password": "short"})
+    assert short_res.status_code == 302
+
+    # Successful update
+    res = client.post(url, {"new_password": "newSecurePassword123!", "confirm_password": "newSecurePassword123!"})
+    assert res.status_code == 302
+    assert res.url == reverse("platform_admin:organizations")
+
+    # Verify owner can now authenticate with the new password
+    owner_a.refresh_from_db()
+    assert owner_a.check_password("newSecurePassword123!")
+
+
+def test_non_platform_admin_blocked_from_owner_credentials(client, owner_a, org_a):
+    client.force_login(owner_a)
+    url = reverse("platform_admin:organization_owner_credentials", kwargs={"org_id": org_a.pk})
+    response = client.post(url, {"new_password": "newPassword123!", "confirm_password": "newPassword123!"})
+    assert response.status_code == 403
+
+

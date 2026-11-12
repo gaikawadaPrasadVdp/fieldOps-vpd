@@ -401,9 +401,9 @@ def shell(request):
     if getattr(user, "is_platform_admin", False):
         sections = {
             "Platform Governance": [
+                {"label": "Overview", "url": _safe_reverse("platform_admin:overview"), "icon": "grid", "match_prefix": "/platform/overview", "match_prefixes": ["/platform/overview", "/app"]},
                 {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
                 {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                
             ]
         }
         sections = _filter_valid_nav_items(sections)
