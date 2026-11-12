@@ -1,0 +1,19 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Label Not Found · Client Portal · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="fx-page-header mb-3">
+    <div><h1>Label not recognised</h1></div>
+  </div>
+  <div class="alert alert-warning" role="alert">
+    This code is not a valid label for your authorized client assets, or you do not have permission to access this equipment. Check the code or contact operations support.
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="{% url 'portal:scan' %}">{% icon 'qr' 15 %} Try Another Code</a>
+    <a class="btn btn-outline-secondary" href="{% url 'portal:dashboard' %}">Back to Client Portal</a>
+  </div>
+</div>
+{% endblock %}

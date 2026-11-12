@@ -665,7 +665,8 @@ def _pause_context(t: SLATracking):
     if t.request_id and f"REQUEST:{t.request.status}" in tokens:
         from apps.incidents.models import ServiceRequestHistory
         history = ServiceRequestHistory.objects.for_organization(t.organization).filter(
-            request_id=t.request_id, to_status=t.request.status).order_by("-created_at").first()
+            request_id=t.request_id, to_status=t.request.status).exclude(
+            action="request_updated").order_by("-created_at").first()
         return f"REQUEST:{t.request.status}", (history.reason if history and history.reason else
                                                   f"Request status: {t.request.status.replace('_', ' ').title()}"), \
             history.changed_by if history else None
@@ -809,7 +810,7 @@ def on_request_status_changed(sr, previous: str, new: str, *, actor=None) -> Non
     if actor and f"REQUEST:{new}" in set(t.profile.pause_states or []):
         from apps.incidents.models import ServiceRequestHistory
         last = ServiceRequestHistory.objects.for_organization(t.organization).filter(
-            request=sr, to_status=new).order_by("-created_at").first()
+            request=sr, to_status=new).exclude(action="request_updated").order_by("-created_at").first()
         if last and last.source == "manual" and len((last.reason or "").strip()) < 3:
             raise ValidationFailed("Add a Pause Reason before moving this item into a configured pause state.",
                                    code="pause_reason_required")

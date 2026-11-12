@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% load static ui_tags %}
+
+{% block title %}{% if is_report_mode or request.GET.action == 'report' %}Scan to Request Service{% else %}Scan Asset Label{% endif %} · Client Portal · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <a href="{% url 'portal:dashboard' %}" class="text-decoration-none">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">
+            {% icon 'arrow-left' 12 %} Client Portal
+          </span>
+        </a>
+      </div>
+      {% if is_report_mode or request.GET.action == 'report' %}
+        <h1 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+          <span>Scan Asset to Request Service</span>
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-6">Direct Intake</span>
+        </h1>
+        <p class="text-body-secondary mb-0">Point the camera at the equipment's QR or barcode label to open its service request form.</p>
+      {% else %}
+        <h1 class="h3 fw-bold mb-1">Scan Asset Label</h1>
+        <p class="text-body-secondary mb-0">Scan a physical QR code or barcode on your authorized equipment to inspect its details or submit a request.</p>
+      {% endif %}
+    </div>
+
+    <div class="btn-group" role="group" aria-label="Scan Mode">
+      <a href="{% url 'portal:scan' %}" class="btn btn-sm {% if not is_report_mode and request.GET.action != 'report' %}btn-primary active{% else %}btn-outline-primary{% endif %}">
+        Lookup Asset
+      </a>
+      <a href="{% url 'portal:scan' %}?action=report" class="btn btn-sm {% if is_report_mode or request.GET.action == 'report' %}btn-danger active{% else %}btn-outline-danger{% endif %}">
+        Request Service
+      </a>
+    </div>
+  </div>
+
+  {% if is_report_mode or request.GET.action == 'report' %}
+  <div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center justify-content-between shadow-sm border-warning-subtle">
+    <div class="d-flex align-items-center gap-2">
+      {% icon 'alert-triangle' 18 %}
+      <div>
+        <strong>Request Mode Active:</strong> Scanning or entering a label code will open the service request form for that equipment.
+      </div>
+    </div>
+    <a href="{% url 'portal:scan' %}" class="btn btn-sm btn-outline-secondary">Switch to Asset Lookup</a>
+  </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="fx-card shadow-sm">
+        <div class="fx-card-header">Camera Scanner</div>
+        <div class="fx-card-body">
+          <div id="scan-camera" data-resolve-url="{% url 'portal:scan_resolve' token='__TOKEN__' %}" data-zxing-src="{% static 'lib/zxing.min.js' %}">
+            <div id="scan-viewport" class="fx-scan-viewport">
+              <video id="scan-video" playsinline muted autoplay></video>
+              <div class="fx-scan-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div id="scan-status" class="fx-scan-status" role="status" aria-live="polite">Starting the camera…</div>
+            <div id="scan-error" class="alert alert-warning py-2 mt-2 mb-2" role="alert" hidden></div>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <button type="button" class="btn btn-primary btn-sm" id="scan-retry" hidden>Retry camera</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="scan-switch" hidden>Switch camera</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="scan-stop" hidden>Stop camera</button>
+            </div>
+          </div>
+          <noscript><p class="text-body-secondary mb-0">The camera scanner requires JavaScript. Enter the label code manually.</p></noscript>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="fx-card shadow-sm">
+        <div class="fx-card-header">Enter Code Manually</div>
+        <div class="fx-card-body">
+          <form method="post" id="scan-form" novalidate>{% csrf_token %}
+            {% if is_report_mode or request.GET.action == 'report' %}
+              <input type="hidden" name="action" value="report">
+            {% endif %}
+            <label class="form-label fw-semibold" for="scan-token">Label code or scanned link</label>
+            <input class="form-control mb-3" id="scan-token" name="token" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="e.g. K3V9Q2… or full label link">
+            <button class="btn {% if is_report_mode or request.GET.action == 'report' %}btn-danger{% else %}btn-primary{% endif %}" type="submit">
+              {% if is_report_mode or request.GET.action == 'report' %}Continue to Service Request{% else %}Look Up Asset{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/qr_scan.js' %}" defer></script>{% endblock %}

@@ -940,3 +940,89 @@ def sync_portal_grants_for_asset(asset: Asset, actor=None) -> int:
         if created:
             granted += 1
     return granted
+
+
+def resolve_portal_token(
+    membership: Membership | None,
+    token: str,
+    *,
+    actor=None,
+    request=None,
+):
+    """Resolves a QR/barcode token for an authorized client portal account.
+
+    Enforces:
+    - Valid, active, enabled PortalAccount via verify_portal_access.
+    - Token belongs to the caller's organization.
+    - Target asset is explicitly granted to the client's PortalAccount.
+    Records ScanEvent and audit log entries without disclosing ungranted assets.
+    """
+    import hashlib
+    from apps.identification.models import AssetIdentifier, ScanEvent
+    from apps.identification.services import extract_token
+
+    account = verify_portal_access(membership)
+    org = membership.organization
+    extracted = extract_token(token)
+    token_fingerprint = hashlib.sha256(extracted.encode("utf-8")).hexdigest()[:12] if extracted else "empty"
+
+    identifier = (
+        AssetIdentifier.objects.for_organization(org)
+        .filter(token=extracted)
+        .select_related("asset__site", "asset__zone", "asset__category")
+        .first()
+    )
+    if identifier is None:
+        audit.record(
+            "qr.scan_unknown",
+            actor=actor,
+            organization=org,
+            metadata={"fingerprint": token_fingerprint, "source": "portal"},
+            request=request,
+        )
+        raise NotFound("Label not found.", code="label_not_found")
+
+    asset = identifier.asset
+    has_grant = PortalAssetGrant.objects.for_organization(org).filter(
+        portal_account=account,
+        asset=asset,
+    ).exists()
+    if not has_grant:
+        audit.record(
+            "qr.scan_denied",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "site_id": str(asset.site_id), "source": "portal"},
+            request=request,
+        )
+        raise PermissionDenied("You do not have access to this asset.", code="permission_denied")
+
+    ScanEvent(
+        organization=org,
+        identifier=identifier,
+        asset=asset,
+        scanned_by=actor,
+    ).save()
+
+    if not identifier.is_active:
+        audit.record(
+            "qr.scan_revoked",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "revoked_at": str(identifier.revoked_at), "source": "portal"},
+            request=request,
+        )
+    else:
+        audit.record(
+            "qr.scanned",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "kind": identifier.kind, "source": "portal"},
+            request=request,
+        )
+
+    return identifier, asset, identifier.is_active
+

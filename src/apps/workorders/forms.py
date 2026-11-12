@@ -229,6 +229,33 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
             for name in list(self.fields):
                 if name not in planning_fields:
                     self.fields.pop(name)
+            for name in planning_fields:
+                self.fields[name].required = True
+            self.fields["work_type"].choices = [("", "Choose a work type"), *WorkOrder.WorkType.choices]
+            self.fields["work_type"].error_messages["required"] = "Choose a work type before saving a planned work order."
+            self.fields["priority"].choices = [("", "Choose a priority"), *WorkOrder.Priority.choices]
+            self.fields["priority"].error_messages["required"] = "Choose a priority before saving a planned work order."
+            self.fields["planned_start"].error_messages.update({
+                "required": "Enter the planned start date and time.",
+                "invalid": "Enter a valid planned start date and time.",
+            })
+            self.fields["planned_end"].error_messages.update({
+                "required": "Enter the planned end date and time.",
+                "invalid": "Enter a valid planned end date and time.",
+            })
+            self.fields["due_at"].error_messages.update({
+                "required": "Enter the due date and time.",
+                "invalid": "Enter a valid due date and time.",
+            })
+            self.fields["estimated_hours"].error_messages.update({
+                "required": "Enter estimated hours.",
+                "invalid": "Enter estimated hours as a number.",
+                "min_value": "Estimated hours must be greater than zero.",
+            })
+            self.fields["estimated_hours"].widget.attrs.setdefault("step", "0.01")
+            self.fields["estimated_hours"].widget.attrs.setdefault("min", "0.01")
+            if not self.initial.get("planned_start"):
+                self.initial["planned_start"] = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
         if "component" in self.fields:
             self.fields["component"].label_from_instance = lambda link: f"{link.parent.asset_tag} → {link.child.asset_tag} · {link.child.name}"
     def clean(self):
@@ -316,6 +343,12 @@ class PlanForm(BootstrapFormMixin, forms.Form):
 
             if work_order.source_request_id:
                 self.fields["priority"].help_text = "Defaulted from linked source record; can be adjusted manually."
+
+            if not self.initial.get("planned_start"):
+                self.initial["planned_start"] = (
+                    work_order.planned_start
+                    or timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+                )
 
     def clean(self):
         cleaned = super().clean()

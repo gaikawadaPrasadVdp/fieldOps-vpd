@@ -10,11 +10,13 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.assets.workflow import TERMINAL_STATES
 from apps.audit import services as audit
-from apps.core.exceptions import DomainError
+from apps.core.exceptions import DomainError, NotFound, PermissionDenied as CorePermissionDenied
 from apps.incidents.models import ServiceRequest
 from apps.incidents.selectors import evidence_for
 from apps.incidents.services import DuplicateIncidentError
+from apps.rbac import services as rbac
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import forms, selectors, services
@@ -89,7 +91,15 @@ class RequestCreateView(LoginRequiredMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        form = forms.PortalServiceRequestForm(organization=request.organization, membership=request.membership)
+        initial = {}
+        asset_id = request.GET.get("asset", "").strip()
+        if asset_id and selectors.is_asset_granted_to_client(request.membership, asset_id):
+            asset = selectors.granted_assets_for(request.membership).filter(pk=asset_id).first()
+            if asset:
+                initial = {"asset": asset.pk, "site": asset.site_id}
+        form = forms.PortalServiceRequestForm(
+            organization=request.organization, membership=request.membership, initial=initial
+        )
         return render(
             request,
             "portal/request_create.html",
@@ -534,3 +544,293 @@ class AccountEditView(TenantPermissionMixin, View):
             f"Portal account for {user.email} updated successfully.",
         )
         return redirect("portal:accounts_list")
+
+
+class _PortalScanMixin(LoginRequiredMixin, View):
+    """Shared portal gatekeeping for client QR/barcode scanning views."""
+
+    require_create = False
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.tenant_error:
+            return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
+        if request.membership is None:
+            return redirect("ui:choose_org")
+        try:
+            verifier = (
+                services.verify_portal_request_create_access
+                if self.require_create
+                else services.verify_portal_access
+            )
+            self.account = verifier(request.membership)
+        except Exception as exc:
+            raise PermissionDenied(str(exc)) from exc
+        return super().dispatch(request, *args, **kwargs)
+
+    def _base_context(self, request):
+        return {
+            "account": self.account,
+            "company_name": self.account.company_name or request.organization.name,
+            "org": request.organization,
+        }
+
+    def _can_create_request(self, request) -> bool:
+        return bool(
+            rbac.has_permission(request.membership, "portal.request.create")
+            or rbac.has_permission_anywhere(request.membership, "portal.request.create")
+        )
+
+    def _resolve_or_none(self, request, token):
+        try:
+            return services.resolve_portal_token(
+                request.membership, token, actor=request.user, request=request
+            )
+        except (NotFound, CorePermissionDenied, DomainError):
+            return None, None, False
+
+
+def _submit_portal_scan_request(request, asset, ident, form, template_name, extra_context):
+    """Submits a portal service request for a QR-resolved asset, handling duplicates and errors."""
+    duplicate_detected = False
+    duplicate_records = []
+    if form.is_valid():
+        d = form.cleaned_data
+        attachment = d.pop("attachment", None)
+        attachments = [attachment] if attachment else []
+        override_dup = bool(request.POST.get("override_duplicate") in ("true", "True", "1"))
+        override_rsn = request.POST.get("override_reason", "Client confirmed separate issue via QR scan")
+        try:
+            sr = services.create_portal_service_request(
+                request.membership,
+                asset=asset,
+                title=d["title"],
+                description=d.get("description", ""),
+                severity=d.get("severity", ServiceRequest.Severity.MEDIUM),
+                service_impact=d.get("service_impact", ServiceRequest.Impact.NONE),
+                impact_notes=d.get("impact_notes", ""),
+                site=asset.site,
+                attachments=attachments,
+                override_duplicate=override_dup,
+                override_reason=override_rsn,
+                actor=request.user,
+                request=request,
+            )
+            messages.success(
+                request,
+                f"Service request {sr.number} has been submitted for {asset.name}.",
+            )
+            return redirect("portal:request_detail", pk=str(sr.pk))
+        except DuplicateIncidentError as exc:
+            duplicate_detected = True
+            duplicate_records = exc.duplicates
+            dup_num = exc.duplicates[0]["number"] if exc.duplicates else "an active request"
+            form.add_error(
+                None,
+                f"Possible duplicate request detected: An active request ({dup_num}) already exists for this equipment. "
+                "If this is a separate issue, click 'Confirm & Submit Anyway' below.",
+            )
+        except DomainError as exc:
+            form.add_error(None, exc.message)
+
+    return render(
+        request,
+        template_name,
+        extra_context
+        | {
+            "asset": asset,
+            "identifier": ident,
+            "form": form,
+            "duplicate_detected": duplicate_detected,
+            "duplicate_records": duplicate_records,
+        },
+        status=400,
+    )
+
+
+class PortalScanView(_PortalScanMixin):
+    """Client Portal camera and manual QR/barcode scanner."""
+
+    def get(self, request):
+        action = request.GET.get("action", "")
+        return render(
+            request,
+            "portal/scan.html",
+            self._base_context(request) | {"is_report_mode": action == "report"},
+        )
+
+    def post(self, request):
+        from apps.identification.services import extract_token
+
+        raw_token = request.POST.get("token", "").strip()
+        action = request.POST.get("action") or request.GET.get("action")
+        token = extract_token(raw_token)
+        if not token:
+            messages.error(request, "Please enter a valid asset label code or link.")
+            return render(
+                request,
+                "portal/scan.html",
+                self._base_context(request) | {"is_report_mode": action == "report"},
+                status=400,
+            )
+        if action == "report":
+            return redirect("portal:scan_report", token=token)
+        return redirect("portal:scan_resolve", token=token)
+
+
+class PortalScanResolveView(_PortalScanMixin):
+    """Resolves a scanned QR/barcode token to a client-granted asset."""
+
+    def get(self, request, token):
+        ident, asset, is_active = self._resolve_or_none(request, token)
+        if ident is None or asset is None:
+            return render(
+                request,
+                "portal/scan_not_found.html",
+                self._base_context(request),
+                status=404,
+            )
+
+        if request.GET.get("action") == "report" or request.GET.get("report") == "1":
+            return redirect("portal:scan_report", token=ident.token)
+
+        is_terminal = asset.status in TERMINAL_STATES
+        can_report = bool(is_active and not is_terminal and self._can_create_request(request))
+        return render(
+            request,
+            "portal/scan_resolved.html",
+            self._base_context(request)
+            | {
+                "asset": asset,
+                "identifier": ident,
+                "revoked": not is_active,
+                "asset_inactive": is_terminal,
+                "can_report": can_report,
+                "form": forms.PortalScanRequestForm() if can_report else None,
+            },
+        )
+
+    def post(self, request, token):
+        if not self._can_create_request(request):
+            raise PermissionDenied("Account lacks request creation permission.")
+
+        ident, asset, is_active = self._resolve_or_none(request, token)
+        if ident is None or asset is None:
+            return render(
+                request,
+                "portal/scan_not_found.html",
+                self._base_context(request),
+                status=404,
+            )
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced.")
+            return redirect("portal:scan_resolve", token=ident.token)
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot submit a request for a {asset.status.lower()} asset.")
+            return redirect("portal:scan_resolve", token=ident.token)
+
+        form = forms.PortalScanRequestForm(request.POST, request.FILES)
+        return _submit_portal_scan_request(
+            request,
+            asset,
+            ident,
+            form,
+            "portal/scan_resolved.html",
+            self._base_context(request)
+            | {
+                "revoked": False,
+                "asset_inactive": False,
+                "can_report": True,
+            },
+        )
+
+
+class PortalScanReportView(_PortalScanMixin):
+    """Direct QR scan-to-service-request page inside the Client Portal."""
+
+    require_create = True
+
+    def get(self, request, token):
+        ident, asset, is_active = self._resolve_or_none(request, token)
+        if ident is None or asset is None:
+            return render(
+                request,
+                "portal/scan_not_found.html",
+                self._base_context(request),
+                status=404,
+            )
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced. Submitting a request requires an active label.")
+            return render(
+                request,
+                "portal/scan_resolved.html",
+                self._base_context(request)
+                | {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": True,
+                    "asset_inactive": asset.status in TERMINAL_STATES,
+                    "can_report": False,
+                },
+                status=400,
+            )
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot submit a request for a {asset.status.lower()} asset.")
+            return render(
+                request,
+                "portal/scan_resolved.html",
+                self._base_context(request)
+                | {
+                    "asset": asset,
+                    "identifier": ident,
+                    "revoked": False,
+                    "asset_inactive": True,
+                    "can_report": False,
+                },
+                status=400,
+            )
+
+        return render(
+            request,
+            "portal/scan_report.html",
+            self._base_context(request)
+            | {
+                "asset": asset,
+                "identifier": ident,
+                "form": forms.PortalScanRequestForm(),
+            },
+        )
+
+    def post(self, request, token):
+        ident, asset, is_active = self._resolve_or_none(request, token)
+        if ident is None or asset is None:
+            return render(
+                request,
+                "portal/scan_not_found.html",
+                self._base_context(request),
+                status=404,
+            )
+
+        if not is_active:
+            messages.error(request, "This asset label was revoked or replaced.")
+            return redirect("portal:scan_resolve", token=ident.token)
+
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot submit a request for a {asset.status.lower()} asset.")
+            return redirect("portal:scan_resolve", token=ident.token)
+
+        form = forms.PortalScanRequestForm(request.POST, request.FILES)
+        return _submit_portal_scan_request(
+            request,
+            asset,
+            ident,
+            form,
+            "portal/scan_report.html",
+            self._base_context(request),
+        )
+

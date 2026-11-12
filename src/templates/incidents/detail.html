@@ -194,8 +194,6 @@
   </div>
 </div>
 
-{% if transitions %}<div class="mb-3">{% include "components/_workflow_bar.html" %}</div>{% endif %}
-
 {% if tab == "overview" %}
 {% include "sla/_panel.html" %}
 
@@ -500,7 +498,7 @@
 
 {% elif tab == "history" %}
 <div class="fx-card"><div class="fx-card-header">Status history</div><div class="fx-card-body"><ul class="fx-timeline" id="request-history">
-  {% for h in history %}<li><div class="fw-semibold">{% if h.from_status %}{{ h.from_status|cut:"_"|title }} → {% endif %}{% status_badge h.to_status %}</div>
+  {% for h in history %}<li><div class="fw-semibold">{% if h.from_status and h.from_status != h.to_status %}{% status_badge h.from_status %} → {% endif %}{% status_badge h.to_status %}</div>
     <div class="small text-body-secondary">{{ h.created_at|date:"d M Y H:i" }} · {{ h.changed_by.email|default:"system" }} · {{ h.action }}{% if h.source != "manual" %} ({{ h.source }}){% endif %}</div>{% if h.reason %}<div class="small">{{ h.reason }}</div>{% endif %}</li>
   {% endfor %}</ul></div></div>
 {% endif %}
