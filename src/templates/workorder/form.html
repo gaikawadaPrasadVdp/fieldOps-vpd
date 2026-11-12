@@ -39,7 +39,7 @@
   </form>
 </div>
 {% endblock %}
-{% block scripts %}<script>
+{% block scripts %}<script nonce="{{ csp_nonce }}">
   document.addEventListener("DOMContentLoaded", function () {
     const descField = document.getElementById("id_description");
     if (!descField) return;

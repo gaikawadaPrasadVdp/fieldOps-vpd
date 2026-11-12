@@ -4,10 +4,19 @@
 {% block content %}
 <div class="fx-page-header">
   <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Overview</a></li>
+        <li class="breadcrumb-item active" aria-current="page">SLA Tracking</li>
+      </ol>
+    </nav>
     <h1>SLA tracking</h1>
     <div class="text-body-secondary">Response and resolution timers of requests and work orders. Times are wall-clock; a timer pauses only for states the profile lists.</div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}">
+      {% icon 'arrow-left' 14 %} Back to Overview
+    </a>
     {% if can_process %}
     <form method="post" action="{% url 'sla:process' %}" class="m-0" id="run-check-form">
       {% csrf_token %}
@@ -267,14 +276,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (text) text.textContent = "Checking...";
 
       try {
-        const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+        const csrf = csrfInput ? csrfInput.value : '';
+        const formData = new FormData(form);
         const resp = await fetch(form.action, {
           method: "POST",
+          body: formData,
           headers: {
             "X-CSRFToken": csrf,
             "X-Requested-With": "XMLHttpRequest",
             "Accept": "application/json"
-          }
+          },
+          credentials: "same-origin"
         });
         if (!resp.ok) throw new Error("Check failed with status " + resp.status);
         const data = await resp.json();

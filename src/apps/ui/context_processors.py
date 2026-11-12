@@ -370,7 +370,7 @@ def _build_tenant_nav(membership, is_owner):
             admin_items.append({"label": "Users", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"})
         if rbac.has_permission_anywhere(membership, "role.manage") or rbac.has_permission_anywhere(membership, "role.view"):
             admin_items.append({"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"})
-        if rbac.has_permission_anywhere(membership, "work_order.view"):
+        if rbac.has_permission_anywhere(membership, "user.view") and rbac.has_permission_anywhere(membership, "work_order.view"):
             admin_items.append({"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"})
         if rbac.has_permission_anywhere(membership, "portal.manage"):
             admin_items.append({"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"})
@@ -513,9 +513,9 @@ def shell(request):
     if getattr(user, "is_platform_admin", False):
         sections = {
             "Platform Governance": [
+                {"label": "Overview", "url": _safe_reverse("platform_admin:overview"), "icon": "grid", "match_prefix": "/platform/overview", "match_prefixes": ["/platform/overview", "/app"]},
                 {"label": "Organizations", "url": _safe_reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
                 {"label": "Platform Audit Trail", "url": _safe_reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
-                
             ]
         }
         sections = _filter_valid_nav_items(sections)

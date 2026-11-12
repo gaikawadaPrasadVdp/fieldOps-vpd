@@ -2214,6 +2214,39 @@ document.addEventListener("click", function (e) {
     }
   });
 
+  // 3b. Universal CSP-compliant Go Back and Reload handlers
+  document.addEventListener("click", function (e) {
+    var backBtn = e.target.closest("[data-action='go-back']");
+    if (backBtn) {
+      e.preventDefault();
+      var fallback = backBtn.getAttribute("data-fallback") || backBtn.getAttribute("href") || "/app/";
+      
+      // If there is an internal referrer different from current page and not an auth page, navigate to it
+      if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
+        try {
+          var refUrl = new URL(document.referrer);
+          if (refUrl.pathname !== window.location.pathname && !refUrl.pathname.startsWith("/accounts/")) {
+            window.location.href = document.referrer;
+            return;
+          }
+        } catch (e) {}
+      }
+
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = fallback;
+      }
+      return;
+    }
+    var reloadBtn = e.target.closest("[data-action='reload-page']");
+    if (reloadBtn) {
+      e.preventDefault();
+      window.location.reload();
+      return;
+    }
+  });
+
   // 4. Handle Sign out button click / form submission with explicit API fetch
   document.addEventListener("click", function (e) {
     var elem = e.target.closest("#fx-logout-btn, button, a");

@@ -1,6 +1,11 @@
 from django import forms
 
-from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
+from apps.ui.forms import (
+    BootstrapFormMixin,
+    validate_alphabetical_description,
+    validate_business_name,
+    validate_safe_text,
+)
 
 from .models import Part, Warehouse
 
@@ -85,13 +90,12 @@ class PartForm(BootstrapFormMixin, forms.Form):
 
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
-        validate_alphabetical_description(name, field_label="Name")
-        return name
+        return validate_business_name(name, field_label="Part name", min_len=2, max_len=200)
 
     def clean_description(self):
         desc = (self.cleaned_data.get("description") or "").strip()
         if desc:
-            validate_alphabetical_description(desc, field_label="Description")
+            return validate_safe_text(desc, field_label="Description", max_len=1000, required=False)
         return desc
 
     def clean_unit(self):
