@@ -530,6 +530,14 @@
           </h5>
         </div>
         <div class="card-body">
+          {% if work_order.status == 'COMPLETED' or work_order.status == 'SUPERVISOR_REVIEW' or work_order.status == 'CLOSED' %}
+          <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2">
+            {% icon 'check-circle' 18 %}
+            <div class="small">
+              <strong>Work Completed:</strong> Work order is in {{ work_order.get_status_display }} status. Travel cannot be logged after completion.
+            </div>
+          </div>
+          {% else %}
           <form method="post" action="{% url 'workspace:travel' work_order.pk %}" class="mb-4">
             {% csrf_token %}
             <div class="row g-2 mb-2">
@@ -558,6 +566,7 @@
               {% icon 'plus' 14 %} Record Travel Time
             </button>
           </form>
+          {% endif %}
 
           <!-- Travel Logs List -->
           <div class="border-top pt-3">
@@ -590,6 +599,14 @@
           </h5>
         </div>
         <div class="card-body">
+          {% if work_order.status == 'COMPLETED' or work_order.status == 'SUPERVISOR_REVIEW' or work_order.status == 'CLOSED' %}
+          <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2">
+            {% icon 'check-circle' 18 %}
+            <div class="small">
+              <strong>Work Completed:</strong> Work order is in {{ work_order.get_status_display }} status. Additional labor hours cannot be logged.
+            </div>
+          </div>
+          {% elif work_order.status == 'IN_PROGRESS' or work_order.status == 'ON_HOLD' %}
           <form method="post" action="{% url 'workspace:labor' work_order.pk %}" id="onSiteLaborForm" class="mb-4" novalidate>
             {% csrf_token %}
             <div class="row g-2 mb-2">
@@ -616,6 +633,12 @@
               {% icon 'plus' 14 %} Record Labor Time
             </button>
           </form>
+          {% else %}
+          <div class="alert alert-light border d-flex align-items-center gap-2 mb-3 py-2 text-secondary">
+            {% icon 'info' 18 %}
+            <div class="small">Work order must be in progress to record labor hours.</div>
+          </div>
+          {% endif %}
 
           <!-- Labor Entries List -->
           <div class="border-top pt-3">
@@ -665,6 +688,12 @@
           </div>
         </div>
         <div class="card-body">
+          {% if has_pending_part_requests %}
+          <div class="alert alert-warning small mb-3 d-flex align-items-center justify-content-between gap-2">
+            <span><strong>Pending Part Request:</strong> {{ pending_part_requests|length }} part request{{ pending_part_requests|length|pluralize }} awaiting store issue. Fulfill or cancel unused requests before completing this job.</span>
+            <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-dark flex-shrink-0">Manage Parts</a>
+          </div>
+          {% endif %}
           {% if has_consumable_parts %}
           <ul class="nav nav-pills nav-fill mb-3 p-1 bg-light rounded" role="tablist">
             <li class="nav-item" role="presentation">

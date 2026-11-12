@@ -25,7 +25,10 @@
 
     {% if wo.work_type == 'CORRECTIVE' or wo.work_type == 'INSTALLATION' %}{% if not evidence_count %}<a
       class="wo-inline-state is-warning"
-      href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}</div>
+      href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}
+    {% if pending_part_blockers %}<a
+      class="wo-inline-state is-warning"
+      href="{% url 'inventory:wo_parts' wo.pk %}">Pending part requests ({{ pending_part_blockers|length }}) · Review</a>{% endif %}</div>
 
   {% elif operation == 'Assign' %}{% if not form.fields.assigned_to.queryset.exists %}<div class="wo-action-flags"
     role="status"><span class="wo-inline-state is-warning">No eligible technicians</span> <span class="text-secondary small ms-2">No active technicians with authorization for {% if wo.site %}site <strong>{{ wo.site.name }}</strong>{% else %}this organization{% endif %} were found.</span></div>{% endif %}{% endif %}

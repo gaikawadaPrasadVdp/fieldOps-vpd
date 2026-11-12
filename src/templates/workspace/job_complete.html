@@ -72,6 +72,13 @@
               <li>{{ blocker }}</li>
             {% endfor %}
           </ul>
+          {% if has_pending_part_requests %}
+            <div class="mt-2">
+              <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-dark">
+                Manage Parts &amp; Requests
+              </a>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>

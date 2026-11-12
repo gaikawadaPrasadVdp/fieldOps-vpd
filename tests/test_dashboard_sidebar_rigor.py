@@ -66,7 +66,8 @@ def test_all_dashboards_render_sidebar_for_roles(org_a, make_member, owner_a):
     assert "fx-sidebar" in portal_resp.content.decode()
     sections = portal_resp.context.get("shell_nav_sections", {})
     assert "Portal" in sections
-    assert len(sections["Portal"]) == 3
+    assert len(sections["Portal"]) == 4
     assert b"Client Portal" in portal_resp.content
     assert b"My Requests" in portal_resp.content
     assert b"New Request" in portal_resp.content
+    assert b"Scan QR" in portal_resp.content

@@ -87,9 +87,9 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Scan QR / Barcode", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Commercial & Contracts"] = [
-            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "file-text", "match_prefix": "/app/contracts"},
-            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "alert-triangle", "match_prefix": "/app/contracts/expiry"},
-            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "briefcase", "match_prefix": "/app/contracts/providers"},
+            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
@@ -102,7 +102,7 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Organization Settings", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
             {"label": "Users & Invitations", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
             {"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
-            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"},
+            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "wrench", "match_prefix": "/app/workspace/technicians"},
             {"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
         ]
 
@@ -528,6 +528,7 @@ def shell(request):
     req_path = request.path
     membership = getattr(request, "membership", None)
     crumbs, back_url = _build_breadcrumbs(request)
+    idle_timeout_ms = max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000
 
     # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
     if getattr(user, "is_platform_admin", False):
@@ -549,6 +550,7 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     if membership is None:
@@ -561,6 +563,7 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     # 2. Client / Requester Navigation (M13)
@@ -585,6 +588,7 @@ def shell(request):
             "is_client": True,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
         # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
@@ -614,4 +618,5 @@ def shell(request):
         "is_org_owner": is_owner,
         "shell_breadcrumbs": crumbs,
         "shell_back_url": back_url,
+        "session_idle_timeout_ms": idle_timeout_ms,
     }
