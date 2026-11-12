@@ -667,10 +667,25 @@ document.addEventListener("click", function (e) {
     var customMsg = "";
 
     if (isValid && field.type === "email" && field.value.trim()) {
-      var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
+      var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z-]*(\.[a-zA-Z][a-zA-Z-]*)*\.[a-zA-Z]{2,}$/;
       if (!strictEmailRegex.test(field.value.trim())) {
         isValid = false;
-        customMsg = "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension.";
+        customMsg = "Enter a valid email address (e.g. name@gmail.com). Domain names cannot contain numbers or special characters (e.g. @3, @#).";
+      }
+    }
+
+    if (isValid && field.type === "tel" && field.value.trim()) {
+      var telVal = field.value.trim();
+      var digitsOnly = telVal.replace(/\D/g, "");
+      if (!/^[0-9+\s()-]+$/.test(telVal)) {
+        isValid = false;
+        customMsg = "Phone must contain only numbers (e.g. 9876543210 or +91 98765 43210).";
+      } else {
+        var nationalDigits = telVal.startsWith("+91") ? digitsOnly.slice(2) : (telVal.startsWith("+") ? "" : digitsOnly);
+        if (nationalDigits.length !== 10) {
+          isValid = false;
+          customMsg = "Phone number must be exactly 10 digits (e.g. 9876543210 or +91 98765 43210).";
+        }
       }
     }
 
@@ -781,7 +796,7 @@ document.addEventListener("click", function (e) {
 
   document.addEventListener("input", function (e) {
     var field = e.target;
-    if (field && field.classList.contains("is-invalid")) {
+    if (field && (field.classList.contains("is-invalid") || (field.dataset && field.dataset.liveValidate === "true" && field.value !== ""))) {
       validateField(field);
     }
     if (field && (field.id === "id_occurred_at" || field.id === "id_downtime_started_at")) {

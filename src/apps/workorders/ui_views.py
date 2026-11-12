@@ -895,6 +895,14 @@ def _work_order_tab_context(wo, membership, tab):
                            can_execute and rbac.has_permission(membership, "work_order.record", wo.site)),
        "can_attach_evidence": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
                                rbac.has_permission(membership, "work_order.attach", wo.site)),
+       "can_request_parts": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
+                             rbac.has_permission(membership, "inventory.request", wo.site)),
+       "can_manage_parts": (
+           rbac.has_permission(membership, "inventory.request", wo.site)
+           or rbac.has_permission(membership, "inventory.issue", wo.site)
+           or rbac.has_permission(membership, "inventory.reserve", wo.site)
+           or rbac.has_permission(membership, "inventory.return", wo.site)
+       ),
        "is_closed": wo.status == WorkOrder.Status.CLOSED,
        "due_is_overdue": bool(wo.due_at and wo.due_at < timezone.now() and
                                wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}

@@ -201,32 +201,35 @@ def _build_tenant_nav(membership, is_owner):
 
     elif "maintenance_planner" in role_keys:
         sections["Overview"] = [
-            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+            {"label": "Operational Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
         ]
-        sections["Operations"] = [
-            {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
-            {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
-        ]
-        sections["Maintenance Planning"] = [
-            {"label": "Maintenance plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
-            {"label": "Due & upcoming", "url": _safe_reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
-            {"label": "PM history", "url": _safe_reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
-        ]
-        sections["Work Management"] = [
-            {"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
-            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
-        ]
-        sections["Inventory & Warehouses"] = [
-            {"label": "Parts", "url": _safe_reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
-            {"label": "Stock", "url": _safe_reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"},
-            {"label": "Warehouses", "url": _safe_reverse("inventory:warehouses"), "icon": "building", "match_prefix": "/app/inventory/warehouses"},
-            {"label": "Reservations", "url": _safe_reverse("inventory:reservations"), "icon": "list-check", "match_prefix": "/app/inventory/reservations"},
-            {"label": "Movements", "url": _safe_reverse("inventory:movements"), "icon": "clipboard", "match_prefix": "/app/inventory/movements"},
-        ]
+        if rbac.has_permission_anywhere(membership, "maintenance.view"):
+            sections["Maintenance Planning"] = [
+                {"label": "Maintenance Plans", "url": _safe_reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
+                {"label": "Due & Upcoming", "url": _safe_reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
+                {"label": "PM History", "url": _safe_reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
+            ]
+        ops_items = []
+        if rbac.has_permission_anywhere(membership, "work_order.view"):
+            ops_items.append({"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"})
+        if rbac.has_permission_anywhere(membership, "checklist.view"):
+            ops_items.append({"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"})
+        if rbac.has_permission_anywhere(membership, "inspection.view"):
+            ops_items.append({"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"})
+        if ops_items:
+            sections["Operations"] = ops_items
+
+        asset_items = []
+        if rbac.has_permission_anywhere(membership, "asset.view"):
+            asset_items.append({"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
+        if rbac.has_permission_anywhere(membership, "qr.scan"):
+            asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
+        if asset_items:
+            sections["Assets"] = asset_items
+
         if rbac.has_permission_anywhere(membership, "report.view"):
             sections["Analytics"] = [
                 {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
-                {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "archive", "match_prefix": "/app/dashboards/snapshots"},
             ]
 
     elif "supervisor" in role_keys:
@@ -252,25 +255,34 @@ def _build_tenant_nav(membership, is_owner):
 
     elif "service_dispatcher" in role_keys:
         sections["Overview"] = [
-            {"label": "Operations Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+            {"label": "Operational Overview", "url": _safe_reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
         ]
-        sections["Operations"] = [
-            {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
-            {"label": "Incident Dashboard", "url": _safe_reverse("incidents:dashboard"), "icon": "activity", "match_prefix": "/app/incidents/dashboard"},
-            {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
-            {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
-        ]
-        sections["Assets"] = [
-            {"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
-            {"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
-        ]
-        sections["Service Level Agreements"] = [
-            {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
-        ]
+        ops_items = []
+        if rbac.has_permission_anywhere(membership, "incident.view"):
+            ops_items.append({"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"})
+            ops_items.append({"label": "Incident Dashboard", "url": _safe_reverse("incidents:dashboard"), "icon": "activity", "match_prefix": "/app/incidents/dashboard"})
+        if rbac.has_permission_anywhere(membership, "work_order.view"):
+            ops_items.append({"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"})
+        if rbac.has_permission_anywhere(membership, "inspection.view"):
+            ops_items.append({"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"})
+        if ops_items:
+            sections["Operations"] = ops_items
+
+        asset_items = []
+        if rbac.has_permission_anywhere(membership, "asset.view"):
+            asset_items.append({"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
+        if rbac.has_permission_anywhere(membership, "qr.scan"):
+            asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
+        if asset_items:
+            sections["Assets"] = asset_items
+
+        if rbac.has_permission_anywhere(membership, "sla.view"):
+            sections["Service Level Agreements"] = [
+                {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+            ]
         if rbac.has_permission_anywhere(membership, "report.view"):
             sections["Analytics"] = [
                 {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
-                {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "archive", "match_prefix": "/app/dashboards/snapshots"},
             ]
 
     elif "service_manager" in role_keys:
