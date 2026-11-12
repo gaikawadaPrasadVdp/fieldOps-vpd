@@ -62,7 +62,26 @@
       </div>
     </header>
     <main class="fx-content" id="main">
-      {% block breadcrumbs %}{% endblock %}
+      {% block breadcrumbs %}
+        {% if shell_breadcrumbs %}
+        <nav aria-label="breadcrumb" class="mb-3 d-print-none d-flex align-items-center gap-2">
+          {% if shell_back_url %}
+          <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to previous page" aria-label="Back">
+            &larr; Back
+          </a>
+          {% endif %}
+          <ol class="breadcrumb mb-0 small">
+            {% for crumb in shell_breadcrumbs %}
+              {% if forloop.last or not crumb.url %}
+                <li class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</li>
+              {% else %}
+                <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.label }}</a></li>
+              {% endif %}
+            {% endfor %}
+          </ol>
+        </nav>
+        {% endif %}
+      {% endblock %}
       {% include "components/_messages.html" %}
 
       {% if shell_org and shell_org.is_scheduled_for_deletion %}

@@ -6,6 +6,7 @@ and technician shift schedules with warnings for out-of-shift assignments.
 """
 from zoneinfo import ZoneInfo
 
+from django.db.models import Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -64,18 +65,28 @@ def schedule_warnings(work_order):
 
 def available_technicians(work_order):
     """Return active, authorized technicians with no other active work-order assignment."""
-    if not work_order.planned_start or not work_order.planned_end or work_order.planned_end <= work_order.planned_start:
+    if not work_order:
         return Membership.objects.none()
 
     candidates = Membership.objects.for_organization(work_order.organization).filter(
         status=Membership.Status.ACTIVE,
         user__is_active=True,
-        membership_roles__role__system_key="technician",
+        membership_roles__role__system_key__in=["technician", "field_technician"],
     ).select_related("user").distinct()
+
+    site = getattr(work_order, "site", None)
     allowed_ids = [member.pk for member in candidates
-                   if rbac.has_permission(member, "work_order.start", work_order.site)]
+                   if rbac.has_permission(member, "work_order.start", site)]
     if not allowed_ids:
         return candidates.none()
+
+    has_valid_window = (
+        work_order.planned_start
+        and work_order.planned_end
+        and work_order.planned_end > work_order.planned_start
+    )
+    if not has_valid_window:
+        return candidates.filter(pk__in=allowed_ids).order_by("user__full_name", "user__email")
 
     booked_ids = WorkOrder.objects.for_organization(work_order.organization).filter(
         assigned_to_id__in=allowed_ids,
@@ -96,7 +107,7 @@ def validate_assignment(work_order, technician):
         raise ValidationFailed("Technician must belong to this organization.", code="invalid_technician")
     if technician.status != Membership.Status.ACTIVE or not technician.user.is_active:
         raise ValidationFailed("Technician is inactive.", code="technician_inactive")
-    if not technician.membership_roles.filter(role__system_key="technician").exists():
+    if not technician.membership_roles.filter(role__system_key__in=["technician", "field_technician"]).exists():
         raise ValidationFailed("The assigned member must have the Technician role.", code="technician_role_required")
     if not rbac.has_permission(technician, "work_order.start", work_order.site):
         raise ValidationFailed("Technician is not authorized for this site.", code="technician_site_forbidden")
