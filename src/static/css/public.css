@@ -8161,7 +8161,7 @@ a.fx-footer-location-link:focus-visible {
 /* Ensure no error messages appear beside or below input fields */
 .fx-login-card .field-error-message,
 .fx-login-card .invalid-feedback,
-.fx-login-card .text-danger:not(.fx-req) {
+.fx-login-card .text-danger:not(.fx-req):not(button):not(.btn) {
   display: none !important;
 }
 

@@ -170,6 +170,18 @@ def test_choose_org_and_switch(client, org_a, org_b, make_member):
     assert "Alpha Industries" in client.get("/app/").content.decode()
 
 
+def test_choose_org_no_memberships_renders_logout_button(client, django_user_model):
+    user = django_user_model.objects.create_user(email="stranded@example.com", password="password123")
+    client.force_login(user)
+    resp = client.get("/app/choose-organization/")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Your account is not currently assigned to any active organization tenant" in html
+    assert "/accounts/logout/" in html
+    assert "Sign out" in html
+    assert "stranded@example.com" in html
+
+
 def test_audit_ui_filters_and_detail(client, owner_a, org_a):
     client.force_login(owner_a)
     html = client.get("/app/audit/?action=organization.").content.decode()
