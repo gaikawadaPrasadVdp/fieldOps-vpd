@@ -1,6 +1,6 @@
 from django.urls import reverse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -40,7 +40,7 @@ class CategoryWriteSerializer(serializers.Serializer):
 class AssetSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    zone_name = serializers.CharField(source="zone.name", read_only=True, default=None, allow_null=True)
+    zone_name = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
     parent = serializers.SerializerMethodField()
     available_actions = serializers.SerializerMethodField()
@@ -52,6 +52,10 @@ class AssetSerializer(serializers.ModelSerializer):
                   "owner", "owner_name", "warranty_ref", "attributes", "status", "parent", "available_actions", "created_at",
                   "updated_at"]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_zone_name(self, obj) -> str | None:
+        return obj.zone.name if obj.zone_id else None
 
     def get_owner_name(self, obj) -> str | None:
         return obj.owner.user.display_name if obj.owner_id else None

@@ -19,7 +19,7 @@ def test_logout_standard_post_clears_session_and_cookies(client):
     # Perform standard POST logout
     resp = client.post("/accounts/logout/")
     assert resp.status_code == 302
-    assert "/accounts/login" in resp.url
+    assert resp.url == "/"
 
     # Check cookies are marked for deletion
     assert resp.cookies["sessionid"]["max-age"] == 0 or resp.cookies["sessionid"].value == ""
@@ -43,8 +43,7 @@ def test_logout_ajax_fetch_returns_json_and_logs_out(client, owner_a, org_a):
     assert resp.status_code == 200
     data = json.loads(resp.content.decode("utf-8"))
     assert data["status"] == "logged_out"
-    assert data["redirect_url"].startswith("/accounts/login/")
-    assert "next=/app/" in data["redirect_url"]
+    assert data["redirect_url"] == "/"
 
     # Check audit log recorded the logout
     audit_exists = AuditLog.objects.filter(action="auth.logout", actor=owner_a).exists()
@@ -152,13 +151,13 @@ def test_logout_then_login_lands_at_app(client, owner_a):
     )
     assert r_logout.status_code == 200
     logout_data = json.loads(r_logout.content.decode("utf-8"))
-    assert "/accounts/login/" in logout_data["redirect_url"]
+    assert logout_data["redirect_url"] == "/"
 
-    # 3. User navigates to the login page
-    r_login_page = client.get(logout_data["redirect_url"])
-    assert r_login_page.status_code == 200
+    # 3. User lands at public landing page
+    r_landing_page = client.get(logout_data["redirect_url"])
+    assert r_landing_page.status_code == 200
 
-    # 4. User logs in again
+    # 4. User logs in again via login page
     r_login_post = client.post(
         "/accounts/login/",
         {"username": owner_a.email, "password": PASSWORD, "next": "/app/"},

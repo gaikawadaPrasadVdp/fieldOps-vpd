@@ -79,7 +79,7 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
         mem_id = data["membership"]
         membership = Membership.objects.for_organization(request.organization).filter(pk=mem_id).first()
         if not membership:
-            return Response({"membership": ["Membership not found in this organization."]}, status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationFailed("Membership not found in this organization.")
 
         try:
             account = services.create_portal_account(
@@ -589,10 +589,7 @@ class PortalRequestDetailView(TenantAPIMixin, APIView):
 
         sr = selectors.get_client_request(request.membership, pk)
         if sr is None:
-            return Response(
-                {"detail": "Service request not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound("Service request not found.")
 
         serializer = PortalServiceRequestDetailSerializer(sr)
         return Response(serializer.data, status=status.HTTP_200_OK)
