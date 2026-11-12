@@ -182,7 +182,7 @@
                 <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 230px; padding-right: 2.25rem;" onchange="applyRolePreset('{{ m.pk }}', this)">
                   <option value="">-- Select Role Preset --</option>
                   {% for rp in role_presets %}
-                    <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}">{{ rp.name }}</option>
+                    <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}" {% if rp.pk in m.active_role_ids_str %}selected{% endif %}>{{ rp.name }}</option>
                   {% endfor %}
                 </select>
               </div>
@@ -199,7 +199,10 @@
                 </select>
               </div>
 
-              
+              <div class="d-flex align-items-center gap-2 ms-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', true)">Select All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', false)">Clear All</button>
+              </div>
             </div>
 
             {% if m.is_owner_member and not m.can_remove_owner %}

@@ -16,7 +16,7 @@
     <div class="text-body-secondary small">Live metric aggregations across operational records (Decision D-052).</div>
   </div>
   <div class="d-flex align-items-center gap-2">
-    <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+    <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" data-action="go-back" data-fallback="{% url 'ui:home' %}">
       {% icon 'arrow-left' 14 %} Back to Overview
     </a>
     <a href="{% url 'dashboards:snapshot_list' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">

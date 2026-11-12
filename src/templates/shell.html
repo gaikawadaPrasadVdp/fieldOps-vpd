@@ -66,7 +66,7 @@
         {% if shell_breadcrumbs %}
         <nav aria-label="breadcrumb" class="mb-3 d-print-none d-flex align-items-center gap-2">
           {% if shell_back_url %}
-          <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to previous page" aria-label="Back">
+          <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to previous page" aria-label="Back" data-action="go-back" data-fallback="{{ shell_back_url }}">
             &larr; Back
           </a>
           {% endif %}

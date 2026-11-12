@@ -79,7 +79,7 @@
           </td>
           <td>
             {% if org.owner_user %}
-              <div class="fw-medium">{{ org.owner_user.get_full_name|default:org.owner_user.display_name }}</div>
+              <div class="fw-medium">{{ org.owner_user.display_name }}</div>
               <div class="small text-muted"><code>{{ org.owner_user.email }}</code></div>
             {% else %}
               <span class="text-muted small">No owner assigned</span>
@@ -160,7 +160,7 @@
                       <div class="mb-3 p-3 bg-light rounded border">
                         <div class="row g-2">
                           <div class="col-sm-4 text-muted small">Owner Name:</div>
-                          <div class="col-sm-8 fw-semibold small">{{ org.owner_user.get_full_name|default:org.owner_user.display_name }}</div>
+                          <div class="col-sm-8 fw-semibold small">{{ org.owner_user.display_name }}</div>
                           <div class="col-sm-4 text-muted small">Owner Email:</div>
                           <div class="col-sm-8 fw-semibold small"><code>{{ org.owner_user.email }}</code></div>
                           <div class="col-sm-4 text-muted small">Account Status:</div>

@@ -2221,19 +2221,25 @@ document.addEventListener("click", function (e) {
       e.preventDefault();
       var fallback = backBtn.getAttribute("data-fallback") || backBtn.getAttribute("href") || "/app/";
       
-      // If there is an internal referrer different from current page and not an auth page, navigate to it
-      if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
+      // If browser session history has previous entries, navigate back
+      if (window.history.length > 1) {
+        var prevUrl = window.location.href;
+        window.history.back();
+        // If history.back() did not navigate within 250ms, safely redirect to fallback
+        setTimeout(function () {
+          if (window.location.href === prevUrl) {
+            window.location.href = fallback;
+          }
+        }, 250);
+      } else if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
         try {
           var refUrl = new URL(document.referrer);
           if (refUrl.pathname !== window.location.pathname && !refUrl.pathname.startsWith("/accounts/")) {
             window.location.href = document.referrer;
             return;
           }
-        } catch (e) {}
-      }
-
-      if (window.history.length > 1) {
-        window.history.back();
+        } catch (err) {}
+        window.location.href = fallback;
       } else {
         window.location.href = fallback;
       }

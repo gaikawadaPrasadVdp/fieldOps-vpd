@@ -66,12 +66,22 @@ class MemberInviteView(TenantPermissionMixin, View):
     required_permission = "user.invite"
 
     def get(self, request):
-        return render(request, "tenancy/member_invite.html", {"form": InviteForm(org=request.organization, membership=request.membership)})
+        initial = {}
+        role_param = request.GET.get("role")
+        if role_param:
+            from django.db.models import Q
+            from apps.rbac.models import Role
+            role = Role.objects.for_organization(request.organization).filter(
+                Q(system_key=role_param) | Q(name__iexact=role_param)
+            ).first()
+            if role:
+                initial["roles"] = [role.pk]
+        return render(request, "tenancy/member_invite.html", {"form": InviteForm(initial=initial, org=request.organization, membership=request.membership)})
 
     def post(self, request):
         post_data = request.POST.copy()
         form = InviteForm(post_data, org=request.organization, membership=request.membership)
-        if "password" not in post_data:
+        if not (post_data.get("password") or "").strip():
             form.fields["password"].required = False
         if form.is_valid():
             try:

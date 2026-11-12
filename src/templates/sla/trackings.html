@@ -14,7 +14,7 @@
     <div class="text-body-secondary">Response and resolution timers of requests and work orders. Times are wall-clock; a timer pauses only for states the profile lists.</div>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">
       {% icon 'arrow-left' 14 %} Back to Overview
     </a>
     {% if can_process %}
