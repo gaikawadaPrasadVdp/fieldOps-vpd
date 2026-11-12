@@ -928,6 +928,12 @@ body.fx-app {
   font-size: 1.15rem;
 }
 
+.keep-center{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .fx-auth-card .fx-brand-mark {
   background: #0B1F3A;
   border: 1.5px solid var(--fx-gold);

@@ -16,7 +16,7 @@ from apps.tenancy.forms import RoleForm
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import catalog, services
-from .models import MembershipRole, Role
+from .models import MembershipRole, Role, RolePermission
 
 
 def _build_perm_matrix():
@@ -80,14 +80,29 @@ class RoleListView(TenantPermissionMixin, View):
 
         for m in page:
             m.is_owner_member = services.is_owner(m)
-            m.granted_permissions = set(services.membership_permissions(m))
+            assigned_roles = [mr.role for mr in m.membership_roles.all()]
             m.active_role_ids = {mr.role_id for mr in m.membership_roles.all()}
+            m.active_role_ids_str = {str(rid) for rid in m.active_role_ids}
             m.primary_site_id = next(
                 (mr.site_id for mr in m.membership_roles.all() if mr.site_id),
                 None,
             )
             # If member is an owner and there's only 1 owner, owner role cannot be removed
             m.can_remove_owner = not (m.is_owner_member and owner_count <= 1)
+
+            if m.is_owner_member or any(r.is_owner for r in assigned_roles):
+                m.granted_permissions = set(catalog.all_codes())
+            else:
+                granted = set(
+                    RolePermission.objects.filter(role__in=assigned_roles).values_list(
+                        "permission__code", flat=True
+                    )
+                )
+                if m.is_active:
+                    granted.update(services.membership_permissions(m))
+                    for perms in services.site_permissions(m).values():
+                        granted.update(perms)
+                m.granted_permissions = catalog.expand(granted)
 
         # Build permission matrix grouped by module
         matrix = _build_perm_matrix()
