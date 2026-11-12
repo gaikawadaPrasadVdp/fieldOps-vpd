@@ -45,7 +45,7 @@ def organizations(request):
     from apps.tenancy.models import Membership
     owner_memberships = {
         m.organization_id: m
-        for m in Membership.objects.filter(
+        for m in Membership.objects.unscoped().filter(
             organization__in=page.object_list,
             membership_roles__role__is_owner=True,
         ).select_related("user")
@@ -196,7 +196,8 @@ def organization_owner_credentials(request, org_id):
     from apps.audit import services as audit_services
 
     owner_m = (
-        Membership.objects.filter(organization=org, membership_roles__role__is_owner=True)
+        Membership.objects.unscoped()
+        .filter(organization=org, membership_roles__role__is_owner=True)
         .select_related("user")
         .first()
     )
@@ -251,7 +252,8 @@ def platform_overview(request):
     suspended_orgs = Organization.objects.exclude(status=Organization.Status.ACTIVE).count()
     scheduled_deletion_orgs = Organization.objects.filter(deletion_scheduled_at__isnull=False).count()
     total_owners = (
-        Membership.objects.filter(membership_roles__role__is_owner=True)
+        Membership.objects.unscoped()
+        .filter(membership_roles__role__is_owner=True)
         .values("user")
         .distinct()
         .count()

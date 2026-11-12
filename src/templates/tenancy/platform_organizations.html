@@ -14,8 +14,8 @@
     <div class="text-body-secondary">Platform tenant management (Total: {{ total_count }} · Active: {{ active_count }} · Inactive/Suspended: {{ suspended_count }})</div>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <a class="btn btn-outline-secondary" href="{% url 'platform_admin:overview' %}">
-      <i class="bi bi-arrow-left me-1"></i> Back to Overview
+    <a class="btn btn-outline-secondary" href="{% url 'platform_admin:overview' %}" data-action="go-back" data-fallback="{% url 'platform_admin:overview' %}">
+      <i class="bi bi-arrow-left me-1"></i> Back
     </a>
     <a class="btn btn-primary" href="{% url 'platform_admin:organization_create' %}">
       <i class="bi bi-plus-lg me-1"></i> New Organization
