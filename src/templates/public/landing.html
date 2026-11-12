@@ -12,6 +12,7 @@
 
 <section class="fx-video-showcase-section" aria-label="Asset Management video showcase">
   <video class="fx-showcase-video" autoplay muted loop playsinline preload="auto">
+    <source src="{% static 'images/rafieldopusnexus.webm' %}" type="video/webm">
     <source src="{% static 'images/rafieldopusnexus.mp4' %}" type="video/mp4">
   </video>
 </section>
@@ -38,7 +39,7 @@
 
     style="
 
-      background-image: url('{% static "images/fieldops-workflow-visual.jpg" %}');
+      background-image: url('{% static "images/fieldops-workflow-visual.webp" %}');
 
     "
 
@@ -1110,7 +1111,7 @@
       <!-- Asset Management -->
       <a href="{% url 'ui:public_product' 'asset-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-assets.jpg' %}" alt="Asset Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-assets.webp' %}" alt="Asset Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'boxes' 18 %}</span>
         </div>
@@ -1129,7 +1130,7 @@
       <!-- Service Management -->
       <a href="{% url 'ui:public_product' 'service-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-service.jpg' %}" alt="Service Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-service.webp' %}" alt="Service Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'wrench' 18 %}</span>
         </div>
@@ -1148,7 +1149,7 @@
       <!-- Work Order Management -->
       <a href="{% url 'ui:public_product' 'work-order-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-work-orders.jpg' %}" alt="Work Order Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-work-orders.webp' %}" alt="Work Order Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'clipboard-list' 18 %}</span>
         </div>
@@ -1167,7 +1168,7 @@
       <!-- Inventory Management -->
       <a href="{% url 'ui:public_product' 'inventory-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-inventory.jpg' %}" alt="Inventory Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-inventory.webp' %}" alt="Inventory Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'package' 18 %}</span>
         </div>
@@ -1188,7 +1189,7 @@
       <!-- Workforce Management -->
       <a href="{% url 'ui:public_platform' 'workforce-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-workforce.jpg' %}" alt="Workforce Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-workforce.webp' %}" alt="Workforce Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'user' 18 %}</span>
         </div>
@@ -1207,7 +1208,7 @@
       <!-- Maintenance Management -->
       <a href="{% url 'ui:public_platform' 'maintenance-management' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-maintenance.jpg' %}" alt="Maintenance Management" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-maintenance.webp' %}" alt="Maintenance Management" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'settings' 18 %}</span>
         </div>
@@ -1226,7 +1227,7 @@
       <!-- Analytics & Reporting -->
       <a href="{% url 'ui:public_platform' 'analytics-reporting' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/module-analytics.jpg' %}" alt="Analytics &amp; Reporting" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/module-analytics.webp' %}" alt="Analytics &amp; Reporting" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'bar-chart' 18 %}</span>
         </div>
@@ -1245,7 +1246,7 @@
       <!-- Audit & Traceability -->
       <a href="{% url 'ui:public_platform' 'audit-traceability' %}" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
-          <img src="{% static 'images/audit-traceability.jpg' %}" alt="Audit &amp; Traceability" class="module-card-img" loading="lazy" />
+          <img src="{% static 'images/audit-traceability.webp' %}" alt="Audit &amp; Traceability" class="module-card-img" loading="lazy" />
           <div class="module-card-img-gradient"></div>
           <span class="module-card-icon-badge">{% icon 'shield' 18 %}</span>
         </div>
@@ -1629,7 +1630,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-service-requests.jpg' %}"
+                      src="{% static 'images/workflow-service-requests.webp' %}"
 
                       alt="Service Requests"
 
@@ -1695,7 +1696,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-field-operations.jpg' %}"
+                      src="{% static 'images/workflow-field-operations.webp' %}"
 
                       alt="Field Operations"
 
@@ -1765,7 +1766,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-approval.jpg' %}"
+                      src="{% static 'images/workflow-approval.webp' %}"
 
                       alt="Approval Workflow"
 
@@ -1831,7 +1832,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-service-requests.jpg' %}"
+                      src="{% static 'images/workflow-service-requests.webp' %}"
 
                       alt="Service Requests"
 
@@ -1893,7 +1894,7 @@
 
                   <div class="fx-gallery-card-img-wrap">
 
-                    <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Field Operations"
+                    <img src="{% static 'images/workflow-field-operations.webp' %}" alt="Field Operations"
 
                       class="fx-gallery-card-img">
 
@@ -1927,7 +1928,7 @@
 
                   <div class="fx-gallery-card-img-wrap">
 
-                    <img src="{% static 'images/workflow-approval.jpg' %}" alt="Approval Workflow"
+                    <img src="{% static 'images/workflow-approval.webp' %}" alt="Approval Workflow"
 
                       class="fx-gallery-card-img">
 
@@ -1975,7 +1976,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-asset-management.jpg' %}"
+                      src="{% static 'images/workflow-asset-management.webp' %}"
 
                       alt="Asset Management"
 
@@ -2043,7 +2044,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-inventory-management.jpg' %}"
+                      src="{% static 'images/workflow-inventory-management.webp' %}"
 
                       alt="Inventory Management"
 
@@ -2109,7 +2110,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-insights.jpg' %}"
+                      src="{% static 'images/workflow-insights.webp' %}"
 
                       alt="Operational Insights"
 
@@ -2175,7 +2176,7 @@
 
                     <img
 
-                      src="{% static 'images/workflow-asset-management.jpg' %}"
+                      src="{% static 'images/workflow-asset-management.webp' %}"
 
                       alt="Asset Management"
 
@@ -2239,7 +2240,7 @@
 
                   <div class="fx-gallery-card-img-wrap">
 
-                    <img src="{% static 'images/workflow-inventory-management.jpg' %}" alt="Inventory Management"
+                    <img src="{% static 'images/workflow-inventory-management.webp' %}" alt="Inventory Management"
 
                       class="fx-gallery-card-img">
 
@@ -2273,7 +2274,7 @@
 
                   <div class="fx-gallery-card-img-wrap">
 
-                    <img src="{% static 'images/workflow-insights.jpg' %}" alt="Operational Insights"
+                    <img src="{% static 'images/workflow-insights.webp' %}" alt="Operational Insights"
 
                       class="fx-gallery-card-img">
 
@@ -2365,7 +2366,7 @@
 
             <img
 
-              src="{% static 'images/connected-data.jpg' %}"
+              src="{% static 'images/connected-data.webp' %}"
 
               alt="Connected Data"
 
@@ -2441,7 +2442,7 @@
 
             <img
 
-              src="{% static 'images/smarter-workflows.jpg' %}"
+              src="{% static 'images/smarter-workflows.webp' %}"
 
               alt="Smarter Workflows"
 
@@ -2513,7 +2514,7 @@
 
             <img
 
-              src="{% static 'images/operational-visibility.jpg' %}"
+              src="{% static 'images/operational-visibility.webp' %}"
 
               alt="Operational Visibility"
 
@@ -2589,7 +2590,7 @@
 
             <img
 
-              src="{% static 'images/audit-traceability.jpg' %}"
+              src="{% static 'images/audit-traceability.webp' %}"
 
               alt="Audit & Traceability"
 
@@ -2701,7 +2702,7 @@
 
             <img
 
-              src="{% static 'images/left.jpg' %}"
+              src="{% static 'images/left.webp' %}"
 
               alt="Manufacturing"
 
@@ -2745,7 +2746,7 @@
 
             <img
 
-              src="{% static 'images/center.jpg' %}"
+              src="{% static 'images/center.webp' %}"
 
               alt="Facilities Management"
 
@@ -2785,7 +2786,7 @@
 
             <img
 
-              src="{% static 'images/right.jpg' %}"
+              src="{% static 'images/right.webp' %}"
 
               alt="Service and Maintenance"
 
@@ -2825,7 +2826,7 @@
 
             <img
 
-              src="{% static 'images/fieldops-workflow-visual.jpg' %}"
+              src="{% static 'images/fieldops-workflow-visual.webp' %}"
 
               alt="Infrastructure"
 
@@ -2865,7 +2866,7 @@
 
             <img
 
-              src="{% static 'images/workflow-insights.jpg' %}"
+              src="{% static 'images/workflow-insights.webp' %}"
 
               alt="Enterprise Operations"
 
