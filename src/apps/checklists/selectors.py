@@ -48,7 +48,8 @@ def items_for(org, template):
 
 def _visibility(membership):
     full = rbac.site_scope(membership, "inspection.view")
-    if not full.all_sites and not full.site_ids:
+    has_execute_only = rbac.has_permission_anywhere(membership, "inspection.execute") and not rbac.has_permission_anywhere(membership, "inspection.view")
+    if not has_execute_only and not full.all_sites and not full.site_ids:
         asset_scope = rbac.site_scope(membership, "asset.view")
         if asset_scope.all_sites or asset_scope.site_ids:
             full = asset_scope
