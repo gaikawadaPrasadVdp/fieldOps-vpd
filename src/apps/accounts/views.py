@@ -55,13 +55,6 @@ class LoginView(auth_views.LoginView):
         if redirect_to and redirect_to.startswith("/platform/") and not is_platform:
             redirect_to = None
 
-<<<<<<< Updated upstream
-        # Ignore empty, root (/), or auth loop destinations; standard login always lands at /app/
-        if not redirect_to or redirect_to in ("/", "/accounts/login/", "/accounts/logout/") or redirect_to.startswith("/accounts/"):
-            return reverse("ui:home")
-
-        if redirect_to == "/app":
-=======
         if redirect_to and (redirect_to == "/app/portal" or redirect_to.startswith("/app/portal/")) and is_platform:
             redirect_to = None
 
@@ -86,8 +79,8 @@ class LoginView(auth_views.LoginView):
                 elif not is_portal_target and redirect_to.startswith("/app/") and is_client:
                     redirect_to = None
 
-        if not redirect_to:
->>>>>>> Stashed changes
+        # Ignore empty, root (/), or auth loop destinations; standard login always lands at /app/
+        if not redirect_to or redirect_to in ("/", "/accounts/login/", "/accounts/logout/") or redirect_to.startswith("/accounts/") or redirect_to == "/app":
             return reverse("ui:home")
 
         return redirect_to
