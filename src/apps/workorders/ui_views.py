@@ -408,7 +408,8 @@ class ScheduleBoardView(TenantPermissionMixin, View):
             assigned_work_orders__in=base_qs).values_list("pk", flat=True)
         assigned_member_ids = set(assigned_members)
         technician_members = Membership.objects.for_organization(request.organization).filter(
-            membership_roles__role__system_key="technician").filter(
+            membership_roles__role__system_key__in=["technician", "field_technician"]
+        ).filter(
             Q(pk__in=assigned_members) | Q(status=Membership.Status.ACTIVE, user__is_active=True)
         ).distinct().select_related("user")
         workload_rows = WorkOrder.objects.for_organization(request.organization).filter(
