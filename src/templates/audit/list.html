@@ -24,7 +24,7 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
-    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">
       {% icon 'arrow-left' 14 %} Back to Overview
     </a>
     <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:reports' %}">

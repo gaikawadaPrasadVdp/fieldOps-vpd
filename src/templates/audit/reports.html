@@ -18,7 +18,7 @@
     </div>
   </div>
   <div>
-    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:list' %}">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:list' %}" data-action="go-back" data-fallback="{% url 'audit:list' %}">
       {% icon 'arrow-left' 14 %} Back to Audit Trail
     </a>
   </div>
