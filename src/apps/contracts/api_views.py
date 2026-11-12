@@ -401,7 +401,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(AgreementSerializer(self._ag(request, pk)).data)
 
     @extend_schema(parameters=[query_param("days", "look-ahead window in days (default 60, max 365)",
-                                           OpenApiTypes.INT)], responses=AgreementSerializer(many=True))
+                                           OpenApiTypes.INT)], responses=AgreementSerializer)
     @action(detail=False, methods=["get"])
     def expiring(self, request):
         try:

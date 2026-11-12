@@ -10,14 +10,50 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='serviceprovider',
-            name='address',
-            field=models.CharField(blank=True, max_length=300),
-        ),
-        migrations.AddField(
-            model_name='serviceprovider',
-            name='provider_type',
-            field=models.CharField(choices=[('OEM', 'OEM'), ('DEALER', 'Dealer'), ('CONTRACTOR', 'Contractor'), ('VENDOR', 'Vendor'), ('OTHER', 'Other')], default='OEM', max_length=30),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='serviceprovider',
+                    name='address',
+                    field=models.CharField(blank=True, max_length=300),
+                ),
+                migrations.AddField(
+                    model_name='serviceprovider',
+                    name='provider_type',
+                    field=models.CharField(
+                        choices=[
+                            ('OEM', 'OEM'),
+                            ('DEALER', 'Dealer'),
+                            ('CONTRACTOR', 'Contractor'),
+                            ('VENDOR', 'Vendor'),
+                            ('OTHER', 'Other'),
+                        ],
+                        default='OEM',
+                        max_length=30,
+                    ),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'contracts_serviceprovider' AND column_name = 'address'
+                        ) THEN
+                            ALTER TABLE contracts_serviceprovider ADD COLUMN address VARCHAR(300) DEFAULT '' NOT NULL;
+                        END IF;
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'contracts_serviceprovider' AND column_name = 'provider_type'
+                        ) THEN
+                            ALTER TABLE contracts_serviceprovider ADD COLUMN provider_type VARCHAR(30) DEFAULT 'OEM' NOT NULL;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="",
+                )
+            ],
         ),
     ]

@@ -62,7 +62,13 @@ from apps.tenancy.api_views import MemberViewSet, OrganizationViewSet, PlatformO
 from apps.workorders.views import TechnicianProfileViewSet, WorkOrderViewSet
 
 # Module teams: import your viewsets here and register them on the router.
-router = SimpleRouter()
+class OptionalSlashRouter(SimpleRouter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trailing_slash = "/?"
+
+
+router = OptionalSlashRouter()
 router.register("members", MemberViewSet, basename="member")
 router.register("users", MemberViewSet, basename="user")
 router.register("roles", RoleViewSet, basename="role")
@@ -109,6 +115,7 @@ router.register("stock-movements", StockMovementViewSet, basename="stock-movemen
 router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
 router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
+router.register("workorders", WorkOrderViewSet, basename="workorder")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
 router.register("inspections", InspectionViewSet, basename="inspection")
 router.register("findings", FindingViewSet, basename="finding")

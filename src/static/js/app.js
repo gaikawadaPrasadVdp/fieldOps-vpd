@@ -2164,7 +2164,7 @@ document.addEventListener("click", function (e) {
       return;
     }
     var next = encodeURIComponent(path + window.location.search);
-    window.location.replace("/accounts/login/?logged_out=1&next=" + next);
+    window.location.replace("/");
   }
 
   // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
@@ -2223,7 +2223,7 @@ document.addEventListener("click", function (e) {
       try {
         var lastLogout = localStorage.getItem(LOGOUT_STORAGE_KEY);
         if (lastLogout && parseInt(lastLogout, 10) > (window.__fx_page_loaded_at || 0)) {
-          window.location.replace("/accounts/login/?logged_out=1");
+          window.location.replace("/");
         }
       } catch (e) {}
     }
@@ -2320,7 +2320,7 @@ document.addEventListener("click", function (e) {
           // Broadcast to other tabs AFTER the server has completed logout
           broadcastLogout();
           clearClientCookies();
-          window.location.replace("/accounts/login/?logged_out=1&next=%2Fapp%2F");
+          window.location.replace("/");
         });
     }
   });
