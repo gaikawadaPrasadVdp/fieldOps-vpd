@@ -415,8 +415,11 @@ class ProviderCreateView(CBase):
         form = ProviderForm(request.POST)
         if form.is_valid():
             try:
-                p = services.create_provider(request.organization, actor=request.user, request=request,
-                                             **form.cleaned_data)
+                data = dict(form.cleaned_data)
+                is_active = data.pop("status", "ACTIVE") == "ACTIVE"
+                p = services.create_provider(
+                    request.organization, actor=request.user, request=request, is_active=is_active, **data
+                )
                 messages.success(request, f"Provider {p.name} created.")
                 return redirect("contracts:providers")
             except DomainError as exc:
@@ -435,15 +438,19 @@ class ProviderEditView(CBase):
 
     def get(self, request, pk):
         p = or404(selectors.get_provider, request.organization, pk)
-        return self._page(request, p, ProviderForm(initial={
-            f: getattr(p, f) for f in ("name", "contact_name", "email", "phone", "notes")}))
+        initial = {f: getattr(p, f) for f in ("name", "provider_type", "contact_name", "email", "phone", "address", "notes")}
+        initial["status"] = "ACTIVE" if p.is_active else "INACTIVE"
+        return self._page(request, p, ProviderForm(initial=initial))
 
     def post(self, request, pk):
         p = or404(selectors.get_provider, request.organization, pk)
         form = ProviderForm(request.POST)
         if form.is_valid():
             try:
-                services.update_provider(p, actor=request.user, request=request, **form.cleaned_data)
+                data = dict(form.cleaned_data)
+                is_active = data.pop("status", "ACTIVE") == "ACTIVE"
+                services.update_provider(p, actor=request.user, request=request, **data)
+                services.set_provider_active(p, is_active, actor=request.user, request=request)
                 messages.success(request, "Provider saved.")
                 return redirect("contracts:providers")
             except DomainError as exc:

@@ -160,11 +160,31 @@ def _lock_assets(org, asset_ids):
 # --- providers -------------------------------------------------------------------------------------------------------
 
 
-PROVIDER_FIELDS = ["name", "contact_name", "email", "phone", "notes", "is_active"]
+PROVIDER_FIELDS = ["name", "provider_type", "contact_name", "email", "phone", "address", "notes", "is_active"]
+
+
+def _provider_type(value):
+    val = (value or ServiceProvider.ProviderType.OEM).strip()
+    if val not in ServiceProvider.ProviderType.values:
+        raise ValidationFailed("Unknown provider type.", code="invalid_provider_type")
+    return val
 
 
 @transaction.atomic
-def create_provider(org, *, name, contact_name="", email="", phone="", notes="", actor, request=None):
+def create_provider(
+    org,
+    *,
+    name,
+    provider_type=ServiceProvider.ProviderType.OEM,
+    contact_name="",
+    email="",
+    phone="",
+    address="",
+    notes="",
+    is_active=True,
+    actor,
+    request=None,
+):
     from apps.ui.forms import validate_business_name
     from django.core.exceptions import ValidationError as DjangoValidationError
     try:
@@ -174,6 +194,7 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
         raise ValidationFailed(msg, code="invalid_provider_name") from exc
     if ServiceProvider.objects.for_organization(org).filter(name__iexact=name).exists():
         raise Conflict("A provider with that name already exists.", code="provider_name_taken")
+    provider_type = _provider_type(provider_type)
     if email and email.strip():
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError as DjangoValidationError
@@ -181,18 +202,17 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
             validate_email(email.strip())
         except DjangoValidationError:
             raise ValidationFailed("Invalid email format.", code="invalid_email")
-    if email and email.strip():
-        from django.core.validators import validate_email
-        from django.core.exceptions import ValidationError as DjangoValidationError
-        try:
-            validate_email(email.strip())
-        except DjangoValidationError:
-            raise ValidationFailed("Invalid email format.", code="invalid_email")
-    p = ServiceProvider(organization=org, name=name, contact_name=_text(contact_name, "Contact", maximum=120,
-                                                                         required=False),
-                        email=_text(email, "Email", maximum=254, required=False),
-                        phone=_text(phone, "Phone", maximum=40, required=False),
-                        notes=_text(notes, "Notes", maximum=500, required=False))
+    p = ServiceProvider(
+        organization=org,
+        name=name,
+        provider_type=provider_type,
+        contact_name=_text(contact_name, "Contact", maximum=120, required=False),
+        email=_text(email, "Email", maximum=254, required=False),
+        phone=_text(phone, "Phone", maximum=40, required=False),
+        address=_text(address, "Address", maximum=300, required=False),
+        notes=_text(notes, "Notes", maximum=500, required=False),
+        is_active=bool(is_active),
+    )
     p.save()
     audit.record("contract.provider_created", actor=actor, organization=org, target=p,
                  after=audit.snapshot(p, PROVIDER_FIELDS), request=request)
@@ -202,7 +222,7 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
 @transaction.atomic
 def update_provider(provider, *, actor, request=None, **changes):
     provider = ServiceProvider.objects.select_for_update(of=("self",)).get(pk=provider.pk)
-    unknown = set(changes) - {"name", "contact_name", "email", "phone", "notes"}
+    unknown = set(changes) - {"name", "provider_type", "contact_name", "email", "phone", "address", "notes"}
     if unknown:
         raise ValidationFailed(f"Fields cannot be edited: {', '.join(sorted(unknown))}.", code="field_not_editable")
     before = audit.snapshot(provider, PROVIDER_FIELDS)
@@ -218,8 +238,15 @@ def update_provider(provider, *, actor, request=None, **changes):
                 name__iexact=name).exclude(pk=provider.pk).exists():
             raise Conflict("A provider with that name already exists.", code="provider_name_taken")
         provider.name = name
-    for f, n, m in (("contact_name", "Contact", 120), ("email", "Email", 254), ("phone", "Phone", 40),
-                    ("notes", "Notes", 500)):
+    if "provider_type" in changes:
+        provider.provider_type = _provider_type(changes["provider_type"])
+    for f, n, m in (
+        ("contact_name", "Contact", 120),
+        ("email", "Email", 254),
+        ("phone", "Phone", 40),
+        ("address", "Address", 300),
+        ("notes", "Notes", 500),
+    ):
         if f in changes:
             setattr(provider, f, _text(changes[f], n, maximum=m, required=False))
     provider.save()
