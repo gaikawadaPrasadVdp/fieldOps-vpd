@@ -19,6 +19,9 @@
       <p class="text-body-secondary mb-0">Welcome to your dedicated service and maintenance requester portal.</p>
     </div>
     <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'portal:scan' %}" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm">
+        {% icon 'qr' 16 %} Scan QR
+      </a>
       <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
         {% icon 'plus-circle' 16 %} Submit Request
       </a>
@@ -317,9 +320,12 @@
               {% icon 'check' 14 %} portal.request.confirm
             </span>
           </div>
-          <div>
+          <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'portal:request_create' %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
               {% icon 'plus-circle' 14 %} Create Service Request Now
+            </a>
+            <a href="{% url 'portal:scan' %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
+              {% icon 'qr' 14 %} Scan Asset QR
             </a>
           </div>
         </div>

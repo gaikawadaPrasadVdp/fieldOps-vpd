@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 
 from apps.assets.models import Asset
@@ -26,27 +28,164 @@ class _DateInput(forms.DateInput):
         super().__init__(format="%Y-%m-%d", **kw)
 
 
+_ALPHA_DOMAIN_EMAIL_RE = re.compile(
+    r"^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z-]*(\.[a-zA-Z][a-zA-Z-]*)*\.[a-zA-Z]{2,}$"
+)
+
+
 class ProviderForm(BootstrapFormMixin, forms.Form):
-    name = forms.CharField(max_length=150)
-    contact_name = forms.CharField(max_length=120, required=False)
-    email = forms.EmailField(required=False)
-    phone = forms.CharField(max_length=40, required=False)
-    notes = forms.CharField(max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    name = forms.CharField(
+        max_length=150,
+        min_length=2,
+        label="Provider Name",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "e.g. Daikin India",
+                "required": "required",
+                "minlength": "2",
+                "maxlength": "150",
+                "pattern": r"[A-Za-z\s'-]{2,150}",
+                "title": "Provider Name must contain only alphabetical characters (letters, spaces, hyphens, apostrophes).",
+                "data-live-validate": "true",
+            }
+        ),
+    )
+    provider_type = forms.ChoiceField(
+        choices=ServiceProvider.ProviderType.choices,
+        initial=ServiceProvider.ProviderType.OEM,
+        label="Provider Type",
+        required=True,
+    )
+    contact_name = forms.CharField(
+        max_length=120,
+        min_length=2,
+        label="Contact Person",
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "e.g. Rajesh Kumar",
+                "required": "required",
+                "minlength": "2",
+                "maxlength": "120",
+                "pattern": r"[A-Za-z\s'-]{2,120}",
+                "title": "Contact Person must contain only alphabetical characters (no numbers or special symbols).",
+                "data-live-validate": "true",
+            }
+        ),
+    )
+    phone = forms.CharField(
+        max_length=40,
+        min_length=10,
+        label="Phone",
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "e.g. +91 98765 43210",
+                "type": "tel",
+                "required": "required",
+                "minlength": "10",
+                "maxlength": "20",
+                "pattern": r"[0-9+\s()-]{10,20}",
+                "title": "Phone number must be 10 digits (e.g. 9876543210 or +91 98765 43210).",
+                "data-live-validate": "true",
+            }
+        ),
+    )
+    email = forms.EmailField(
+        max_length=254,
+        label="Email",
+        required=True,
+        widget=forms.EmailInput(
+            attrs={
+                "placeholder": "e.g. support@daikin.example",
+                "required": "required",
+                "maxlength": "254",
+                "title": "Enter a valid email address with a letters-only domain (e.g. support@gmail.com).",
+                "data-live-validate": "true",
+            }
+        ),
+    )
+    address = forms.CharField(
+        max_length=300,
+        min_length=3,
+        label="Address",
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "e.g. Bengaluru, Karnataka",
+                "required": "required",
+                "minlength": "3",
+                "maxlength": "300",
+                "pattern": r".*[A-Za-z0-9].*",
+                "title": "Address must be at least 3 characters and contain letters or numbers.",
+                "data-live-validate": "true",
+            }
+        ),
+    )
+    status = forms.ChoiceField(
+        choices=[("ACTIVE", "Active"), ("INACTIVE", "Inactive")],
+        initial="ACTIVE",
+        label="Status",
+        required=True,
+    )
+    notes = forms.CharField(
+        max_length=500,
+        required=False,
+        label="Notes",
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Optional notes", "maxlength": "500"}),
+    )
 
     def clean_name(self):
-        return validate_business_name(self.cleaned_data.get("name"), field_label="Provider name")
+        val = validate_business_name(self.cleaned_data.get("name"), field_label="Provider Name")
+        return validate_alphabetical_name(val, field_label="Provider Name", min_len=2, required=True)
+
+    def clean_provider_type(self):
+        val = self.cleaned_data.get("provider_type")
+        if val not in ServiceProvider.ProviderType.values:
+            raise forms.ValidationError("Select a valid provider type.")
+        return val
 
     def clean_contact_name(self):
-        val = self.cleaned_data.get("contact_name")
-        return validate_alphabetical_name(val, field_label="Contact name", min_len=2, required=False) if val else ""
+        return validate_alphabetical_name(
+            self.cleaned_data.get("contact_name"), field_label="Contact Person", min_len=2, required=True
+        )
 
     def clean_phone(self):
-        val = self.cleaned_data.get("phone")
-        return validate_phone_number(val) if val else ""
+        val = (self.cleaned_data.get("phone") or "").strip()
+        if not val:
+            raise forms.ValidationError("Phone is required.")
+        val = validate_phone_number(val)
+        digits = "".join(c for c in val if c.isdigit())
+        if val.startswith("+91"):
+            national_digits = digits[2:]
+        elif val.startswith("+"):
+            raise forms.ValidationError("Phone number must be 10 digits (e.g. 9876543210 or +91 98765 43210).")
+        else:
+            national_digits = digits
+        if len(national_digits) != 10:
+            raise forms.ValidationError("Phone number must be exactly 10 digits (e.g. 9876543210 or +91 98765 43210).")
+        return val
 
     def clean_email(self):
-        val = self.cleaned_data.get("email")
-        return validate_strict_email(val) if val else ""
+        val = validate_strict_email(self.cleaned_data.get("email"))
+        if not _ALPHA_DOMAIN_EMAIL_RE.match(val):
+            raise forms.ValidationError(
+                "Enter a valid email address with a letters-only domain (e.g. name@gmail.com). "
+                "Numbers or symbols in the domain (e.g. @3, @#) are not allowed."
+            )
+        return val
+
+    def clean_address(self):
+        val = validate_safe_text(self.cleaned_data.get("address"), field_label="Address", max_len=300, required=True)
+        if len(val) < 3 or not any(c.isalnum() for c in val):
+            raise forms.ValidationError("Address must be at least 3 characters and contain letters or numbers.")
+        return val
+
+    def clean_status(self):
+        val = self.cleaned_data.get("status")
+        if val not in ("ACTIVE", "INACTIVE"):
+            raise forms.ValidationError("Select a valid status.")
+        return val
 
     def clean_notes(self):
         val = self.cleaned_data.get("notes")

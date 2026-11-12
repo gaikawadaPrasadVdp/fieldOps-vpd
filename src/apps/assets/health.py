@@ -181,14 +181,14 @@ def batch_annotate_assets_health(assets: Iterable[Asset], organization=None) -> 
     from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
 
     pks = [a.pk for a in asset_list]
-    org = organization or getattr(asset_list[0], "organization", None)
+    org_id = getattr(organization, "pk", organization) or getattr(asset_list[0], "organization_id", None)
 
     qs = ServiceRequest.objects.filter(
         asset_id__in=pks,
         status__in=ACTIVE_INCIDENT_STATUSES,
     )
-    if org:
-        qs = qs.filter(organization=org)
+    if org_id:
+        qs = qs.filter(organization_id=org_id)
 
     tickets_by_asset: dict[uuid.UUID, list[ServiceRequest]] = {pk: [] for pk in pks}
     for t in qs.order_by("-occurred_at"):

@@ -318,13 +318,22 @@ def new_version(template: ChecklistTemplate, *, actor, request=None) -> Checklis
 # --- applicability and work-order integration ---------------------------------------------------------------------
 
 
+def _parse_uuid(value) -> str | None:
+    if not value:
+        return None
+    try:
+        return str(uuid.UUID(str(value)))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 def required_templates(wo):
     """ACTIVE templates this work order must complete: the required ones that apply to its type, plus (M04) the
     checklist its preventive-maintenance plan names. M08 stays the only authority on blocking / execution."""
     from django.db.models import Q
 
     cond = Q(is_required=True, work_type__in=("", wo.work_type))
-    plan_key = maintenance_checklist_key(wo)
+    plan_key = _parse_uuid(maintenance_checklist_key(wo))
     if plan_key:
         cond |= Q(key=plan_key)
     return ChecklistTemplate.objects.for_organization(wo.organization).filter(status=ACTIVE).filter(cond)

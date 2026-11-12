@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core import logging as flogging
-from apps.core.exceptions import Conflict, DomainError
+from apps.core.exceptions import Conflict, DomainError, ValidationFailed
 from apps.tenancy.api import TenantAPIMixin
 from apps.workorders.models import WorkOrder
 from apps.workorders.serializers import LaborSerializer, WorkOrderSerializer
@@ -972,9 +972,25 @@ class TechnicianProfileDetailAPIView(TenantAPIMixin, APIView):
         return Response(TechnicianProfileSerializer(updated).data)
 
 
+class TechnicianAvailabilityUpdateSerializer(serializers.Serializer):
+    availability_status = serializers.ChoiceField(
+        choices=["AVAILABLE", "ON_JOB", "ON_LEAVE", "OFF_DUTY"],
+        required=False,
+    )
+    status = serializers.ChoiceField(
+        choices=["AVAILABLE", "ON_JOB", "ON_LEAVE", "OFF_DUTY"],
+        required=False,
+    )
+
+
 class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
     permission_map = {"post": "work_order.view_assigned"}
 
+    @extend_schema(
+        request=TechnicianAvailabilityUpdateSerializer,
+        responses=TechnicianProfileSerializer,
+        summary="Update technician availability status",
+    )
     def post(self, request, pk=None):
         if pk:
             membership = _resolve_technician_membership(request.organization, pk)
@@ -983,6 +999,6 @@ class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
 
         new_status = request.data.get("availability_status") or request.data.get("status")
         if not new_status:
-            return Response({"error": "status is required."}, status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationFailed("availability_status is required.", code="validation_failed")
         profile = services.set_technician_availability(membership, new_status, actor=request.user, request=request)
         return Response(TechnicianProfileSerializer(profile).data)

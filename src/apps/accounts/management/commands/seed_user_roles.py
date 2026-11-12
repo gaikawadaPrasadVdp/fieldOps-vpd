@@ -458,7 +458,61 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"[OK] Provisioned Platform Super Admin: {platform_admin_email}"))
 
+        # 6. Ensure smoke/demo baseline records exist (technician profiles, webhook endpoint, dashboard snapshot)
+        from datetime import date, timedelta
+        from apps.core.models import WebhookEndpoint
+        from apps.core.tenant import tenant_context
+        from apps.dashboards.models import ReportSnapshot
+        from apps.workorders.models import TechnicianProfile as WorkOrderTechProfile
+        from apps.workspace.models import TechnicianProfile as WorkspaceTechProfile
 
+        with tenant_context(org):
+            tech_role = Role.objects.unscoped().filter(organization=org, system_key="technician").first()
+            tech_memberships = Membership.objects.unscoped().filter(organization=org, status="ACTIVE").select_related("user")
+            for m in tech_memberships:
+                is_tech = (
+                    (tech_role and MembershipRole.objects.filter(membership=m, role=tech_role).exists())
+                    or "technician" in (m.user.email or "").lower()
+                )
+                if not is_tech:
+                    continue
+                WorkOrderTechProfile.objects.unscoped().get_or_create(
+                    membership=m,
+                    defaults={
+                        "organization": org,
+                        "skills": ["HVAC", "Electrical", "Preventive Maintenance"],
+                        "is_dispatchable": True,
+                    },
+                )
+                ws_prof, _ = WorkspaceTechProfile.objects.unscoped().get_or_create(
+                    membership=m,
+                    defaults={"organization": org, "max_active_jobs": 50, "availability_status": "AVAILABLE"},
+                )
+                if ws_prof.max_active_jobs < 50 or ws_prof.availability_status != "AVAILABLE":
+                    ws_prof.max_active_jobs = max(ws_prof.max_active_jobs, 50)
+                    ws_prof.availability_status = "AVAILABLE"
+                    ws_prof.save(update_fields=["max_active_jobs", "availability_status", "updated_at"])
+
+            if not WebhookEndpoint.objects.unscoped().filter(organization=org).exists():
+                WebhookEndpoint.objects.create(
+                    organization=org,
+                    name="Default Integration Webhook",
+                    target_url="https://hooks.example.invalid/fieldops-events",
+                    event_pattern="work_order.*",
+                    is_active=False,
+                )
+
+            if not ReportSnapshot.objects.unscoped().filter(organization=org).exists():
+                today = date.today()
+                ReportSnapshot.objects.create(
+                    organization=org,
+                    snapshot_type="DAILY",
+                    section="OPERATIONS",
+                    period_start=today - timedelta(days=1),
+                    period_end=today,
+                    metrics={"open_work_orders": 0, "completed_work_orders": 0, "baseline": True},
+                    notes="Baseline operations KPI snapshot",
+                )
 
         self.stdout.write(self.style.SUCCESS("\n[SUCCESS] Successfully seeded all user credentials and roles!"))
 

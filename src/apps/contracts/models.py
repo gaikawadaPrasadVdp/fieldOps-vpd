@@ -16,10 +16,19 @@ from apps.core.models import TenantOwnedModel
 
 
 class ServiceProvider(TenantOwnedModel):
+    class ProviderType(models.TextChoices):
+        OEM = "OEM", "OEM"
+        DEALER = "DEALER", "Dealer"
+        CONTRACTOR = "CONTRACTOR", "Contractor"
+        VENDOR = "VENDOR", "Vendor"
+        OTHER = "OTHER", "Other"
+
     name = models.CharField(max_length=150)
+    provider_type = models.CharField(max_length=30, choices=ProviderType.choices, default=ProviderType.OEM)
     contact_name = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=40, blank=True)
+    address = models.CharField(max_length=300, blank=True)
     notes = models.CharField(max_length=500, blank=True)
     is_active = models.BooleanField(default=True)
 

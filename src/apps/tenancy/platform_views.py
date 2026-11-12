@@ -25,7 +25,11 @@ def platform_admin_required(view):
 
 @platform_admin_required
 def organizations(request):
-    services.process_due_scheduled_deletions()
+    try:
+        services.process_due_scheduled_deletions()
+    except Exception as exc:
+        import logging
+        logging.getLogger("django.request").warning("Background scheduled deletion check failed: %s", exc)
     filter_form = PlatformOrganizationFilterForm(request.GET)
     filter_form.is_valid()
     q = filter_form.cleaned_data.get("q", "").strip() if filter_form.is_valid() else ""
@@ -38,6 +42,18 @@ def organizations(request):
         qs = qs.filter(status=status_filter)
 
     page, preserved_params = paginate_dashboard_queryset(request, qs, page_param="page", per_page=25)
+    from apps.tenancy.models import Membership
+    owner_memberships = {
+        m.organization_id: m
+        for m in Membership.objects.unscoped().filter(
+            organization__in=page.object_list,
+            membership_roles__role__is_owner=True,
+        ).select_related("user")
+    }
+    for org in page.object_list:
+        org.owner_membership = owner_memberships.get(org.pk)
+        org.owner_user = org.owner_membership.user if org.owner_membership else None
+
     return render(
         request,
         "tenancy/platform_organizations.html",
@@ -168,6 +184,101 @@ def organization_cancel_deletion(request, org_id):
         messages.error(request, f"Failed to cancel scheduled deletion: {exc}")
 
     return redirect("platform_admin:organizations")
+
+
+@platform_admin_required
+def organization_owner_credentials(request, org_id):
+    if request.method != "POST":
+        return redirect("platform_admin:organizations")
+
+    org = get_object_or_404(Organization, pk=org_id)
+    from apps.tenancy.models import Membership
+    from apps.audit import services as audit_services
+
+    owner_m = (
+        Membership.objects.unscoped()
+        .filter(organization=org, membership_roles__role__is_owner=True)
+        .select_related("user")
+        .first()
+    )
+
+    if not owner_m or not owner_m.user:
+        messages.error(request, f"No owner account found for organization '{org.name}'.")
+        return redirect("platform_admin:organizations")
+
+    new_password = request.POST.get("new_password", "").strip()
+    if not new_password or len(new_password) < 8:
+        messages.error(request, "Password must be at least 8 characters long.")
+        return redirect("platform_admin:organizations")
+
+    owner_user = owner_m.user
+    owner_user.set_password(new_password)
+    owner_user.save(update_fields=["password"])
+
+    audit_services.record(
+        "auth.owner_password_reset_by_platform_admin",
+        actor=request.user,
+        organization=org,
+        target=owner_user,
+        request=request,
+        metadata={"owner_email": owner_user.email, "organization_name": org.name},
+    )
+
+    messages.success(
+        request,
+        f"Credentials for organization owner '{owner_user.email}' ({org.name}) have been updated successfully.",
+    )
+    return redirect("platform_admin:organizations")
+
+
+@platform_admin_required
+def platform_overview(request):
+    """Platform Super Admin Overview.
+
+    Exclusively displays platform governance, organization lifecycle, and security
+    audit metrics. Completely isolates tenant-internal operations data (Rule D-008).
+    """
+    from django.db.models import Q
+    from apps.tenancy.models import Membership
+
+    platform_filter = (
+        Q(action__startswith="auth.")
+        | Q(action__startswith="organization.")
+        | Q(action="portal.client_onboarding_requested")
+    )
+
+    total_orgs = Organization.objects.count()
+    active_orgs = Organization.objects.filter(status=Organization.Status.ACTIVE).count()
+    suspended_orgs = Organization.objects.exclude(status=Organization.Status.ACTIVE).count()
+    scheduled_deletion_orgs = Organization.objects.filter(deletion_scheduled_at__isnull=False).count()
+    total_owners = (
+        Membership.objects.unscoped()
+        .filter(membership_roles__role__is_owner=True)
+        .values("user")
+        .distinct()
+        .count()
+    )
+    platform_audit_events = AuditLog.objects.filter(platform_filter).count()
+
+    recent_activity = list(
+        AuditLog.objects.filter(platform_filter)
+        .select_related("organization")
+        .order_by("-occurred_at")[:10]
+    )
+
+    return render(
+        request,
+        "tenancy/platform_overview.html",
+        {
+            "total_orgs": total_orgs,
+            "active_orgs": active_orgs,
+            "suspended_orgs": suspended_orgs,
+            "scheduled_deletion_orgs": scheduled_deletion_orgs,
+            "total_owners": total_owners,
+            "platform_audit_events": platform_audit_events,
+            "recent_activity": recent_activity,
+        },
+    )
 
 
 @platform_admin_required

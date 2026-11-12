@@ -196,3 +196,418 @@ def test_redis_url_sanitization():
     assert sanitize("host.internal:6379") == "redis://host.internal:6379"
     assert sanitize("none") == ""
     assert sanitize("") == ""
+
+
+def _tenant_request(rf, path: str, **headers):
+    req = rf.get(path, **headers)
+    req.user = MagicMock(is_authenticated=True, is_platform_admin=False)
+    membership = MagicMock()
+    membership.pk = uuid.uuid4()
+    membership.is_active = True
+    membership.portal_account = None
+    membership.organization = MagicMock(pk=uuid.uuid4(), slug="alpha", timezone="UTC")
+    req.membership = membership
+    req.organization = membership.organization
+    return req
+
+
+def test_asset_list_view_htmx_bypasses_kpis_dropdowns_and_batches_child_counts():
+    """Verify #asset-list-card HTMX requests skip KPI/dropdown queries and batch child counts."""
+    from apps.assets.models import AssetComponent
+    from apps.assets.views import AssetListView
+
+    rf = RequestFactory()
+    req = _tenant_request(
+        rf,
+        "/app/assets/",
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="asset-list-card",
+    )
+
+    root_asset = MagicMock(pk=uuid.uuid4(), parent_link=None)
+    child_asset = MagicMock(pk=uuid.uuid4(), parent_link=MagicMock())
+    mock_page = MagicMock()
+    mock_page.__iter__.return_value = iter([root_asset, child_asset])
+
+    base_assets = MagicMock()
+    base_assets.select_related.return_value = base_assets
+
+    with (
+        patch("apps.assets.views.selectors.assets_for", return_value=base_assets),
+        patch("apps.assets.views.selectors.filter_assets", return_value=base_assets),
+        patch("apps.assets.views.Paginator") as mock_paginator,
+        patch.object(AssetComponent.objects, "filter") as mock_comp_filter,
+        patch("apps.assets.views.site_selectors.sites_for") as mock_sites_for,
+        patch("apps.assets.views.selectors.categories_for") as mock_categories_for,
+        patch("apps.assets.views.rbac.has_permission_anywhere", return_value=True),
+        patch("apps.assets.views.rbac.has_permission", return_value=True),
+        patch("apps.assets.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        mock_paginator.return_value.get_page.return_value = mock_page
+        mock_comp_filter.return_value.values_list.return_value.annotate.return_value = [
+            (root_asset.pk, 3)
+        ]
+
+        AssetListView().get(req)
+
+    base_assets.select_related.assert_called_once_with("parent_link__parent")
+    base_assets.aggregate.assert_not_called()
+    base_assets.count.assert_not_called()
+    mock_sites_for.assert_not_called()
+    mock_categories_for.assert_not_called()
+    mock_comp_filter.assert_called_once_with(parent_id__in=[root_asset.pk])
+    assert root_asset.child_count == 3
+    assert child_asset.child_count == 0
+    ctx = mock_render.call_args[0][2]
+    assert ctx["sites"] == []
+    assert ctx["categories"] == []
+    assert ctx["total_count"] == 0
+
+
+def test_asset_list_view_full_render_uses_single_aggregation():
+    """Verify full AssetListView render aggregates all 4 KPIs in one query."""
+    from apps.assets.models import AssetComponent
+    from apps.assets.views import AssetListView
+
+    rf = RequestFactory()
+    req = _tenant_request(rf, "/app/assets/")
+
+    mock_page = MagicMock()
+    mock_page.__iter__.return_value = iter([])
+
+    base_assets = MagicMock()
+    base_assets.select_related.return_value = base_assets
+    base_assets.aggregate.return_value = {
+        "total_count": 10,
+        "active_count": 6,
+        "maintenance_count": 3,
+        "out_of_service_count": 1,
+    }
+
+    with (
+        patch("apps.assets.views.selectors.assets_for", return_value=base_assets),
+        patch("apps.assets.views.selectors.filter_assets", return_value=base_assets),
+        patch("apps.assets.views.Paginator") as mock_paginator,
+        patch.object(AssetComponent.objects, "filter") as mock_comp_filter,
+        patch("apps.assets.views.site_selectors.sites_for") as mock_sites_for,
+        patch("apps.assets.views.selectors.categories_for", return_value=["cat1"]) as mock_categories_for,
+        patch("apps.assets.views.rbac.has_permission_anywhere", return_value=True),
+        patch("apps.assets.views.rbac.has_permission", return_value=True),
+        patch("apps.assets.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        mock_paginator.return_value.get_page.return_value = mock_page
+        mock_sites_for.return_value.order_by.return_value = ["site1"]
+
+        AssetListView().get(req)
+
+    base_assets.aggregate.assert_called_once()
+    base_assets.count.assert_not_called()
+    mock_comp_filter.assert_not_called()
+    mock_sites_for.assert_called_once()
+    mock_categories_for.assert_called_once()
+    ctx = mock_render.call_args[0][2]
+    assert ctx["total_count"] == 10
+    assert ctx["active_count"] == 6
+    assert ctx["maintenance_count"] == 3
+    assert ctx["out_of_service_count"] == 1
+    assert ctx["sites"] == ["site1"]
+    assert ctx["categories"] == ["cat1"]
+
+
+def test_site_list_view_htmx_vs_full_render():
+    """Verify SiteListView skips KPI aggregate on #site-list-card HTMX and consolidates it otherwise."""
+    from apps.sites.views import SiteListView
+
+    rf = RequestFactory()
+    htmx_req = _tenant_request(
+        rf,
+        "/app/sites/",
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="site-list-card",
+    )
+
+    with (
+        patch("apps.sites.views.selectors.sites_for") as mock_sites_for,
+        patch("apps.sites.views.selectors.site_list", return_value=[]),
+        patch("apps.sites.views.Paginator") as mock_paginator,
+        patch("apps.sites.views.rbac.has_permission", return_value=True),
+        patch("apps.sites.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        mock_paginator.return_value.get_page.return_value = MagicMock()
+        SiteListView().get(htmx_req)
+
+    mock_sites_for.assert_not_called()
+    assert mock_render.call_args[0][2]["total_sites"] == 0
+
+    full_req = _tenant_request(rf, "/app/sites/")
+    with (
+        patch("apps.sites.views.selectors.sites_for") as mock_sites_for,
+        patch("apps.sites.views.selectors.site_list", return_value=[]),
+        patch("apps.sites.views.Paginator") as mock_paginator,
+        patch("apps.sites.views.rbac.has_permission", return_value=True),
+        patch("apps.sites.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        mock_sites_for.return_value.aggregate.return_value = {
+            "total_sites": 4,
+            "active_sites": 3,
+            "inactive_sites": 1,
+        }
+        mock_paginator.return_value.get_page.return_value = MagicMock()
+        SiteListView().get(full_req)
+
+    mock_sites_for.return_value.aggregate.assert_called_once()
+    mock_sites_for.return_value.count.assert_not_called()
+    ctx = mock_render.call_args[0][2]
+    assert ctx["total_sites"] == 4
+    assert ctx["active_sites"] == 3
+    assert ctx["inactive_sites"] == 1
+
+
+def test_asset_hierarchy_hub_consolidates_kpis_and_reuses_roots():
+    """Verify AssetHierarchyHubView runs one aggregate and selects matching roots in memory."""
+    from apps.assets.models import AssetComponent
+    from apps.assets.views import AssetHierarchyHubView
+
+    rf = RequestFactory()
+    r1 = MagicMock(pk=uuid.uuid4(), site_id=uuid.uuid4(), child_count=2)
+    r2 = MagicMock(pk=uuid.uuid4(), site_id=uuid.uuid4(), child_count=5)
+
+    roots_chain = MagicMock()
+    roots_chain.__iter__.return_value = iter([r1, r2])
+    assets_qs = MagicMock()
+    assets_qs.filter.return_value.annotate.return_value.filter.return_value.order_by.return_value = roots_chain
+
+    comp_mgr = MagicMock()
+    comp_mgr.aggregate.return_value = {
+        "total_components": 7,
+        "replaceable_parts": 3,
+        "parts_without_num": 1,
+    }
+
+    req = _tenant_request(rf, f"/app/assets/hierarchy/?root={r2.pk}")
+    with (
+        patch("apps.assets.views.selectors.assets_for", return_value=assets_qs),
+        patch.object(AssetComponent.objects, "for_organization", return_value=comp_mgr),
+        patch("apps.assets.views.hierarchy.build_tree", return_value={"asset": r2, "children": []}) as mock_build,
+        patch("apps.assets.views.hierarchy.flatten", return_value=[{"asset": r2}]),
+        patch("apps.assets.views.rbac.has_permission", return_value=True),
+        patch("apps.assets.views.rbac.has_permission_anywhere", return_value=True),
+        patch("apps.assets.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        AssetHierarchyHubView().get(req)
+
+    comp_mgr.aggregate.assert_called_once()
+    comp_mgr.count.assert_not_called()
+    assets_qs.count.assert_not_called()
+    assets_qs.filter.return_value.first.assert_not_called()
+    mock_build.assert_called_once_with(r2)
+    ctx = mock_render.call_args[0][2]
+    assert ctx["selected_root"] is r2
+    assert ctx["total_assemblies"] == 2
+    assert ctx["total_components"] == 7
+
+    # Invalid/unknown ?root= should render empty selected_root instead of falling back to roots[0]
+    roots_chain.__iter__.return_value = iter([r1, r2])
+    unknown_req = _tenant_request(rf, "/app/assets/hierarchy/?root=not-a-uuid")
+    with (
+        patch("apps.assets.views.selectors.assets_for", return_value=assets_qs),
+        patch.object(AssetComponent.objects, "for_organization", return_value=comp_mgr),
+        patch("apps.assets.views.hierarchy.build_tree") as mock_build,
+        patch("apps.assets.views.rbac.has_permission_anywhere", return_value=True),
+        patch("apps.assets.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        AssetHierarchyHubView().get(unknown_req)
+
+    mock_build.assert_not_called()
+    assert mock_render.call_args[0][2]["selected_root"] is None
+
+
+def test_component_list_view_consolidates_kpis_and_batches_health():
+    """Verify ComponentListView consolidates KPI counts and batch annotates page items."""
+    from apps.assets.views import ComponentListView
+
+    rf = RequestFactory()
+    req = _tenant_request(rf, "/app/assets/components/")
+
+    c1 = MagicMock(child=MagicMock(pk=uuid.uuid4()))
+    mock_page = MagicMock()
+    mock_page.__iter__.return_value = iter([c1])
+
+    base_qs = MagicMock()
+    base_qs.aggregate.return_value = {
+        "total_items": 4,
+        "total_replaceable": 2,
+        "missing_parts": 1,
+    }
+
+    with (
+        patch("apps.assets.views.selectors.components_for", return_value=base_qs),
+        patch("apps.assets.views.selectors.filter_components", return_value=base_qs),
+        patch("apps.assets.views.Paginator") as mock_paginator,
+        patch("apps.assets.views.site_selectors.sites_for") as mock_sites_for,
+        patch("apps.incidents.models.ServiceRequest.objects.filter") as mock_sr_filter,
+        patch("apps.assets.health.batch_annotate_assets_health") as mock_batch_health,
+        patch("apps.assets.views.rbac.has_permission_anywhere", return_value=True),
+        patch("apps.assets.views.render", return_value=MagicMock(status_code=200)) as mock_render,
+    ):
+        mock_paginator.return_value.get_page.return_value = mock_page
+        mock_sr_filter.return_value.values.return_value.distinct.return_value.count.return_value = 1
+        mock_sites_for.return_value.order_by.return_value = []
+
+        ComponentListView().get(req)
+
+    base_qs.aggregate.assert_called_once()
+    base_qs.count.assert_not_called()
+    mock_batch_health.assert_called_once_with([c1.child], organization=req.organization)
+    ctx = mock_render.call_args[0][2]
+    assert ctx["total_items"] == 4
+    assert ctx["total_replaceable"] == 2
+    assert ctx["missing_parts"] == 1
+
+
+def test_build_tree_binds_parent_in_memory_and_honors_annotate_health():
+    """Verify build_tree attaches parent on each link, passes organization_id, and skips health when disabled."""
+    from apps.assets import hierarchy
+    from apps.assets.models import AssetComponent
+
+    org_id = uuid.uuid4()
+    site_id = uuid.uuid4()
+    root = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site_id, asset_tag="ROOT-1")
+    child = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site_id, asset_tag="CHILD-1")
+    link = MagicMock(parent_id=root.pk, child_id=child.pk, child=child)
+
+    with (
+        patch.object(AssetComponent.objects, "filter") as mock_filter,
+        patch("apps.assets.hierarchy.annotate_tree_health") as mock_annotate,
+    ):
+        mock_filter.return_value.select_related.return_value.order_by.side_effect = [[link], []]
+        tree = hierarchy.build_tree(root)
+
+    assert link.parent is root
+    assert tree["children"][0]["asset"] is child
+    mock_annotate.assert_called_once_with(tree, organization=org_id)
+
+    with (
+        patch.object(AssetComponent.objects, "filter") as mock_filter,
+        patch("apps.assets.hierarchy.annotate_tree_health") as mock_annotate,
+        patch("apps.assets.hierarchy.subtree_height", return_value=1),
+        patch("apps.assets.hierarchy.ancestors", return_value=[]),
+    ):
+        mock_filter.return_value.select_related.return_value.order_by.side_effect = [[link], []]
+        report = hierarchy.validate_tree(root)
+
+    assert report["valid"] is True
+    assert report["nodes"] == 2
+    mock_annotate.assert_not_called()
+
+
+def test_batch_annotate_assets_health_uses_organization_id():
+    """Verify batch_annotate_assets_health resolves UUID/org ids cleanly via organization_id."""
+    from apps.assets.health import batch_annotate_assets_health
+
+    org_id = uuid.uuid4()
+    asset = MagicMock(pk=uuid.uuid4(), organization_id=org_id, status="ACTIVE")
+
+    with patch("apps.incidents.models.ServiceRequest.objects.filter") as mock_sr_filter:
+        qs = mock_sr_filter.return_value
+        qs.filter.return_value = qs
+        qs.order_by.return_value = []
+
+        result = batch_annotate_assets_health([asset], organization=org_id)
+
+    qs.filter.assert_called_once_with(organization_id=org_id)
+    assert result[asset.pk]["status"] == "HEALTHY"
+    assert asset._health_info["status"] == "HEALTHY"
+
+
+def test_site_viewset_create_sets_zero_counts_and_action_lookup_uses_with_counts():
+    """Verify SiteViewSet create avoids count queries and retrieve/mutations fetch annotated counts."""
+    from django.utils import timezone
+
+    from apps.sites.api_views import SiteViewSet
+    from apps.sites.models import Site
+
+    now = timezone.now()
+    site = Site(
+        id=uuid.uuid4(),
+        code="S-01",
+        name="Plant One",
+        status="ACTIVE",
+        created_at=now,
+        updated_at=now,
+    )
+    rf = RequestFactory()
+    req = _tenant_request(rf, "/api/v1/sites/")
+    req.data = {"code": "S-01", "name": "Plant One"}
+
+    vs = SiteViewSet()
+    with (
+        patch("apps.sites.api_views.services.create_site", return_value=site),
+        patch("apps.sites.api_views.SiteWriteSerializer") as mock_write,
+    ):
+        mock_write.return_value.is_valid.return_value = True
+        mock_write.return_value.validated_data = {"code": "S-01", "name": "Plant One"}
+        resp = vs.create(req)
+
+    assert resp.status_code == 201
+    assert resp.data["zone_count"] == 0
+    assert resp.data["asset_count"] == 0
+
+    site.zone_count = 3
+    site.asset_count = 5
+    with patch("apps.sites.api_views.selectors.get_site", return_value=site) as mock_get_site:
+        ret = vs.retrieve(req, pk=str(site.pk))
+        assert ret.data["zone_count"] == 3
+        assert ret.data["asset_count"] == 5
+        mock_get_site.assert_called_once_with(req.membership, req.organization, str(site.pk), with_counts=True)
+
+    with (
+        patch("apps.sites.api_views.selectors.get_site", return_value=site) as mock_get_site,
+        patch("apps.sites.api_views.require_permission"),
+        patch("apps.sites.api_views.selectors.zone_tree", return_value=[]),
+    ):
+        vs.tree(req, pk=str(site.pk))
+        mock_get_site.assert_called_once_with(req.membership, req.organization, str(site.pk), with_counts=False)
+
+
+def test_zone_hierarchy_validation_and_form_use_single_query():
+    """Verify validate_zone_parent and ZoneForm load site zone links in one query and catch cycles."""
+    from apps.core.exceptions import ValidationFailed
+    from apps.sites import services as site_services
+    from apps.sites.forms import ZoneForm
+    from apps.sites.models import Zone
+
+    org_id = uuid.uuid4()
+    site = MagicMock(pk=uuid.uuid4(), organization_id=org_id)
+    z1 = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site.pk, status="ACTIVE")
+    z2 = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site.pk, status="ACTIVE")
+    z3 = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site.pk, status="ACTIVE")
+    z4 = MagicMock(pk=uuid.uuid4(), organization_id=org_id, site_id=site.pk, status="ACTIVE")
+
+    rows = [(z1.pk, None), (z2.pk, z1.pk), (z3.pk, z2.pk), (z4.pk, z3.pk)]
+    with patch.object(Zone.objects, "filter") as mock_filter:
+        mock_filter.return_value.values_list.return_value = rows
+        # Valid move: create new child under z4 (total depth 5 <= MAX_ZONE_DEPTH 6)
+        site_services.validate_zone_parent(site, None, z4, Zone.ZoneType.ZONE)
+        assert mock_filter.call_count == 1
+
+    with patch.object(Zone.objects, "filter") as mock_filter:
+        mock_filter.return_value.values_list.return_value = rows
+        # Cycle: moving z1 under its descendant z4 must fail in memory using single query
+        with pytest.raises(ValidationFailed) as exc:
+            site_services.validate_zone_parent(site, z1, z4, Zone.ZoneType.ZONE)
+        assert exc.value.code == "zone_cycle"
+        assert mock_filter.call_count == 1
+
+    with patch.object(Zone.objects, "filter") as mock_filter:
+        mock_qs = MagicMock()
+        mock_qs.order_by.return_value = mock_qs
+        mock_qs.exclude.return_value = mock_qs
+        mock_qs.values_list.return_value = rows
+        mock_filter.return_value = mock_qs
+
+        ZoneForm(site=site, zone=z1)
+
+    mock_qs.values_list.assert_called_once_with("pk", "parent_id")
+    excluded_ids = mock_qs.exclude.call_args.kwargs["pk__in"]
+    assert excluded_ids == {z1.pk, z2.pk, z3.pk, z4.pk}

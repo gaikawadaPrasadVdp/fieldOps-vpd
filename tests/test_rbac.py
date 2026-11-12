@@ -133,3 +133,57 @@ def test_seeded_roles_exist_for_every_template(org_a):
 def test_inactive_membership_has_no_permissions(org_a, make_member):
     m = make_member(org_a, "s@alpha.test", "admin", active=False)
     assert services.membership_permissions(m) == frozenset()
+
+
+def test_new_member_permissions_displayed_in_roles_ui(client, owner_a, org_a):
+    tech_role = Role.objects.for_organization(org_a).filter(system_key="technician").first()
+    new_m = tenancy.invite_member(
+        org_a,
+        email="new_tech@alpha.test",
+        full_name="New Tech",
+        role_ids=[tech_role.pk],
+        actor=owner_a,
+    )
+    # The new member is INVITED (inactive), but the Roles UI must show their configured role permissions checked
+    client.force_login(owner_a)
+    session = client.session
+    session["tenant_org_id"] = str(org_a.pk)
+    session.save()
+    res = client.get("/app/roles/")
+    assert res.status_code == 200
+    content = res.content.decode()
+    # Check that technician's permissions are checked in the modal
+    assert f'id="p-{new_m.pk}-work_order.start"' in content
+    # Verify the checkbox for work_order.start is checked
+    idx = content.find(f'id="p-{new_m.pk}-work_order.start"')
+    snippet = content[idx-100:idx+100]
+    assert "checked" in snippet
+
+
+def test_seed_system_roles_reconciles_preexisting_role_name_collision(org_a, make_member):
+    # Simulate an organization with a legacy/custom role already named "Field Technician"
+    # while the system role for "technician" has an older name (e.g. "Technician")
+    tech_system_role = Role.objects.filter(organization=org_a, system_key="technician").first()
+    assert tech_system_role is not None
+    tech_system_role.name = "Technician"
+    tech_system_role.save(update_fields=["name"])
+
+    # Create a conflicting role with name "Field Technician" and assign a member to it
+    conflict_role = Role.objects.create(
+        organization=org_a,
+        name="Field Technician",
+        description="Conflicting custom role",
+        system_key="",
+    )
+    user_m = make_member(org_a, "conflict_member@alpha.test", "admin")
+    MembershipRole.objects.create(membership=user_m, role=conflict_role)
+
+    # Calling seed_system_roles must cleanly reconcile without IntegrityError
+    roles_dict = services.seed_system_roles(org_a)
+    assert roles_dict["technician"].name == "Field Technician"
+
+    # The member should now have been migrated to the system role
+    assert MembershipRole.objects.filter(membership=user_m, role=roles_dict["technician"]).exists()
+    assert not Role.objects.filter(pk=conflict_role.pk).exists()
+
+

@@ -28,7 +28,7 @@
       href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}</div>
 
   {% elif operation == 'Assign' %}{% if not form.fields.assigned_to.queryset.exists %}<div class="wo-action-flags"
-    role="status"><span class="wo-inline-state is-warning">No eligible technicians</span></div>{% endif %}{% endif %}
+    role="status"><span class="wo-inline-state is-warning">No eligible technicians</span> <span class="text-secondary small ms-2">No active technicians with authorization for {% if wo.site %}site <strong>{{ wo.site.name }}</strong>{% else %}this organization{% endif %} were found.</span></div>{% endif %}{% endif %}
 
   <form method="post" enctype="multipart/form-data" data-workorder-date-validation>{% csrf_token %}
 
@@ -84,7 +84,7 @@
 {% block scripts %}{{ block.super }}
 <script src="{% static 'js/workorder-date-validation.js' %}?v=m06-plan-v2" defer></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 
   document.addEventListener("DOMContentLoaded", function () {
 

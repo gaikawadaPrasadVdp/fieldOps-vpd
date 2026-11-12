@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.audit.models import AuditLog
@@ -331,9 +332,9 @@ ROLE_PERSONA_CONFIG = {
     },
     "service_dispatcher": {
         "badge": "Service Dispatch & Operations",
-        "title": "Service Dispatch & SLA Coordination",
+        "title": "Operational Overview",
         "role_name": "Service Dispatcher",
-        "subtitle": "Emergency incident triage, technician assignments, dispatch board, and SLA countdowns.",
+        "subtitle": "Incident triage, work order planning, technician dispatch, and SLA coordination.",
     },
     "technician": {
         "badge": "Field Mobility & Execution",
@@ -404,7 +405,7 @@ def home(request):
     from apps.workorders.models import WorkOrder
 
     if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-        return redirect("platform_admin:organizations")
+        return redirect("platform_admin:overview")
 
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
@@ -563,79 +564,216 @@ def home(request):
         activity_link_label = "Asset Registry →"
 
     elif persona_key == "maintenance_planner":
-        active_pms = maintenance_selectors.plans_for(request.membership, org).filter(is_active=True).count()
-        prev_wos = wo_selectors.work_order_list(request.membership, org).filter(work_type=WorkOrder.WorkType.PREVENTIVE).exclude(status__in=TERMINAL_WO_STATUSES).count()
-        backlog = wo_selectors.work_order_list(request.membership, org).filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED]).count()
-        checklists = ChecklistTemplate.objects.for_organization(org).exclude(status="ARCHIVED").count()
-        kpi_cards = [
-            {"title": "Active PM Plans", "value": active_pms, "subtitle": "Active recurrence plans", "tone": "accent", "icon": "wrench"},
-            {"title": "Preventive Orders", "value": prev_wos, "subtitle": "Scheduled active PM jobs", "tone": "gold", "icon": "clipboard"},
-            {"title": "Planning Backlog", "value": backlog, "subtitle": "Orders awaiting dispatch", "tone": "warning", "icon": "clock"},
-            {"title": "Inspection Checklists", "value": checklists, "subtitle": "Configured templates", "tone": "accent", "icon": "list-check"},
-        ]
+        can_maint = rbac.has_permission_anywhere(request.membership, "maintenance.view")
+        can_wo = rbac.has_permission_anywhere(request.membership, "work_order.view")
+        can_chk = rbac.has_permission_anywhere(request.membership, "checklist.view")
+
+        plans_qs = maintenance_selectors.plans_for(request.membership, org) if can_maint else None
+        schedules_qs = maintenance_selectors.schedules_for(request.membership, org).filter(is_active=True, plan__is_active=True) if can_maint else None
+        pm_wos_qs = (
+            wo_selectors.work_order_list(request.membership, org)
+            .filter(work_type=WorkOrder.WorkType.PREVENTIVE)
+            .exclude(status__in=TERMINAL_WO_STATUSES)
+            if can_wo
+            else WorkOrder.objects.none()
+        )
+
+        kpi_cards = []
+        if can_maint:
+            active_pms = plans_qs.filter(is_active=True).count()
+            due_schedules_count = schedules_qs.filter(next_due_date__lte=timezone.localdate()).count()
+            kpi_cards.append({
+                "title": "Active PM Plans",
+                "value": active_pms,
+                "subtitle": "Active recurrence plans",
+                "tone": "accent",
+                "icon": "wrench",
+            })
+            kpi_cards.append({
+                "title": "Due PM Schedules",
+                "value": due_schedules_count,
+                "subtitle": "Time-based schedules due today/overdue",
+                "tone": "warning",
+                "icon": "clock",
+            })
+        if can_wo:
+            backlog = pm_wos_qs.filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED]).count()
+            kpi_cards.append({
+                "title": "PM Planning Backlog",
+                "value": backlog,
+                "subtitle": "Draft & planned PM orders",
+                "tone": "gold",
+                "icon": "clipboard",
+            })
+        if can_chk:
+            checklists = ChecklistTemplate.objects.for_organization(org).exclude(status="ARCHIVED").count()
+            kpi_cards.append({
+                "title": "Checklist Templates",
+                "value": checklists,
+                "subtitle": "Active PM & inspection templates",
+                "tone": "accent",
+                "icon": "list-check",
+            })
+
+        planner_show_schedules = can_maint
+        planner_show_work_orders = can_wo
+        planner_due_schedules = list(
+            schedules_qs.select_related("plan__site", "plan__asset", "meter")
+            .order_by("next_due_date", "created_at")[:6]
+        ) if can_maint else []
+
+        planner_work_orders = list(
+            pm_wos_qs.filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED])
+            .select_related("site", "asset", "assigned_to__user")
+            .order_by("-created_at")[:6]
+        ) if can_wo else []
+
         shortcuts = [
             {"label": "Maintenance Plans", "url": reverse("maintenance:plans"), "icon": "wrench"},
             {"label": "Due & Upcoming PMs", "url": reverse("maintenance:due"), "icon": "clock"},
-            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
-            {"label": "Inspection Checklists", "url": reverse("checklists:list"), "icon": "list-check"},
+            {"label": "PM History", "url": reverse("maintenance:history"), "icon": "list-check"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Checklists", "url": reverse("checklists:list"), "icon": "list-check"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "clipboard"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub") + "?section=maintenance", "icon": "activity"},
         ]
-        header_actions = []
-        recent_objs = WorkOrder.objects.for_organization(org).filter(work_type="PREVENTIVE").order_by("-created_at")[:8]
-        recent = [ActivityEntry(f"PM Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "unassigned") if w.assigned_to else "unassigned", w.title) for w in recent_objs]
+        header_actions = [
+            {"label": "Maintenance Plans", "url": reverse("maintenance:plans"), "icon": "wrench"},
+            {"label": "Due & Upcoming", "url": reverse("maintenance:due"), "icon": "clock"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+        ]
+        if can_wo:
+            recent_objs = pm_wos_qs.select_related("assigned_to__user").order_by("-created_at")[:8]
+            recent = [
+                ActivityEntry(
+                    f"PM Work Order [{w.status}]: {w.order_number}",
+                    w.updated_at or w.created_at,
+                    getattr(w.assigned_to.user, "email", "unassigned") if w.assigned_to else "unassigned",
+                    w.title,
+                )
+                for w in recent_objs
+            ]
+        else:
+            recent = []
         activity_title = "Recent Preventive Work Orders"
-        activity_link = reverse("maintenance:due")
-        activity_link_label = "Due Maintenance →"
+        activity_link = reverse("maintenance:due") if can_maint else ""
+        activity_link_label = "Due Maintenance →" if can_maint else ""
 
     elif persona_key == "service_dispatcher":
         from django.db.models import Count
-        disp_reqs = incident_selectors.requests_for(request.membership, org)
-        disp_wos = wo_selectors.work_order_list(request.membership, org)
+        can_inc = rbac.has_permission_anywhere(request.membership, "incident.view")
+        can_wo = rbac.has_permission_anywhere(request.membership, "work_order.view")
+        can_sla = rbac.has_permission_anywhere(request.membership, "sla.view")
+        can_site = rbac.has_permission_anywhere(request.membership, "site.view")
+
+        disp_reqs = incident_selectors.requests_for(request.membership, org) if can_inc else ServiceRequest.objects.none()
+        disp_wos = wo_selectors.work_order_list(request.membership, org) if can_wo else WorkOrder.objects.none()
+
         open_reqs_qs = disp_reqs.exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"])
         open_wos_qs = disp_wos.exclude(status__in=TERMINAL_WO_STATUSES)
-        open_reqs = open_reqs_qs.count()
-        unassigned = open_wos_qs.filter(assigned_to__isnull=True).count()
-        dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS"]).count()
-        breaches = rbac.site_scope(request.membership, "sla.view").filter(
-            SLABreach.objects.for_organization(org), "site_id"
-        ).count()
-        kpi_cards = [
-            {"title": "Open Incidents", "value": open_reqs, "subtitle": "Unresolved breakdown tickets", "tone": "warning", "icon": "bell"},
-            {"title": "Unassigned Jobs", "value": unassigned, "subtitle": "Orders requiring dispatch", "tone": "accent", "icon": "clipboard"},
-            {"title": "Dispatched Orders", "value": dispatched, "subtitle": "Field jobs in execution", "tone": "gold", "icon": "activity"},
-            {"title": "SLA Breaches", "value": breaches, "subtitle": "Missed response / resolution targets", "tone": "danger", "icon": "clock"},
-            {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
-        ]
-        inc_by_site = dict(open_reqs_qs.values_list("site_id").annotate(cnt=Count("pk")))
-        wo_by_site = dict(open_wos_qs.values_list("site_id").annotate(cnt=Count("pk")))
-        unassigned_by_site = dict(open_wos_qs.filter(assigned_to__isnull=True).values_list("site_id").annotate(cnt=Count("pk")))
-        active_sites = list(site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").order_by("code")[:12])
-        site_stats = [
-            {
-                "id": s.pk,
-                "code": s.code,
-                "name": s.name,
-                "open_incidents": inc_by_site.get(s.pk, 0),
-                "open_work_orders": wo_by_site.get(s.pk, 0),
-                "unassigned_orders": unassigned_by_site.get(s.pk, 0),
-            }
-            for s in active_sites
-        ]
+
+        kpi_cards = []
+        if can_inc:
+            pending_triage = disp_reqs.filter(status__in=["NEW", "TRIAGED", "APPROVED"]).count()
+            kpi_cards.append({
+                "title": "Pending Triage & Conversion",
+                "value": pending_triage,
+                "subtitle": "Requests awaiting triage, approval or WO",
+                "tone": "warning",
+                "icon": "bell",
+            })
+        if can_wo:
+            dispatch_queue_count = open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED"]).count()
+            active_dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
+            kpi_cards.append({
+                "title": "Dispatch Queue",
+                "value": dispatch_queue_count,
+                "subtitle": "Draft, planned & assigned orders",
+                "tone": "accent",
+                "icon": "clipboard",
+            })
+            kpi_cards.append({
+                "title": "Active Dispatched",
+                "value": active_dispatched,
+                "subtitle": "Dispatched, in-progress & on-hold",
+                "tone": "gold",
+                "icon": "activity",
+            })
+        if can_sla:
+            breaches = rbac.site_scope(request.membership, "sla.view").filter(
+                SLABreach.objects.for_organization(org), "site_id"
+            ).count()
+            kpi_cards.append({
+                "title": "SLA Breaches",
+                "value": breaches,
+                "subtitle": "Missed response / resolution targets",
+                "tone": "danger",
+                "icon": "clock",
+            })
+
+        dispatcher_requests = list(
+            disp_reqs.filter(status__in=["NEW", "TRIAGED", "APPROVED"])
+            .select_related("site", "asset", "reported_by__user")
+            .order_by("-created_at")[:6]
+        ) if can_inc else []
+
+        dispatcher_work_orders = list(
+            open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED", "ON_HOLD"])
+            .select_related("site", "asset", "assigned_to__user")
+            .order_by("-updated_at", "-created_at")[:6]
+        ) if can_wo else []
+
+        if can_site and (can_inc or can_wo):
+            inc_by_site = dict(open_reqs_qs.values_list("site_id").annotate(cnt=Count("pk"))) if can_inc else {}
+            wo_by_site = dict(open_wos_qs.values_list("site_id").annotate(cnt=Count("pk"))) if can_wo else {}
+            unassigned_by_site = dict(
+                open_wos_qs.filter(assigned_to__isnull=True).values_list("site_id").annotate(cnt=Count("pk"))
+            ) if can_wo else {}
+            active_sites = list(site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").order_by("code")[:12])
+            site_stats = [
+                {
+                    "id": s.pk,
+                    "code": s.code,
+                    "name": s.name,
+                    "open_incidents": inc_by_site.get(s.pk, 0),
+                    "open_work_orders": wo_by_site.get(s.pk, 0),
+                    "unassigned_orders": unassigned_by_site.get(s.pk, 0),
+                }
+                for s in active_sites
+            ]
+        else:
+            site_stats = []
+
         shortcuts = [
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
-            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "list-check"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box"},
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock"},
             {"label": "Service Analytics", "url": reverse("dashboards:hub") + "?section=service", "icon": "activity"},
         ]
         header_actions = [
-            {"label": "Incidents", "url": reverse("incidents:list"), "icon": "bell"},
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
             {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
         ]
-        recent_qs = disp_reqs.select_related("reported_by__user").order_by("-created_at")
-        recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
-        recent = [ActivityEntry(f"Service Request [{r.status}]: {r.number}", r.created_at, getattr(r.reported_by.user, "email", "system") if r.reported_by else "system", r.title) for r in recent_page_obj]
+        if can_inc:
+            recent_qs = disp_reqs.select_related("reported_by__user").order_by("-created_at")
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
+            recent = [
+                ActivityEntry(
+                    f"Service Request [{r.status}]: {r.number}",
+                    r.created_at,
+                    getattr(r.reported_by.user, "email", "system") if r.reported_by else "system",
+                    r.title,
+                )
+                for r in recent_page_obj
+            ]
+        else:
+            recent = []
         activity_title = "Recent Incident & Service Calls"
-        activity_link = reverse("incidents:list")
-        activity_link_label = "All Incidents →"
+        activity_link = reverse("incidents:list") if can_inc else ""
+        activity_link_label = "All Incidents →" if can_inc else ""
 
     elif persona_key in ("technician", "field_technician"):
         from apps.workspace import selectors as workspace_selectors
@@ -846,6 +984,14 @@ def home(request):
             continue
         if "/app/sla" in u and not rbac.has_permission_anywhere(request.membership, "sla.view"):
             continue
+        if "/app/inspections" in u and not rbac.has_permission_anywhere(request.membership, "inspection.view"):
+            continue
+        if "/app/assets" in u and not can_view_assets:
+            continue
+        if "/app/work-orders" in u and not can_view_work_orders:
+            continue
+        if "/app/checklists" in u and not rbac.has_permission_anywhere(request.membership, "checklist.view"):
+            continue
         filtered_shortcuts.append(s)
 
     filtered_headers = []
@@ -870,6 +1016,8 @@ def home(request):
         filtered_headers.append(h)
 
     is_tech = persona_key in ("technician", "field_technician")
+    is_dispatcher = persona_key == "service_dispatcher"
+    is_planner = persona_key == "maintenance_planner"
     return render(request, "ui/home.html", {
         "persona": persona,
         "recent_page_obj": locals().get("recent_page_obj"),
@@ -887,6 +1035,14 @@ def home(request):
         "can_view_users": can_view_users,
         "can_view_assets": can_view_assets,
         "is_technician": is_tech,
+        "is_dispatcher": is_dispatcher,
+        "is_planner": is_planner,
+        "dispatcher_requests": locals().get("dispatcher_requests", []),
+        "dispatcher_work_orders": locals().get("dispatcher_work_orders", []),
+        "planner_show_schedules": locals().get("planner_show_schedules", False),
+        "planner_show_work_orders": locals().get("planner_show_work_orders", False),
+        "planner_due_schedules": locals().get("planner_due_schedules", []),
+        "planner_work_orders": locals().get("planner_work_orders", []),
         "current_in_progress_job": current_in_progress_job if is_tech else None,
         "assigned_work_orders": assigned_work_orders if is_tech else [],
         "capacity_summary": capacity_summary if is_tech else None,

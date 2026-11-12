@@ -4,8 +4,19 @@
 {% block content %}
 <div class="fx-page-header">
   <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Overview</a></li>
+        <li class="breadcrumb-item active" aria-current="page">SLA Breaches</li>
+      </ol>
+    </nav>
     <h1>SLA breaches</h1>
     <div class="text-body-secondary">One row per missed target, persisted when the monitor detects it.</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">
+      {% icon 'arrow-left' 14 %} Back to Overview
+    </a>
   </div>
 </div>
 {% include "sla/_tabs.html" %}

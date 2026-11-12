@@ -186,8 +186,8 @@ class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
         "deactivate": "site.deactivate", "reactivate": "site.deactivate", "tree": "zone.view",
     }
 
-    def _site(self, request, pk, code=None):
-        site = selectors.get_site(request.membership, request.organization, pk)  # 404 outside scope/tenant
+    def _site(self, request, pk, code=None, *, with_counts: bool = False):
+        site = selectors.get_site(request.membership, request.organization, pk, with_counts=with_counts)  # 404 outside scope/tenant
         if code:
             require_permission(request.membership, code, site)
         return site
@@ -200,24 +200,26 @@ class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(responses=SiteSerializer)
     def retrieve(self, request, pk=None):
-        return Response(SiteSerializer(self._site(request, pk)).data)
+        return Response(SiteSerializer(self._site(request, pk, with_counts=True)).data)
 
     @extend_schema(request=SiteWriteSerializer, responses={201: SiteSerializer})
     def create(self, request):
         d = _validated(SiteWriteSerializer, request)
         site = services.create_site(request.organization, actor=request.user, request=request, **d)
+        site.zone_count = 0
+        site.asset_count = 0
         return Response(SiteSerializer(site).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=SiteWriteSerializer, responses=SiteSerializer)
     def partial_update(self, request, pk=None):
-        site = self._site(request, pk, "site.update")
+        site = self._site(request, pk, "site.update", with_counts=True)
         d = _validated(SiteWriteSerializer, request, partial=True)
         return Response(SiteSerializer(services.update_site(site, actor=request.user, request=request, **d)).data)
 
     @extend_schema(request=ReasonSerializer, responses=SiteSerializer)
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
-        site = self._site(request, pk, "site.deactivate")
+        site = self._site(request, pk, "site.deactivate", with_counts=True)
         d = _validated(ReasonSerializer, request)
         return Response(SiteSerializer(
             services.deactivate_site(site, reason=d["reason"], actor=request.user, request=request)).data)
@@ -225,7 +227,7 @@ class SiteViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(request=None, responses=SiteSerializer)
     @action(detail=True, methods=["post"])
     def reactivate(self, request, pk=None):
-        site = self._site(request, pk, "site.deactivate")
+        site = self._site(request, pk, "site.deactivate", with_counts=True)
         return Response(SiteSerializer(services.reactivate_site(site, actor=request.user, request=request)).data)
 
     @extend_schema(responses=ZoneNodeSerializer(many=True))

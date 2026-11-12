@@ -165,6 +165,8 @@ def requirements_for(org, wo, services_module):
 def pending_required_counts(org, work_orders) -> dict:
     """{work order id: number of required checklists not completed}, for a page of work orders in two queries
     (the workspace list uses this to avoid per-row lookups). Mirrors ``services.checklist_blockers``."""
+    import uuid as _uuid
+
     from apps.maintenance.models import MaintenanceCycle
 
     from .models import ChecklistTemplate
@@ -172,9 +174,15 @@ def pending_required_counts(org, work_orders) -> dict:
 
     wos = list(work_orders)
     required = list(ChecklistTemplate.objects.for_organization(org).filter(status=ACTIVE, is_required=True))
-    pm_keys = dict(MaintenanceCycle.objects.for_organization(org).filter(
+    raw_pm_keys = dict(MaintenanceCycle.objects.for_organization(org).filter(
         work_order__in=[w for w in wos if w.source_type in ("PREVENTIVE_MAINTENANCE", "PM")]).exclude(
         schedule__plan__checklist_key="").values_list("work_order_id", "schedule__plan__checklist_key"))
+    pm_keys = {}
+    for wo_id, raw_key in raw_pm_keys.items():
+        try:
+            pm_keys[wo_id] = str(_uuid.UUID(str(raw_key)))
+        except (ValueError, TypeError, AttributeError):
+            continue
     if not wos or (not required and not pm_keys):
         return {wo.pk: 0 for wo in wos}
     active_by_key = {str(t.key): t for t in ChecklistTemplate.objects.for_organization(org).filter(

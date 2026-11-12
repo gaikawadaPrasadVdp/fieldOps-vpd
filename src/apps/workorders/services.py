@@ -197,6 +197,7 @@ def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=
     audit.record(f"work_order.{action}", actor=actor, organization=wo.organization, target=wo,
                  before=before, after=_snapshot(wo), metadata=metadata or {}, request=request)
     _notify_transition(wo, action, actor)
+    _sync_incident_activity(wo, action=action, before=before, notes=notes, metadata=metadata, actor=actor)
     try:
         with transaction.atomic():
             from apps.core.outbox import publish_integration_event
@@ -219,19 +220,55 @@ def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=
         pass
 
 
+_INCIDENT_TRANSITION_ACTIONS = frozenset({
+    "created",
+    "started",
+    "completed",
+    "review_rejected",
+    "closed",
+    "cancelled",
+})
+
+
+def _linked_source_request(wo, *, lock: bool = False):
+    from apps.incidents.models import ServiceRequest
+
+    qs = ServiceRequest.objects.for_organization(wo.organization)
+    if lock:
+        qs = qs.select_for_update()
+    if getattr(wo, "source_request_id", None):
+        return qs.filter(pk=wo.source_request_id).first()
+    if wo.source_type in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT) and wo.source_reference:
+        return qs.filter(number=wo.source_reference).first()
+    return None
+
+
+def _sync_incident_activity(wo, *, action, before=None, notes="", metadata=None, actor=None):
+    """Mirror non-transition work-order updates (e.g. pause/hold, resume, updates) to linked request history."""
+    if action in _INCIDENT_TRANSITION_ACTIONS:
+        return
+    source = _linked_source_request(wo, lock=False)
+    if source is None:
+        return
+    from apps.incidents import services as incident_services
+
+    incident_services.on_work_order_activity(
+        source,
+        work_order=wo,
+        action=action,
+        from_status=(before or {}).get("status", ""),
+        to_status=wo.status,
+        notes=notes,
+        metadata=metadata,
+        actor=actor,
+    )
+
+
 def _sync_incident_request(wo, action, actor, request=None):
     """Mirror M06 lifecycle events to an M05 source incident/request when linked."""
     from apps.incidents import services as incident_services
-    from apps.incidents.models import ServiceRequest
 
-    source = None
-    if getattr(wo, "source_request_id", None):
-        source = ServiceRequest.objects.for_organization(wo.organization).select_for_update().filter(
-            pk=wo.source_request_id).first()
-    elif wo.source_type in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT) and wo.source_reference:
-        source = ServiceRequest.objects.for_organization(wo.organization).select_for_update().filter(
-            number=wo.source_reference).first()
-
+    source = _linked_source_request(wo, lock=True)
     if source is not None:
         callback = getattr(incident_services, f"on_work_order_{action}", None)
         if callback is not None:

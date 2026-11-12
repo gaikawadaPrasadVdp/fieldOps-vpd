@@ -155,7 +155,7 @@
 
         </div>
 
-        <input type="hidden" name="next" value="{{ next|default:'' }}">
+        <input type="hidden" name="next" value="{% if next and next != '/' %}{{ next }}{% else %}/app/{% endif %}">
 
         <!-- Sign In Button -->
         <button type="submit" class="fx-login-submit-btn">

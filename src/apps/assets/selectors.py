@@ -30,8 +30,11 @@ def assets_for(membership, org, code: str = "asset.view"):
     return scope.filter(qs, "site_id")
 
 
-def get_asset(membership, org, pk, code: str = "asset.view") -> Asset:
-    return scoped_get(assets_for(membership, org, code), pk, "Asset")
+def get_asset(membership, org, pk, code: str = "asset.view", *, with_parent: bool = False) -> Asset:
+    qs = assets_for(membership, org, code)
+    if with_parent:
+        qs = qs.select_related("parent_link__parent")
+    return scoped_get(qs, pk, "Asset")
 
 
 def _uuid_or_none(value):

@@ -6,8 +6,18 @@
 {% block auth_right %}
 <main class="fx-login-wrap" role="main">
   <div class="fx-login-container">
-    <div class="fx-login-card p-4 bg-white shadow-sm" style="border-radius:12px; border:1px solid #e2e8f0; max-width:480px; width:100%;">
-      <div class="text-center mb-4">
+    <div class="fx-login-card p-4 bg-white shadow-sm position-relative" style="border-radius:12px; border:1px solid #e2e8f0; max-width:480px; width:100%;">
+      
+      <!-- Top Right Sign Out Button -->
+      <div class="position-absolute top-0 end-0 p-3">
+        <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-light border text-secondary px-2 py-1 d-inline-flex align-items-center gap-1" title="Sign out" style="font-size:0.78rem;">
+            {% icon 'log-out' 14 %} <span>Sign out</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="text-center mb-4 mt-1">
         <div class="d-inline-grid place-items-center rounded-circle bg-light text-primary mx-auto mb-2" style="width:48px; height:48px;">
           {% icon 'building' 22 %}
         </div>
@@ -38,16 +48,21 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="alert alert-warning py-3 text-center small mb-4">
-          Your account is not currently assigned to any active organization tenant. Please reach out to your administrator for access.
+        <div class="alert alert-warning py-3 px-3 text-center small mb-4 rounded-3 border-warning border-opacity-25">
+          <p class="mb-3 text-dark">Your account is not currently assigned to any active organization tenant. Please reach out to your administrator for access.</p>
+          <form method="post" action="{% url 'accounts:logout' %}" class="m-0 d-inline-block">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-2 px-3 py-1 fw-semibold">
+              {% icon 'log-out' 15 %} Sign out
+            </button>
+          </form>
         </div>
       {% endif %}
 
       <div class="pt-3 border-top d-flex justify-content-between align-items-center small">
         <span class="text-secondary">Signed in as <strong>{{ request.user.email }}</strong></span>
         <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
-          <button type="submit" class="btn btn-sm btn-link text-decoration-none text-danger p-0">
-            Sign out
+          <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 px-2 py-1 fw-semibold" style="font-size:0.8rem;">
+            {% icon 'log-out' 13 %} Sign out
           </button>
         </form>
       </div>

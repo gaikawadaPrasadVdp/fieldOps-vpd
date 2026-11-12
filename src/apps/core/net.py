@@ -55,3 +55,24 @@ def axes_username(request, credentials=None) -> str | None:
             except Exception:
                 pass
     return value.strip().lower()[:254] if isinstance(value, str) and value.strip() else None
+
+
+_SUPPRESSED_EMAIL_SUFFIXES = (
+    "@example.com",
+    ".example",
+    ".example.com",
+    ".test",
+    ".invalid",
+    ".local",
+)
+
+
+def is_suppressed_test_email(email: str) -> bool:
+    """Return True when ``email`` belongs to a reserved/test domain and should not trigger real SMTP."""
+    from django.conf import settings
+
+    email_backend = getattr(settings, "EMAIL_BACKEND", "").lower()
+    if "locmem" in email_backend:
+        return False
+    cleaned = (email or "").strip().lower()
+    return bool(cleaned) and any(cleaned.endswith(suffix) for suffix in _SUPPRESSED_EMAIL_SUFFIXES)
