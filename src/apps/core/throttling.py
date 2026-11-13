@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from django.conf import settings
 from django.core.cache.backends.locmem import LocMemCache
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
@@ -14,6 +15,8 @@ class SafeAnonRateThrottle(AnonRateThrottle):
     """Anonymous rate throttle tolerant of Redis/cache connection outages."""
 
     def allow_request(self, request, view):
+        if not getattr(settings, "RATE_LIMITING_ENABLED", False):
+            return True
         try:
             return super().allow_request(request, view)
         except Exception as exc:
@@ -29,6 +32,8 @@ class SafeUserRateThrottle(UserRateThrottle):
     """Authenticated user rate throttle tolerant of Redis/cache connection outages."""
 
     def allow_request(self, request, view):
+        if not getattr(settings, "RATE_LIMITING_ENABLED", False):
+            return True
         try:
             return super().allow_request(request, view)
         except Exception as exc:

@@ -90,12 +90,14 @@ class PartForm(BootstrapFormMixin, forms.Form):
 
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
-        return validate_business_name(name, field_label="Part name", min_len=2, max_len=200)
+        if not name:
+            raise forms.ValidationError("Name is required.")
+        return validate_alphabetical_description(name, field_label="Name")
 
     def clean_description(self):
         desc = (self.cleaned_data.get("description") or "").strip()
         if desc:
-            return validate_safe_text(desc, field_label="Description", max_len=1000, required=False)
+            return validate_alphabetical_description(desc, field_label="Description")
         return desc
 
     def clean_unit(self):

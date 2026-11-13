@@ -253,7 +253,7 @@ def compute_downtime_hours(organization: Organization, sites: list[Site], start_
         started_at__lte=end_dt,
     ).filter(Q(ended_at__isnull=True) | Q(ended_at__gte=start_dt))
 
-    total_seconds = 0.0
+    intervals = []
     active_count = 0
     closed_count = 0
 
@@ -262,11 +262,24 @@ def compute_downtime_hours(organization: Organization, sites: list[Site], start_
         actual_end = dt.ended_at or min(now, end_dt)
         window_end = min(actual_end, end_dt)
         if window_end > window_start:
-            total_seconds += (window_end - window_start).total_seconds()
+            intervals.append((window_start, window_end))
         if dt.ended_at is None:
             active_count += 1
         else:
             closed_count += 1
+
+    if intervals:
+        intervals.sort(key=lambda x: x[0])
+        merged = [intervals[0]]
+        for cur_start, cur_end in intervals[1:]:
+            prev_start, prev_end = merged[-1]
+            if cur_start <= prev_end:
+                merged[-1] = (prev_start, max(prev_end, cur_end))
+            else:
+                merged.append((cur_start, cur_end))
+        total_seconds = sum((end - start).total_seconds() for start, end in merged)
+    else:
+        total_seconds = 0.0
 
     hours = round(total_seconds / 3600.0, 1)
     return {
