@@ -10,6 +10,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage.xml
+.scannerwork/
 htmlcov/
 .idea/
 .vscode/
