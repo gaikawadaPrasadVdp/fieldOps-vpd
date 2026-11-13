@@ -23,6 +23,8 @@ STORAGES = {
 }
 MEDIA_ROOT = BASE_DIR.parent / ".pytest_media"  # noqa: F405
 ALLOWED_HOSTS = ["testserver", "localhost"]
+AXES_ENABLED = True
+RATE_LIMITING_ENABLED = True
 REST_FRAMEWORK = {  # noqa: F405
     **REST_FRAMEWORK,  # noqa: F405
     "DEFAULT_THROTTLE_CLASSES": [],
