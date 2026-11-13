@@ -73,7 +73,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
                     "hold": "work_order.hold", "resume": "work_order.start",
                     "plan": "work_order.plan", "assign": "work_order.assign",
                     "dispatch": "work_order.dispatch", "submit_for_review": "work_order.complete",
-                    "close": "work_order.close", "return_for_rework": "work_order.review"}.get(sub, "work_order.view_assigned")
+                    "close": "work_order.close", "return_for_rework": "work_order.review"}.get(sub, "work_order.update")
         if (action in ("retrieve", "events", "checklist_status", "validate_checklist", "closure") or (action == "materials" and self.request.method == "GET")):
             m = getattr(self.request, "membership", None)
             if m and rbac.has_permission_anywhere(m, "work_order.view"):

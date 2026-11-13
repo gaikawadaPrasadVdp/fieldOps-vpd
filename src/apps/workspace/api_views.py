@@ -984,7 +984,7 @@ class TechnicianAvailabilityUpdateSerializer(serializers.Serializer):
 
 
 class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
-    permission_map = {"post": "work_order.view_assigned"}
+    permission_map = {"post": "work_order.record"}
 
     @extend_schema(
         request=TechnicianAvailabilityUpdateSerializer,
