@@ -151,9 +151,14 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "ui:home"
 LOGOUT_REDIRECT_URL = "ui:root"
 
+# --- Rate limiting / throttling toggles (Default: False = turned off) --------------------------
+# Set RATE_LIMITING_ENABLED=True (or AXES_ENABLED=True) in environment variables to re-enable.
+RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", False)
+
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
 # Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.
 TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "0"))
+AXES_ENABLED = env_bool("AXES_ENABLED", RATE_LIMITING_ENABLED)
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",
@@ -339,8 +344,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "apps.core.throttling.SafeAnonRateThrottle",
         "apps.core.throttling.SafeUserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "600/min", "login": "10/min"},
+    ] if RATE_LIMITING_ENABLED else [],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min" if RATE_LIMITING_ENABLED else "100000/min",
+        "user": "600/min" if RATE_LIMITING_ENABLED else "100000/min",
+        "login": "10/min",
+    },
 }
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
