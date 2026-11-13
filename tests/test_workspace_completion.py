@@ -339,3 +339,156 @@ def test_job_complete_api_view_negative_paths(p3):
     res_json2 = resp2.json()
     fields2 = res_json2.get("error", {}).get("details", {}).get("fields", res_json2)
     assert "signature_data" in fields2
+
+
+def test_pending_part_request_blocks_completion_until_cancelled_or_issued(inv_, client):
+    """Submitting a part request (REQUESTED) blocks job completion across services, API, and UI until cancelled or issued."""
+    from apps.core.exceptions import Conflict
+    from apps.inventory import services as inv
+    from apps.workspace import services as ws_services
+    from rest_framework.test import APIClient
+
+    wo = wo_in_progress(inv_, work_type="PREVENTIVE")
+    wo.checklist_required = False
+    wo.save(update_fields=["checklist_required"])
+    tech = inv_["tech"]
+    wh, part, stores = inv_["wh"], inv_["part"], inv_["stores"]
+
+    inv.receive(wh, part, "10.000", actor=stores.user, reference="PO-REQ-01", reason="Initial stock")
+    wos.record_labor(
+        wo,
+        technician=tech,
+        work_date=timezone.localdate(),
+        hours="1.0",
+        description="Inspected pump seal",
+        actor=tech.user,
+        membership=tech,
+    )
+
+    # Technician submits a part request (status=REQUESTED)
+    line = inv.request_part(wo, part, "2", actor=tech.user, membership=tech, notes="Need seal kit")
+    assert line.status == "REQUESTED"
+
+    # 1. Selector surfaces the pending part request blocker and disables can_complete
+    ctx = ws_selectors.get_job_completion_context(tech, str(wo.pk))
+    assert ctx["has_pending_part_requests"] is True
+    assert ctx["can_complete"] is False
+    assert any(part.part_number in b for b in ctx["blockers"])
+
+    # 2. Service-layer completion (both plain and sign-off) fails closed with pending_part_requests
+    with pytest.raises(Conflict) as exc:
+        ws_services.complete_job(
+            wo,
+            resolution_notes="Attempted completion before store issue.",
+            membership=tech,
+            actor=tech.user,
+        )
+    assert exc.value.code == "pending_part_requests"
+
+    with pytest.raises(Conflict) as exc_sign:
+        ws_services.complete_job_with_signoff(
+            wo,
+            resolution_notes="Attempted signoff completion before store issue.",
+            signer_name="Jane Doe",
+            signature_data_base64=VALID_PNG_B64,
+            membership=tech,
+            actor=tech.user,
+        )
+    assert exc_sign.value.code == "pending_part_requests"
+
+    # 3. Completion UI shows blocker + disables submit button and rejects POST with 422
+    client.force_login(tech.user)
+    ui_url = f"/app/workspace/jobs/{wo.pk}/complete/"
+    get_resp = client.get(ui_url)
+    assert get_resp.status_code == 200
+    body = get_resp.content.decode()
+    assert part.part_number in body
+    assert "Manage Parts" in body
+
+    post_resp = client.post(
+        ui_url,
+        data={
+            "is_completion_screen": "1",
+            "resolution_notes": "Attempted completion with pending part request.",
+            "signer_name": "Jane Doe",
+            "signature_data": VALID_PNG_B64,
+        },
+    )
+    assert post_resp.status_code == 422
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.IN_PROGRESS
+
+    # 4. API returns 409 Conflict with code pending_part_requests
+    api = APIClient()
+    api.force_authenticate(user=tech.user)
+    session = api.session
+    session["active_org_id"] = str(inv_["org"].pk)
+    session.save()
+    api_resp = api.post(
+        f"/api/v1/workspace/jobs/{wo.pk}/complete/",
+        data={
+            "resolution_notes": "Attempted API completion before issue.",
+            "signer_name": "Jane Doe",
+            "signature_data": VALID_PNG_B64,
+        },
+        format="json",
+    )
+    assert api_resp.status_code == 409
+    assert api_resp.json()["error"]["code"] == "pending_part_requests"
+
+    # 5a. Cancelling the unneeded REQUESTED part line unblocks completion
+    inv.cancel_line(line, actor=tech.user, membership=tech)
+    ctx_after_cancel = ws_selectors.get_job_completion_context(tech, str(wo.pk))
+    assert ctx_after_cancel["has_pending_part_requests"] is False
+    assert ctx_after_cancel["can_complete"] is True
+
+    completed_wo = ws_services.complete_job(
+        wo,
+        resolution_notes="Cancelled unneeded part request and verified equipment.",
+        membership=tech,
+        actor=tech.user,
+    )
+    assert completed_wo.status == WorkOrder.Status.COMPLETED
+
+
+def test_fulfilled_part_request_allows_completion(inv_):
+    """Once a submitted part request is reserved, issued, and consumed, work order completion succeeds."""
+    from apps.inventory import services as inv
+    from apps.workspace import services as ws_services
+
+    wo = wo_in_progress(inv_, work_type="PREVENTIVE")
+    wo.checklist_required = False
+    wo.save(update_fields=["checklist_required"])
+    tech = inv_["tech"]
+    wh, part, stores = inv_["wh"], inv_["part"], inv_["stores"]
+
+    inv.receive(wh, part, "10.000", actor=stores.user, reference="PO-REQ-02", reason="Initial stock")
+    wos.record_labor(
+        wo,
+        technician=tech,
+        work_date=timezone.localdate(),
+        hours="1.0",
+        description="Installed spare seal",
+        actor=tech.user,
+        membership=tech,
+    )
+
+    line = inv.request_part(wo, part, "2", actor=tech.user, membership=tech)
+    inv.reserve(line, wh, "2", actor=stores.user)
+    inv.issue(line, wh, "2", actor=stores.user)
+    inv.consume(line, "2", actor=tech.user, membership=tech)
+
+    ctx = ws_selectors.get_job_completion_context(tech, str(wo.pk))
+    assert ctx["has_pending_part_requests"] is False
+    assert ctx["can_complete"] is True
+
+    completed_wo, signoff = ws_services.complete_job_with_signoff(
+        wo,
+        resolution_notes="Installed issued spare seal and tested under pressure.",
+        signer_name="Jane Doe",
+        signature_data_base64=VALID_PNG_B64,
+        membership=tech,
+        actor=tech.user,
+    )
+    assert completed_wo.status == WorkOrder.Status.COMPLETED
+    assert signoff.pk is not None

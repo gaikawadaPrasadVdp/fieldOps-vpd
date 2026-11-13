@@ -306,7 +306,7 @@ class InspectionListView(_View):
                 "total": all_inspections.count(),
                 "in_progress": all_inspections.filter(status="IN_PROGRESS").count(),
                 "completed": all_inspections.filter(status="COMPLETED").count(),
-                "open_findings": Finding.objects.filter(organization=org, status="OPEN").count(),
+                "open_findings": selectors.findings_for(m, org).filter(status="OPEN").count(),
             },
             "sites": site_selectors.sites_for(m, org, site_perm).order_by("code")})
 

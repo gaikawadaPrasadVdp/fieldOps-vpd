@@ -242,8 +242,8 @@ def test_all_submodules_reachable_from_ui_navigation(client, rf, org_a, site_a1,
     req.membership = owner_m
     owner_nav = shell(req)["shell_nav_sections"]
 
-    assert any(it["url"] == "/app/contracts/providers/" for it in owner_nav["Commercial"])
-    assert any(it["url"] == "/app/dashboards/snapshots/" for it in owner_nav["Analytics & Governance"])
+    assert any(it["url"] == "/app/contracts/providers/" for it in owner_nav["Commercial & Contracts"])
+    assert any(it["url"] == "/app/dashboards/snapshots/" for it in owner_nav["Overview"])
     assert any(it["url"] == "/app/workspace/technicians/" for it in owner_nav["Administration"])
     assert any(it["url"] == "/app/incidents/dashboard/" for it in owner_nav["Operations"])
 
