@@ -16,7 +16,7 @@ from apps.rbac import services as rbac
 from . import selectors, services
 from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Shift, Site, SiteContact, Zone
 
-_PHONE_RE = re.compile(r"^[0-9+\s\-()]{7,32}$")
+_PHONE_RE = re.compile(r"^[0-9+\s\-()]{1,32}$")
 
 
 def validate_phone_number(value: str) -> str:
@@ -25,8 +25,8 @@ def validate_phone_number(value: str) -> str:
         if any(c.isalpha() for c in phone):
             raise serializers.ValidationError("Phone number cannot contain letters.")
         digits = [c for c in phone if c.isdigit()]
-        if len(digits) < 7:
-            raise serializers.ValidationError("Phone number must contain at least 7 digits.")
+        if not digits:
+            raise serializers.ValidationError("Phone number must contain digits.")
         if len(digits) > 15:
             raise serializers.ValidationError("Phone number cannot exceed 15 digits (ITU-T E.164 standard).")
         if not _PHONE_RE.fullmatch(phone):

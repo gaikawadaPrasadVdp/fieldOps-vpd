@@ -49,8 +49,6 @@ def _text(value, what, *, minimum=1, maximum=200, required=True):
         raise ValidationFailed(f"{what} is too long (max {maximum}).", code="field_too_long")
     if _HTML_TAG_RE.search(value):
         raise ValidationFailed(f"{what} cannot contain HTML tags or script injection patterns.", code="invalid_characters")
-    if _REPEATED_CHARS_RE.search(value):
-        raise ValidationFailed(f"{what} contains invalid repetitive character patterns.", code="invalid_repetitive_text")
     return value
 
 
