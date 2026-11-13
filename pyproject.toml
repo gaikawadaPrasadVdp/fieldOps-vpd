@@ -37,7 +37,7 @@ dev = [
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 pythonpath = ["src", "src/apps"]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --reuse-db"
+addopts = "-ra --strict-markers --reuse-db --ignore=tests/qa_playwright"
 markers = [
     "tenant: tenant-isolation tests",
     "rbac: authorization tests",

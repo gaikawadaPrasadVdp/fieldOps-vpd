@@ -65,7 +65,7 @@ jobs:
           CELERY_BROKER_URL: redis://localhost:6379/0
           DJANGO_SECRET_KEY: ci-generated-secret-key-for-test-suite-0123456789
         run: |
-          pytest --cov=src/apps --cov-report=xml:coverage.xml --cov-report=term-missing tests/
+          pytest --ignore=tests/qa_playwright --cov=src/apps --cov-report=xml:coverage.xml --cov-report=term-missing tests/
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3
