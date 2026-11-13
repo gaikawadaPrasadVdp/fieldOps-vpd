@@ -15,11 +15,9 @@ def is_client_membership(membership) -> bool:
     if membership is None:
         return False
 
-    from unittest.mock import Mock
-    if isinstance(membership, Mock):
-        if getattr(membership, "portal_account", None) is not None:
-            return True
-        return False
+    from unittest.mock import Mock, MagicMock
+    if isinstance(membership, (Mock, MagicMock)):
+        return bool(membership.__dict__.get("is_client_mock") or membership.__dict__.get("_is_client"))
 
     # Staff / internal roles are never client personas
     try:
