@@ -328,7 +328,7 @@ ROLE_PERSONA_CONFIG = {
         "badge": "Maintenance Planning & PM",
         "title": "Preventive Maintenance & Job Planning",
         "role_name": "Senior Maintenance Planner",
-        "subtitle": "Time and meter-based recurrence plans, job specifications, and PM work order backlog.",
+        "subtitle": "Time and meter-based recurrence Maintenance plans, job specifications, and PM work order backlog.",
     },
     "service_dispatcher": {
         "badge": "Service Dispatch & Operations",
@@ -675,13 +675,20 @@ def home(request):
 
         kpi_cards = []
         if can_inc:
-            pending_triage = disp_reqs.filter(status__in=["NEW", "TRIAGED", "APPROVED"]).count()
             kpi_cards.append({
-                "title": "Pending Triage & Conversion",
-                "value": pending_triage,
-                "subtitle": "Requests awaiting triage, approval or WO",
-                "tone": "warning",
+                "title": "Open Incidents",
+                "value": open_reqs_qs.count(),
+                "subtitle": "Unresolved field incidents",
+                "tone": "danger" if open_reqs_qs.count() > 0 else "accent",
                 "icon": "bell",
+            })
+        if can_site:
+            kpi_cards.append({
+                "title": "Facility Sites",
+                "value": stats.get("total_sites", 0),
+                "subtitle": "Active physical plant sites",
+                "tone": "gold",
+                "icon": "building",
             })
         if can_wo:
             dispatch_queue_count = open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED"]).count()
@@ -747,7 +754,7 @@ def home(request):
 
         shortcuts = [
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "list-check"},
             {"label": "Assets", "url": reverse("assets:list"), "icon": "box"},
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock"},
@@ -755,7 +762,7 @@ def home(request):
         ]
         header_actions = [
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
         ]
         if can_inc:
             recent_qs = disp_reqs.select_related("reported_by__user").order_by("-created_at")
