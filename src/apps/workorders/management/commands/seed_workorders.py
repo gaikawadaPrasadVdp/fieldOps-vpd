@@ -246,7 +246,8 @@ class Command(BaseCommand):
                         asset=source_assets[sites[0].pk], reporter=reporter, title=title,
                         description="Approved development source for testing Work Order creation.",
                         kind=kind, severity=ServiceRequest.Severity.HIGH,
-                        occurred_at=now - timedelta(hours=1), actor=owner.user)
+                        occurred_at=now - timedelta(hours=1), actor=owner.user,
+                        override_duplicate=True, override_reason="Seeding test incident")
                     source = incident_services.transition(source, action="triage", actor=owner.user)
                     incident_services.transition(source, action="approve", actor=owner.user)
                 serial += 1

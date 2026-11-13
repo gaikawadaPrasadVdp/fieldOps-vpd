@@ -13,24 +13,8 @@ urlpatterns = [
     path("solutions/<slug:slug>/", views.public_solution, name="public_solution"),
     path("platform/", views.public_modules, name="public_platform_overview"),
     path("platform/<str:module_id>/", views.public_module, name="public_platform"),
-    path(
-        "modules/",
-        RedirectView.as_view(
-            pattern_name="ui:public_platform_overview",
-            permanent=True,
-            query_string=True,
-        ),
-        name="public_modules",
-    ),
-    path(
-        "modules/<str:module_id>/",
-        RedirectView.as_view(
-            pattern_name="ui:public_platform",
-            permanent=True,
-            query_string=True,
-        ),
-        name="public_module",
-    ),
+    path("modules/", views.public_modules, name="public_modules"),
+    path("modules/<str:module_id>/", views.public_module, name="public_module"),
     path("resources/", views.public_resources, name="public_resources"),
     path("about/", views.public_about, name="public_about"),
     path("contact-sales/", views.public_contact_sales, name="public_contact_sales"),

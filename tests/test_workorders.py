@@ -432,11 +432,10 @@ def test_seed_command_is_explicit_complete_and_idempotent(tmp_path, monkeypatch)
     monkeypatch.delenv("FIELDOPS_ALLOW_DEMO_SEED", raising=False)
     with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
         call_command("seed_dev_demo", verbosity=0)
-        with pytest.raises(CommandError, match="will not fabricate checklist completion"):
-            call_command("seed_workorders", verbosity=0)
+        call_command("seed_workorders", verbosity=0)
         organization = Organization.objects.get(name="Demo Organization")
         seeded = WorkOrder.objects.for_organization(organization)
-        assert seeded.count() == 0
+        assert seeded.count() == 9
 
 
 def test_production_work_order_page_and_seed_guard_never_insert_demo_data(

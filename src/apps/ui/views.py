@@ -405,7 +405,7 @@ def home(request):
     from apps.workorders.models import WorkOrder
 
     if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-        return redirect("platform_admin:overview")
+        return redirect("platform_admin:organizations")
 
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
