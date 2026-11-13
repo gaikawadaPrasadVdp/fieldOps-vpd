@@ -253,6 +253,7 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
+    serializer_class = ServiceRequestSerializer
     pagination_class = StandardPagination
     permission_map = {
         "list": "incident.view_assigned", "retrieve": "incident.view_assigned", "create": "incident.create",
