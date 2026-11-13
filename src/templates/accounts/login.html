@@ -24,14 +24,8 @@
   <div class="fx-login-container">
     <!-- Mobile Brand Header -->
     <div class="d-md-none d-flex align-items-center justify-content-between mb-4 pb-2 w-100 border-bottom border-secondary border-opacity-10 fx-mobile-brand-header">
-      <a href="{% url 'ui:root' %}" class="d-inline-flex align-items-center gap-2 text-decoration-none">
-        <div style="width: 36px; height: 36px; flex-shrink: 0;">
-          <img src="{% static 'images/logo-icon.webp' %}" alt="FieldOps Nexus" style="width: 100%; height: 100%; object-fit: contain; display: block;">
-        </div>
-        <div class="d-flex flex-column">
-          <span class="fw-bold fs-5 text-dark lh-1">FieldOps <span style="color:#C9A227;">Nexus</span></span>
-          <span class="text-uppercase fw-semibold" style="color:#C9A227; letter-spacing:0.12em; font-size:0.65rem; margin-top: 3px;">Enterprise Platform</span>
-        </div>
+      <a href="{% url 'ui:root' %}" class="d-inline-block text-decoration-none" aria-label="FieldOps Nexus Home">
+        <img src="{% static 'images/fieldops-logo.webp' %}" alt="FieldOps Nexus" style="height: 48px; width: auto; max-width: 210px; object-fit: contain; display: block;">
       </a>
     </div>
 
