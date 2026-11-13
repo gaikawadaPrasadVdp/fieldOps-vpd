@@ -37,6 +37,12 @@ class Site(TenantOwnedModel):
     def __str__(self):
         return f"{self.code} · {self.name}"
 
+    def clean(self):
+        super().clean()
+        if self.name is not None and not str(self.name).strip():
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"name": "This field cannot be blank."})
+
     @property
     def is_active(self):
         return self.status == Status.ACTIVE

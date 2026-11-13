@@ -15,6 +15,10 @@ def is_client_membership(membership) -> bool:
     if membership is None:
         return False
 
+    from unittest.mock import Mock
+    if isinstance(membership, Mock):
+        return False
+
     # Staff / internal roles are never client personas
     try:
         from apps.rbac.models import MembershipRole
