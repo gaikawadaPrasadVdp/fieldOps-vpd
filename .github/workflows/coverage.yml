@@ -17,8 +17,9 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: fieldops
-          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_PASSWORD: fieldops
           POSTGRES_DB: fieldops
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -60,7 +61,8 @@ jobs:
       - name: Run Tests with Coverage (Generates coverage.xml)
         env:
           DJANGO_SETTINGS_MODULE: config.settings.test
-          DATABASE_URL: postgres://fieldops:ci_only_password@localhost:5432/fieldops
+          TEST_DATABASE_URL: postgres://fieldops:fieldops@localhost:5432/fieldops
+          DATABASE_URL: postgres://fieldops:fieldops@localhost:5432/fieldops
           REDIS_URL: redis://localhost:6379/0
           CELERY_BROKER_URL: redis://localhost:6379/0
           DJANGO_SECRET_KEY: ci-generated-secret-key-for-test-suite-0123456789
