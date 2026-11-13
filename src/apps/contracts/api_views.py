@@ -6,7 +6,7 @@ data: any holder of the permission (at any site) may use them."""
 import datetime
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from django.http import HttpResponse
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -168,7 +168,7 @@ class AssetRefSerializer(serializers.Serializer):
 
 
 class CheckSerializer(serializers.ModelSerializer):
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     agreement_reference = serializers.CharField(source="agreement.reference", read_only=True, default=None, allow_null=True)
     provider_name = serializers.CharField(source="agreement.provider.name", read_only=True, default=None, allow_null=True)
@@ -179,6 +179,13 @@ class CheckSerializer(serializers.ModelSerializer):
                   "agreement_reference", "provider_name", "work_type", "reference_date", "eligible", "reason",
                   "created_at"]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
 
 
 class CheckCreateSerializer(serializers.Serializer):
@@ -401,7 +408,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(AgreementSerializer(self._ag(request, pk)).data)
 
     @extend_schema(parameters=[query_param("days", "look-ahead window in days (default 60, max 365)",
-                                           OpenApiTypes.INT)], responses=AgreementSerializer)
+                                           OpenApiTypes.INT)], responses=AgreementSerializer(many=True))
     @action(detail=False, methods=["get"])
     def expiring(self, request):
         try:

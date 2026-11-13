@@ -143,8 +143,11 @@ class PortalMeSerializer(serializers.Serializer):
     company_name = serializers.CharField()
     is_enabled = serializers.BooleanField()
     created_at = serializers.DateTimeField(allow_null=True)
-    user = PortalMeUserSerializer()
-    organization = PortalMeOrgSerializer()
+    updated_at = serializers.DateTimeField(allow_null=True, required=False)
+    user_email = serializers.EmailField(required=False)
+    user_name = serializers.CharField(required=False)
+    user = PortalMeUserSerializer(required=False)
+    organization = PortalMeOrgSerializer(required=False)
 
 
 class PortalMeView(TenantAPIMixin, APIView):
@@ -172,6 +175,9 @@ class PortalMeView(TenantAPIMixin, APIView):
             "company_name": account.company_name or request.organization.name,
             "is_enabled": account.is_enabled,
             "created_at": account.created_at.isoformat() if account.created_at else None,
+            "updated_at": account.updated_at.isoformat() if getattr(account, "updated_at", None) else None,
+            "user_email": request.user.email,
+            "user_name": request.user.full_name,
             "user": {
                 "id": str(request.user.pk),
                 "email": request.user.email,

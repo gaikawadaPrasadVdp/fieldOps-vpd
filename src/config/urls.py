@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework.routers import SimpleRouter
 
 from apps.assets.api_views import (
@@ -142,7 +142,13 @@ api_v1 = [
     path("", include("apps.dashboards.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
     path("schema/", SpectacularAPIView.as_view(throttle_classes=[]), name="schema"),
+    path("schema", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", throttle_classes=[]), name="docs"),
+    path("docs", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("swagger/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("swagger", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("redoc/", SpectacularRedocView.as_view(url_name="schema", throttle_classes=[]), name="redoc"),
+    path("redoc", RedirectView.as_view(url="/api/v1/redoc/", permanent=False)),
 ]
 
 
@@ -172,7 +178,13 @@ urlpatterns = [
     path("admin/", AdminLandingRedirectView.as_view(), name="admin_landing"),
     path("admin", RedirectView.as_view(url="/admin/", permanent=False)),
     path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("docs", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
     path("swagger/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("swagger", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("redoc/", RedirectView.as_view(url="/api/v1/redoc/", permanent=False)),
+    path("redoc", RedirectView.as_view(url="/api/v1/redoc/", permanent=False)),
+    path("schema/", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
+    path("schema", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
     path("assets/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("planner/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("inventory/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
