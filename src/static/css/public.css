@@ -8161,7 +8161,7 @@ a.fx-footer-location-link:focus-visible {
 /* Ensure no error messages appear beside or below input fields */
 .fx-login-card .field-error-message,
 .fx-login-card .invalid-feedback,
-.fx-login-card .text-danger:not(.fx-req) {
+.fx-login-card .text-danger:not(.fx-req):not(button):not(.btn) {
   display: none !important;
 }
 
@@ -8173,6 +8173,25 @@ a.fx-footer-location-link:focus-visible {
 .fx-auth-layout-root {
   width: 100%;
   overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  .fx-auth-layout-root {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  .fx-auth-aside {
+    height: 100%;
+    max-height: 100dvh;
+  }
+  .fx-login-wrap {
+    min-height: 100%;
+    height: 100%;
+    max-height: 100dvh;
+    overflow-y: auto;
+  }
 }
 
 /* 3. Tablet Responsiveness (768px to 1024px) */

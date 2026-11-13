@@ -20,23 +20,23 @@ class RoleTemplate:
     excludes: tuple[str, ...] = field(default_factory=tuple)
 
 
-# The 10 Primary System Role Templates as defined by PRD §3.2 (with legacy keys preserved for DB stability)
+# The 10 Primary System Role Templates as defined by PRD §3.2 (plus top-level Organization Owner)
 TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate("owner", "Organization Owner", "Full control of the organization and all modules.", ("*",), is_owner=True),
     RoleTemplate(
-        "admin", "Organization Admin", "Administers users, roles, sites and configuration.",
+        "admin", "Super Admin", "System configuration, users, roles, sites, policies, and audit visibility.",
         ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view", "qr.*",
          "*.view", "incident.triage", "incident.approve", "work_order.create"),
         excludes=("portal.request.*",),
     ),
     RoleTemplate(
-        "asset_manager", "Asset Manager", "Owns the asset registry, documentation, meters, and hierarchy.",
+        "asset_manager", "Asset Manager", "Asset master, hierarchy, status lifecycle, and asset documentation.",
         ("asset.*", "site.view", "zone.view", "zone.create", "zone.update",
          "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "checklist.view",
          "inspection.view", "inventory.view", "inventory.part.view", "report.view"),
     ),
     RoleTemplate(
-        "maintenance_planner", "Maintenance Planner", "Plans, schedules and assigns preventive and corrective maintenance work.",
+        "maintenance_planner", "Maintenance Planner", "Maintenance plans, recurrence schedules, job generation, and WO planning.",
         ("asset.view", "asset.history.view", "site.view", "zone.view", "calendar.view", "maintenance.*", "incident.view",
          "work_order.view", "work_order.create", "work_order.plan", "work_order.assign",
          "work_order.dispatch", "work_order.update", "work_order.cancel", "work_order.attach", "checklist.view",
@@ -44,21 +44,21 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "sla.view", "contract.view", "contract.check", "report.view", "qr.scan"),
     ),
     RoleTemplate(
-        "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination and escalation.",
+        "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination, and escalation.",
         ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve",
          "work_order.view", "work_order.create", "work_order.assign", "work_order.dispatch", "work_order.plan",
          "work_order.update", "work_order.attach", "checklist.view", "inspection.view", "inventory.view",
          "inventory.part.view", "sla.view", "report.view", "qr.scan"),
     ),
     RoleTemplate(
-        "technician", "Technician", "Executes assigned jobs, checklists, evidence, labor/time, and parts usage.",
+        "technician", "Field Technician", "Assigned jobs, mobile checklist execution, photo evidence, labor time, and parts consumption.",
         ("asset.view", "asset.meter.record", "site.view", "zone.view", "incident.create", "incident.view_assigned",
          "work_order.view_assigned", "work_order.start", "work_order.hold", "work_order.complete", "work_order.record",
          "work_order.attach", "incident.attach", "checklist.execute", "inspection.execute", "inventory.request",
          "inventory.consume", "inventory.part.view", "qr.scan"),
     ),
     RoleTemplate(
-        "supervisor", "Maintenance Supervisor", "Reviews completed work, closure approval, exception handling and oversight.",
+        "supervisor", "Supervisor", "Work review, closure approval, exception handling, and operational oversight.",
         ("asset.view", "asset.history.view", "site.view", "zone.view", "incident.*", "work_order.view",
          "work_order.create", "work_order.plan", "work_order.update", "work_order.assign", "work_order.dispatch",
          "work_order.review", "maintenance.view", "work_order.close", "work_order.hold", "work_order.record",
@@ -67,24 +67,27 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
         excludes=("inspection.execute", "checklist.execute"),
     ),
     RoleTemplate(
-        "stores_manager", "Stores Manager", "Part master, warehouse stock, reservations, issue/return, transfers and reconciliation.",
+        "stores_manager", "Stores / Inventory", "Part master, stock balance, reservations, issue/return, and reconciliation.",
         ("inventory.*", "asset.view", "work_order.view", "site.view", "report.view", "qr.scan"),
     ),
     RoleTemplate(
-        "service_manager", "Service Manager", "SLA policy, breach review, contract/AMC operations and service requests.",
+        "service_manager", "Service Manager", "SLA policy, breach review, contract/AMC operations, and dashboard monitoring.",
         ("incident.*", "sla.*", "contract.*", "portal.manage", "work_order.view", "asset.view", "site.view", "report.view"),
     ),
     RoleTemplate(
-        "client_requester", "Client / Requester", "External requester raising service requests and tracking status in the client portal.",
+        "client_requester", "Client / Requester", "Raise service request and view restricted status/closure confirmation.",
         ("portal.request.create", "portal.request.view", "portal.request.confirm", "incident.report_owned",
          "incident.view_assigned", "incident.view_owned", "incident.attach", "incident.confirm"),
     ),
     RoleTemplate(
-        "auditor", "Auditor / Report Consumer", "Read-only access to asset/service history, audit trail and compliance evidence.",
+        "auditor", "Auditor / Compliance", "Read-only asset and service history, audit logs, and compliance evidence.",
         ("*.view", "audit.view", "audit.export", "report.*"),
         excludes=("portal.request.*",),
     ),
-    # Legacy Operations Manager template kept for backward-compatibility with existing seedings
+)
+
+# Legacy role templates kept for backward-compatibility with existing seedings (not seeded in new orgs)
+LEGACY_TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "operations_manager", "Operations Manager (Legacy)", "Oversees maintenance and field operations.",
         ("*.view", "incident.*", "work_order.view", "work_order.assign",
@@ -96,7 +99,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
 )
 
 # Registry dictionary mapping both primary PRD keys and modern aliases
-BY_KEY = {t.key: t for t in TEMPLATES}
+BY_KEY = {t.key: t for t in TEMPLATES + LEGACY_TEMPLATES}
 
 # Aliases for modern PRD naming conventions
 BY_KEY["field_technician"] = BY_KEY["technician"]

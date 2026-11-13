@@ -928,6 +928,12 @@ body.fx-app {
   font-size: 1.15rem;
 }
 
+.keep-center{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .fx-auth-card .fx-brand-mark {
   background: #0B1F3A;
   border: 1.5px solid var(--fx-gold);
@@ -2690,12 +2696,28 @@ input[type="number"] {
 }
 
 /* Modern Form Controls */
-.form-control, .form-select {
+.form-control {
   border-radius: 6px;
   border-color: #cbd5e1;
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-select {
+  border-radius: 6px;
+  border-color: #cbd5e1;
+  font-size: 0.875rem;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-select-sm {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  padding-left: 0.65rem;
+  padding-right: 2.25rem;
+  font-size: 0.8125rem;
 }
 
 .form-control:focus, .form-select:focus {

@@ -149,7 +149,7 @@ AUTH_PASSWORD_VALIDATORS = [
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3  # invitation / activation links valid for 3 days
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "ui:home"
-LOGOUT_REDIRECT_URL = "accounts:login"
+LOGOUT_REDIRECT_URL = "ui:root"
 
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
 # Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.

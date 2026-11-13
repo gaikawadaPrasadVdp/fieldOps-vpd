@@ -30,6 +30,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
     description_text = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField(help_text="DISABLED | DUE | SCHEDULED")
     meter_name = serializers.CharField(source="meter.name", read_only=True, default=None, allow_null=True)
+    frequency = serializers.CharField(allow_blank=True, required=False)
 
     class Meta:
         model = MaintenanceSchedule
@@ -107,6 +108,7 @@ class CycleSerializer(serializers.ModelSerializer):
     plan = serializers.UUIDField(source="schedule.plan_id", read_only=True)
     plan_name = serializers.CharField(source="schedule.plan.name", read_only=True)
     asset_tag = serializers.CharField(source="schedule.plan.asset.asset_tag", read_only=True)
+    due_date = serializers.DateField(allow_null=True, required=False)
     work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
     work_order_status = serializers.CharField(source="work_order.status", read_only=True, default=None, allow_null=True)
     state = serializers.SerializerMethodField(help_text="GENERATED | ASSIGNED | COMPLETED | VERIFIED | CANCELLED")
@@ -280,7 +282,7 @@ class MaintenanceScheduleViewSet(TenantAPIMixin, viewsets.ViewSet):
         cycle = scoped_get(selectors.cycles_for(request.membership, request.organization), cycle.pk, "Cycle")
         return Response(CycleSerializer(cycle).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(responses=CycleSerializer(many=True))
+    @extend_schema(responses=CycleSerializer)
     @action(detail=True, methods=["get"])
     def cycles(self, request, pk=None):
         sch = self._sch(request, pk)

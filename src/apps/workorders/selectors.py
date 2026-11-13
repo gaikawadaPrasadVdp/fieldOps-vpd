@@ -6,10 +6,21 @@ from .models import WorkOrder
 
 
 def get_work_order(membership, organization, pk):
+    import uuid
+    from django.db.models import Q
+
+    pk_str = str(pk).strip()
     try:
-        wo = WorkOrder.objects.for_organization(organization).select_related(
-            "site", "assigned_to__user", "created_by").filter(pk=pk).first()
-    except (ValueError, TypeError):
+        try:
+            val = uuid.UUID(pk_str)
+            wo = WorkOrder.objects.for_organization(organization).select_related(
+                "site", "assigned_to__user", "created_by").filter(pk=val).first()
+        except (ValueError, TypeError, AttributeError):
+            wo = WorkOrder.objects.for_organization(organization).select_related(
+                "site", "assigned_to__user", "created_by").filter(
+                Q(order_number__iexact=pk_str) | Q(number__iexact=pk_str)
+            ).first()
+    except Exception:
         raise NotFound("Work order not found.")
     if wo is None:
         raise NotFound("Work order not found.")

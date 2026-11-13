@@ -68,7 +68,7 @@
             {% icon 'box' 16 %}
             <span>Assets</span>
           </a>
-          <button type="button" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{{ dashboard_url }}'">
+          <button type="button" class="btn btn-outline-secondary px-3 py-2 d-inline-flex align-items-center gap-2 bg-white" data-action="go-back" data-fallback="{{ dashboard_url }}">
             {% icon 'refresh-cw' 15 %}
             <span>Go Back</span>
           </button>

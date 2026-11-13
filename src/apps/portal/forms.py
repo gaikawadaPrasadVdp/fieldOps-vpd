@@ -203,3 +203,69 @@ class PortalAccountEditForm(BootstrapFormMixin, forms.Form):
 
     def clean_phone(self):
         return validate_phone_number(self.cleaned_data.get("phone"))
+
+
+class PortalScanRequestForm(BootstrapFormMixin, forms.Form):
+    """Client-safe service request submission form for a QR-resolved asset."""
+
+    title = forms.CharField(
+        max_length=200,
+        min_length=3,
+        label="Request Title / Subject",
+        help_text="Brief summary of the issue or requested maintenance (minimum 3 characters).",
+        widget=forms.TextInput(attrs={"placeholder": "e.g., Unusual vibration on cooling pump"}),
+    )
+    description = forms.CharField(
+        required=False,
+        label="Problem Description",
+        help_text="Detailed description of the fault symptoms, observed behavior, or specific service needed.",
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": "Describe what happened, error codes, unusual sounds, leaks, etc."}),
+    )
+    severity = forms.ChoiceField(
+        choices=[
+            (ServiceRequest.Severity.LOW, "Low — Minor issue, system operational"),
+            (ServiceRequest.Severity.MEDIUM, "Medium — Standard maintenance request"),
+            (ServiceRequest.Severity.HIGH, "High — Urgent breakdown impacting operations"),
+        ],
+        initial=ServiceRequest.Severity.MEDIUM,
+        label="Priority / Urgency",
+        help_text="Select requested urgency. Note: Staff will verify and triage severity.",
+    )
+    service_impact = forms.ChoiceField(
+        choices=ServiceRequest.Impact.choices,
+        initial=ServiceRequest.Impact.NONE,
+        label="Service Impact",
+        help_text="Current impact on operational capability.",
+    )
+    impact_notes = forms.CharField(
+        max_length=500,
+        required=False,
+        label="Impact Notes",
+        help_text="Any additional context regarding operational downtime or affected areas.",
+        widget=forms.TextInput(attrs={"placeholder": "e.g., Production slowed"}),
+    )
+    attachment = forms.FileField(
+        required=False,
+        label="Photo / File Attachment",
+        help_text="Optional document, log, or photo of the issue (up to 10 MB).",
+    )
+    override_duplicate = forms.BooleanField(required=False, widget=forms.HiddenInput())
+    override_reason = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    def clean_title(self):
+        title = (self.cleaned_data.get("title") or "").strip()
+        validate_alphabetical_description(title, field_label="Request Title / Subject")
+        return title
+
+    def clean_description(self):
+        description = (self.cleaned_data.get("description") or "").strip()
+        if description:
+            validate_alphabetical_description(description, field_label="Problem Description")
+        return description
+
+    def clean_impact_notes(self):
+        notes = (self.cleaned_data.get("impact_notes") or "").strip()
+        if notes:
+            validate_alphabetical_description(notes, field_label="Impact Notes")
+        return notes
+

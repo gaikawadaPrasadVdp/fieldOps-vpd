@@ -667,10 +667,25 @@ document.addEventListener("click", function (e) {
     var customMsg = "";
 
     if (isValid && field.type === "email" && field.value.trim()) {
-      var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
+      var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z-]*(\.[a-zA-Z][a-zA-Z-]*)*\.[a-zA-Z]{2,}$/;
       if (!strictEmailRegex.test(field.value.trim())) {
         isValid = false;
-        customMsg = "Enter a valid email address with a valid domain (e.g. user@gmail.com). Domain names must start with a letter and have a valid extension.";
+        customMsg = "Enter a valid email address (e.g. name@gmail.com). Domain names cannot contain numbers or special characters (e.g. @3, @#).";
+      }
+    }
+
+    if (isValid && field.type === "tel" && field.value.trim()) {
+      var telVal = field.value.trim();
+      var digitsOnly = telVal.replace(/\D/g, "");
+      if (!/^[0-9+\s()-]+$/.test(telVal)) {
+        isValid = false;
+        customMsg = "Phone must contain only numbers (e.g. 9876543210 or +91 98765 43210).";
+      } else {
+        var nationalDigits = telVal.startsWith("+91") ? digitsOnly.slice(2) : (telVal.startsWith("+") ? "" : digitsOnly);
+        if (nationalDigits.length !== 10) {
+          isValid = false;
+          customMsg = "Phone number must be exactly 10 digits (e.g. 9876543210 or +91 98765 43210).";
+        }
       }
     }
 
@@ -781,7 +796,7 @@ document.addEventListener("click", function (e) {
 
   document.addEventListener("input", function (e) {
     var field = e.target;
-    if (field && field.classList.contains("is-invalid")) {
+    if (field && (field.classList.contains("is-invalid") || (field.dataset && field.dataset.liveValidate === "true" && field.value !== ""))) {
       validateField(field);
     }
     if (field && (field.id === "id_occurred_at" || field.id === "id_downtime_started_at")) {
@@ -2149,7 +2164,7 @@ document.addEventListener("click", function (e) {
       return;
     }
     var next = encodeURIComponent(path + window.location.search);
-    window.location.replace("/accounts/login/?logged_out=1&next=" + next);
+    window.location.replace("/");
   }
 
   // 1. BroadcastChannel for instant cross-tab messaging (modern browsers)
@@ -2208,9 +2223,48 @@ document.addEventListener("click", function (e) {
       try {
         var lastLogout = localStorage.getItem(LOGOUT_STORAGE_KEY);
         if (lastLogout && parseInt(lastLogout, 10) > (window.__fx_page_loaded_at || 0)) {
-          window.location.replace("/accounts/login/?logged_out=1");
+          window.location.replace("/");
         }
       } catch (e) {}
+    }
+  });
+
+  // 3b. Universal CSP-compliant Go Back and Reload handlers
+  document.addEventListener("click", function (e) {
+    var backBtn = e.target.closest("[data-action='go-back']");
+    if (backBtn) {
+      e.preventDefault();
+      var fallback = backBtn.getAttribute("data-fallback") || backBtn.getAttribute("href") || "/app/";
+      
+      // If browser session history has previous entries, navigate back
+      if (window.history.length > 1) {
+        var prevUrl = window.location.href;
+        window.history.back();
+        // If history.back() did not navigate within 250ms, safely redirect to fallback
+        setTimeout(function () {
+          if (window.location.href === prevUrl) {
+            window.location.href = fallback;
+          }
+        }, 250);
+      } else if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
+        try {
+          var refUrl = new URL(document.referrer);
+          if (refUrl.pathname !== window.location.pathname && !refUrl.pathname.startsWith("/accounts/")) {
+            window.location.href = document.referrer;
+            return;
+          }
+        } catch (err) {}
+        window.location.href = fallback;
+      } else {
+        window.location.href = fallback;
+      }
+      return;
+    }
+    var reloadBtn = e.target.closest("[data-action='reload-page']");
+    if (reloadBtn) {
+      e.preventDefault();
+      window.location.reload();
+      return;
     }
   });
 
@@ -2266,7 +2320,7 @@ document.addEventListener("click", function (e) {
           // Broadcast to other tabs AFTER the server has completed logout
           broadcastLogout();
           clearClientCookies();
-          window.location.replace("/accounts/login/?logged_out=1");
+          window.location.replace("/");
         });
     }
   });

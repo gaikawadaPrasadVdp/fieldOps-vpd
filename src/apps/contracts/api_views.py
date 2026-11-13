@@ -31,15 +31,31 @@ WORK_TYPE_CHOICES = [(w, w) for w in services.WORK_TYPES]
 class ProviderSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceProvider
-        fields = ["id", "name", "contact_name", "email", "phone", "notes", "is_active", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "provider_type",
+            "contact_name",
+            "email",
+            "phone",
+            "address",
+            "notes",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = fields
 
 
 class ProviderWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
+    provider_type = serializers.ChoiceField(
+        choices=ServiceProvider.ProviderType.choices, required=False, default=ServiceProvider.ProviderType.OEM
+    )
     contact_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
     email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    address = serializers.CharField(max_length=300, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
     def validate_name(self, value):
@@ -385,7 +401,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(AgreementSerializer(self._ag(request, pk)).data)
 
     @extend_schema(parameters=[query_param("days", "look-ahead window in days (default 60, max 365)",
-                                           OpenApiTypes.INT)], responses=AgreementSerializer(many=True))
+                                           OpenApiTypes.INT)], responses=AgreementSerializer)
     @action(detail=False, methods=["get"])
     def expiring(self, request):
         try:

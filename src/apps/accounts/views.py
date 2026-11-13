@@ -39,11 +39,14 @@ class LoginView(auth_views.LoginView):
             self.request.session.set_expiry(0)
         else:
             self.request.session.set_expiry(settings.SESSION_COOKIE_AGE)
-        if user and not (getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False)):
-            from apps.tenancy import selectors
-            memberships = list(selectors.active_memberships(user))
-            if len(memberships) == 1:
-                self.request.session[selectors.SESSION_KEY] = str(memberships[0].organization_id)
+        if user:
+            try:
+                from apps.tenancy import selectors
+                memberships = list(selectors.active_memberships(user))
+                if memberships and (selectors.SESSION_KEY not in self.request.session or not self.request.session[selectors.SESSION_KEY]):
+                    self.request.session[selectors.SESSION_KEY] = str(memberships[0].organization_id)
+            except Exception:
+                pass
         return response
 
     def get_success_url(self):
@@ -55,7 +58,30 @@ class LoginView(auth_views.LoginView):
         if redirect_to and redirect_to.startswith("/platform/") and not is_platform:
             redirect_to = None
 
-        if not redirect_to:
+        if redirect_to and (redirect_to == "/app/portal" or redirect_to.startswith("/app/portal/")) and is_platform:
+            redirect_to = None
+
+        if redirect_to and not is_platform:
+            from apps.tenancy import selectors
+            from apps.ui.utils import is_client_membership
+
+            org_id = self.request.session.get(selectors.SESSION_KEY)
+            membership = None
+            if org_id:
+                membership = selectors.active_memberships(user).filter(organization_id=org_id).first()
+            if membership is None:
+                memberships = list(selectors.active_memberships(user))
+                if len(memberships) == 1:
+                    membership = memberships[0]
+
+            if membership is not None:
+                is_client = is_client_membership(membership)
+                is_portal_target = redirect_to == "/app/portal" or redirect_to.startswith("/app/portal/")
+                if not is_portal_target and redirect_to.startswith("/app/") and is_client:
+                    redirect_to = "/app/portal/"
+
+        # Ignore empty, root (/), or auth loop destinations; standard login always lands at /app/
+        if not redirect_to or redirect_to in ("/", "/accounts/login/", "/accounts/logout/") or redirect_to.startswith("/accounts/") or redirect_to == "/app":
             return reverse("ui:home")
 
         return redirect_to
@@ -65,6 +91,7 @@ class LogoutView(auth_views.LogoutView):
     """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
 
     http_method_names = ["post", "options"]
+    next_page = "/"
 
     def post(self, request, *args, **kwargs):
         is_ajax = (
@@ -75,7 +102,7 @@ class LogoutView(auth_views.LogoutView):
             from django.contrib.auth import logout as auth_logout
             from django.http import JsonResponse
             auth_logout(request)
-            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/"})
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/"})
         else:
             response = super().post(request, *args, **kwargs)
 

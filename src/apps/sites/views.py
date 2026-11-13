@@ -8,6 +8,7 @@ import json
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.views import View
@@ -63,18 +64,27 @@ class SiteListView(SiteBase):
     required_permission = "site.view"
 
     def get(self, request):
-        base_sites = selectors.sites_for(request.membership, request.organization)
-        total_sites = base_sites.count()
-        active_sites = base_sites.filter(status="ACTIVE").count()
-        inactive_sites = base_sites.filter(status="INACTIVE").count()
+        is_table_htmx = (
+            request.headers.get("HX-Request") == "true"
+            and request.headers.get("HX-Target") == "site-list-card"
+        )
+        if is_table_htmx:
+            kpis = {"total_sites": 0, "active_sites": 0, "inactive_sites": 0}
+        else:
+            base_sites = selectors.sites_for(request.membership, request.organization)
+            kpis = base_sites.aggregate(
+                total_sites=Count("pk"),
+                active_sites=Count("pk", filter=Q(status="ACTIVE")),
+                inactive_sites=Count("pk", filter=Q(status="INACTIVE")),
+            )
         qs = selectors.site_list(request.membership, request.organization, request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
         return render(request, "sites/list.html", {
             "page": page, "q": request.GET.get("q", ""), "status": request.GET.get("status", ""), "ordering": request.GET.get("ordering", "-created_at"),
             "can_create": rbac.has_permission(request.membership, "site.create"),
-            "total_sites": total_sites,
-            "active_sites": active_sites,
-            "inactive_sites": inactive_sites})
+            "total_sites": kpis["total_sites"],
+            "active_sites": kpis["active_sites"],
+            "inactive_sites": kpis["inactive_sites"]})
 
 
 class SiteCreateView(SiteBase):

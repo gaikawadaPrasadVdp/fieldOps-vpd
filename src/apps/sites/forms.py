@@ -326,11 +326,16 @@ class ZoneForm(BootstrapFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         qs = Zone.objects.filter(site=site, status="ACTIVE").order_by("name")
         if zone is not None:
+            children_by_parent: dict = {}
+            for pk, pid in Zone.objects.filter(site=site).values_list("pk", "parent_id"):
+                if pid is not None:
+                    children_by_parent.setdefault(pid, []).append(pk)
             exclude = {zone.pk}
             frontier = [zone.pk]
             while frontier:  # a location cannot be moved below itself or its descendants
-                frontier = list(Zone.objects.filter(parent_id__in=frontier).values_list("pk", flat=True))
-                exclude.update(frontier)
+                nxt = [cid for pid in frontier for cid in children_by_parent.get(pid, []) if cid not in exclude]
+                exclude.update(nxt)
+                frontier = nxt
             qs = qs.exclude(pk__in=exclude)
         self.fields["parent"].queryset = qs
 

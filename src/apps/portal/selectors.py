@@ -123,12 +123,23 @@ def get_client_request(membership: Membership | None, request_id: str | uuid.UUI
     return qs.filter(number=str(request_id).strip()).first()
 
 
+_INTERNAL_HISTORY_ACTIONS = (
+    "work_order_update",
+    "work_order_updated",
+    "work_order_labor",
+    "work_order_material",
+    "work_order_evidence",
+    "work_order_checklist",
+)
+
+
 def client_request_history_for(sr: ServiceRequest) -> QuerySet[ServiceRequestHistory]:
     """Returns the append-only status history for a service request in chronological order."""
     from apps.incidents.models import ServiceRequestHistory
     return (
         ServiceRequestHistory.objects.for_organization(sr.organization)
         .filter(request=sr)
+        .exclude(action__in=_INTERNAL_HISTORY_ACTIONS)
         .order_by("created_at")
     )
 
@@ -227,6 +238,7 @@ def get_portal_dashboard_metrics(membership: Membership | None) -> dict:
     recent_activity = list(
         ServiceRequestHistory.objects.for_organization(org)
         .filter(request__reported_by=membership)
+        .exclude(action__in=_INTERNAL_HISTORY_ACTIONS)
         .select_related("request", "changed_by")
         .order_by("-created_at")[:6]
     )

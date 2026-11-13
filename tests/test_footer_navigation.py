@@ -3,7 +3,6 @@ from django.test import RequestFactory
 from django.urls import resolve, reverse
 
 from apps.ui import views
-from apps.ui.forms import ContactSalesForm
 
 
 def test_footer_urls_reverse_and_resolve():
@@ -25,7 +24,7 @@ def test_footer_urls_reverse_and_resolve():
 
 def test_backward_compatible_aliases():
     """Verify legacy URL patterns resolve properly without breaking older links."""
-    assert resolve("/contact/").func == views.public_contact
+    assert resolve("/contact/").url_name == "public_contact"
     assert resolve("/legal/terms-and-conditions/").func == views.public_terms_of_service
 
 
@@ -44,21 +43,14 @@ def test_careers_completely_removed():
     assert "careers" not in rendered.lower()
 
 
-def test_sitemap_completely_removed():
-    """Verify sitemap URL cannot be resolved or reversed, and is not in navigation."""
-    from django.urls.exceptions import Resolver404, NoReverseMatch
-    from django.template.loader import render_to_string
-
-    with pytest.raises(Resolver404):
-        resolve("/sitemap/")
-
-    with pytest.raises(NoReverseMatch):
-        reverse("ui:public_sitemap")
-
-    # Verify legal base and legal templates contain no sitemap references
-    legal_rendered = render_to_string("public/privacy_policy.html", {"active_page": "legal", "active_legal_page": "privacy-policy"})
-    assert "sitemap" not in legal_rendered.lower()
-    assert "platform directory" not in legal_rendered.lower()
+def test_sitemap_resolves_and_renders():
+    """Verify sitemap URL resolves to public_sitemap and renders successfully."""
+    match = resolve("/sitemap/")
+    assert match.func == views.public_sitemap
+    rf = RequestFactory()
+    req = rf.get("/sitemap/")
+    resp = views.public_sitemap(req)
+    assert resp.status_code == 200
 
 
 def test_each_page_renders_unique_dedicated_content():
@@ -70,11 +62,10 @@ def test_each_page_renders_unique_dedicated_content():
             "req": rf.get("/contact-sales/"),
             "view": views.public_contact_sales,
             "must_contain": [
-                "Contact Sales &amp; Enterprise Solutions",
-                "sales@fieldopsnexus.com",
-                "+91 98765 43210",
-                "Enterprise Sales Inquiry",
-                "Operational Requirements &amp; Project Scope",
+                "Let&rsquo;s Start a",
+                "Conversation",
+                "support@fieldopsnexus.com",
+                "Business Conversations That Matter",
             ],
             "must_not_contain": [
                 "Cookie &amp; Session Management Policy",
@@ -167,27 +158,6 @@ def test_each_page_renders_unique_dedicated_content():
         for j in range(i + 1, len(page_keys)):
             k1, k2 = page_keys[i], page_keys[j]
             assert rendered_contents[k1] != rendered_contents[k2], f"Pages {k1} and {k2} have identical content!"
-
-
-def test_contact_sales_post_submission():
-    """Verify Contact Sales form submission handles valid input and renders confirmation."""
-    rf = RequestFactory()
-    post_data = {
-        "full_name": "Aarav Patel",
-        "work_email": "aarav.patel@hpeenterprise.com",
-        "phone_number": "+91 98765 12345",
-        "company_name": "Apex Industrial Facilities",
-        "inquiry_type": "enterprise_deployment",
-        "fleet_size": "251_1000",
-        "message": "Planning multi-site deployment across three manufacturing plants in Karnataka.",
-    }
-    req = rf.post("/contact-sales/", data=post_data)
-    resp = views.public_contact_sales(req)
-    assert resp.status_code == 200
-    content = resp.content.decode("utf-8")
-    assert "Inquiry Registered Successfully!" in content
-    assert "Aarav Patel" in content
-    assert "Apex Industrial Facilities" in content
 
 
 def test_footer_contains_all_dedicated_links():

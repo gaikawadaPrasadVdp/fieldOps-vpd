@@ -179,17 +179,17 @@
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 rounded bg-body-tertiary border mb-3">
               <div class="d-flex align-items-center gap-2">
                 <label for="rolePresetSelect-{{ m.pk }}" class="form-label small fw-bold mb-0 text-nowrap">Apply Role Preset:</label>
-                <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 220px;" onchange="applyRolePreset('{{ m.pk }}', this)">
+                <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 230px; padding-right: 2.25rem;" onchange="applyRolePreset('{{ m.pk }}', this)">
                   <option value="">-- Select Role Preset --</option>
                   {% for rp in role_presets %}
-                    <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}">{{ rp.name }}</option>
+                    <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}" {% if rp.pk in m.active_role_ids_str %}selected{% endif %}>{{ rp.name }}</option>
                   {% endfor %}
                 </select>
               </div>
 
               <div class="d-flex align-items-center gap-2">
                 <label for="siteSelect-{{ m.pk }}" class="form-label small fw-bold mb-0 text-nowrap">Site Scope:</label>
-                <select id="siteSelect-{{ m.pk }}" name="site_id" class="form-select form-select-sm" style="min-width: 200px;">
+                <select id="siteSelect-{{ m.pk }}" name="site_id" class="form-select form-select-sm" style="min-width: 250px; padding-right: 2.25rem;">
                   <option value="">Organization-wide (All sites)</option>
                   {% for s in sites %}
                     <option value="{{ s.pk }}" {% if m.primary_site_id == s.pk %}selected{% endif %}>
@@ -199,7 +199,10 @@
                 </select>
               </div>
 
-              
+              <div class="d-flex align-items-center gap-2 ms-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', true)">Select All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', false)">Clear All</button>
+              </div>
             </div>
 
             {% if m.is_owner_member and not m.can_remove_owner %}

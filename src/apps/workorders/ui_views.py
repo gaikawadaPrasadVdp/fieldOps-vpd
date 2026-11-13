@@ -408,7 +408,8 @@ class ScheduleBoardView(TenantPermissionMixin, View):
             assigned_work_orders__in=base_qs).values_list("pk", flat=True)
         assigned_member_ids = set(assigned_members)
         technician_members = Membership.objects.for_organization(request.organization).filter(
-            membership_roles__role__system_key="technician").filter(
+            membership_roles__role__system_key__in=["technician", "field_technician"]
+        ).filter(
             Q(pk__in=assigned_members) | Q(status=Membership.Status.ACTIVE, user__is_active=True)
         ).distinct().select_related("user")
         workload_rows = WorkOrder.objects.for_organization(request.organization).filter(
@@ -894,6 +895,14 @@ def _work_order_tab_context(wo, membership, tab):
                            can_execute and rbac.has_permission(membership, "work_order.record", wo.site)),
        "can_attach_evidence": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
                                rbac.has_permission(membership, "work_order.attach", wo.site)),
+       "can_request_parts": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
+                             rbac.has_permission(membership, "inventory.request", wo.site)),
+       "can_manage_parts": (
+           rbac.has_permission(membership, "inventory.request", wo.site)
+           or rbac.has_permission(membership, "inventory.issue", wo.site)
+           or rbac.has_permission(membership, "inventory.reserve", wo.site)
+           or rbac.has_permission(membership, "inventory.return", wo.site)
+       ),
        "is_closed": wo.status == WorkOrder.Status.CLOSED,
        "due_is_overdue": bool(wo.due_at and wo.due_at < timezone.now() and
                                wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}
@@ -1171,7 +1180,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 }.get(getattr(wo.source_request, "severity", ""), "")
 
             kwargs = {"work_order": wo, "initial": {"work_type": initial_work_type, "priority": initial_priority,
-                                   "planned_start": wo.planned_start, "planned_end": wo.planned_end,
+                                   "planned_start": wo.planned_start or timezone.localtime(timezone.now()).replace(second=0, microsecond=0),
+                                   "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
         elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update"):

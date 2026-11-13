@@ -3,7 +3,7 @@
   <div>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item">Operations</li>
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Overview</a></li>
         <li class="breadcrumb-item active">Incident dashboard</li>
       </ol>
     </nav>
@@ -13,6 +13,7 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">{% icon 'arrow-left' 16 %} Back to Overview</a>
     {% if can.create %}<a class="btn btn-primary" href="{% url 'incidents:create' %}">{% icon 'plus' 16 %} Report
       incident</a>{% endif %} {% if has_incidents %}<a class="btn btn-outline-primary"
       href="{% url 'incidents:list' %}">All incidents</a>{% endif %} {% if can.open_work_orders %}<a

@@ -135,14 +135,42 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
         return phone
 
 
-def _role_field(org, membership=None):
-    from apps.rbac import services as rbac
-    from apps.rbac.role_templates import PRIMARY_ROLE_KEYS
+WORKFLOW_ROLES: tuple[tuple[str, str], ...] = (
+    ("admin", "Super Admin"),
+    ("asset_manager", "Asset Manager"),
+    ("maintenance_planner", "Maintenance Planner"),
+    ("service_dispatcher", "Service Dispatcher"),
+    ("technician", "Field Technician"),
+    ("supervisor", "Supervisor"),
+    ("stores_manager", "Stores / Inventory"),
+    ("service_manager", "Service Manager"),
+    ("client_requester", "Client / Requester"),
+    ("auditor", "Auditor / Compliance"),
+)
+WORKFLOW_ROLE_LABELS = dict(WORKFLOW_ROLES)
+WORKFLOW_ROLE_ORDER = {key: idx for idx, (key, _) in enumerate(WORKFLOW_ROLES)}
 
-    qs = Role.objects.for_organization(org).filter(system_key__in=PRIMARY_ROLE_KEYS).order_by("name")
+
+class _WorkflowRoleMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        return WORKFLOW_ROLE_LABELS.get(obj.system_key, obj.name)
+
+
+def _role_field(org, membership=None):
+    from django.db.models import Case, IntegerField, When
+
+    from apps.rbac import services as rbac
+
+    order_whens = [When(system_key=key, then=idx) for key, idx in WORKFLOW_ROLE_ORDER.items()]
+    qs = (
+        Role.objects.for_organization(org)
+        .filter(system_key__in=WORKFLOW_ROLE_LABELS)
+        .annotate(_workflow_order=Case(*order_whens, default=99, output_field=IntegerField()))
+        .order_by("_workflow_order", "name")
+    )
     if membership is not None:
         if not rbac.has_role_assignment_permission(membership):
-            return forms.ModelMultipleChoiceField(
+            return _WorkflowRoleMultipleChoiceField(
                 queryset=Role.objects.none(),
                 widget=forms.CheckboxSelectMultiple, label="Roles",
             )
@@ -157,7 +185,7 @@ def _role_field(org, membership=None):
                     if set(r.role_permissions.values_list("permission__code", flat=True)).issubset(actor_perms)
                 ]
                 qs = qs.filter(pk__in=allowed_ids)
-    return forms.ModelMultipleChoiceField(
+    return _WorkflowRoleMultipleChoiceField(
         queryset=qs,
         widget=forms.CheckboxSelectMultiple, label="Roles",
     )

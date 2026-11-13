@@ -373,3 +373,24 @@ def test_e2e_023_complete_in_progress_work_order_with_summary(p3, as_user):
     assert r.status_code == 200, r.content
     assert r.json()["status"] == "COMPLETED"
     assert r.json()["resolution_notes"] == "Replaced the belt and verified alignment"
+
+
+def test_work_order_detail_routes_both_with_and_without_trailing_slash(p3, as_user):
+    """Verify router endpoints resolve correctly whether caller includes or omits trailing slash."""
+    wo = wo_in_progress(p3)
+    api = as_user(p3["tech"].user, p3["org"])
+
+    # GET with trailing slash
+    resp_slash = api.get(f"/api/v1/work-orders/{wo.pk}/")
+    assert resp_slash.status_code == 200
+    assert resp_slash.json()["id"] == str(wo.pk)
+
+    # GET without trailing slash
+    resp_noslash = api.get(f"/api/v1/work-orders/{wo.pk}")
+    assert resp_noslash.status_code == 200
+    assert resp_noslash.json()["id"] == str(wo.pk)
+
+    # Alias /workorders/ without trailing slash
+    resp_alias = api.get(f"/api/v1/workorders/{wo.pk}")
+    assert resp_alias.status_code == 200
+    assert resp_alias.json()["id"] == str(wo.pk)

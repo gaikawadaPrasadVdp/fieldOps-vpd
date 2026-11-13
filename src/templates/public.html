@@ -2,7 +2,7 @@
 {% load static ui_tags %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=8.7">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=8.8">
 {% endblock %}
 
 {% block body_class %}fx-auth-split-body{% endblock %}
@@ -31,7 +31,7 @@
     <div class="position-relative z-1 mb-3">
       <a href="{% url 'ui:root' %}" class="d-inline-flex align-items-center gap-3 text-decoration-none text-white">
         <div class="fx-auth-logo-box" style="width: 48px; height: 48px; flex-shrink: 0;">
-          <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" style="width: 100%; height: 100%; object-fit: contain; display: block;">
+          <img src="{% static 'images/logo-icon.webp' %}" alt="FieldOps Nexus" style="width: 100%; height: 100%; object-fit: contain; display: block;">
         </div>
         <div class="d-flex flex-column justify-content-center">
           <span class="fw-bold fs-4 text-white lh-1 fx-auth-brand-name">FieldOps Nexus</span>
@@ -93,7 +93,7 @@
       <div class="d-lg-none d-flex align-items-center gap-2 mb-4 pb-2 border-bottom">
         <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
           <div class="fx-pub-brand-badge" style="width:34px; height:34px;">
-            <img src="{% static 'images/logo-icon.png' %}" alt="FieldOps Nexus" class="fx-brand-img">
+            <img src="{% static 'images/logo-icon.webp' %}" alt="FieldOps Nexus" class="fx-brand-img">
           </div>
           <span class="fw-bold fs-5 text-dark">FieldOps <span style="color:#C9A227;">Nexus</span></span>
         </a>
