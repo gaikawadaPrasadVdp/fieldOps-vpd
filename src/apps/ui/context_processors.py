@@ -61,8 +61,10 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "activity", "match_prefix": "/app/dashboards"},
             {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "clock", "match_prefix": "/app/dashboards/snapshots"},
         ]
+        sections["Analytics & Governance"] = sections["Overview"]
         sections["Operations"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+            {"label": "Incident Dashboard", "url": _safe_reverse("incidents:dashboard"), "icon": "activity", "match_prefix": "/app/incidents/dashboard"},
             {"label": "Work Orders", "url": _safe_reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
             {"label": "Checklists", "url": _safe_reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
             {"label": "Inspections", "url": _safe_reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
@@ -87,10 +89,11 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Scan QR / Barcode", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Commercial & Contracts"] = [
-            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "file-text", "match_prefix": "/app/contracts"},
-            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "alert-triangle", "match_prefix": "/app/contracts/expiry"},
-            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "briefcase", "match_prefix": "/app/contracts/providers"},
+            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
+        sections["Commercial"] = sections["Commercial & Contracts"]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
@@ -102,7 +105,7 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Organization Settings", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
             {"label": "Users & Invitations", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
             {"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
-            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"},
+            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "wrench", "match_prefix": "/app/workspace/technicians"},
             {"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
         ]
 
@@ -229,7 +232,7 @@ def _build_tenant_nav(membership, is_owner):
 
         asset_items = []
         if rbac.has_permission_anywhere(membership, "asset.view"):
-            asset_items.append({"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
+            asset_items.append({"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
         if rbac.has_permission_anywhere(membership, "qr.scan"):
             asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
         if asset_items:
@@ -278,7 +281,7 @@ def _build_tenant_nav(membership, is_owner):
 
         asset_items = []
         if rbac.has_permission_anywhere(membership, "asset.view"):
-            asset_items.append({"label": "Assets", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
+            asset_items.append({"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
         if rbac.has_permission_anywhere(membership, "qr.scan"):
             asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
         if asset_items:
@@ -525,9 +528,14 @@ def shell(request):
     if user is None or not user.is_authenticated:
         return {}
 
+    from django.conf import settings
+    idle_timeout_seconds = getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)
+    idle_timeout_ms = int(idle_timeout_seconds) * 1000
+
     req_path = request.path
     membership = getattr(request, "membership", None)
     crumbs, back_url = _build_breadcrumbs(request)
+    idle_timeout_ms = max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000
 
     # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
     if getattr(user, "is_platform_admin", False):
@@ -549,6 +557,7 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     if membership is None:
@@ -561,19 +570,20 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     # 2. Client / Requester Navigation (M13)
     is_client = is_client_membership(membership)
     if is_client:
-        sections = {
-            "Portal": [
-                {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
-                {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
-                {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
-                {"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]},
-            ]
-        }
+        portal_items = [
+            {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
+            {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
+            {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+        ]
+        if rbac.has_permission_anywhere(membership, "qr.scan"):
+            portal_items.append({"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]})
+        sections = {"Portal": portal_items}
         sections = _filter_valid_nav_items(sections)
         _resolve_active(sections, req_path)
         return {
@@ -585,6 +595,7 @@ def shell(request):
             "is_client": True,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
         # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
@@ -614,4 +625,5 @@ def shell(request):
         "is_org_owner": is_owner,
         "shell_breadcrumbs": crumbs,
         "shell_back_url": back_url,
+        "session_idle_timeout_ms": idle_timeout_ms,
     }

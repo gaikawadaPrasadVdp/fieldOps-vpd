@@ -1,3 +1,5 @@
+import re
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
@@ -13,6 +15,23 @@ from apps.rbac import services as rbac
 
 from . import selectors, services
 from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Shift, Site, SiteContact, Zone
+
+_PHONE_RE = re.compile(r"^[0-9+\s\-()]{1,32}$")
+
+
+def validate_phone_number(value: str) -> str:
+    phone = (value or "").strip()
+    if phone:
+        if any(c.isalpha() for c in phone):
+            raise serializers.ValidationError("Phone number cannot contain letters.")
+        digits = [c for c in phone if c.isdigit()]
+        if not digits:
+            raise serializers.ValidationError("Phone number must contain digits.")
+        if len(digits) > 15:
+            raise serializers.ValidationError("Phone number cannot exceed 15 digits (ITU-T E.164 standard).")
+        if not _PHONE_RE.fullmatch(phone):
+            raise serializers.ValidationError("Enter a valid phone number (e.g. +91 98765 43210).")
+    return phone
 
 # --- serializers ---------------------------------------------------------------------------------------
 
@@ -61,6 +80,9 @@ class SiteWriteSerializer(serializers.Serializer):
     contact_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
+
+    def validate_contact_phone(self, value):
+        return validate_phone_number(value)
 
 
 class ReasonSerializer(serializers.Serializer):
@@ -157,6 +179,9 @@ class ContactWriteSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     escalation_order = serializers.IntegerField(min_value=1, max_value=MAX_ESCALATION_ORDER, required=False)
     notes = serializers.CharField(max_length=300, required=False, allow_blank=True)
+
+    def validate_phone(self, value):
+        return validate_phone_number(value)
 
 
 class ContactUpdateSerializer(ContactWriteSerializer):

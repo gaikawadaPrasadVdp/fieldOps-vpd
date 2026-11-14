@@ -90,8 +90,12 @@ router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("requests", ServiceRequestViewSet, basename="requests")
+router.register("incidents", ServiceRequestViewSet, basename="incident")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
+router.register("providers", ProviderViewSet, basename="provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
+router.register("agreements", AgreementViewSet, basename="agreement")
+router.register("contracts", AgreementViewSet, basename="contract")
 router.register("warranties", AgreementViewSet, basename="warranty")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
 router.register("coverage", CoverageViewSet, basename="coverage")
@@ -108,6 +112,7 @@ router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="m
 router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 router.register("parts", PartViewSet, basename="part")
+router.register("spare-parts", PartViewSet, basename="spare-part")
 router.register("warehouses", WarehouseViewSet, basename="warehouse")
 router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
 router.register("stocks", StockBalanceViewSet, basename="stocks")
@@ -117,30 +122,31 @@ router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-p
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
 router.register("workorders", WorkOrderViewSet, basename="workorder")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
+router.register("checklists", ChecklistTemplateViewSet, basename="checklist")
 router.register("inspections", InspectionViewSet, basename="inspection")
 router.register("findings", FindingViewSet, basename="finding")
 router.register("integration-events", IntegrationEventViewSet, basename="integration-event")
 router.register("webhooks", WebhookEndpointViewSet, basename="webhook")
 
 api_v1 = [
-    path("auth/", include("apps.accounts.api_urls")),
-    path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+    re_path(r"^auth/", include("apps.accounts.api_urls")),
+    re_path(r"^organization/?$", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
-    path("platform/organizations/", PlatformOrganizationViewSet.as_view({"get": "list", "post": "create"}),
+    re_path(r"^platform/organizations/?$", PlatformOrganizationViewSet.as_view({"get": "list", "post": "create"}),
          name="platform-organizations-list"),
-    path("platform/organizations/<uuid:pk>/", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
+    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/?$", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
          name="platform-organizations-detail"),
-    path("platform/organizations/<uuid:pk>/status/", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
+    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/status/?$", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
          name="platform-organizations-status"),
-    path("platform/organizations/<uuid:pk>/users/", PlatformOrganizationViewSet.as_view({"post": "create_user"}),
+    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/users/?$", PlatformOrganizationViewSet.as_view({"post": "create_user"}),
          name="platform-organizations-users"),
-    path("platform/users/", PlatformUserViewSet.as_view({"post": "create"}),
+    re_path(r"^platform/users/?$", PlatformUserViewSet.as_view({"post": "create"}),
          name="platform-users-create"),
-    path("portal/", include("apps.portal.api_urls")),
+    re_path(r"^portal/", include("apps.portal.api_urls")),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
     path("", include("apps.dashboards.api_urls")),
-    path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
+    re_path(r"^sla-metrics/?$", SLAMetricsView.as_view(), name="sla-metrics"),
     path("schema/", SpectacularAPIView.as_view(throttle_classes=[]), name="schema"),
     path("schema", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", throttle_classes=[]), name="docs"),

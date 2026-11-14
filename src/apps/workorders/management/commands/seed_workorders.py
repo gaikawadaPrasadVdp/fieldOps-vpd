@@ -98,7 +98,8 @@ class Command(BaseCommand):
                 if source is None:
                     source = incident_services.create_request(organization, asset=asset, reporter=reporter,
                         title=source_title, description=sample["description"], kind=kind,
-                        severity=sample["priority"], occurred_at=now - timedelta(days=1), actor=owner.user)
+                        severity=sample["priority"], occurred_at=now - timedelta(days=1), actor=owner.user,
+                        override_duplicate=True, override_reason="Demo workorder seeding")
                 if source.status not in (APPROVED,):
                     if source.status not in ("NEW", TRIAGED):
                         raise CommandError(f"Seed source {source.number} is not eligible for work-order creation.")
@@ -246,7 +247,8 @@ class Command(BaseCommand):
                         asset=source_assets[sites[0].pk], reporter=reporter, title=title,
                         description="Approved development source for testing Work Order creation.",
                         kind=kind, severity=ServiceRequest.Severity.HIGH,
-                        occurred_at=now - timedelta(hours=1), actor=owner.user)
+                        occurred_at=now - timedelta(hours=1), actor=owner.user,
+                        override_duplicate=True, override_reason="Seeding test incident")
                     source = incident_services.transition(source, action="triage", actor=owner.user)
                     incident_services.transition(source, action="approve", actor=owner.user)
                 serial += 1

@@ -45,6 +45,10 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
             return None
 
     def allow_request(self, request, view):
+        from django.conf import settings
+
+        if not getattr(settings, "RATE_LIMITING_ENABLED", False):
+            return True
         for backend in (self._shared_cache(), _FALLBACK_THROTTLE_CACHE):
             if backend is None:
                 continue

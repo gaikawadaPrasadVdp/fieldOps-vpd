@@ -27,7 +27,11 @@ class TenantPermissionMixin(LoginRequiredMixin):
 
         from apps.ui.utils import is_client_membership
         if is_client_membership(request.membership) and not request.path.startswith("/app/portal/"):
-            raise PermissionDenied("Client portal accounts cannot access internal staff operations.")
+            if not (request.path.startswith("/app/incidents/") and (
+                rbac.has_permission_anywhere(request.membership, "incident.report_owned") or
+                rbac.has_permission_anywhere(request.membership, "incident.view_owned")
+            )):
+                raise PermissionDenied("Client portal accounts cannot access internal staff operations.")
 
         perms = []
         if self.required_permission:

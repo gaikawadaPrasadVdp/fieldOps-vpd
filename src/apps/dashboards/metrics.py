@@ -21,6 +21,7 @@ from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole, Role
 from apps.sites.models import Site
 from apps.sla.models import SLABreach, SLATracking
+from apps.ui.utils import TECHNICIAN_ROLE_KEYS
 from apps.workorders.models import WorkOrder, WorkOrderLabor
 
 if TYPE_CHECKING:
@@ -29,6 +30,12 @@ if TYPE_CHECKING:
 # Default window: 30 days. Max allowed window: 400 days.
 DEFAULT_WINDOW_DAYS = 30
 MAX_WINDOW_DAYS = 400
+
+COMPLETED_WORK_ORDER_STATUSES = (
+    WorkOrder.Status.COMPLETED,
+    WorkOrder.Status.SUPERVISOR_REVIEW,
+    WorkOrder.Status.CLOSED,
+)
 
 KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
     "mttr": {
@@ -246,7 +253,7 @@ def compute_downtime_hours(organization: Organization, sites: list[Site], start_
         started_at__lte=end_dt,
     ).filter(Q(ended_at__isnull=True) | Q(ended_at__gte=start_dt))
 
-    total_seconds = 0.0
+    intervals = []
     active_count = 0
     closed_count = 0
 
@@ -255,11 +262,24 @@ def compute_downtime_hours(organization: Organization, sites: list[Site], start_
         actual_end = dt.ended_at or min(now, end_dt)
         window_end = min(actual_end, end_dt)
         if window_end > window_start:
-            total_seconds += (window_end - window_start).total_seconds()
+            intervals.append((window_start, window_end))
         if dt.ended_at is None:
             active_count += 1
         else:
             closed_count += 1
+
+    if intervals:
+        intervals.sort(key=lambda x: x[0])
+        merged = [intervals[0]]
+        for cur_start, cur_end in intervals[1:]:
+            prev_start, prev_end = merged[-1]
+            if cur_start <= prev_end:
+                merged[-1] = (prev_start, max(prev_end, cur_end))
+            else:
+                merged.append((cur_start, cur_end))
+        total_seconds = sum((end - start).total_seconds() for start, end in merged)
+    else:
+        total_seconds = 0.0
 
     hours = round(total_seconds / 3600.0, 1)
     return {
@@ -322,7 +342,7 @@ def compute_technician_utilization(organization: Organization, sites: list[Site]
 
     # Fallback to organization active technician members count if labor was 0
     if distinct_techs == 0:
-        tech_roles = Role.objects.filter(organization=organization, system_key="technician")
+        tech_roles = Role.objects.filter(organization=organization, system_key__in=TECHNICIAN_ROLE_KEYS)
         distinct_techs = MembershipRole.objects.filter(
             membership__organization=organization,
             membership__status="ACTIVE",
@@ -590,6 +610,43 @@ def compute_sla_breaches(organization: Organization, sites: list[Site], start_dt
     }
 
 
+def compute_work_completion_trend(queryset, start_dt: datetime.datetime, end_dt: datetime.datetime) -> list[dict[str, Any]]:
+    """Aggregate completed work orders into daily (<=31d) or weekly (>31d) buckets across the reporting window."""
+    from collections import defaultdict
+
+    completed_dates = queryset.filter(
+        status__in=COMPLETED_WORK_ORDER_STATUSES,
+        completed_at__gte=start_dt,
+        completed_at__lte=end_dt,
+    ).values_list("completed_at", flat=True)
+
+    day_counts: dict[datetime.date, int] = defaultdict(int)
+    for ts in completed_dates:
+        if not ts:
+            continue
+        ts_utc = ts.astimezone(datetime.UTC) if timezone.is_aware(ts) else ts
+        day_counts[ts_utc.date()] += 1
+
+    start_date = start_dt.date()
+    end_date = end_dt.date()
+    total_days = max(1, (end_date - start_date).days + 1)
+    step = 1 if total_days <= 31 else 7
+
+    trend: list[dict[str, Any]] = []
+    curr = start_date
+    while curr <= end_date:
+        bucket_end = min(end_date, curr + datetime.timedelta(days=step - 1))
+        bucket_count = 0
+        cursor = curr
+        while cursor <= bucket_end:
+            bucket_count += day_counts.get(cursor, 0)
+            cursor += datetime.timedelta(days=1)
+        label = curr.isoformat() if step == 1 else f"{curr.strftime('%m-%d')}..{bucket_end.strftime('%m-%d')}"
+        trend.append({"date": curr.isoformat(), "label": label, "count": bucket_count})
+        curr = bucket_end + datetime.timedelta(days=1)
+    return trend
+
+
 # --- HIGH LEVEL SECTION AGGREGATORS ---------------------------------------------------------
 
 
@@ -601,6 +658,13 @@ def get_operations_dashboard(organization: Organization, sites: list[Site], star
     util_res = compute_technician_utilization(organization, sites, start_dt, end_dt)
     pm_res = compute_pm_compliance(organization, sites, start_dt, end_dt)
     sla_res = compute_sla_breaches(organization, sites, start_dt, end_dt)
+    site_ids = [s.pk for s in sites]
+    completion_trend = compute_work_completion_trend(
+        WorkOrder.objects.filter(organization=organization, site_id__in=site_ids),
+        start_dt,
+        end_dt,
+    )
+    completed_work_orders = sum(item["count"] for item in completion_trend)
 
     overall_comp_str = f"{sla_res['overall_compliance']}%" if sla_res['overall_compliance'] is not None else "100.0%"
     resp_comp_str = f"{sla_res['response_compliance']}%" if sla_res['response_compliance'] is not None else "100.0%"
@@ -613,6 +677,7 @@ def get_operations_dashboard(organization: Organization, sites: list[Site], star
         "kpis": {
             "open_work_orders": wo_snap["open_count"],
             "overdue_work_orders": wo_snap["overdue_count"],
+            "completed_work_orders": completed_work_orders,
             "mttr": mttr_res["value"],
             "downtime_hours": dt_res["value"],
             "technician_utilization": util_res["value"],
@@ -628,6 +693,7 @@ def get_operations_dashboard(organization: Organization, sites: list[Site], star
             "utilization_data": util_res,
             "pm_data": pm_res,
             "sla_data": sla_res,
+            "completion_trend": completion_trend,
             "status_distribution": wo_snap["status_distribution"],
             "priority_distribution": wo_snap["priority_distribution"],
         },
@@ -788,8 +854,9 @@ def get_my_work_dashboard(membership: Membership, start_dt: datetime.datetime, e
     ).count()
 
     in_progress = my_orders.filter(status=WorkOrder.Status.IN_PROGRESS).count()
+    completion_trend = compute_work_completion_trend(my_orders, start_dt, end_dt)
     completed_in_window = my_orders.filter(
-        status=WorkOrder.Status.COMPLETED,
+        status__in=COMPLETED_WORK_ORDER_STATUSES,
         completed_at__gte=start_dt,
         completed_at__lte=end_dt,
     ).count()
@@ -820,5 +887,6 @@ def get_my_work_dashboard(membership: Membership, start_dt: datetime.datetime, e
         "details": {
             "total_labor_hours": total_hours,
             "available_capacity_hours": capacity,
+            "completion_trend": completion_trend,
         },
     }
