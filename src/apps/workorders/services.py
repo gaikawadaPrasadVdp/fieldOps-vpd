@@ -166,8 +166,8 @@ def _snapshot(wo):
 def _validate_schedule_window(start, end, due_at, estimated_hours):
     if start and end and end <= start:
         raise ValidationFailed("Planned end must be later than planned start.", code="invalid_schedule")
-    if due_at and end and due_at < end:
-        raise ValidationFailed("Due date must be on or after planned end.", code="due_not_after_end")
+    if due_at and end and due_at <= end:
+        raise ValidationFailed("Due date must be later than planned end.", code="due_not_after_end")
     if due_at and start and due_at <= start:
         raise ValidationFailed("Due date must be later than planned start.", code="due_not_after_start")
     if estimated_hours is not None and Decimal(estimated_hours) <= 0:
@@ -181,8 +181,23 @@ def _validate_schedule_window(start, end, due_at, estimated_hours):
 
 
 def _validate_linked_priority(work_order, priority):
-    # Priority is automatically defaulted from the linked source record, but manual adjustments by planners are permitted.
-    return
+    source_request = getattr(work_order, "source_request", None)
+    if not source_request and not getattr(work_order, "source_request_id", None):
+        return
+    severity = getattr(source_request, "severity", None)
+    if not severity:
+        return
+    expected = {
+        "LOW": WorkOrder.Priority.LOW,
+        "MEDIUM": WorkOrder.Priority.MEDIUM,
+        "HIGH": WorkOrder.Priority.HIGH,
+        "CRITICAL": WorkOrder.Priority.CRITICAL,
+    }.get(severity, severity)
+    if priority != expected:
+        raise ValidationFailed(
+            "Priority must match the linked approved incident or service request.",
+            code="source_priority_mismatch",
+        )
 
 
 def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=None):

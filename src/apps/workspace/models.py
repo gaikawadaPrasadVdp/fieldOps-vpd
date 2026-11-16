@@ -82,8 +82,15 @@ class WorkNote(TenantOwnedModel):
     class Meta:
         ordering = ["created_at"]
 
+    def save(self, *args, **kwargs):
+        if self.is_internal is None:
+            self.is_internal = False
+        super().save(*args, **kwargs)
+
     def clean(self):
         super().clean()
+        if self.is_internal is None:
+            self.is_internal = False
         if self.work_order_id and self.organization_id != self.work_order.organization_id:
             raise ValidationError("Work order must belong to the same organization.")
         if not (self.body or "").strip():

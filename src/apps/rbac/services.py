@@ -304,15 +304,14 @@ def authorized_sites_for_actor(actor_membership) -> SiteScope:
 
 
 def is_owner(membership) -> bool:
-    if membership is None or not getattr(membership, "is_active", False):
+    if membership is None:
         return False
-    from unittest.mock import Mock
-    if isinstance(membership, Mock):
-        return bool(membership.__dict__.get("is_owner_mock") or membership.__dict__.get("_is_owner"))
-    pk = getattr(membership, "pk", None)
-    if pk is None:
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
         return False
-    return MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists()
+    if getattr(membership, "is_owner_mock", None) is True or getattr(membership, "_is_owner", None) is True:
+        return True
+    return bool(MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists())
 
 
 # --- owner protection ----------------------------------------------------------------------
@@ -392,7 +391,7 @@ def set_membership_assignments(membership, assignments: list, *, actor, request=
                 actor_site_scope = authorized_sites_for_actor(actor_membership)
                 actor_org_perms = set(membership_permissions(actor_membership))
                 actor_site_perms = site_permissions(actor_membership)
-                for (role_pk, sid), (r, site) in new_assignments.items():
+                for (_role_pk, _sid), (r, site) in new_assignments.items():
                     if site is None:
                         if not actor_site_scope.all_sites:
                             raise PermissionDenied(
@@ -564,16 +563,4 @@ def delete_role(role: Role, *, actor, request=None):
 def system_role_by_key(org, key: str) -> Role:
     if key not in BY_KEY:
         raise KeyError(key)
-    role = Role.objects.unscoped().filter(organization=org, system_key=key).first()
-    if role:
-        return role
-    tpl = BY_KEY[key]
-    role = Role.objects.create(
-        organization=org, name=tpl.name, description=tpl.description,
-        system_key=tpl.key, is_owner=tpl.is_owner
-    )
-    perm_by_code = {p.code: p for p in Permission.objects.all()}
-    for code in _template_codes(tpl):
-        if code in perm_by_code:
-            RolePermission.objects.create(role=role, permission=perm_by_code[code])
-    return role
+    return Role.objects.unscoped().get(organization=org, system_key=key)

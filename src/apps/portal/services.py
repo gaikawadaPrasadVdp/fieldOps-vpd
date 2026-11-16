@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from django.db import models, transaction
-
 import logging
 import uuid
 
-logger = logging.getLogger(__name__)
+from django.db import models, transaction
 
 from apps.assets.models import Asset
 from apps.audit import services as audit
@@ -19,6 +17,8 @@ from apps.tenancy.models import Membership, Organization
 
 from .models import PortalAccount, PortalAssetGrant, PortalClosureConfirmation
 from .selectors import get_linked_work_order, get_portal_account, is_asset_granted_to_client
+
+logger = logging.getLogger(__name__)
 
 CLIENT_ALLOWED_INCIDENT_PERMS = {
     "incident.report_owned",
@@ -118,7 +118,11 @@ def verify_portal_request_confirm_access(membership: Membership | None) -> Porta
 
 
 def is_portal_client(membership: Membership | None) -> bool:
-    """Returns True if the membership has valid, enabled portal access."""
+    """Returns True if the membership has valid, enabled portal access and is a client persona."""
+    from apps.ui.utils import is_client_membership
+
+    if not is_client_membership(membership):
+        return False
     try:
         verify_portal_access(membership)
         return True
@@ -958,6 +962,7 @@ def resolve_portal_token(
     Records ScanEvent and audit log entries without disclosing ungranted assets.
     """
     import hashlib
+
     from apps.identification.models import AssetIdentifier, ScanEvent
     from apps.identification.services import extract_token
 

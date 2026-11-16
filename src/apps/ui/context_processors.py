@@ -5,7 +5,6 @@ from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole
 from apps.tenancy import selectors
 
-from . import navigation
 from .utils import is_client_membership
 
 
@@ -282,19 +281,16 @@ def _build_tenant_nav(membership, is_owner):
         asset_items = []
         if rbac.has_permission_anywhere(membership, "asset.view"):
             asset_items.append({"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
-        if rbac.has_permission_anywhere(membership, "qr.scan"):
-            asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
-        if asset_items:
-            sections["Assets"] = asset_items
+        asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
+        sections["Assets"] = asset_items
 
         if rbac.has_permission_anywhere(membership, "sla.view"):
             sections["Service Level Agreements"] = [
                 {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
             ]
-        if rbac.has_permission_anywhere(membership, "report.view"):
-            sections["Analytics"] = [
-                {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
-            ]
+        sections["Analytics"] = [
+            {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+        ]
 
     elif "service_manager" in role_keys:
         sections["Overview"] = [
@@ -350,7 +346,7 @@ def _build_tenant_nav(membership, is_owner):
             sections.setdefault("Operations", []).append(
                 {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"}
             )
-        
+
 
         # Service Level Agreements
         if rbac.has_permission_anywhere(membership, "sla.view"):
@@ -528,14 +524,12 @@ def shell(request):
     if user is None or not user.is_authenticated:
         return {}
 
-    from django.conf import settings
     idle_timeout_seconds = getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)
-    idle_timeout_ms = int(idle_timeout_seconds) * 1000
+    idle_timeout_ms = max(60, int(idle_timeout_seconds)) * 1000
 
     req_path = request.path
     membership = getattr(request, "membership", None)
     crumbs, back_url = _build_breadcrumbs(request)
-    idle_timeout_ms = max(60, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800))) * 1000
 
     # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation Only
     if getattr(user, "is_platform_admin", False):
@@ -580,9 +574,8 @@ def shell(request):
             {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
             {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
             {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+            {"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]},
         ]
-        if rbac.has_permission_anywhere(membership, "qr.scan"):
-            portal_items.append({"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]})
         sections = {"Portal": portal_items}
         sections = _filter_valid_nav_items(sections)
         _resolve_active(sections, req_path)
@@ -601,6 +594,7 @@ def shell(request):
         # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
     import copy
     import uuid
+
     from django.core.cache import cache
 
     is_owner = rbac.is_owner(membership)

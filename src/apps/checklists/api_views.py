@@ -398,8 +398,8 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
-        from apps.portal.services import is_portal_client
-        if is_portal_client(request.membership):
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(request.membership):
             raise PermissionDenied("Portal clients cannot access inspection requirements.")
 
         import uuid as _uuid

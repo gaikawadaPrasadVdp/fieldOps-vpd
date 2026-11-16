@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Shift, TechnicianProfile, TravelLog, WorkNote
@@ -75,6 +76,7 @@ class WorkNoteWriteSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     text = serializers.CharField(required=False, allow_blank=True)
+    is_internal = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         val = attrs.get("body") or attrs.get("note") or attrs.get("notes") or attrs.get("text") or ""

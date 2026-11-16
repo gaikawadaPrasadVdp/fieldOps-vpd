@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
+from django.core.exceptions import ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Sum
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -15,11 +16,12 @@ from apps.ui.forms import validate_alphabetical_description
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff
 
-from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 from . import selectors
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
+
     from apps.accounts.models import User
     from apps.tenancy.models import Membership, Organization
 
@@ -108,7 +110,7 @@ def log_travel(
     request: HttpRequest | None = None,
 ) -> TravelLog:
     """Log technician travel time and route details.
-    
+
     If record_labor_entry is True and work order is active, authoritatively persists
     a labor entry in M06 WorkOrderLabor so total job hours stay unified.
     """
@@ -241,6 +243,7 @@ def record_work_note(
     membership: Membership,
     actor: User,
     request: HttpRequest | None = None,
+    is_internal: bool = False,
 ) -> WorkNote:
     """Appends an execution note for the technician work order."""
     assert_can_execute_job(work_order, membership)
@@ -258,6 +261,7 @@ def record_work_note(
         work_order=work_order,
         author=membership,
         body=note_clean,
+        is_internal=bool(is_internal),
     )
     audit.record(
         action="workspace.work_note_added",
@@ -318,7 +322,9 @@ def complete_job_with_signoff(
 ) -> tuple[WorkOrder, WorkOrderSignoff]:
     """Complete a work order and persist customer digital signature & final photo evidence."""
     import base64
+
     from django.core.files.base import ContentFile
+
     from apps.files import services as files_services
 
     assert_can_execute_job(work_order, membership)
@@ -716,7 +722,6 @@ def report_auxiliary_defect(
     """
     assert_can_execute_job(work_order, membership)
 
-    from apps.assets.models import Asset
     from apps.incidents import services as incident_services
 
     target_asset = asset

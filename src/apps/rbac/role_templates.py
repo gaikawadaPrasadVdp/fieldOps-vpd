@@ -30,6 +30,14 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
         excludes=("portal.request.*",),
     ),
     RoleTemplate(
+        "operations_manager", "Operations Manager", "Oversees maintenance and field operations.",
+        ("*.view", "incident.*", "work_order.view", "work_order.assign",
+         "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
+         "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
+         "report.*", "qr.scan"),
+        excludes=("portal.request.*",),
+    ),
+    RoleTemplate(
         "asset_manager", "Asset Manager", "Asset master, hierarchy, status lifecycle, and asset documentation.",
         ("asset.*", "site.view", "zone.view", "zone.create", "zone.update",
          "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "checklist.view",
@@ -87,16 +95,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
 )
 
 # Legacy role templates kept for backward-compatibility with existing seedings (not seeded in new orgs)
-LEGACY_TEMPLATES: tuple[RoleTemplate, ...] = (
-    RoleTemplate(
-        "operations_manager", "Operations Manager (Legacy)", "Oversees maintenance and field operations.",
-        ("*.view", "incident.*", "work_order.view", "work_order.assign",
-         "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
-         "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
-         "report.*"),
-        excludes=("portal.request.*",),
-    ),
-)
+LEGACY_TEMPLATES: tuple[RoleTemplate, ...] = ()
 
 # Registry dictionary mapping both primary PRD keys and modern aliases
 BY_KEY = {t.key: t for t in TEMPLATES + LEGACY_TEMPLATES}
