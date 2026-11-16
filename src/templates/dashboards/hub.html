@@ -119,6 +119,12 @@
   </div>
   {% endif %}
 
+  {% if section == "operations" %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Work Completion Trend" items=css_bars.completion_trend %}
+  </div>
+  {% endif %}
+
   {% if css_bars.work_type_mix %}
   <div class="col-12 col-lg-6">
     {% include "dashboards/_css_bars.html" with title="Maintenance Work Mix (Preventive vs Corrective)" items=css_bars.work_type_mix %}

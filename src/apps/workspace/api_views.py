@@ -996,6 +996,10 @@ class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
             membership = _resolve_technician_membership(request.organization, pk)
         else:
             membership = request.membership
+            from apps.ui.utils import is_technician_membership
+            from django.core.exceptions import PermissionDenied
+            if not is_technician_membership(membership):
+                raise PermissionDenied("Only technicians can set availability.")
 
         new_status = request.data.get("availability_status") or request.data.get("status")
         if not new_status:

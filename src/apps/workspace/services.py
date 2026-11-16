@@ -21,7 +21,7 @@ from . import selectors
 if TYPE_CHECKING:
     from django.http import HttpRequest
     from apps.accounts.models import User
-    from apps.tenancy.models import Membership
+    from apps.tenancy.models import Membership, Organization
 
 
 def assert_can_execute_job(work_order: WorkOrder, membership: Membership) -> None:
@@ -199,6 +199,7 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
     can_complete = "complete" in action_ops
 
     all_parts = selectors.part_lines_for(work_order)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
     meters = selectors.meters_for(work_order)
@@ -219,6 +220,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
         "total_travel_hours": total_travel_hours,
         "labor_entries": labor_entries,
         "total_labor_hours": total_labor_hours,
+        "pending_part_requests": pending_part_requests,
+        "pending_part_requests_count": len(pending_part_requests),
         "consumable_parts": consumable_parts,
         "consumable_parts_count": len(consumable_parts),
         "returned_parts": returned_parts,

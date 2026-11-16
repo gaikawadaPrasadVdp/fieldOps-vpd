@@ -1494,7 +1494,7 @@
    ========================================================================== */
 .fx-workflow-timeline-section {
   position: relative;
-  min-height: calc(100vh - 68px);
+  min-height: clamp(540px, 70vh, 780px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5916,7 +5916,7 @@ a.fx-footer-location-link:focus-visible {
    ========================================================================== */
 .fx-workflow-timeline-section {
   position: relative;
-  min-height: calc(100vh - 68px);
+  min-height: clamp(540px, 70vh, 780px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8173,6 +8173,20 @@ a.fx-footer-location-link:focus-visible {
 .fx-auth-layout-root {
   width: 100%;
   overflow-x: hidden;
+}
+
+.fx-auth-brand-logo {
+  height: 80px;
+  width: auto;
+  max-width: 320px;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fx-auth-brand-logo:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
 }
 
 @media (min-width: 768px) {
@@ -13874,6 +13888,181 @@ a.fx-footer-location-link:focus-visible {
 
   .fx-flow-stage-title {
     font-size: 11px;
+  }
+}
+
+/* ==========================================================================
+   iPad Pro 13 (1032px x 1376px) & Tablet Range (992px – 1199.98px) Responsiveness
+   ========================================================================== */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  /* 1. Full Viewport Width Utilization */
+  .container-xl,
+  .container-lg,
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+
+  /* 2. Public Header / Nav Container */
+  .fx-pub-nav-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 2rem !important;
+  }
+
+  /* 3. Assets Video Showcase Section */
+  .fx-page-home .fx-video-showcase-section,
+  .fx-video-showcase-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: clamp(520px, 55vh, 620px) !important;
+    min-height: 500px !important;
+    max-height: 620px !important;
+  }
+  .fx-showcase-video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* 4. Connected Operations Section */
+  .fx-co-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: clamp(560px, 55vh, 660px) !important;
+    min-height: 540px !important;
+    max-height: 660px !important;
+  }
+  .fx-co-content {
+    padding-top: 3.5rem !important;
+    padding-bottom: 2rem !important;
+  }
+  .fx-co-heading {
+    font-size: clamp(2rem, 3.8vw, 2.75rem) !important;
+  }
+  .fx-co-desc {
+    font-size: 1rem !important;
+    max-width: 620px !important;
+  }
+
+  /* 5. Workflow Timeline Section — Eliminate excessive vertical empty space & optimize 7 steps */
+  .fx-workflow-timeline-section {
+    min-height: auto !important;
+    height: auto !important;
+    padding: 4.5rem 0 4rem 0 !important;
+    overflow: visible !important;
+  }
+  .fx-workflow-inner-content {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .fx-timeline-container {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 4px !important;
+    padding: 0 0.5rem !important;
+    margin-top: 2rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+  .fx-timeline-track {
+    display: block !important;
+    top: 26px !important;
+    left: calc(100% / 14) !important;
+    right: calc(100% / 14) !important;
+    height: 3px !important;
+  }
+  .fx-timeline-step {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 0 2px !important;
+  }
+  .fx-timeline-icon-box {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 13px !important;
+    margin: 0 auto !important;
+    flex-shrink: 0 !important;
+  }
+  .fx-timeline-icon-box svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box {
+    transform: translateY(-4px) scale(1.06) !important;
+  }
+  .fx-timeline-step.active .fx-timeline-icon-box::after {
+    inset: -5px !important;
+    border-radius: 17px !important;
+  }
+  .fx-timeline-label-wrap {
+    margin-top: 0.85rem !important;
+    margin-left: 0 !important;
+    text-align: center !important;
+  }
+  .fx-timeline-idx {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+  }
+  .fx-timeline-title {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    max-width: 125px !important;
+    font-weight: 700 !important;
+    margin: 3px auto 0 !important;
+    word-break: normal !important;
+  }
+  .fx-timeline-desc {
+    display: none !important;
+  }
+  .fx-workflow-desc-pill {
+    display: inline-flex !important;
+    font-size: 13px !important;
+    padding: 9px 24px !important;
+    max-width: 90% !important;
+    margin-top: 1.75rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* 6. Product Modules Grid — Balanced 2-column layout */
+  .fx-module-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.75rem !important;
+  }
+  .module-card {
+    min-height: 480px !important;
+  }
+  .module-card-img-wrap {
+    height: 220px !important;
+  }
+
+  /* 7. Industry Solutions Grid — 3 columns */
+  #solutions .row-cols-lg-5 > * {
+    flex: 0 0 auto !important;
+    width: 33.33333333% !important;
+  }
+  .industry-card {
+    height: 100% !important;
+  }
+
+  /* 8. Advantage Section Cards */
+  .fx-pill-card {
+    padding: 1.15rem 1.25rem !important;
+  }
+
+  /* 9. Visibility Section */
+  .fx-visibility-section {
+    padding: 4.5rem 0 !important;
+  }
+
+  /* 10. Footer Grid */
+  .fx-footer-grid {
+    grid-template-columns: 2fr 1fr 1fr 2.2fr !important;
+    gap: 2.5rem 1.75rem !important;
   }
 }
 

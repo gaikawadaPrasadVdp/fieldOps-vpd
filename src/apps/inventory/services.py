@@ -757,6 +757,22 @@ def part_blockers(wo) -> list[str]:
             for ln in lines if ln.outstanding > 0]
 
 
+def completion_part_blockers(wo) -> list[str]:
+    """M06 completion contract: submitted part requests (REQUESTED) must be fulfilled or cancelled first."""
+    lines = (
+        WorkOrderPart.objects.for_organization(wo.organization)
+        .filter(work_order=wo, status=REQUESTED)
+        .select_related("part")
+    )
+    blockers = []
+    for ln in lines:
+        qty = str(ln.quantity_requested).rstrip("0").rstrip(".") or "0"
+        blockers.append(
+            f"Pending part request for {ln.part.part_number} ({qty} {ln.part.unit}) must be issued or cancelled before completing."
+        )
+    return blockers
+
+
 def _wind_down(wo, *, actor, request, reconcile_done: bool):
     lines = list(WorkOrderPart.objects.for_organization(wo.organization).select_for_update(of=("self",)).filter(
         work_order=wo).exclude(status__in=TERMINAL).select_related("part", "warehouse"))

@@ -971,6 +971,14 @@ def _check_completion(wo, notes):
     validate_for_completion(wo)
     if not wo.labor_entries.exists():
         raise Conflict("Record at least one labor entry before completing this work order.", code="labor_required")
+    from apps.inventory import services as inventory_services
+    part_request_blockers = inventory_services.completion_part_blockers(wo)
+    if part_request_blockers:
+        raise Conflict(
+            " ".join(part_request_blockers),
+            code="pending_part_requests",
+            details={"blockers": part_request_blockers},
+        )
     evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
     if evidence_required and not wo.completion_evidence.exists():
         raise Conflict("Attach completion evidence before completing this work order.", code="evidence_required")

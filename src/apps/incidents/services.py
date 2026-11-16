@@ -476,6 +476,8 @@ def transition(sr: ServiceRequest, *, action: str, reason: str = "", actor, requ
     permission in ACTION_PERMISSIONS for the request's site; system actions are refused here."""
     if action not in ACTION_PERMISSIONS:
         raise ValidationFailed("This action is performed by the work order, not by hand.", code="system_action")
+    if action == "close" and sr.status == ServiceRequest.Status.CLOSED:
+        return sr
     reason = (reason or "").strip()
     if action in REASON_REQUIRED and len(reason) < 3:
         raise ValidationFailed("A reason is required.", code="reason_required")

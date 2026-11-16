@@ -81,7 +81,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "auditor", "Auditor / Compliance", "Read-only asset and service history, audit logs, and compliance evidence.",
-        ("*.view", "audit.view", "audit.export", "report.*"),
+        ("*.view", "audit.view", "audit.export", "report.view"),
         excludes=("portal.request.*",),
     ),
 )

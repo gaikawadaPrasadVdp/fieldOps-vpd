@@ -399,7 +399,11 @@ def delete_calendar(cal: OperatingCalendar, *, actor, request=None):
     snap, site, pk = audit.snapshot(cal, CALENDAR_FIELDS), cal.site, cal.pk
     org = cal.organization
     cal.holidays.all().delete()
-    cal.delete()
+    from django.db.models.deletion import ProtectedError
+    try:
+        cal.delete()
+    except ProtectedError as exc:
+        raise Conflict("Cannot delete calendar because it is referenced by an SLA profile or another object.", code="calendar_in_use") from exc
     audit.record("calendar.deleted", actor=actor, organization=org, target_repr=f"Calendar {snap['name']} ({pk})",
                  before=snap, metadata={"site": site.code}, request=request)
 

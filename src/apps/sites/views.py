@@ -121,6 +121,20 @@ class SiteCreateView(SiteBase):
                 if request.headers.get("HX-Request"):
                     return htmx_success({"closeSiteModal": True, "siteSaved": True})
                 return redirect("sites:detail", pk=site.pk)
+
+
+class SiteDeactivateView(SiteBase):
+    required_permission = "site.deactivate"
+
+    def post(self, request, pk):
+        site = self.site(request, pk, "site.deactivate")
+        reason = (request.POST.get("reason") or "").strip() or "Deactivated via operations"
+        try:
+            services.deactivate_site(site, reason=reason, actor=request.user, request=request)
+            messages.success(request, f"Site {site.code} deactivated.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+        return redirect("sites:detail", pk=site.pk)
         if request.headers.get("HX-Request"):
             return render(request, "sites/_site_modal.html", {
                 "title": "New site", "form": form, "submit": "Create site",
@@ -214,7 +228,8 @@ class SiteDetailView(SiteBase):
         site = self.site(request, pk, needed)
         try:
             if action == "deactivate":
-                services.deactivate_site(site, reason=request.POST.get("reason", ""), actor=request.user,
+                reason = (request.POST.get("reason") or "").strip() or "Deactivated via operations"
+                services.deactivate_site(site, reason=reason, actor=request.user,
                                          request=request)
                 messages.success(request, f"Site {site.code} deactivated.")
             else:

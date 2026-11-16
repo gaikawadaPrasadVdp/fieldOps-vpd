@@ -18,7 +18,24 @@ from apps.notifications.views import MemberOnlyMixin
 from apps.rbac import services as rbac
 from apps.sla.models import SLABreach
 from apps.ui.mixins import TenantPermissionMixin
+from apps.ui.utils import is_technician_membership
 from apps.workorders.models import WorkOrder, WorkOrderLabor
+
+
+def _build_completion_trend_bars(trend: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert non-zero work completion trend buckets into CSS bar items for dashboards."""
+    active = [item for item in trend if item.get("count", 0) > 0]
+    if not active:
+        return []
+    max_count = max(item["count"] for item in active) or 1
+    return [
+        {
+            "label": item.get("label") or item["date"],
+            "count": f"{item['count']} completed",
+            "pct": round((item["count"] / max_count) * 100, 1),
+        }
+        for item in active
+    ]
 
 
 class DashboardHubView(TenantPermissionMixin, View):
@@ -198,16 +215,7 @@ class DashboardHubView(TenantPermissionMixin, View):
         # 5. Precompute Pure CSS Bar Percentages
         css_bars = self._compute_css_bars(section, data.get("details", {}))
 
-        is_technician = bool(
-            request.membership
-            and (
-                request.membership.membership_roles.filter(role__system_key="technician").exists()
-                or (
-                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
-                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
-                )
-            )
-        )
+        is_technician = is_technician_membership(request.membership)
 
         context = {
             "is_technician": is_technician,
@@ -246,6 +254,7 @@ class DashboardHubView(TenantPermissionMixin, View):
                 {"label": k, "count": v, "pct": round((v / total_prio) * 100, 1)}
                 for k, v in prio_dist.items() if v > 0
             ]
+            bars["completion_trend"] = _build_completion_trend_bars(details.get("completion_trend", []))
 
         elif section == "maintenance":
             work_mix = details.get("work_type_mix", {})
@@ -306,7 +315,12 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
             organization=request.organization,
             assigned_to=request.membership,
         ).exclude(
-            status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]
+            status__in=[
+                WorkOrder.Status.COMPLETED,
+                WorkOrder.Status.SUPERVISOR_REVIEW,
+                WorkOrder.Status.CLOSED,
+                WorkOrder.Status.CANCELLED,
+            ]
         ).select_related("site", "asset").order_by("-priority", "planned_start")
         open_jobs_page_obj, my_work_params = paginate_dashboard_queryset(request, open_jobs_qs, page_param="jobs_page", per_page=10)
         open_jobs = list(open_jobs_page_obj)
@@ -324,21 +338,15 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
         logged = data["details"]["total_labor_hours"]
         util_pct = min(100.0, round((logged / capacity) * 100.0, 1))
 
-        is_technician = bool(
-            request.membership
-            and (
-                request.membership.membership_roles.filter(role__system_key="technician").exists()
-                or (
-                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
-                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
-                )
-            )
-        )
+        is_technician = is_technician_membership(request.membership)
+        can_view_hub = rbac.has_permission_anywhere(request.membership, "report.view")
 
         context = {
             "is_technician": is_technician,
+            "can_view_hub": can_view_hub,
             "data": data,
             "kpis": data.get("kpis", {}),
+            "trend_bars": _build_completion_trend_bars(data.get("details", {}).get("completion_trend", [])),
             "open_jobs": open_jobs,
             "open_jobs_page_obj": open_jobs_page_obj,
             "recent_labor": recent_labor,
