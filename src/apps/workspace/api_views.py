@@ -16,37 +16,36 @@ from apps.tenancy.api import TenantAPIMixin
 from apps.workorders.models import WorkOrder
 from apps.workorders.serializers import LaborSerializer, WorkOrderSerializer
 
-logger = logging.getLogger(__name__)
-
 from . import selectors, services
 from .serializers import (
-    CompleteJobSerializer,
+    AssetMeterSummarySerializer,
     DailyCapacitySerializer,
+    JobAssetVerifySerializer,
+    JobCompleteWithSignoffSerializer,
     JobEvidenceSerializer,
     JobEvidenceUploadSerializer,
     JobLaborWriteSerializer,
     JobMaterialSerializer,
     JobMaterialWriteSerializer,
     JobMeterReadingWriteSerializer,
-    AssetMeterSummarySerializer,
     JobPartConsumeSerializer,
-    JobPartReturnSerializer,
     JobPartLineSerializer,
-    JobCompleteWithSignoffSerializer,
+    JobPartReturnSerializer,
+    JobReportDefectSerializer,
     PauseJobSerializer,
+    ShiftSerializer,
+    ShiftWriteSerializer,
     TechnicianJobSummarySerializer,
+    TechnicianProfileSerializer,
+    TechnicianProfileWriteSerializer,
     TravelLogSerializer,
     TravelLogWriteSerializer,
     WorkNoteSerializer,
-    ShiftSerializer,
-    ShiftWriteSerializer,
-    TechnicianProfileSerializer,
-    TechnicianProfileWriteSerializer,
     WorkNoteWriteSerializer,
     WorkOrderSignoffSerializer,
-    JobAssetVerifySerializer,
-    JobReportDefectSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_job(request, pk: str) -> WorkOrder:
@@ -377,6 +376,7 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
                 membership=request.membership,
                 actor=request.user,
                 request=request,
+                is_internal=serializer.validated_data.get("is_internal", False),
             )
         except DomainError as exc:
             return _workspace_error_response(exc)
@@ -1002,6 +1002,7 @@ class ShiftDetailAPIView(TenantAPIMixin, APIView):
 
 def _resolve_technician_membership(organization, pk):
     from apps.tenancy.models import Membership
+
     from .models import TechnicianProfile
 
     try:
@@ -1086,8 +1087,9 @@ class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
             membership = _resolve_technician_membership(request.organization, pk)
         else:
             membership = request.membership
-            from apps.ui.utils import is_technician_membership
             from django.core.exceptions import PermissionDenied
+
+            from apps.ui.utils import is_technician_membership
             if not is_technician_membership(membership):
                 raise PermissionDenied("Only technicians can set availability.")
 
