@@ -6,11 +6,64 @@
   const form = start?.form;
   if (!start || !end || !due || !hours || !form?.matches("[data-workorder-date-validation]")) return;
 
+  const startError = document.getElementById("planned-start-rule-error");
   const endError = document.getElementById("planned-end-rule-error");
   const dueError = document.getElementById("due-at-rule-error");
   const hoursError = document.getElementById("estimated-hours-rule-error");
 
   function validateDates() {
+    // 0. Planned Start: must not be earlier than incident logged date/time, must be today or incident date
+    if (start) {
+      start.setCustomValidity("");
+      if (startError) {
+        startError.hidden = true;
+        startError.textContent = "";
+      }
+      if (start.value) {
+        const incidentDt = start.getAttribute("data-incident-datetime");
+        const incidentDate = start.getAttribute("data-incident-date");
+        const today = start.getAttribute("data-today");
+        const startDate = start.value.split("T")[0];
+
+        if (incidentDt && start.value < incidentDt) {
+          const msg = "Planned start cannot be earlier than the incident logged date.";
+          start.setCustomValidity(msg);
+          if (startError) {
+            startError.textContent = msg;
+            startError.hidden = false;
+          }
+        } else if (incidentDate && today) {
+          if (startDate < incidentDate) {
+            const msg = "Planned start cannot be earlier than the incident logged date.";
+            start.setCustomValidity(msg);
+            if (startError) {
+              startError.textContent = msg;
+              startError.hidden = false;
+            }
+          } else if (startDate !== incidentDate && startDate !== today) {
+            const msg = "Planned start date must be today or the incident logged date.";
+            start.setCustomValidity(msg);
+            if (startError) {
+              startError.textContent = msg;
+              startError.hidden = false;
+            }
+          }
+        } else if (today && startDate < today) {
+          const msg = "Planned start date cannot be in the past.";
+          start.setCustomValidity(msg);
+          if (startError) {
+            startError.textContent = msg;
+            startError.hidden = false;
+          }
+        }
+      }
+    }
+
+    if (start.value) {
+      end.min = start.value;
+      if (due) due.min = end.value || start.value;
+    }
+
     // 1. Planned End: must be strictly later than planned start
     end.setCustomValidity("");
     if (endError) {
