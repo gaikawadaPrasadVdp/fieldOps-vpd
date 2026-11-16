@@ -94,10 +94,14 @@ def _find_default_escalation_role_pk(org):
 
 def _profile_form_page(request, *, title, form, submit, cancel_url, crumbs, subtitle="", status=200,
                        target_formset=None, rule_formset=None, profile=None, targets=None, rules=None):
+    roles = Role.objects.for_organization(request.organization).order_by("name")
     return render(request, "sla/profile_form.html", {
         "title": title, "form": form, "submit": submit, "cancel_url": cancel_url,
         "crumbs": crumbs, "subtitle": subtitle, "target_formset": target_formset,
         "rule_formset": rule_formset, "profile": profile, "targets": targets, "rules": rules,
+        "roles": roles,
+        "can_manage": True,
+        "can_process": rbac.has_permission(request.membership, "sla.process"),
     }, status=status)
 
 
@@ -248,6 +252,7 @@ class ProfileListView(SlaBase):
         return render(request, "sla/profiles.html", {
             "page": page,
             "can_manage": True,
+            "can_process": rbac.has_permission(request.membership, "sla.process"),
             "total_profiles": total_profiles,
             "active_profiles": active_profiles,
             "inactive_profiles": inactive_profiles,
@@ -264,6 +269,20 @@ def _inject_single_target_meta(post_data, applies_to):
     post_data["targets-0-response_minutes"] = post_data.get("response_target") or post_data.get("response_minutes", "")
     post_data["targets-0-resolution_minutes"] = post_data.get("resolution_target") or post_data.get("resolution_minutes", "")
     post_data["targets-0-warning_percent"] = post_data.get("warning_alert") or post_data.get("warning_percent", "80")
+
+
+def _inject_single_rule_meta(post_data):
+    post_data["rules-TOTAL_FORMS"] = "1"
+    post_data["rules-INITIAL_FORMS"] = "0"
+    post_data["rules-MIN_NUM_FORMS"] = "0"
+    post_data["rules-MAX_NUM_FORMS"] = "6"
+    post_data["rules-0-target_kind"] = post_data.get("rule_target_kind") or post_data.get("target_kind") or "RESOLUTION"
+    post_data["rules-0-trigger"] = post_data.get("rule_trigger") or post_data.get("trigger") or "BREACH"
+    post_data["rules-0-after_minutes"] = post_data.get("rule_after_minutes") or post_data.get("after_minutes") or "0"
+    post_data["rules-0-level"] = post_data.get("rule_level") or post_data.get("level") or "1"
+    post_data["rules-0-notify_role"] = post_data.get("rule_notify_role") or post_data.get("notify_role") or ""
+    if post_data.get("rule_notify_assignee") or post_data.get("notify_assignee") in ("on", "1", "true", True):
+        post_data["rules-0-notify_assignee"] = "on"
 
 
 def _prepare_create_post_data(post_data):
@@ -285,7 +304,10 @@ def _prepare_create_post_data(post_data):
     if has_target_inputs and "targets-TOTAL_FORMS" not in post_data and "form-TOTAL_FORMS" not in post_data:
         _inject_single_target_meta(post_data, applies_to)
 
-    if "rules-TOTAL_FORMS" not in post_data and "form-TOTAL_FORMS" not in post_data:
+    has_rule_fields = any(k in post_data for k in ("rule_target_kind", "rule_trigger", "target_kind", "trigger"))
+    if has_rule_fields and "rules-TOTAL_FORMS" not in post_data and "form-TOTAL_FORMS" not in post_data:
+        _inject_single_rule_meta(post_data)
+    elif "rules-TOTAL_FORMS" not in post_data and "form-TOTAL_FORMS" not in post_data:
         post_data["rules-TOTAL_FORMS"] = "0"
         post_data["rules-INITIAL_FORMS"] = "0"
         post_data["rules-MIN_NUM_FORMS"] = "0"
@@ -338,7 +360,7 @@ def _seed_profile_default_rules(profile, request):
 
 class ProfileCreateView(SlaBase):
     required_permission = PERM_SLA_MANAGE
-    crumbs = [("SLA profiles", URL_PROFILES_LIST), ("New", None)]
+    crumbs = [("SLA Tracking", "/app/sla/trackings/"), ("SLA profiles", URL_PROFILES_LIST), ("New", None)]
 
     def _form(self, request, data=None):
         raw_applies = (data.get("applies_to") if data else None) or request.POST.get("applies_to") or "WORK_ORDER"
@@ -483,6 +505,8 @@ class ProfileDetailView(ProfileBase):
             "p": p, "targets": p.targets.order_by("priority"), "rules": p.rules.select_related("notify_role"),
             "target_form": TargetForm(applies_to=p.applies_to),
             "rule_form": RuleForm(roles=Role.objects.for_organization(org).order_by("name"), applies_to=p.applies_to),
+            "can_manage": True,
+            "can_process": rbac.has_permission(request.membership, "sla.process"),
             "max_rules": services.MAX_RULES_PER_PROFILE})
 
 
@@ -549,7 +573,7 @@ class ProfileEditView(ProfileBase):
             submit="Save changes",
             status=status,
             cancel_url=f"/app/sla/profiles/{p.pk}/",
-            crumbs=[("SLA profiles", URL_PROFILES_LIST), (p.name, f"/app/sla/profiles/{p.pk}/"),
+            crumbs=[("SLA Tracking", "/app/sla/trackings/"), ("SLA profiles", URL_PROFILES_LIST), (p.name, f"/app/sla/profiles/{p.pk}/"),
                     ("Edit", None)],
             subtitle="Update scope matching criteria, operating hours, and pause rules.",
             profile=p,

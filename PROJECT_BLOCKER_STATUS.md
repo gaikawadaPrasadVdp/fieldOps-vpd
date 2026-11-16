@@ -9,15 +9,17 @@
 ## Executive Summary
 
 - **Infrastructure, Database, Migrations & Core Backend:** **Healthy (0 blockers locally)**
-- **Active Project Blockers:** **3** (CSP inline JS handlers in 7 templates, stale Docker `staticfiles`, and 37 unpushed commits ahead of `origin/fix/api`)
+- **Active Project Blockers:** **2** (stale Docker `staticfiles`, and unpushed commits ahead of remote branch)
+- **Resolved Blockers:** **1 (Blocker 1: CSP inline JS handlers completely eliminated across all templates)**
 - **Functional QA Regression Fixes (`FUNCTIONAL_TEST_VERIFICATION_REPORT.md`):** `3,502 / 3,644` completed in local code (`0` pending code bug fixes for the Round-2 Excel suite; awaiting remote push/deploy)
 
 ---
 
-## 1. Active Blockers (3 Open Items)
+## 1. Active Blockers (2 Remaining Items)
 
-### Blocker 1 — Content Security Policy (CSP) Blocks Inline Event Handlers Across 7 Templates
-`src/apps/core/csp.py` enforces `script-src 'self' 'nonce-{nonce}'` (forbidding inline `onclick=`, `onchange=`, `onsubmit=` HTML attributes and requiring handlers to live in `src/static/js/app.js`). The following 15 inline attributes in 7 templates are currently blocked by browsers:
+### [RESOLVED] Blocker 1 — Content Security Policy (CSP) Blocks Inline Event Handlers Across Templates
+- **Status:** **RESOLVED**
+- **Action Taken:** Replaced all 18 inline event handlers (`onclick`, `onchange`, `onsubmit`) across `shell.html`, `audit/list.html`, `contracts/agreements.html`, `incidents/detail.html`, `inventory/movements.html`, `inventory/reservations.html`, `portal/request_detail.html`, `rbac/roles.html`, and `tenancy/platform_organizations.html` with delegated event handlers in `src/static/js/app.js` using `data-auto-submit`, `data-confirm`, `data-confirm-click`, and `data-prompt`. Incremented asset version query string to `?v=4.9` in `base.html`. Scanned templates: `0` inline handlers remaining.
 
 1. **Audit Evidence ZIP Download (`BUG-023`):**
    - `src/templates/audit/list.html#L400`: `<form id="evidence-form" onsubmit="...">` is blocked by CSP, causing **Download ZIP Archive** to fall back to a blank `GET` reload to `/app/audit/?` instead of navigating to `/app/audit/evidence/work-order/<id>/`.

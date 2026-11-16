@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
@@ -30,7 +31,7 @@ from .forms import (
     TransferForm,
     WarehouseForm,
 )
-from .models import PartReservation, StockMovement
+from .models import PartReservation, StockMovement, WorkOrderPart
 from .workflow import TERMINAL
 
 LINE_ACTIONS = {  # action -> permission (cancel is decided by the service: stores staff or the requester)
@@ -446,6 +447,59 @@ class ReservationListView(InvBase):
             "active_count": active_count,
             "released_count": released_count,
             "fulfilled_count": fulfilled_count,
+        })
+
+
+class PartRequestListView(InvBase):
+    required_permission = "inventory.view"
+    crumbs = [("Inventory", "/app/inventory/stock/"), ("Part Requests", None)]
+
+    def get(self, request):
+        m, org = request.membership, request.organization
+        params = request.GET.copy()
+        status_filter = params.get("status", "PENDING")
+        q = (params.get("q") or "").strip()
+
+        base_lines = selectors.lines_visible(m, org).select_related(
+            "part", "work_order", "work_order__site", "requested_by", "warehouse", "reservation"
+        )
+
+        total_count = base_lines.count()
+        pending_count = base_lines.filter(status=WorkOrderPart.Status.REQUESTED).count()
+        reserved_count = base_lines.filter(status=WorkOrderPart.Status.RESERVED).count()
+        issued_count = base_lines.filter(status=WorkOrderPart.Status.ISSUED).count()
+
+        qs = base_lines
+        if status_filter == "PENDING":
+            qs = qs.filter(status=WorkOrderPart.Status.REQUESTED)
+        elif status_filter == "RESERVED":
+            qs = qs.filter(status=WorkOrderPart.Status.RESERVED)
+        elif status_filter == "ISSUED":
+            qs = qs.filter(status=WorkOrderPart.Status.ISSUED)
+        elif status_filter and status_filter != "ALL":
+            qs = qs.filter(status=status_filter)
+
+        if q:
+            qs = qs.filter(
+                Q(part__part_number__icontains=q)
+                | Q(part__name__icontains=q)
+                | Q(work_order__order_number__icontains=q)
+                | Q(work_order__title__icontains=q)
+                | Q(notes__icontains=q)
+            )
+
+        qs = qs.order_by("-created_at")
+
+        return render(request, "inventory/requests.html", {
+            "page": _paged(request, qs),
+            "filters": params,
+            "status_filter": status_filter,
+            "q": q,
+            "total_count": total_count,
+            "pending_count": pending_count,
+            "reserved_count": reserved_count,
+            "issued_count": issued_count,
+            "crumbs": self.crumbs,
         })
 
 

@@ -159,6 +159,35 @@ class WorkOrderPart(TenantOwnedModel):
     def remaining_to_issue(self):
         return self.quantity_requested - (self.quantity_issued - self.quantity_returned)
 
+    @property
+    def display_status(self) -> str:
+        """User-facing status: unallocated/unused lines should reflect initial status (Requested) rather than Cancelled."""
+        if self.status == self.Status.CANCELLED and self.quantity_issued == 0 and self.quantity_consumed == 0:
+            try:
+                wo = getattr(self, "work_order", None)
+                if wo and wo.status != "CANCELLED":
+                    return self.Status.REQUESTED
+            except Exception:
+                pass
+        return self.status
+
+    def save(self, *args, **kwargs):
+        # Prevent persisting CANCELLED on unallocated lines when work order is not cancelled
+        # unless explicitly marked by user cancellation.
+        if (
+            self.status == self.Status.CANCELLED
+            and self.quantity_issued == 0
+            and self.quantity_consumed == 0
+            and not getattr(self, "_user_cancelled", False)
+        ):
+            try:
+                wo = getattr(self, "work_order", None)
+                if wo and wo.status != "CANCELLED":
+                    self.status = self.Status.REQUESTED
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.work_order.number} · {self.part.part_number} x {self.quantity_requested}"
 
