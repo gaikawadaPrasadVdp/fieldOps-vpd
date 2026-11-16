@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import Conflict, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
 from apps.sites.models import Shift, Site
@@ -59,7 +59,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         "close": "work_order.close", "return_for_rework": "work_order.review",
         "provisional_checklist": "work_order.update", "checklist_reference": "work_order.update", "labor": "work_order.record",
         "materials": "work_order.record", "evidence": "work_order.attach", "notes": "work_order.record",
-        "transition": "work_order.view_assigned",
+        "transition": "work_order.update",
         "closure": "work_order.view_assigned",
     }
 
@@ -282,6 +282,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
 
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
+        wo = self.get_object()
         act = request.data.get("action")
         clean_data = {k: v for k, v in request.data.items() if k != "action"}
         request._full_data = clean_data
@@ -374,7 +375,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         result = get_checklist_status(wo)
         summary = get_checklist_summary(wo)
         if not result.is_valid:
-            return Response(summary, status=status.HTTP_409_CONFLICT)
+            raise Conflict(result.message or "Checklist is incomplete or not valid.", code="checklist_incomplete", details=summary)
         return Response(summary, status=status.HTTP_200_OK)
 
     @extend_schema(

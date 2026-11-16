@@ -59,6 +59,23 @@ def is_client_membership(membership) -> bool:
     except Exception:
         pass
 
+    # Users with internal permissions beyond client self-service are never client personas
+    try:
+        from apps.rbac import services as rbac
+        perms = rbac.membership_permissions(membership)
+        client_allowed = {
+            "incident.report_owned",
+            "incident.view_owned",
+            "incident.view_assigned",
+            "incident.attach",
+            "incident.confirm",
+            "user.self",
+        }
+        if any(not p.startswith("portal.request.") and p not in client_allowed for p in perms):
+            return False
+    except Exception:
+        pass
+
     # 1. Active portal account via selector
     try:
         from apps.portal.selectors import is_portal_account_active

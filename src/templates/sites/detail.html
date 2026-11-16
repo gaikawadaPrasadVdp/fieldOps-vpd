@@ -21,7 +21,7 @@
       {% endif %}
       {% if perms.site_deactivate and site.status == 'ACTIVE' %}
         <form method="post" class="d-flex gap-1 m-0">{% csrf_token %}<input type="hidden" name="action" value="deactivate">
-          <input class="form-control form-control-sm" style="width:11rem" name="reason" required maxlength="300" placeholder="Reason (required)" aria-label="Deactivation reason">
+          <input class="form-control form-control-sm" style="width:11rem" name="reason" maxlength="300" placeholder="Reason (optional)" aria-label="Deactivation reason">
           <button class="btn btn-outline-danger" data-confirm="{{ site.code }} will stop accepting new locations, calendars and assets. History is kept.">Deactivate</button></form>
       {% elif perms.site_deactivate %}
         <form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="btn btn-outline-success">Reactivate</button></form>

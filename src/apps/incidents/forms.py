@@ -3,7 +3,7 @@ from django import forms
 from django.utils import timezone
 
 from apps.assets.models import Asset
-from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description
+from apps.ui.forms import BootstrapFormMixin, validate_alphabetical_description, validate_title
 
 from .models import ServiceRequest
 
@@ -57,7 +57,7 @@ class RequestForm(BootstrapFormMixin, forms.Form):
 
     def clean_title(self):
         title = (self.cleaned_data.get("title") or "").strip()
-        validate_alphabetical_description(title, field_label="Title")
+        validate_title(title, field_label="Title")
         return title
 
     def clean_description(self):

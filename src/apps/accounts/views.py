@@ -91,7 +91,7 @@ class LogoutView(auth_views.LogoutView):
     """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
 
     http_method_names = ["post", "options"]
-    next_page = "/"
+    next_page = "/accounts/login/"
 
     def post(self, request, *args, **kwargs):
         is_ajax = (
@@ -102,7 +102,7 @@ class LogoutView(auth_views.LogoutView):
             from django.contrib.auth import logout as auth_logout
             from django.http import JsonResponse
             auth_logout(request)
-            response = JsonResponse({"status": "logged_out", "redirect_url": "/"})
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/"})
         else:
             response = super().post(request, *args, **kwargs)
 

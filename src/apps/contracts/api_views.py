@@ -48,6 +48,13 @@ class ProviderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        for field in ("address", "contact_name", "email", "phone", "notes"):
+            if ret.get(field) is None:
+                ret[field] = ""
+        return ret
+
 
 class ProviderWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
