@@ -25,6 +25,7 @@ urlpatterns = [
     path("inspections/<uuid:pk>/items/<uuid:item_id>/finding/", views.InspectionAddFindingView.as_view(),
          name="inspection_add_finding"),
     path("inspections/<uuid:pk>/complete/", views.InspectionCompleteView.as_view(), name="inspection_complete"),
+    path("inspections/<uuid:pk>/complete", views.InspectionCompleteView.as_view()),
     path("findings/<uuid:pk>/resolve/", views.FindingResolveView.as_view(), name="finding_resolve"),
 ]
 

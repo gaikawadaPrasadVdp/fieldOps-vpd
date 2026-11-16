@@ -52,6 +52,9 @@ def test_bug_003_technician_part_request_syncs_to_stores_dashboard_and_queue(inv
     # 5. API Test: Stores manager GET /api/v1/work-order-parts/
     client = Client()
     client.force_login(stores.user)
+    session = client.session
+    session["active_org_id"] = str(org.id)
+    session.save()
 
     api_resp = client.get(
         "/api/v1/work-order-parts/",

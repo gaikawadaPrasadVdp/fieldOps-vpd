@@ -90,7 +90,10 @@ class HasOrgPermission(permissions.BasePermission):
             return False  # unmapped action -> deny
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
-        if not rbac.catalog.is_registered(code):
+        if isinstance(code, (tuple, list, set)):
+            if not any(rbac.catalog.is_registered(c) for c in code):
+                return False
+        elif not rbac.catalog.is_registered(code):
             return False
         from apps.ui.utils import is_client_membership
         if is_client_membership(membership) and not request.path.startswith("/api/v1/portal/"):

@@ -428,6 +428,7 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
         label="URL Slug",
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. apex-industrial",
+            "required": "required",
         }),
         help_text="Unique URL identifier. Leave blank to generate automatically from name."
     )

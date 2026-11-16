@@ -6,7 +6,7 @@
   <h1>Parts for {{ wo.number }} {% status_badge wo.status %}</h1>
   <div class="text-body-secondary">{{ wo.title }} &middot; site {{ wo.site.code }}. Stock is owned by Inventory: every reserve, issue and return writes a stock movement.</div></div></div>
 <div class="fx-card mb-3"><div class="table-responsive"><table class="table fx-table fx-parts-table" id="part-lines"><thead><tr><th>Part</th><th>Status</th><th>Requested</th><th>Reserved</th><th>Issued</th><th>Consumed</th><th>Returned</th><th>Outstanding</th><th>Warehouse</th><th class="fx-parts-actions-col">Actions</th></tr></thead><tbody>
-{% for ln in lines %}<tr data-line="{{ ln.pk }}"><td><strong>{{ ln.part.part_number }}</strong><div class="small text-body-secondary">{{ ln.part.name }}</div></td><td>{% status_badge ln.status %}</td>
+{% for ln in lines %}<tr data-line="{{ ln.pk }}"><td><strong>{{ ln.part.part_number }}</strong><div class="small text-body-secondary">{{ ln.part.name }}</div></td><td>{% status_badge ln.display_status %}</td>
   <td>{{ ln.quantity_requested|floatformat:"-3" }} {{ ln.part.unit }}</td><td>{{ ln.ops.held|floatformat:"-3" }}</td><td>{{ ln.quantity_issued|floatformat:"-3" }}</td><td>{{ ln.quantity_consumed|floatformat:"-3" }}</td><td>{{ ln.quantity_returned|floatformat:"-3" }}</td><td>{{ ln.outstanding|floatformat:"-3" }}</td>
   <td>
     {% if ln.warehouse %}
@@ -27,7 +27,7 @@
           {% for w in reserve_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk or forloop.first %}selected{% endif %}>{{ w.code }} &middot; {{ w.name }}</option>{% endfor %}
         </select>
         <input type="number" step="1" min="1" class="form-control form-control-sm fx-parts-qty-input" name="quantity" placeholder="all" inputmode="numeric" aria-label="Quantity to reserve">
-        <button class="btn btn-sm btn-outline-primary fx-parts-btn">Reserve</button>
+        <button class="btn btn-sm fx-parts-btn btn-outline-primary">Reserve</button>
       </form>
     {% endif %}
     {% if ln.ops.issue %}

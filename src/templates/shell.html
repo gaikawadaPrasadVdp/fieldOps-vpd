@@ -63,7 +63,7 @@
         {% endif %}
         {% if shell_memberships|length > 1 %}
         <form method="post" action="{% url 'ui:switch_org' %}" class="m-0">{% csrf_token %}
-          <select name="organization" class="form-select form-select-sm" aria-label="Switch organization" onchange="this.form.submit()">
+          <select name="organization" class="form-select form-select-sm" aria-label="Switch organization" data-auto-submit="change">
             {% for m in shell_memberships %}<option value="{{ m.organization_id }}" {% if m.organization_id == shell_org.pk %}selected{% endif %}>{{ m.organization.name }}</option>{% endfor %}
           </select>
         </form>

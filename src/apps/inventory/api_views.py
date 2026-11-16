@@ -207,13 +207,13 @@ class PartLineSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.CharField())
     def get_status_display(self, obj) -> str:
-        if obj.status == WorkOrderPart.Status.REQUESTED:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
             return "Pending Fulfillment"
         return obj.get_status_display()
 
     @extend_schema_field(serializers.CharField())
     def get_fulfillment_status(self, obj) -> str:
-        if obj.status == WorkOrderPart.Status.REQUESTED:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
             return "Pending Fulfillment"
         return obj.get_status_display()
 

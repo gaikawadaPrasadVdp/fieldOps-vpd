@@ -2442,3 +2442,94 @@ document.addEventListener("click", function (e) {
     idleIntervalId = setInterval(checkIdleExpiration, pollMs);
   }
 })();
+
+/* ==========================================================================
+   Universal CSP-Compliant Event Delegations
+   Replaces all inline onchange, onsubmit, and onclick event handler attributes
+   ========================================================================== */
+(function () {
+  // 1. Auto-submit dropdowns: <select data-auto-submit="change">
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-auto-submit='change']");
+    if (sel && sel.form) {
+      if (typeof sel.form.requestSubmit === "function") {
+        sel.form.requestSubmit();
+      } else {
+        sel.form.submit();
+      }
+    }
+  });
+
+  // 2. Form submission confirmations: <form data-confirm="Are you sure?">
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("form[data-confirm]");
+    if (!form || form.dataset.confirmed === "1") return;
+    var msg = form.getAttribute("data-confirm");
+    if (!window.confirm(msg)) {
+      ev.preventDefault();
+      return false;
+    }
+  });
+
+  // 3. Button/Link click confirmations: <button data-confirm-click="Are you sure?">
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-confirm-click]");
+    if (!btn) return;
+    var msg = btn.getAttribute("data-confirm-click");
+    if (!window.confirm(msg)) {
+      ev.preventDefault();
+      return false;
+    }
+  });
+
+  // 4. Form submission prompt: <form data-prompt="Reason:" data-prompt-default="Def" data-prompt-target="reason">
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("form[data-prompt]");
+    if (!form) return;
+    var msg = form.getAttribute("data-prompt");
+    var defaultVal = form.getAttribute("data-prompt-default") || "";
+    var targetName = form.getAttribute("data-prompt-target") || "reason";
+    var res = window.prompt(msg, defaultVal);
+    if (res === null) {
+      ev.preventDefault();
+      return false;
+    }
+    var input = form.elements[targetName];
+    if (input) {
+      input.value = res;
+    }
+  });
+
+  // 5. Audit Evidence Package Generator Form
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("#evidence-form");
+    if (!form) return;
+    ev.preventDefault();
+    var idInput = form.querySelector("#wo-evidence-id");
+    var val = idInput ? idInput.value.trim() : "";
+    if (val) {
+      window.location.href = "/app/audit/evidence/work-order/" + encodeURIComponent(val) + "/";
+    }
+  });
+
+  // 6. RBAC Role Preset and Bulk Permission Toggles
+  document.addEventListener("change", function (ev) {
+    var select = ev.target.closest("[data-action='apply-role-preset']");
+    if (!select) return;
+    var memberId = select.getAttribute("data-member-id");
+    if (typeof window.applyRolePreset === "function") {
+      window.applyRolePreset(memberId, select);
+    }
+  });
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-action='toggle-all-perms']");
+    if (!btn) return;
+    var memberId = btn.getAttribute("data-member-id");
+    var check = btn.getAttribute("data-check") === "true";
+    if (typeof window.toggleAllPerms === "function") {
+      window.toggleAllPerms(memberId, check);
+    }
+  });
+})();
+
