@@ -196,16 +196,15 @@ def test_incident_request_form_title_alphabetical_validation():
     assert "title" in form_numeric.errors
     assert "must contain only alphabetical characters and cannot contain numbers." in str(form_numeric.errors["title"])
 
-    # 2. Title with mixed alphanumeric digits rejected
+    # 2. Title with mixed alphanumeric digits accepted (TC_JOURNEY_E2E_032: equipment-style title)
     form_mixed = RequestForm(data={
         "title": "Pump 2 failure",
         "kind": "INCIDENT",
         "severity": "MEDIUM",
         "service_impact": "DEGRADED",
     })
-    assert not form_mixed.is_valid()
-    assert "title" in form_mixed.errors
-    assert "Title must contain only alphabetical characters and cannot contain numbers." in str(form_mixed.errors["title"])
+    form_mixed.is_valid()
+    assert "title" not in form_mixed.errors
 
     # 3. Clean alphabetical title accepted
     form_clean = RequestForm(data={
@@ -230,6 +229,14 @@ def test_portal_service_request_form_title_alphabetical_validation():
     assert not form_numeric.is_valid()
     assert "title" in form_numeric.errors
     assert "must contain only alphabetical characters and cannot contain numbers." in str(form_numeric.errors["title"])
+
+    form_mixed = PortalServiceRequestForm(data={
+        "title": "Pump 2 failure",
+        "severity": "MEDIUM",
+        "service_impact": "NONE",
+    })
+    form_mixed.is_valid()
+    assert "title" not in form_mixed.errors
 
     form_clean = PortalServiceRequestForm(data={
         "title": "Cooling unit compressor failure",

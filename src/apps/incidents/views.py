@@ -550,6 +550,7 @@ class _Post(IncidentBase):
 
 class RequestTransitionView(_Post):
     def post(self, request, pk, action):
+        action = (action or "").strip().lower()
         sr = _req(request, pk)
         if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
             if action == "confirm":
@@ -570,6 +571,7 @@ class RequestTransitionView(_Post):
                 actor=request.user,
                 request=request
             )
+            sr.refresh_from_db()
             return self.done(request, sr, f"Status updated: {sr.get_status_display()}.")
         except DomainError as exc:
             messages.error(request, exc.message)

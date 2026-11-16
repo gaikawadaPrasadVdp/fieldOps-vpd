@@ -43,3 +43,11 @@ class SafeUserRateThrottle(UserRateThrottle):
                 return super().allow_request(request, view)
             except Exception:
                 return True
+
+
+class TokenResolveRateThrottle(SafeAnonRateThrottle):
+    """Specific rate throttle for public and authenticated token resolution endpoints."""
+
+    scope = "token_resolve"
+    rate = "60/min"
+

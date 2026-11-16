@@ -131,7 +131,9 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         widget=forms.TextInput(attrs={"placeholder": "e.g. +91 98765 43210", "id": "id_contact_phone", "type": "tel"})
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, org=None, instance_id=None, **kwargs):
+        self.org = org
+        self.instance_id = instance_id
         super().__init__(*args, **kwargs)
         data = self.data or self.initial
         country = ""
@@ -174,6 +176,13 @@ class SiteForm(BootstrapFormMixin, forms.Form):
             raise forms.ValidationError("Site code must not exceed 30 characters.")
         if not _CODE_RE.fullmatch(code):
             raise forms.ValidationError("Site code must start with a letter/digit and contain only uppercase letters, numbers, '.', '_' or '-'.")
+        if self.org:
+            from apps.sites.models import Site
+            qs = Site.objects.filter(organization=self.org, code__iexact=code)
+            if self.instance_id:
+                qs = qs.exclude(pk=self.instance_id)
+            if qs.exists():
+                raise forms.ValidationError("A site with this code already exists.")
         return code
 
     def clean_name(self):
