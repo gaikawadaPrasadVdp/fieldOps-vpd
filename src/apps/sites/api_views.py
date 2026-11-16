@@ -488,6 +488,14 @@ class SiteShiftWriteSerializer(serializers.Serializer):
     days_of_week = serializers.ListField(child=serializers.IntegerField(min_value=0, max_value=6), required=False)
     is_active = serializers.BooleanField(required=False, default=True)
 
+    def validate(self, attrs):
+        start = attrs.get("start_time")
+        end = attrs.get("end_time")
+        is_overnight = attrs.get("is_overnight")
+        if start and end and is_overnight is False and end <= start:
+            raise serializers.ValidationError({"end_time": ["End time must be after start time unless is_overnight is true."]})
+        return attrs
+
 
 class SiteShiftUpdateSerializer(SiteShiftWriteSerializer):
     site = None

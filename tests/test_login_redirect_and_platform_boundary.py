@@ -85,7 +85,7 @@ def test_platform_admin_login_without_next_redirects_to_platform(monkeypatch):
     assert resp.status_code == 302
     assert resp["Location"] == "/app/"
     final = c.get("/app/", follow=True)
-    assert final.redirect_chain[-1][0] == "/platform/organizations/"
+    assert final.redirect_chain[-1][0] == "/platform/overview/"
     assert final.status_code == 200
 
 

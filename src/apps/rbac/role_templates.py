@@ -45,7 +45,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination, and escalation.",
-        ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve",
+        ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve", "incident.attach",
          "work_order.view", "work_order.create", "work_order.assign", "work_order.dispatch", "work_order.plan",
          "work_order.update", "work_order.attach", "checklist.view", "inspection.view", "inventory.view",
          "inventory.part.view", "sla.view", "report.view", "qr.scan"),
@@ -77,7 +77,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "client_requester", "Client / Requester", "Raise service request and view restricted status/closure confirmation.",
         ("portal.request.create", "portal.request.view", "portal.request.confirm", "incident.report_owned",
-         "incident.view_assigned", "incident.view_owned", "incident.attach", "incident.confirm"),
+         "incident.view_assigned", "incident.view_owned", "incident.attach", "incident.confirm", "qr.scan"),
     ),
     RoleTemplate(
         "auditor", "Auditor / Compliance", "Read-only asset and service history, audit logs, and compliance evidence.",

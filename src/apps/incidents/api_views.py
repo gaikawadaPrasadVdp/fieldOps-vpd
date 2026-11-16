@@ -262,7 +262,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "downtime:put": "incident.downtime.manage",
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
-        "comments": "incident.view_assigned", "delete_comment": "incident.view_assigned",
+        "comments:get": "incident.view_assigned", "comments:post": "incident.attach", "delete_comment": "incident.update",
     }
 
     def _qs(self, request, scope="incident.view"):

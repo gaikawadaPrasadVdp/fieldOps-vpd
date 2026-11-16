@@ -418,7 +418,7 @@ def home(request):
     perms = rbac.membership_permissions(request.membership)
     client_allowed = {
         "incident.report_owned", "incident.view_owned", "incident.view_assigned",
-        "incident.attach", "incident.confirm"
+        "incident.attach", "incident.confirm", "qr.scan"
     }
     if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):
         return redirect("portal:dashboard")

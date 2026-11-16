@@ -519,6 +519,8 @@ def create_shift(
 
     if is_overnight is None:
         is_overnight = end_time <= start_time
+    elif not is_overnight and end_time <= start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
     if days_of_week is None:
         days_of_week = [0, 1, 2, 3, 4]
 
@@ -555,6 +557,8 @@ def update_shift(shift: Shift, *, actor=None, request=None, **changes) -> Shift:
             setattr(shift, k, v)
     if "is_overnight" not in changes and ("start_time" in changes or "end_time" in changes):
         shift.is_overnight = shift.end_time <= shift.start_time
+    elif not shift.is_overnight and shift.end_time <= shift.start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
     _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
     after = audit.snapshot(shift, SHIFT_FIELDS)
     if before != after:

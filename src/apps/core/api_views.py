@@ -1,3 +1,4 @@
+import ipaddress
 import uuid
 from urllib.parse import urlparse
 
@@ -43,6 +44,15 @@ class WebhookEndpointSerializer(serializers.ModelSerializer):
         parsed = urlparse(value or "")
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             raise serializers.ValidationError("Target URL must use http:// or https:// with a valid host.")
+        host = (parsed.hostname or "").lower()
+        if host in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "169.254.169.254"):
+            raise serializers.ValidationError("Target URL cannot point to loopback, private, or cloud metadata addresses.")
+        try:
+            ip = ipaddress.ip_address(host)
+            if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_reserved:
+                raise serializers.ValidationError("Target URL cannot point to loopback, private, or cloud metadata addresses.")
+        except ValueError:
+            pass  # It's a hostname / domain name
         return value
 
     def create(self, validated_data):
