@@ -4,6 +4,7 @@ from apps.rbac import services as rbac
 
 from decimal import Decimal
 from django.contrib import messages
+from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -630,8 +631,11 @@ class TechnicianListView(TenantPermissionMixin, View):
         # Find all members with technician role in this org
         members = Membership.objects.filter(
             organization=request.organization,
-            status=Membership.Status.ACTIVE,
-            membership_roles__role__system_key__in=["technician", "field_technician"],
+            status__in=[Membership.Status.ACTIVE, Membership.Status.INVITED],
+        ).filter(
+            Q(membership_roles__role__system_key__in=["technician", "field_technician"])
+            | Q(membership_roles__role__name__icontains="technician")
+            | Q(membership_roles__role__role_permissions__permission__code="work_order.start")
         ).select_related("user", "technician_profile__shift", "technician_profile__primary_site").distinct()
 
         # Build display data
