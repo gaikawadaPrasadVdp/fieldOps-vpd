@@ -11,11 +11,11 @@ from apps.rbac import services as rbac
 from apps.rbac.models import Role
 from apps.tenancy import selectors
 from apps.tenancy.models import Membership
+
 from .forms import ClientOnboardingForm, DashboardFilterForm
 from .pagination import paginate_dashboard_queryset
+from .public_catalog import DETAIL_PAGES, get_catalog_item
 from .utils import is_client_membership
-from .public_catalog import get_catalog_item, DETAIL_PAGES
-
 
 PRD_MODULES = [
     {"id": "FON-M01", "slug": "organization-management", "name": "Organization & Location Master", "category": "Master Data", "app": "apps.sites", "desc": "Multi-site facility hierarchy: Organization, Site, Building, Floor, Zone, and Room mappings."},
@@ -392,20 +392,19 @@ def home(request):
     """Org dashboard. Dynamically renders role-tailored metrics, shortcuts, and activity (PRD §3.2)."""
     from django.db.models import F
     from django.urls import reverse
-    from apps.assets.models import Asset, AssetCategory, AssetComponent, AssetMeter
+
+    from apps.assets.models import Asset, AssetComponent, AssetMeter
     from apps.checklists.models import ChecklistTemplate, Inspection
     from apps.contracts.models import CoverageAgreement
     from apps.incidents.models import ServiceRequest
     from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse
-    from apps.maintenance.models import MaintenancePlan
     from apps.portal.models import PortalAccount
     from apps.rbac.models import MembershipRole
-    from apps.sites.models import Site
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
     if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-        return redirect("platform_admin:overview")
+        return redirect("platform_admin:organizations")
 
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
@@ -485,11 +484,11 @@ def home(request):
     current_in_progress_job = None
     assigned_work_orders = []
 
-    from apps.workorders import selectors as wo_selectors
     from apps.assets import selectors as asset_selectors
-    from apps.sites import selectors as site_selectors
     from apps.incidents import selectors as incident_selectors
     from apps.maintenance import selectors as maintenance_selectors
+    from apps.sites import selectors as site_selectors
+    from apps.workorders import selectors as wo_selectors
 
     TERMINAL_WO_STATUSES = [WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED]
 
@@ -673,23 +672,22 @@ def home(request):
         open_reqs_qs = disp_reqs.exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"])
         open_wos_qs = disp_wos.exclude(status__in=TERMINAL_WO_STATUSES)
 
-        kpi_cards = []
-        if can_inc:
-            kpi_cards.append({
+        kpi_cards = [
+            {
                 "title": "Open Incidents",
-                "value": open_reqs_qs.count(),
+                "value": open_reqs_qs.count() if can_inc else 0,
                 "subtitle": "Unresolved field incidents",
-                "tone": "danger" if open_reqs_qs.count() > 0 else "accent",
+                "tone": "danger" if (can_inc and open_reqs_qs.count() > 0) else "accent",
                 "icon": "bell",
-            })
-        if can_site:
-            kpi_cards.append({
+            },
+            {
                 "title": "Facility Sites",
                 "value": stats.get("total_sites", 0),
                 "subtitle": "Active physical plant sites",
                 "tone": "gold",
                 "icon": "building",
-            })
+            },
+        ]
         if can_wo:
             dispatch_queue_count = open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED"]).count()
             active_dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
@@ -1120,28 +1118,6 @@ def bad_request(request, exception=None):
         return HttpResponse("Bad request.", status=400)
 
 
-def bad_request(request, exception=None):
-    if request.path.startswith("/api/"):
-        from django.http import JsonResponse
-        req_id = getattr(request, "request_id", "-")
-        return JsonResponse(
-            {
-                "success": False,
-                "error": {
-                    "code": "bad_request",
-                    "message": str(exception) if exception else "Bad request.",
-                    "details": {},
-                },
-                "meta": {"request_id": req_id},
-            },
-            status=400,
-        )
-    try:
-        return render(request, "errors/400.html", status=400)
-    except Exception:
-        return HttpResponse("Bad request.", status=400)
-
-
 def _api_error_json(request, code: str, message: str, status: int):
     from django.http import JsonResponse
 
@@ -1172,8 +1148,8 @@ def not_found(request, exception=None):
 
 
 def server_error(request):
-    import sys
     import logging
+    import sys
     logger = logging.getLogger("django.request")
     exc_type, exc_value, exc_tb = sys.exc_info()
     if exc_value:
