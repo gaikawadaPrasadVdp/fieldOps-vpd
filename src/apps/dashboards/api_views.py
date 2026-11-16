@@ -151,7 +151,7 @@ from . import services
 
 
 class SnapshotListAPIView(TenantAPIMixin, APIView):
-    permission_map = {"get": "report.view", "post": "report.manage"}
+    permission_map = {"get": "report.view", "post": "report.create"}
 
     @extend_schema(
         summary="List dashboard report snapshots",

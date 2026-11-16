@@ -401,7 +401,6 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
         from apps.ui.utils import is_client_membership
         if is_client_membership(request.membership):
             raise PermissionDenied("Portal clients cannot access inspection requirements.")
-
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
         if not wo_param:

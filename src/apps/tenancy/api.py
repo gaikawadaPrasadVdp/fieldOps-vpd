@@ -88,8 +88,14 @@ class HasOrgPermission(permissions.BasePermission):
         code = view.get_required_permission()
         if code is None:
             return False  # unmapped action -> deny
+        if code == MEMBER_ONLY:
+            return membership.is_active  # self-scoped resources (own notifications)
+        if not rbac.catalog.is_registered(code):
+            return False
         from apps.ui.utils import is_client_membership
         if is_client_membership(membership) and not request.path.startswith("/api/v1/portal/"):
+            if rbac.has_permission_anywhere(membership, code):
+                return True
             client_incident_paths = (
                 "/api/v1/service-requests",
                 "/service-requests",
@@ -99,13 +105,14 @@ class HasOrgPermission(permissions.BasePermission):
             client_incident_perms = {
                 "incident.view", "incident.view_assigned", "incident.view_owned",
                 "incident.report_owned", "incident.attach", "incident.confirm",
+                "incident.create",
             }
             is_client_incident = (
                 any(request.path.startswith(p) for p in client_incident_paths)
                 and code in client_incident_perms
             )
             if not is_client_incident:
-                if code not in ("user.self", MEMBER_ONLY) and not code.startswith("portal.request."):
+                if not code.startswith("portal.request."):
                     return False
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
