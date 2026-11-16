@@ -69,6 +69,7 @@ def is_client_membership(membership) -> bool:
             "incident.view_assigned",
             "incident.attach",
             "incident.confirm",
+            "qr.scan",
             "user.self",
         }
         if any(not p.startswith("portal.request.") and p not in client_allowed for p in perms):

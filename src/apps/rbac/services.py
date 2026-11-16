@@ -488,6 +488,9 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
     name = name.strip()
     if not name:
         raise ValidationFailed("Role name is required.")
+    clean_permissions = [p for p in permission_codes if p]
+    if role.is_system and not clean_permissions:
+        raise ValidationFailed("System roles cannot be stripped of permissions.", code="system_role")
     if role.is_system and name != role.name:
         aliases_map = {
             "technician": {"Technician", "Field Technician", "Lead Field Technician"},
