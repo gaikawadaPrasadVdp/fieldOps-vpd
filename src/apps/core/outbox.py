@@ -162,10 +162,20 @@ def dispatch_webhooks(event: IntegrationEvent) -> None:
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            status_code = getattr(resp, "status", 200)
-            if status_code >= 400:
-                raise RuntimeError(f"Webhook endpoint {endpoint.pk} returned HTTP {status_code}")
+        try:
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                status_code = getattr(resp, "status", 200)
+                if status_code >= 400:
+                    raise RuntimeError(f"Webhook endpoint {endpoint.pk} returned HTTP {status_code}")
+        except Exception as exc:
+            logger.warning(
+                "Webhook delivery attempt failed for endpoint %s (event %s): %s",
+                endpoint.pk,
+                event.pk,
+                exc,
+            )
+            raise
+
 
 
 register_handler("*", dispatch_webhooks)

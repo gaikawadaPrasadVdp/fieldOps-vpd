@@ -155,9 +155,9 @@ LOGOUT_REDIRECT_URL = "accounts:login"
 RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", True)
 
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
-# Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx/Render = 1). 0 = ignore header.
-TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "1"))
-AXES_ENABLED = env_bool("AXES_ENABLED", RATE_LIMITING_ENABLED)
+# Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.
+TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "0"))
+AXES_ENABLED = env_bool("AXES_ENABLED", True)
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",
@@ -246,6 +246,10 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_TIME_LIMIT = 60 * 10
 CELERY_TIMEZONE = "UTC"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "apps.core.tasks.process_integration_events": {"queue": "integrations"},
+}
 CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
@@ -352,6 +356,7 @@ REST_FRAMEWORK = {
         "anon": "30/min" if RATE_LIMITING_ENABLED else "100000/min",
         "user": "600/min" if RATE_LIMITING_ENABLED else "100000/min",
         "login": "10/min",
+        "token_resolve": "60/min",
     },
 }
 SIMPLE_JWT = {

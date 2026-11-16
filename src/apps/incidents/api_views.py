@@ -112,11 +112,10 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
 
     def validate_title(self, value):
+        from apps.ui.forms import validate_incident_title
         from django.core.exceptions import ValidationError as DjangoValidationError
-
-        from apps.ui.forms import validate_title
         try:
-            return validate_title(value, field_label="Title")
+            return validate_incident_title(value, field_label="Title")
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.message)
     description = serializers.CharField(required=False, allow_blank=True)
@@ -163,11 +162,10 @@ class ServiceRequestPatchSerializer(serializers.Serializer):
 
     def validate_title(self, value):
         if value:
+            from apps.ui.forms import validate_incident_title
             from django.core.exceptions import ValidationError as DjangoValidationError
-
-            from apps.ui.forms import validate_title
             try:
-                return validate_title(value, field_label="Title")
+                return validate_incident_title(value, field_label="Title")
             except DjangoValidationError as exc:
                 raise serializers.ValidationError(exc.message)
         return value
