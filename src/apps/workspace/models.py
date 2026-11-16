@@ -76,6 +76,8 @@ class WorkNote(TenantOwnedModel):
         related_name="workspace_notes",
     )
     body = models.TextField()
+    # DEF-001 fix: is_internal column expected by render.com DB schema (defaults False = visible to client)
+    is_internal = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["created_at"]

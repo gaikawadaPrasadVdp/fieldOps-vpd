@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import DomainError, NotFound, ValidationFailed
+from apps.core.exceptions import DomainError, InvalidTransition, NotFound, ValidationFailed
 from apps.sites import selectors as site_selectors
 from apps.sites.models import Zone
 from apps.tenancy.api import TenantAPIMixin
@@ -399,7 +399,21 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         """The only way to change asset status: validated transition + history row + audit."""
         asset = self._asset(request, pk, "asset.change_status")
         d = _validated(TransitionSerializer, request)
-        services.change_status(asset, action=d["action"], reason=d["reason"], actor=request.user, request=request)
+        # DEF-003 fix: pre-validate that the action is allowed from the asset's current state
+        try:
+            ASSET_STATUS.get(asset.status, d["action"])
+        except InvalidTransition as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+                status=status.HTTP_409_CONFLICT,
+            )
+        try:
+            services.change_status(asset, action=d["action"], reason=d["reason"], actor=request.user, request=request)
+        except InvalidTransition as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(AssetSerializer(self._asset(request, pk)).data)
 
     @extend_schema(responses=StatusHistorySerializer(many=True))
