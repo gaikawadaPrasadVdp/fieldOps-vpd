@@ -9271,7 +9271,7 @@ a.fx-footer-location-link:focus-visible {
    ========================================================================== */
 
 .fx-resources-hero {
-  padding: 3.5rem 0 2rem 0;
+  padding: 2.25rem 0 2rem 0;
 
   background-color: #ffffff;
 
@@ -10865,7 +10865,7 @@ a.fx-footer-location-link:focus-visible {
 
   color: #ffffff;
 
-  padding-top: 4.5rem;
+  padding-top: 2rem;
 
   padding-bottom: 5.5rem;
 
@@ -10876,7 +10876,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (min-width: 992px) {
   .fx-detail-hero {
-    padding-top: 6rem;
+    padding-top: 2.25rem;
 
     padding-bottom: 6.5rem;
   }
@@ -11570,7 +11570,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (max-width: 991px) {
   .fx-detail-hero {
-    padding-top: 4rem;
+    padding-top: 2rem;
 
     padding-bottom: 4.5rem;
   }
@@ -11594,7 +11594,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (max-width: 768px) {
   .fx-detail-hero {
-    padding-top: 3.25rem;
+    padding-top: 1.75rem;
 
     padding-bottom: 3.75rem;
   }
@@ -11675,7 +11675,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (max-width: 320px) {
   .fx-detail-hero {
-    padding-top: 2.5rem;
+    padding-top: 1.5rem;
 
     padding-bottom: 3rem;
   }
@@ -11704,7 +11704,7 @@ a.fx-footer-location-link:focus-visible {
 
   background: linear-gradient(180deg, #071529 0%, #0b1f3b 55%, #0e2445 100%);
 
-  padding-top: 5.5rem;
+  padding-top: 2.25rem;
 
   padding-bottom: 5rem;
 
@@ -12956,7 +12956,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (max-width: 767.98px) {
   .fx-features-dark-hero {
-    padding-top: 3.75rem;
+    padding-top: 1.85rem;
 
     padding-bottom: 3.25rem;
   }
@@ -13045,7 +13045,7 @@ a.fx-footer-location-link:focus-visible {
 
 @media (max-width: 480px) {
   .fx-features-dark-hero {
-    padding-top: 3rem;
+    padding-top: 1.6rem;
 
     padding-bottom: 2.75rem;
   }

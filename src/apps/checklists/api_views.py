@@ -345,9 +345,15 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
         return self._detail(request, pk)
 
     @extend_schema(request=CompleteSerializer, responses=InspectionDetailSerializer)
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "post"])
     def complete(self, request, pk=None):
         insp = self._obj(request, pk, "inspection.execute")
+        if request.method == "GET":
+            issues = services.completion_issues(insp) if insp.status == "IN_PROGRESS" else []
+            data = InspectionDetailSerializer(insp).data
+            data["completion_issues"] = issues
+            data["can_complete"] = len(issues) == 0 and insp.status == "IN_PROGRESS"
+            return Response(data)
         d = _validated(CompleteSerializer, request)
         services.complete_inspection(insp, membership=request.membership, actor=request.user,
                                      summary=d.get("summary", ""), request=request)

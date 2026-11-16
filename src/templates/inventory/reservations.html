@@ -73,7 +73,7 @@
       </select>
     </div>
     <div class="col-6 col-md-2">
-      <select class="form-select form-select-sm" name="ordering" aria-label="Sort order" onchange="this.form.submit()">
+      <select class="form-select form-select-sm" name="ordering" aria-label="Sort order" data-auto-submit="change">
         <option value="-updated_at" {% if filters.ordering == "-updated_at" or filters.ordering == "-updated" or not filters.ordering %}selected{% endif %}>Recently Updated</option>
         <option value="updated_at" {% if filters.ordering == "updated_at" or filters.ordering == "updated" %}selected{% endif %}>Oldest Updated</option>
         <option value="work_order" {% if filters.ordering == "work_order" or filters.ordering == "wo" %}selected{% endif %}>Work Order (A–Z)</option>

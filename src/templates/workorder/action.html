@@ -9,10 +9,6 @@
 
 {% block content %}
 
-<nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span
-    class="text-secondary">/</span> <a href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a> <span
-    class="text-secondary">/ {{ operation }}</span></nav>
-
 <div class="wo-form-card">
 
   <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>
@@ -48,6 +44,9 @@
 
         <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required or field.name == 'started_at' or field.name == 'ended_at' %}<span class="text-danger">
             *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
+
+        {% if field.name == 'planned_start' %}<div id="planned-start-rule-error" class="text-danger small mt-1" role="alert"
+          hidden></div>{% endif %}
 
         {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small mt-1" role="alert"
           hidden></div>{% endif %}

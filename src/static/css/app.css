@@ -259,6 +259,37 @@ body.fx-app {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+.fx-topbar-back-btn {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.22rem 0.55rem;
+  border-radius: 4px;
+}
+
+.fx-topbar-breadcrumbs {
+  margin-left: 0.25rem;
+  max-width: 480px;
+}
+
+.fx-topbar-breadcrumbs .breadcrumb {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
+.fx-topbar-breadcrumbs .breadcrumb-item {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.fx-topbar-breadcrumbs .breadcrumb-item + .breadcrumb-item::before {
+  color: var(--fx-muted, #64748b);
+  content: "/";
+  padding: 0 0.35rem;
+}
+
 .fx-content {
   flex: 1 1 auto;
   overflow: visible;
@@ -404,6 +435,45 @@ body.fx-app {
 
 .fx-table tbody tr {
   transition: background-color 0.12s ease;
+}
+
+/* Work Order Parts Table & Actions Alignment (Bug-004) */
+.fx-parts-table {
+  min-width: 1000px;
+}
+.fx-parts-actions-col {
+  min-width: 360px;
+  text-align: right;
+}
+.fx-parts-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+.fx-parts-action-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  flex-wrap: nowrap;
+}
+.fx-parts-wh-select {
+  min-width: 125px;
+  max-width: 175px;
+  width: auto;
+  font-size: 0.8125rem;
+}
+.fx-parts-qty-input {
+  width: 4.5rem !important;
+  min-width: 4.5rem !important;
+  text-align: center;
+  font-size: 0.8125rem;
+}
+.fx-parts-btn {
+  white-space: nowrap !important;
+  font-size: 0.8125rem;
 }
 
 .fx-stat {

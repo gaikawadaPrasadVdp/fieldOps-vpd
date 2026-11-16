@@ -944,7 +944,7 @@ def _work_order_tab_context(wo, membership, tab):
     elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
         context["materials"] = wo.material_entries.all()
-        context["part_lines"] = wo.part_lines.select_related("part", "warehouse").all()
+        context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "work_order").all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
@@ -1162,8 +1162,18 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                     "CRITICAL": WorkOrder.Priority.CRITICAL,
                 }.get(getattr(wo.source_request, "severity", ""), "")
 
+            initial_start = wo.planned_start
+            if not initial_start and wo.source_request:
+                inc_dt = wo.source_request.occurred_at or wo.source_request.created_at
+                if inc_dt:
+                    now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+                    inc_local = timezone.localtime(inc_dt).replace(second=0, microsecond=0)
+                    initial_start = inc_local if inc_local.date() == now_local.date() else max(inc_local, now_local)
+            if not initial_start:
+                initial_start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+
             kwargs = {"work_order": wo, "initial": {"work_type": initial_work_type, "priority": initial_priority,
-                                   "planned_start": wo.planned_start or timezone.localtime(timezone.now()).replace(second=0, microsecond=0),
+                                   "planned_start": initial_start,
                                    "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}

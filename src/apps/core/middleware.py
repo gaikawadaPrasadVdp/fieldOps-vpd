@@ -238,6 +238,8 @@ class SessionIdleTimeoutMiddleware:
                     last_ts = None
                 if last_ts is not None and (now_ts - last_ts) > idle_limit:
                     auth_logout(request)
+                    from django.middleware.csrf import rotate_token
+                    rotate_token(request)
                     if self._wants_json(request):
                         return JsonResponse(
                             {

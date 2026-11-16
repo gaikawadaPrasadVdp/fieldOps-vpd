@@ -174,15 +174,19 @@ class PartLineSerializer(serializers.ModelSerializer):
     part_name = serializers.CharField(source="part.name", read_only=True)
     unit = serializers.CharField(source="part.unit", read_only=True)
     work_order_number = serializers.SerializerMethodField()
+    site_name = serializers.CharField(source="work_order.site.name", read_only=True, default=None, allow_null=True)
+    requested_by_email = serializers.SerializerMethodField()
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True, default=None, allow_null=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     reserved = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    fulfillment_status = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkOrderPart
-        fields = ["id", "work_order", "work_order_number", "part", "part_number", "part_name", "unit", "warehouse",
-                  "warehouse_code", "status", "quantity_requested", "reserved", "quantity_issued",
-                  "quantity_consumed", "quantity_returned", "outstanding", "notes", "created_at", "updated_at"]
+        fields = ["id", "work_order", "work_order_number", "site_name", "part", "part_number", "part_name", "unit", "warehouse",
+                  "warehouse_code", "status", "status_display", "fulfillment_status", "quantity_requested", "reserved", "quantity_issued",
+                  "quantity_consumed", "quantity_returned", "outstanding", "requested_by_email", "notes", "created_at", "updated_at"]
         read_only_fields = fields
 
     def get_reserved(self, obj) -> str:
@@ -195,6 +199,23 @@ class PartLineSerializer(serializers.ModelSerializer):
         if not wo:
             return None
         return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_requested_by_email(self, obj) -> str | None:
+        rb = getattr(obj, "requested_by", None)
+        return getattr(rb, "email", None) if rb else None
+
+    @extend_schema_field(serializers.CharField())
+    def get_status_display(self, obj) -> str:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
+            return "Pending Fulfillment"
+        return obj.get_status_display()
+
+    @extend_schema_field(serializers.CharField())
+    def get_fulfillment_status(self, obj) -> str:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
+            return "Pending Fulfillment"
+        return obj.get_status_display()
 
 
 class PartLineCreateSerializer(serializers.Serializer):
@@ -474,7 +495,9 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     pagination_class = StandardPagination
     permission_map = {
-        "list": "work_order.view_assigned", "retrieve": "work_order.view_assigned", "create": "inventory.request",
+        "list": ("inventory.view", "work_order.view", "work_order.view_assigned"),
+        "retrieve": ("inventory.view", "work_order.view", "work_order.view_assigned"),
+        "create": "inventory.request",
         "reserve": "inventory.reserve", "release": "inventory.reserve", "issue": "inventory.issue",
         "consume": "inventory.consume", "return_stock": "inventory.return", "reconcile": "inventory.reconcile",
         "cancel": "inventory.request", "movements": "inventory.view",
@@ -495,11 +518,17 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID),
                                query_param("status", "line status")], responses=PartLineSerializer)
     def list(self, request):
-        qs = selectors.lines_visible(request.membership, request.organization).select_related("reservation")
+        qs = selectors.lines_visible(request.membership, request.organization).select_related(
+            "part", "work_order", "work_order__site", "warehouse", "requested_by", "reservation"
+        )
         qs = selectors._uuid_filter(qs, request.query_params, "work_order", "work_order_id")
         st = (request.query_params.get("status") or "").strip()
         if st:
-            qs = qs.filter(status=st)
+            norm_st = st.lower().replace("-", "_").replace(" ", "_")
+            if norm_st in ("pending", "pending_fulfillment", "requested"):
+                qs = qs.filter(status=WorkOrderPart.Status.REQUESTED)
+            else:
+                qs = qs.filter(status=st.upper())
         return paginate(request, qs.order_by("-created_at"), PartLineSerializer)
 
     @extend_schema(responses=PartLineSerializer)
