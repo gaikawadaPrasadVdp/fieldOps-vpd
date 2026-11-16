@@ -3,11 +3,10 @@
 {% block title %}Parts &middot; {{ wo.number }} &middot; FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header"><div>
-  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'workorders:list' %}">Work orders</a></li><li class="breadcrumb-item"><a href="{% url 'workorders:detail' wo.pk %}">{{ wo.number }}</a></li><li class="breadcrumb-item active">Parts</li></ol></nav>
   <h1>Parts for {{ wo.number }} {% status_badge wo.status %}</h1>
   <div class="text-body-secondary">{{ wo.title }} &middot; site {{ wo.site.code }}. Stock is owned by Inventory: every reserve, issue and return writes a stock movement.</div></div></div>
-<div class="fx-card mb-3"><div class="table-responsive"><table class="table fx-table" id="part-lines"><thead><tr><th>Part</th><th>Status</th><th>Requested</th><th>Reserved</th><th>Issued</th><th>Consumed</th><th>Returned</th><th>Outstanding</th><th>Warehouse</th><th>Actions</th></tr></thead><tbody>
-{% for ln in lines %}<tr data-line="{{ ln.pk }}"><td>{{ ln.part.part_number }}<div class="small text-body-secondary">{{ ln.part.name }}</div></td><td>{% status_badge ln.status %}</td>
+<div class="fx-card mb-3"><div class="table-responsive"><table class="table fx-table fx-parts-table" id="part-lines"><thead><tr><th>Part</th><th>Status</th><th>Requested</th><th>Reserved</th><th>Issued</th><th>Consumed</th><th>Returned</th><th>Outstanding</th><th>Warehouse</th><th class="fx-parts-actions-col">Actions</th></tr></thead><tbody>
+{% for ln in lines %}<tr data-line="{{ ln.pk }}"><td><strong>{{ ln.part.part_number }}</strong><div class="small text-body-secondary">{{ ln.part.name }}</div></td><td>{% status_badge ln.status %}</td>
   <td>{{ ln.quantity_requested|floatformat:"-3" }} {{ ln.part.unit }}</td><td>{{ ln.ops.held|floatformat:"-3" }}</td><td>{{ ln.quantity_issued|floatformat:"-3" }}</td><td>{{ ln.quantity_consumed|floatformat:"-3" }}</td><td>{{ ln.quantity_returned|floatformat:"-3" }}</td><td>{{ ln.outstanding|floatformat:"-3" }}</td>
   <td>
     {% if ln.warehouse %}
@@ -20,14 +19,59 @@
       <span class="text-body-secondary">Unassigned</span>
     {% endif %}
   </td>
-  <td><div class="d-flex flex-wrap gap-1">
-    {% if ln.ops.reserve %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'reserve' %}" class="d-flex gap-1 m-0">{% csrf_token %}<select class="form-select form-select-sm" name="warehouse" required aria-label="Warehouse to reserve from">{% for w in reserve_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk or forloop.first %}selected{% endif %}>{{ w.code }} &middot; {{ w.name }}</option>{% endfor %}</select><input type="number" step="1" min="1" class="form-control form-control-sm" style="width:5rem" name="quantity" placeholder="all" inputmode="numeric" aria-label="Quantity to reserve"><button class="btn btn-sm btn-outline-primary">Reserve</button></form>{% endif %}
-    {% if ln.ops.issue %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'issue' %}" class="d-flex gap-1 m-0">{% csrf_token %}<select class="form-select form-select-sm" name="warehouse" required aria-label="Warehouse to issue from">{% for w in issue_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk or forloop.first %}selected{% endif %}>{{ w.code }} &middot; {{ w.name }}</option>{% endfor %}</select><input type="number" step="1" min="1" class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="numeric" aria-label="Quantity to issue"><button class="btn btn-sm btn-primary">Issue</button></form>{% endif %}
-    {% if ln.ops.consume %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'consume' %}" class="d-flex gap-1 m-0">{% csrf_token %}<input type="number" step="1" min="1" class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="numeric" aria-label="Quantity used"><button class="btn btn-sm btn-success">Consume</button></form>{% endif %}
-    {% if ln.ops.return %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'return' %}" class="d-flex gap-1 m-0">{% csrf_token %}<input type="number" step="1" min="1" class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="numeric" aria-label="Quantity to return"><button class="btn btn-sm btn-outline-secondary">Return</button></form>{% endif %}
-    {% if ln.ops.release %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'release' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" data-confirm="Release the whole reservation?">Release</button></form>{% endif %}
-    {% if ln.ops.reconcile %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'reconcile' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Reconcile</button></form>{% endif %}
-    {% if ln.ops.cancel %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'cancel' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" data-confirm="Cancel this part line?">Cancel</button></form>{% endif %}
+  <td class="fx-parts-actions-col"><div class="fx-parts-action-group">
+    {% if ln.ops.reserve %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'reserve' %}" class="fx-parts-action-form">
+        {% csrf_token %}
+        <select class="form-select form-select-sm fx-parts-wh-select" name="warehouse" required aria-label="Warehouse to reserve from">
+          {% for w in reserve_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk or forloop.first %}selected{% endif %}>{{ w.code }} &middot; {{ w.name }}</option>{% endfor %}
+        </select>
+        <input type="number" step="1" min="1" class="form-control form-control-sm fx-parts-qty-input" name="quantity" placeholder="all" inputmode="numeric" aria-label="Quantity to reserve">
+        <button class="btn btn-sm btn-outline-primary fx-parts-btn">Reserve</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.issue %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'issue' %}" class="fx-parts-action-form">
+        {% csrf_token %}
+        <select class="form-select form-select-sm fx-parts-wh-select" name="warehouse" required aria-label="Warehouse to issue from">
+          {% for w in issue_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk or forloop.first %}selected{% endif %}>{{ w.code }} &middot; {{ w.name }}</option>{% endfor %}
+        </select>
+        <input type="number" step="1" min="1" class="form-control form-control-sm fx-parts-qty-input" name="quantity" required inputmode="numeric" aria-label="Quantity to issue">
+        <button class="btn btn-sm btn-primary fx-parts-btn">Issue</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.consume %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'consume' %}" class="fx-parts-action-form">
+        {% csrf_token %}
+        <input type="number" step="1" min="1" class="form-control form-control-sm fx-parts-qty-input" name="quantity" required inputmode="numeric" aria-label="Quantity used">
+        <button class="btn btn-sm btn-success fx-parts-btn">Consume</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.return %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'return' %}" class="fx-parts-action-form">
+        {% csrf_token %}
+        <input type="number" step="1" min="1" class="form-control form-control-sm fx-parts-qty-input" name="quantity" required inputmode="numeric" aria-label="Quantity to return">
+        <button class="btn btn-sm btn-outline-secondary fx-parts-btn">Return</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.release %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'release' %}" class="d-inline-flex m-0">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-secondary fx-parts-btn" data-confirm="Release the whole reservation?">Release</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.reconcile %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'reconcile' %}" class="d-inline-flex m-0">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-success fx-parts-btn">Reconcile</button>
+      </form>
+    {% endif %}
+    {% if ln.ops.cancel %}
+      <form method="post" action="{% url 'inventory:line_action' ln.pk 'cancel' %}" class="d-inline-flex m-0">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-danger fx-parts-btn" data-confirm="Cancel this part line?">Cancel</button>
+      </form>
+    {% endif %}
   </div></td></tr>
 {% empty %}<tr><td colspan="10">{% include "components/_empty_state.html" with title="No parts requested" text="Request the spare parts this job needs." %}</td></tr>{% endfor %}</tbody></table></div></div>
 {% if can_request %}<div class="fx-card mb-3"><div class="fx-card-header">Request a part</div><div class="fx-card-body">

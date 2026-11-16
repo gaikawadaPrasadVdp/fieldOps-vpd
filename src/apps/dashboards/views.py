@@ -13,7 +13,7 @@ from apps.dashboards import metrics, services
 from apps.ui.pagination import paginate_dashboard_queryset
 from .forms import AnalyticsHubFilterForm, SnapshotFilterForm, SnapshotCreateForm
 from apps.incidents.models import ServiceRequest
-from apps.inventory.models import StockBalance
+from apps.inventory.models import StockBalance, WorkOrderPart
 from apps.notifications.views import MemberOnlyMixin
 from apps.rbac import services as rbac
 from apps.sla.models import SLABreach
@@ -211,6 +211,15 @@ class DashboardHubView(TenantPermissionMixin, View):
             page_obj, preserved_params = paginate_dashboard_queryset(request, low_stock, page_param="page", per_page=10)
             trace_data["low_stock_lines"] = list(page_obj)
             trace_data["page_obj"] = page_obj
+            trace_data["pending_parts_requests"] = list(
+                WorkOrderPart.objects.filter(
+                    organization=request.organization,
+                    work_order__site__in=permitted_sites,
+                    status=WorkOrderPart.Status.REQUESTED,
+                )
+                .select_related("part", "work_order", "work_order__site", "requested_by")
+                .order_by("-created_at")[:15]
+            )
 
         # 5. Precompute Pure CSS Bar Percentages
         css_bars = self._compute_css_bars(section, data.get("details", {}))

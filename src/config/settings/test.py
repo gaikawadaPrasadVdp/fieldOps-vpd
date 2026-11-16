@@ -22,7 +22,14 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 MEDIA_ROOT = BASE_DIR.parent / ".pytest_media"  # noqa: F405
-ALLOWED_HOSTS = ["testserver", "localhost"]
+ALLOWED_HOSTS = [
+    "testserver",
+    "localhost",
+    ".onrender.com",
+    "fieldops.onrender.com",
+    "fieldops-qry5.onrender.com",
+    "fieldops-vpd-nb4u.onrender.com",
+]
 AXES_ENABLED = True
 RATE_LIMITING_ENABLED = True
 REST_FRAMEWORK = {  # noqa: F405

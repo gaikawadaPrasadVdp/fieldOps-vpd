@@ -109,6 +109,8 @@ class HasOrgPermission(permissions.BasePermission):
                     return False
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
+        if isinstance(code, (tuple, list, set)):
+            return any(rbac.has_permission_anywhere(membership, c) for c in code)
         return rbac.has_permission_anywhere(membership, code)
 
 

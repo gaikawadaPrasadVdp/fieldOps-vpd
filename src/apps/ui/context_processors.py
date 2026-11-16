@@ -281,16 +281,19 @@ def _build_tenant_nav(membership, is_owner):
         asset_items = []
         if rbac.has_permission_anywhere(membership, "asset.view"):
             asset_items.append({"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
-        asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
-        sections["Assets"] = asset_items
+        if rbac.has_permission_anywhere(membership, "qr.scan") or rbac.has_permission_anywhere(membership, "identification.scan") or rbac.has_permission_anywhere(membership, "asset.scan"):
+            asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
+        if asset_items:
+            sections["Assets"] = asset_items
 
         if rbac.has_permission_anywhere(membership, "sla.view"):
             sections["Service Level Agreements"] = [
                 {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
             ]
-        sections["Analytics"] = [
-            {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
-        ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
 
     elif "service_manager" in role_keys:
         sections["Overview"] = [
@@ -422,10 +425,13 @@ def _build_breadcrumbs(request):
         ("/app/assets/hierarchy", "Hierarchy", "assets:hierarchy"),
         ("/app/assets", "Assets", "assets:list"),
         ("/app/sites", "Sites & Locations", "sites:list"),
-        ("/app/inventory/parts", "Parts Inventory", "inventory:parts_list"),
-        ("/app/inventory/stock", "Stock Overview", "inventory:stock_list"),
-        ("/app/inventory/transactions", "Transactions", "inventory:transactions_list"),
-        ("/app/inventory/warehouses", "Warehouses", "inventory:warehouses_list"),
+        ("/app/inventory/parts", "Parts Inventory", "inventory:parts"),
+        ("/app/inventory/stock", "Stock Overview", "inventory:stock"),
+        ("/app/inventory/requests", "Part Requests", "inventory:requests"),
+        ("/app/inventory/reservations", "Reservations", "inventory:reservations"),
+        ("/app/inventory/movements", "Transactions", "inventory:movements"),
+        ("/app/inventory/warehouses", "Warehouses", "inventory:warehouses"),
+        ("/app/inventory", "Inventory", "inventory:parts"),
         ("/app/contracts/agreements", "Warranties & Contracts", "contracts:agreements"),
         ("/app/contracts/expiry", "Expiring Coverage", "contracts:expiry"),
         ("/app/contracts/providers", "Providers", "contracts:providers"),
@@ -440,12 +446,21 @@ def _build_breadcrumbs(request):
         ("/app/workspace/shifts", "Shifts", "workspace:shift_list"),
         ("/app/workspace/my-jobs", "My Jobs", "workspace:my_jobs"),
         ("/app/workspace/profile", "My Profile", "workspace:my_profile"),
+        ("/app/workspace", "Technician Workspace", "workspace:my_jobs"),
         ("/app/organization", "Organization", "tenancy:organization"),
         ("/app/users", "Users Directory", "tenancy:members"),
         ("/app/roles", "Roles & Permissions", "rbac:roles"),
         ("/app/notifications", "Notifications", "notifications:list"),
         ("/app/checklists", "Checklists & Inspections", "checklists:list"),
         ("/app/pm", "Preventive Maintenance", "pm:plan_list"),
+        ("/app/portal/requests/new", "New Request", "portal:request_create"),
+        ("/app/portal/requests", "My Requests", "portal:requests_list"),
+        ("/app/portal/scan", "Scan QR", "portal:scan"),
+        ("/app/portal", "Client Portal", "portal:dashboard"),
+        ("/platform/organizations/create", "New Organization", "platform_admin:organization_create"),
+        ("/platform/organizations", "Organizations", "platform_admin:organizations"),
+        ("/platform/audit", "Platform Audit Trail", "platform_admin:audit"),
+        ("/platform/overview", "Platform Overview", "platform_admin:overview"),
     ]
 
     matched_mod = None
@@ -456,7 +471,7 @@ def _build_breadcrumbs(request):
 
     if matched_mod:
         prefix, label, viewname = matched_mod
-        url = _safe_reverse(viewname)
+        url = _safe_reverse(viewname) or (prefix + "/")
         if path == prefix:
             crumbs.append({"label": label, "url": None})
         else:
@@ -496,17 +511,23 @@ def _build_breadcrumbs(request):
                     seg_label = "Timeline"
                 elif seg in ("reports",):
                     seg_label = "Reports"
+                elif seg in ("requests",):
+                    seg_label = "Requests"
+                elif seg in ("reservations",):
+                    seg_label = "Reservations"
+                elif seg in ("edit",):
+                    seg_label = "Edit"
                 else:
                     seg_label = seg.replace("-", " ").replace("_", " ").title()
 
-                sub_path = prefix + "/" + "/".join(remainder[:i+1])
+                sub_path = prefix + "/" + "/".join(remainder[:i+1]) + "/"
                 crumbs.append({"label": seg_label, "url": None if is_last else sub_path})
     else:
         segments = [s for s in path.replace("/app/", "").split("/") if s]
         for i, seg in enumerate(segments):
             is_last = (i == len(segments) - 1)
             seg_label = "Detail" if len(seg) >= 32 else seg.replace("-", " ").replace("_", " ").title()
-            sub_path = "/app/" + "/".join(segments[:i+1])
+            sub_path = "/app/" + "/".join(segments[:i+1]) + "/"
             crumbs.append({"label": seg_label, "url": None if is_last else sub_path})
 
     back_url = None

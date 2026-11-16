@@ -26,10 +26,30 @@
   <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
   <div class="fx-main">
     <header class="fx-topbar d-print-none">
-      <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
-              data-fx-toggle-nav>{% icon 'menu' %}</button>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
+                data-fx-toggle-nav>{% icon 'menu' %}</button>
+        {% if shell_back_url %}
+        <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-1 px-2 text-decoration-none d-inline-flex align-items-center gap-1 fx-topbar-back-btn" title="Go back to previous page" aria-label="Back" data-action="go-back" data-fallback="{{ shell_back_url }}">
+          <span aria-hidden="true">&larr;</span> <span>Back</span>
+        </a>
+        {% endif %}
+      </div>
+      {% if shell_breadcrumbs %}
+      <nav aria-label="Breadcrumb navigation" class="fx-topbar-breadcrumbs d-none d-md-flex align-items-center overflow-hidden">
+        <ol class="breadcrumb mb-0 small text-truncate">
+          {% for crumb in shell_breadcrumbs %}
+            {% if forloop.last or not crumb.url %}
+              <li class="breadcrumb-item active text-truncate" aria-current="page" title="{{ crumb.label }}">{{ crumb.label }}</li>
+            {% else %}
+              <li class="breadcrumb-item text-truncate"><a href="{{ crumb.url }}" class="text-decoration-none" title="{{ crumb.label }}">{{ crumb.label }}</a></li>
+            {% endif %}
+          {% endfor %}
+        </ol>
+      </nav>
+      {% endif %}
       {% if shell_org and not is_client %}
-      <form class="fx-search" role="search" autocomplete="off">
+      <form class="fx-search ms-auto ms-md-2" role="search" autocomplete="off">
         {% icon 'search' 16 %}
         <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"
                hx-get="{% url 'ui:search' %}" hx-trigger="input changed delay:300ms, search"

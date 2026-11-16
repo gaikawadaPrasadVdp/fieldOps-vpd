@@ -7,7 +7,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import rotate_token
 
 from apps.audit import services as audit
 
@@ -16,6 +18,7 @@ from .forms import EmailAuthenticationForm, ProfileForm
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
+@method_decorator(never_cache, name="dispatch")
 class LoginView(auth_views.LoginView):
     template_name = "accounts/login.html"
     authentication_form = EmailAuthenticationForm
@@ -26,6 +29,7 @@ class LoginView(auth_views.LoginView):
             if request.user.is_authenticated:
                 from django.contrib.auth import logout as auth_logout
                 auth_logout(request)
+            rotate_token(request)
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -91,7 +95,7 @@ class LogoutView(auth_views.LogoutView):
     """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
 
     http_method_names = ["post", "options"]
-    next_page = "/accounts/login/"
+    next_page = "/"
 
     def post(self, request, *args, **kwargs):
         is_ajax = (
@@ -102,9 +106,11 @@ class LogoutView(auth_views.LogoutView):
             from django.contrib.auth import logout as auth_logout
             from django.http import JsonResponse
             auth_logout(request)
-            response = JsonResponse({"status": "logged_out", "redirect_url": "/accounts/login/"})
+            rotate_token(request)
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/"})
         else:
             response = super().post(request, *args, **kwargs)
+            rotate_token(request)
 
         response.delete_cookie(
             settings.SESSION_COOKIE_NAME,
