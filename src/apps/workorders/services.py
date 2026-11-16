@@ -28,10 +28,10 @@ from .models import (
 TRANSITIONS = {
     WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
     WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.ON_HOLD},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
-    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
+    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
 }
@@ -1217,6 +1217,14 @@ def record_labor(wo, *, membership, actor, work_date=None, hours=None, descripti
     desc = (description or notes or kwargs.get("notes") or "Labor recorded").strip()
     if hours <= 0 or hours > 24 or not work_date or work_date > timezone.localdate() or not desc:
         raise ValidationFailed("Labor requires 0 < hours <= 24, a non-future date, and a description.")
+    if desc and desc != "Labor recorded":
+        from apps.ui.forms import validate_alphabetical_description
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            desc = validate_alphabetical_description(desc, field_label="Work Description")
+        except DjangoValidationError as exc:
+            msg = exc.messages[0] if getattr(exc, "messages", None) else str(exc)
+            raise ValidationFailed(msg, code="invalid_description") from exc
     target_tech = technician or membership
     entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date,

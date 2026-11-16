@@ -92,8 +92,27 @@
 
           {% if rel_form %}
             <h5 class="mb-3 border-bottom pb-2 text-primary">Hierarchy Relationship to Parent</h5>
+            {% if parent and parent.parent_link %}
+              <div class="alert alert-warning small d-flex align-items-center gap-2 mb-3">
+                {% icon 'alert-triangle' 16 %}
+                <span>Parent equipment <strong>{{ parent.asset_tag }}</strong> already has an existing parent component relationship. Under the 2-level hierarchy, a parent component cannot be registered under another parent asset component.</span>
+              </div>
+            {% endif %}
             <div class="row g-3 mb-3 p-3 bg-light rounded border">
-              <div class="col-md-4">{% with field=rel_form.relationship_type %}{% include "components/_form_field.html" %}{% endwith %}</div>
+              <div class="col-md-4">
+                {% if rel_form.relationship_type.disabled %}
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-body-secondary">Relationship Type</label>
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge text-bg-light border font-monospace py-2 px-3">{{ rel_form.initial.relationship_type|default:"COMPONENT" }}</span>
+                      <span class="badge text-bg-secondary"><span class="small">Locked</span></span>
+                    </div>
+                    <div class="form-text small text-muted">Relationship type is locked because this asset already has an existing parent component relationship.</div>
+                  </div>
+                {% else %}
+                  {% with field=rel_form.relationship_type %}{% include "components/_form_field.html" %}{% endwith %}
+                {% endif %}
+              </div>
               <div class="col-md-4">{% with field=rel_form.quantity %}{% include "components/_form_field.html" %}{% endwith %}</div>
               <div class="col-md-4">{% with field=rel_form.part_number %}{% include "components/_form_field.html" %}{% endwith %}</div>
               <div class="col-12">{% with field=rel_form.notes %}{% include "components/_form_field.html" %}{% endwith %}</div>

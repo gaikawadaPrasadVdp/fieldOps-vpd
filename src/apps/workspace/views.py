@@ -336,6 +336,13 @@ class JobLaborView(TenantPermissionMixin, View):
             except ValueError:
                 work_date = None
 
+        if description and any(char.isdigit() for char in description):
+            messages.error(request, "Work Description must contain only alphabetical characters and cannot contain numbers.")
+            if request.headers.get("HX-Request"):
+                summary = services.get_drawer_summary(wo, membership=request.membership)
+                return render(request, "workspace/_drawer.html", summary)
+            return redirect("workspace:job_detail", pk=wo.pk)
+
         try:
             services.record_job_labor(
                 wo,
