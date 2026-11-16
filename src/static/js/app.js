@@ -358,6 +358,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // Hierarchy Relationship Form Invariants (PRD M03 / 2-level hierarchy)
+  function initHierarchyRelationshipGuards() {
+    var forms = document.querySelectorAll("form[action*='component_edit'], form[action*='component_add'], #asset-form");
+    forms.forEach(function (form) {
+      var relSelect = form.querySelector("select[name='relationship_type']");
+      var childSelect = form.querySelector("select[name='child']");
+
+      // For component_edit forms: relationship_type is locked for equipment with existing parent component relationship
+      if (form.action.indexOf("component_edit") !== -1 && relSelect) {
+        relSelect.disabled = true;
+        relSelect.setAttribute("disabled", "disabled");
+      }
+
+      // For component_add forms: if child select is disabled or has no options, lock relationship_type
+      if (childSelect && relSelect) {
+        if (childSelect.disabled || childSelect.options.length <= 1) {
+          relSelect.disabled = true;
+          relSelect.setAttribute("disabled", "disabled");
+        }
+      }
+    });
+  }
+
+  initHierarchyRelationshipGuards();
+  document.body.addEventListener("htmx:afterSettle", initHierarchyRelationshipGuards);
+  document.body.addEventListener("htmx:afterSwap", initHierarchyRelationshipGuards);
+
   // Global Toast auto-dismiss handler
   function initAutoDismiss() {
     var alerts = document.querySelectorAll(".fx-toast-message:not([data-dismiss-queued]), [data-auto-dismiss]:not([data-dismiss-queued])");
@@ -1920,6 +1947,82 @@ document.addEventListener("click", function (e) {
     });
   }
 
+  function initLaborForm(root) {
+    var form = (root && root.id === "onSiteLaborForm")
+      ? root
+      : (root ? root.querySelector("#onSiteLaborForm") : null);
+    if (!form || form.dataset.laborValidationInitialized === "true") return;
+    form.dataset.laborValidationInitialized = "true";
+
+    var descInput = form.querySelector("#id_labor_description") || form.querySelector('[name="description"]');
+    var descError = form.querySelector("#labor-description-error");
+
+    if (descInput) {
+      descInput.addEventListener("keydown", function (e) {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key && e.key.length === 1 && /\d/.test(e.key)) {
+          e.preventDefault();
+          if (descError) {
+            descInput.classList.add("is-invalid");
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+        }
+      });
+
+      descInput.addEventListener("input", function () {
+        if (/\d/.test(this.value)) {
+          this.value = this.value.replace(/[0-9]/g, "");
+          if (descError) {
+            this.classList.add("is-invalid");
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+        } else {
+          var val = this.value.trim();
+          if (val && !/[A-Za-z]/.test(val)) {
+            this.classList.add("is-invalid");
+            if (descError) {
+              descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+              descError.classList.remove("d-none");
+              descError.classList.add("d-block");
+              descError.style.display = "block";
+            }
+          } else if (val) {
+            this.classList.remove("is-invalid");
+            if (descError) {
+              descError.textContent = "";
+              descError.classList.remove("d-block");
+              descError.classList.add("d-none");
+              descError.style.display = "none";
+            }
+          }
+        }
+      });
+    }
+
+    form.addEventListener("submit", function (e) {
+      if (descInput) {
+        var raw = descInput.value || "";
+        if (/\d/.test(raw) || !/[A-Za-z]/.test(raw.trim())) {
+          e.preventDefault();
+          e.stopPropagation();
+          descInput.classList.add("is-invalid");
+          if (descError) {
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+          descInput.focus();
+        }
+      }
+    });
+  }
+
   // Hook into lifecycle events
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
@@ -1927,12 +2030,14 @@ document.addEventListener("click", function (e) {
       initAssetForm(document);
       initMemberInviteForm(document);
       initDocumentUploadForm(document);
+      initLaborForm(document);
     });
   } else {
     initSiteForm(document);
     initAssetForm(document);
     initMemberInviteForm(document);
     initDocumentUploadForm(document);
+    initLaborForm(document);
   }
 
   // Hook into HTMX swaps
@@ -1942,6 +2047,7 @@ document.addEventListener("click", function (e) {
       initAssetForm(evt.detail.target);
       initMemberInviteForm(evt.detail.target);
       initDocumentUploadForm(evt.detail.target);
+      initLaborForm(evt.detail.target);
     }
   });
 

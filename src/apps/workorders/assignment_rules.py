@@ -64,21 +64,55 @@ def schedule_warnings(work_order):
 
 
 def available_technicians(work_order):
-    """Return active, authorized technicians with no other active work-order assignment."""
+    """Return active or invited, authorized technicians with no other active work-order assignment."""
     if not work_order:
         return Membership.objects.none()
 
     candidates = Membership.objects.for_organization(work_order.organization).filter(
-        status=Membership.Status.ACTIVE,
+        status__in=[Membership.Status.ACTIVE, Membership.Status.INVITED],
         user__is_active=True,
-        membership_roles__role__system_key__in=["technician", "field_technician"],
+    ).filter(
+        Q(membership_roles__role__system_key__in=["technician", "field_technician"])
+        | Q(membership_roles__role__name__icontains="technician")
+        | Q(membership_roles__role__role_permissions__permission__code="work_order.start")
     ).select_related("user").distinct()
 
     site = getattr(work_order, "site", None)
-    allowed_ids = [member.pk for member in candidates
-                   if rbac.has_permission(member, "work_order.start", site)]
+    allowed_ids = [
+        member.pk for member in candidates
+        if rbac.has_permission(member, "work_order.start", site)
+        or (site is None and rbac.has_permission_anywhere(member, "work_order.start"))
+    ]
     if not allowed_ids:
         return candidates.none()
+
+    from .models import TechnicianProfile as WOTechnicianProfile
+    undispatchable_ids = set(WOTechnicianProfile.objects.filter(
+        organization=work_order.organization,
+        membership_id__in=allowed_ids,
+        is_dispatchable=False,
+    ).values_list("membership_id", flat=True))
+    if undispatchable_ids:
+        allowed_ids = [pk for pk in allowed_ids if pk not in undispatchable_ids]
+    if not allowed_ids:
+        return candidates.none()
+
+    try:
+        from apps.workspace.models import TechnicianProfile as WSTechnicianProfile
+        unavailable_ids = set(WSTechnicianProfile.objects.filter(
+            organization=work_order.organization,
+            membership_id__in=allowed_ids,
+            availability_status__in=[
+                WSTechnicianProfile.AvailabilityStatus.ON_LEAVE,
+                WSTechnicianProfile.AvailabilityStatus.OFF_DUTY,
+            ],
+        ).values_list("membership_id", flat=True))
+        if unavailable_ids:
+            allowed_ids = [pk for pk in allowed_ids if pk not in unavailable_ids]
+        if not allowed_ids:
+            return candidates.none()
+    except Exception:
+        pass
 
     has_valid_window = (
         work_order.planned_start
@@ -98,6 +132,7 @@ def available_technicians(work_order):
         occupied_start__lt=work_order.planned_end,
         occupied_end__gt=work_order.planned_start,
     ).exclude(pk=work_order.pk).values_list("assigned_to_id", flat=True)
+
     return candidates.filter(pk__in=allowed_ids).exclude(pk__in=booked_ids).order_by(
         "user__full_name", "user__email")
 
@@ -105,11 +140,18 @@ def available_technicians(work_order):
 def validate_assignment(work_order, technician):
     if technician.organization_id != work_order.organization_id:
         raise ValidationFailed("Technician must belong to this organization.", code="invalid_technician")
-    if technician.status != Membership.Status.ACTIVE or not technician.user.is_active:
+    if technician.status not in (Membership.Status.ACTIVE, Membership.Status.INVITED) or not technician.user.is_active:
         raise ValidationFailed("Technician is inactive.", code="technician_inactive")
-    if not technician.membership_roles.filter(role__system_key__in=["technician", "field_technician"]).exists():
+    if not technician.membership_roles.filter(
+        Q(role__system_key__in=["technician", "field_technician"])
+        | Q(role__name__icontains="technician")
+        | Q(role__role_permissions__permission__code="work_order.start")
+    ).exists():
         raise ValidationFailed("The assigned member must have the Technician role.", code="technician_role_required")
-    if not rbac.has_permission(technician, "work_order.start", work_order.site):
+    if not (
+        rbac.has_permission(technician, "work_order.start", work_order.site)
+        or (work_order.site is None and rbac.has_permission_anywhere(technician, "work_order.start"))
+    ):
         raise ValidationFailed("Technician is not authorized for this site.", code="technician_site_forbidden")
     if not work_order.planned_start or not work_order.planned_end:
         raise ValidationFailed("Set a valid scheduled window before assigning a technician.",

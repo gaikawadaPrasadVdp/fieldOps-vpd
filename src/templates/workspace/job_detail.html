@@ -625,8 +625,12 @@
               <label class="form-label small fw-semibold" for="id_labor_description">Work Description *</label>
               <input type="text" name="description" id="id_labor_description" maxlength="500"
                 class="form-control form-control-sm" required
+                pattern="^[A-Za-z\s.,;:'&quot;\-()/]+$"
+                title="Work Description must contain only alphabetical characters and cannot contain numbers."
+                data-alphabetical-only="true"
+                autocomplete="off"
                 placeholder="e.g. Replaced faulty gasket and pressure tested">
-              <div class="invalid-feedback field-error-message" id="labor-description-error"></div>
+              <div class="invalid-feedback field-error-message d-none" id="labor-description-error"></div>
               <div class="form-text small">Alphabetical characters and basic punctuation only (numbers are not allowed).</div>
             </div>
             <button type="submit" class="btn btn-sm btn-outline-success w-100">
@@ -1234,10 +1238,14 @@
         if (message) {
           input.classList.add('is-invalid');
           errEl.textContent = message;
+          errEl.classList.remove('d-none');
+          errEl.classList.add('d-block');
           errEl.style.display = 'block';
         } else {
           input.classList.remove('is-invalid');
           errEl.textContent = '';
+          errEl.classList.remove('d-block');
+          errEl.classList.add('d-none');
           errEl.style.display = 'none';
         }
       }
@@ -1256,12 +1264,22 @@
 
       function validateDescriptionField() {
         if (!descInput) return true;
-        var val = (descInput.value || '').trim();
+        var raw = descInput.value || '';
+        if (/\d/.test(raw)) {
+          descInput.value = raw.replace(/[0-9]/g, '');
+          setFieldValidation(
+            descInput,
+            descError,
+            'Work Description must contain only alphabetical characters and cannot contain numbers.'
+          );
+          return false;
+        }
+        var val = raw.trim();
         if (!val) {
           setFieldValidation(descInput, descError, 'Work Description is required.');
           return false;
         }
-        if (/\d/.test(val) || !/[A-Za-z]/.test(val) || !alphaPattern.test(val)) {
+        if (!/[A-Za-z]/.test(val) || !alphaPattern.test(val)) {
           setFieldValidation(
             descInput,
             descError,
@@ -1277,6 +1295,31 @@
         hoursInput.addEventListener('input', validateHoursField);
       }
       if (descInput) {
+        // Prevent numeric keystrokes directly
+        descInput.addEventListener('keydown', function (e) {
+          if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key && e.key.length === 1 && /\d/.test(e.key)) {
+            e.preventDefault();
+            setFieldValidation(
+              descInput,
+              descError,
+              'Work Description must contain only alphabetical characters and cannot contain numbers.'
+            );
+          }
+        });
+        // Sanitize paste input
+        descInput.addEventListener('paste', function (e) {
+          var pasteData = (e.clipboardData || window.clipboardData).getData('text');
+          if (/\d/.test(pasteData)) {
+            e.preventDefault();
+            var sanitized = pasteData.replace(/[0-9]/g, '');
+            document.execCommand('insertText', false, sanitized);
+            setFieldValidation(
+              descInput,
+              descError,
+              'Numbers were removed. Work Description must contain only alphabetical characters.'
+            );
+          }
+        });
         descInput.addEventListener('input', validateDescriptionField);
       }
 

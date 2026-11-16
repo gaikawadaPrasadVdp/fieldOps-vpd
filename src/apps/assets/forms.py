@@ -189,6 +189,20 @@ class RelationshipFields(forms.Form):
 class NewChildForm(BootstrapFormMixin, RelationshipFields):
     """Extra fields shown on the create-asset form when registering a child of an existing asset."""
 
+    def __init__(self, *args, parent=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if parent:
+            # Under PRD 2-level hierarchy: if parent already has an existing parent component relationship
+            # (i.e. is already a child component), child cannot be registered under it.
+            from apps.assets.models import AssetComponent
+            if AssetComponent.objects.filter(child=parent).exists():
+                self.fields["relationship_type"].disabled = True
+                self.fields["relationship_type"].widget.attrs["disabled"] = "disabled"
+                self.fields["relationship_type"].help_text = (
+                    f"Relationship type is locked: {parent.asset_tag} already has an existing parent component relationship. "
+                    "Nested parent assets are not permitted."
+                )
+
 
 class ComponentAddForm(BootstrapFormMixin, RelationshipFields):
     child = forms.ModelChoiceField(queryset=None, label="Existing asset")
@@ -196,11 +210,52 @@ class ComponentAddForm(BootstrapFormMixin, RelationshipFields):
     def __init__(self, *args, candidates, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["child"].queryset = candidates
+        self.fields["child"].empty_label = "Select an eligible asset..."
+        has_candidates = candidates.exists() if hasattr(candidates, "exists") else bool(candidates)
+        if not has_candidates:
+            self.fields["child"].empty_label = "No eligible assets (assets with existing relationships cannot be registered)"
+            self.fields["child"].disabled = True
+            self.fields["relationship_type"].disabled = True
+            self.fields["relationship_type"].widget.attrs["disabled"] = "disabled"
+            self.fields["relationship_type"].help_text = (
+                "Relationship Type dropdown is disabled: no eligible assets available. "
+                "Assets that already have an existing parent component relationship cannot be registered under another parent asset component."
+            )
         self.order_fields(["child", "relationship_type", "quantity", "part_number", "notes"])
+
+    def clean(self):
+        cleaned_data = super().clean()
+        child = cleaned_data.get("child")
+        if child:
+            from apps.assets.models import AssetComponent
+            # PRD 2-level hierarchy rules:
+            # 1. Parent component cannot be registered under another parent asset component (parent_cannot_be_child)
+            if AssetComponent.objects.filter(parent=child).exists():
+                self.add_error("child", f"Cannot attach {child.asset_tag}: It is already a parent asset with child components. Nested parent assets are not permitted.")
+            # 2. Asset that already has a parent component relationship cannot be registered under another parent (already_has_parent)
+            if AssetComponent.objects.filter(child=child).exists():
+                self.add_error("child", f"Cannot attach {child.asset_tag}: It already has an existing parent component relationship. Nested parent assets are not permitted.")
+        return cleaned_data
 
 
 class ComponentEditForm(BootstrapFormMixin, RelationshipFields):
     """Edits the relationship (type, quantity, part number, notes) of an existing parent-child link."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Relationship type is locked once an asset has an existing parent component relationship.
+        # Under the PRD 2-level hierarchy, an asset with an existing relationship cannot change role or be registered under another parent asset component.
+        self.fields["relationship_type"].disabled = True
+        self.fields["relationship_type"].required = False
+        self.fields["relationship_type"].widget.attrs["disabled"] = "disabled"
+        self.fields["relationship_type"].widget.attrs["readonly"] = "readonly"
+        self.fields["relationship_type"].help_text = (
+            "Relationship Type dropdown is locked: this asset already has an existing parent component relationship. "
+            "Under the 2-level hierarchy, parent components cannot be registered under another parent asset component."
+        )
+
+    def clean_relationship_type(self):
+        return self.initial.get("relationship_type") or self.cleaned_data.get("relationship_type", "COMPONENT")
 
 
 class ComponentMoveForm(BootstrapFormMixin, forms.Form):

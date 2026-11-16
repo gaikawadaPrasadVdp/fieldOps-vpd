@@ -249,6 +249,9 @@
             {% if edit_link_form %}
               <details class="border-top pt-2 mt-2">
                 <summary class="small fw-semibold text-primary" style="cursor: pointer;">Edit relationship settings</summary>
+                <div class="small text-body-secondary mt-1 mb-2">
+                  <span class="badge text-bg-light border me-1">Locked</span> Relationship Type is locked: equipment already has an existing parent component relationship.
+                </div>
                 <form method="post" action="{% url 'assets:component_edit' parent_link.pk %}" class="mt-2">{% csrf_token %}
                   {% for field in edit_link_form %}{% include "components/_form_field.html" %}{% endfor %}
                   <button class="btn btn-sm btn-primary w-100 mt-2">Save changes</button>
@@ -274,9 +277,15 @@
           {% icon 'plus' 15 %} Attach Child Component to <span class="badge text-bg-light border ms-1 font-monospace">{{ asset.asset_tag }}</span>
         </div>
         <div class="fx-card-body">
+          {% if add_form.fields.child.disabled %}
+            <div class="alert alert-light border small text-body-secondary mb-3 d-flex align-items-center gap-2">
+              {% icon 'info' 14 %}
+              <span>No standalone assets eligible to attach. Under the 2-level hierarchy, assets that already have an existing parent component relationship cannot be registered under another parent asset component.</span>
+            </div>
+          {% endif %}
           <form method="post" action="{% url 'assets:component_add' asset.pk %}">{% csrf_token %}
             {% for field in add_form %}{% include "components/_form_field.html" %}{% endfor %}
-            <button class="btn btn-primary w-100 mt-2">{% icon 'plus' 13 %} Add to hierarchy</button>
+            <button class="btn btn-primary w-100 mt-2" {% if add_form.fields.child.disabled %}disabled{% endif %}>{% icon 'plus' 13 %} Add to hierarchy</button>
           </form>
           <hr class="my-3 text-muted opacity-25">
           <a class="btn btn-outline-primary w-100 btn-sm" href="{% url 'assets:create' %}?parent={{ asset.pk }}">

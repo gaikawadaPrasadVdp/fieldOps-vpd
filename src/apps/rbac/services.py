@@ -152,12 +152,12 @@ def clear_cache(membership):
 
 
 def membership_permissions(membership) -> frozenset[str]:
-    """Organization-WIDE permission codes of an ACTIVE membership (cached on the instance per request).
+    """Organization-WIDE permission codes of an ACTIVE or INVITED membership (cached on the instance per request).
     Roles assigned for a single site contribute nothing here; see ``site_permissions``."""
     cached = getattr(membership, "_perm_cache", None)
     if cached is not None:
         return cached
-    if not membership.is_active:
+    if not (membership.is_active or getattr(membership, "status", None) == "INVITED"):
         perms: frozenset[str] = frozenset()
     else:
         roles = Role.objects.unscoped().filter(
@@ -182,7 +182,7 @@ def site_permissions(membership) -> dict:
     if cached is not None:
         return cached
     result: dict = {}
-    if membership.is_active:
+    if membership.is_active or getattr(membership, "status", None) == "INVITED":
         scopable = catalog.site_scoped_codes()
         rows = MembershipRole.objects.filter(
             membership=membership, site__isnull=False, role__is_owner=False,
