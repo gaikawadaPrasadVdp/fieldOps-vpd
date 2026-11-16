@@ -46,7 +46,7 @@ def database_from_url(url: str) -> dict:
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", required=True)
 DEBUG = env_bool("DJANGO_DEBUG", False)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 SITE_BASE_URL = env("SITE_BASE_URL", "http://localhost:8000")
 
@@ -169,6 +169,10 @@ AXES_USERNAME_CALLABLE = "apps.core.net.axes_username"  # lower-cased/stripped
 AXES_CLIENT_IP_CALLABLE = "apps.core.net.client_ip"
 AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
 AXES_RESET_ON_SUCCESS = True
+# DEF-004 fix: ensure lockout returns HTTP 429 (Too Many Requests) consistently
+AXES_HTTP_RESPONSE_CODE = 429
+# Do not reset failure counter on a lockout response — prevents counter clearing after the first lockout
+AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 
 # --- Sessions / cookies / security ------------------------------------------------------------
 SESSION_COOKIE_HTTPONLY = True

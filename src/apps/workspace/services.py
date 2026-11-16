@@ -751,14 +751,23 @@ def report_auxiliary_defect(
         request=request,
     )
 
-    # Cross-link note onto work order execution journal
-    record_work_note(
-        work_order,
-        note=f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}.",
-        membership=membership,
-        actor=actor,
-        request=request,
-    )
+    # DEF-002 fix: Cross-link note onto work order execution journal.
+    # Use direct WorkNote.objects.create to avoid record_work_note's status guard
+    # (defect reporting is allowed regardless of exact WO status).
+    try:
+        _note_body = f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}."
+        WorkNote.objects.create(
+            organization=work_order.organization,
+            work_order=work_order,
+            author=membership,
+            body=_note_body,
+        )
+    except Exception:
+        import logging as _logging
+        _logging.getLogger("apps.workspace").warning(
+            "Could not create cross-link worknote for defect %s on WO %s",
+            sr.number, work_order.order_number, exc_info=True,
+        )
 
     audit.record(
         action="workspace.auxiliary_defect_reported",

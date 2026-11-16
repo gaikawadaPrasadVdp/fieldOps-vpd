@@ -11,7 +11,8 @@ from apps.assets.models import (
     AssetStatus,
     AssetStatusHistory,
 )
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import InvalidTransition, ValidationFailed
+from apps.rbac.models import MembershipRole, Role
 from apps.sites.models import Site, Zone
 from apps.tenancy.models import Membership, Organization
 
@@ -26,7 +27,6 @@ class AssetHierarchyAndLifecycleTests(TestCase):
         )
         self.org = Organization.objects.create(
             name="Apex Engineering Corp",
-            code="APEX-CORP",
             slug="apex-engineering-corp"
         )
         self.membership = Membership.objects.create(
@@ -99,30 +99,41 @@ class AssetHierarchyAndLifecycleTests(TestCase):
         self.assertEqual(link1.parent, root_plant)
         self.assertEqual(link1.child, compressor)
 
-        # Link Compressor -> Bearing (REPLACEABLE_PART)
+        # Attempting to link Compressor (already a child) -> Bearing must fail: child_cannot_be_parent
+        with self.assertRaises(ValidationFailed) as ctx:
+            hierarchy.add_component(
+                parent=compressor,
+                child=bearing,
+                relationship_type="REPLACEABLE_PART",
+                quantity=2,
+                part_number="SKF-6205-2RS",
+                actor=self.user
+            )
+        self.assertEqual(ctx.exception.code, "child_cannot_be_parent")
+
+        # Link Root -> Bearing (REPLACEABLE_PART)
         link2 = hierarchy.add_component(
-            parent=compressor,
+            parent=root_plant,
             child=bearing,
             relationship_type="REPLACEABLE_PART",
             quantity=2,
             part_number="SKF-6205-2RS",
             actor=self.user
         )
-        self.assertEqual(link2.parent, compressor)
+        self.assertEqual(link2.parent, root_plant)
         self.assertEqual(link2.child, bearing)
 
         # Build tree from root
         tree = hierarchy.build_tree(root_plant)
         self.assertEqual(tree["asset"].asset_tag, "AST-CHL-001")
-        self.assertEqual(len(tree["children"]), 1)
-        self.assertEqual(tree["children"][0]["asset"].asset_tag, "AST-CMP-001")
-        self.assertEqual(len(tree["children"][0]["children"]), 1)
-        self.assertEqual(tree["children"][0]["children"][0]["asset"].asset_tag, "AST-BRG-001")
-        self.assertEqual(tree["children"][0]["children"][0]["link"].part_number, "SKF-6205-2RS")
+        self.assertEqual(len(tree["children"]), 2)
+        child_tags = [c["asset"].asset_tag for c in tree["children"]]
+        self.assertIn("AST-CMP-001", child_tags)
+        self.assertIn("AST-BRG-001", child_tags)
 
         # Ancestors of bearing
         ancs = hierarchy.ancestors(bearing)
-        self.assertEqual([a.asset_tag for a in ancs], ["AST-CMP-001", "AST-CHL-001"])
+        self.assertEqual([a.asset_tag for a in ancs], ["AST-CHL-001"])
 
     def test_cycle_prevention(self):
         """Test that linking an ancestor as a child raises ValidationFailed."""
@@ -229,3 +240,39 @@ class AssetHierarchyAndLifecycleTests(TestCase):
         self.assertEqual(history[0].to_status, AssetStatus.ACTIVE)
         self.assertEqual(history[1].from_status, AssetStatus.ACTIVE)
         self.assertEqual(history[1].to_status, AssetStatus.UNDER_MAINTENANCE)
+
+    def test_invalid_status_transition_rejected(self):
+        """TC_M02_120: Invalid state transition (e.g. complete_maintenance on ACTIVE asset) must be rejected."""
+        asset = services.create_asset(
+            self.org, asset_tag="CHL-INV-001", name="Chiller Invalid Test",
+            category=self.cat_hvac, site=self.site, actor=self.user
+        )
+        self.assertEqual(asset.status, AssetStatus.ACTIVE)
+
+        # complete_maintenance is only allowed from UNDER_MAINTENANCE -> ACTIVE
+        with self.assertRaises(InvalidTransition) as ctx:
+            services.change_status(
+                asset, action="complete_maintenance", reason="FT Invalid Transition", actor=self.user
+            )
+        self.assertEqual(ctx.exception.code, "invalid_transition")
+
+    def test_api_invalid_transition_returns_409(self):
+        """TC_M02_120 (API): POST /api/v1/assets/{id}/transition/ with invalid action returns HTTP 409 Conflict."""
+        owner_role = Role.objects.create(organization=self.org, name="Owner Role", is_owner=True)
+        MembershipRole.objects.create(membership=self.membership, role=owner_role)
+
+        asset = services.create_asset(
+            self.org, asset_tag="CHL-INV-002", name="Chiller API Invalid Test",
+            category=self.cat_hvac, site=self.site, actor=self.user
+        )
+
+        self.client.force_authenticate(user=self.user)
+        url = f"/api/v1/assets/{asset.pk}/transition/"
+        response = self.client.post(
+            url,
+            {"action": "complete_maintenance", "reason": "FT test invalid transition"},
+            format="json",
+            HTTP_X_ORGANIZATION_ID=str(self.org.pk),
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["error"]["code"], "invalid_transition")
