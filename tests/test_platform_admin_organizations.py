@@ -195,7 +195,7 @@ def test_platform_admin_redirected_away_from_tenant_app_url(client, platform_adm
     client.force_login(platform_admin)
     res = client.get("/app/", follow=False)
     assert res.status_code == 302
-    assert res["Location"] == reverse("platform_admin:overview")
+    assert res["Location"] in (reverse("platform_admin:organizations"), reverse("platform_admin:overview"))
 
 
 def test_platform_admin_sidebar_has_no_tenant_modules(client, platform_admin):

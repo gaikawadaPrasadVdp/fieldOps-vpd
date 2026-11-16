@@ -44,6 +44,23 @@ def validate_alphabetical_description(value: str | None, field_label: str = "Des
     return val
 
 
+def validate_incident_title(value: str | None, field_label: str = "Title") -> str:
+    """Validates that a title field contains alphabetical text and allows ordinary equipment numbers (e.g. Pump 2 failure)."""
+    if not value:
+        return ""
+    val = value.strip()
+    if not val:
+        return ""
+    if any(character.isdigit() for character in val) and not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain alphabetical text.")
+    allowed_punctuation = set(".,;:!?'\"’“”()[]/\\-–—_&%#@+*~`\r\n\t")
+    if any(not (character.isalnum() or character.isspace() or character in allowed_punctuation) for character in val):
+        raise ValidationError(f"{field_label} can contain letters, numbers, spaces, and standard punctuation only.")
+    return val
+
+
 _NAME_ALPHABETICAL_RE = re.compile(r"^[A-Za-z\s'-]+$")
 
 

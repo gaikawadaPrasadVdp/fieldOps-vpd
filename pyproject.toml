@@ -38,6 +38,7 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 pythonpath = ["src", "src/apps"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --reuse-db --ignore=tests/qa_playwright"
+asyncio_default_fixture_loop_scope = "function"
 markers = [
     "tenant: tenant-isolation tests",
     "rbac: authorization tests",

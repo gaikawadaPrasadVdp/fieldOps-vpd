@@ -47,7 +47,8 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
     def allow_request(self, request, view):
         from django.conf import settings
 
-        if not getattr(settings, "RATE_LIMITING_ENABLED", False):
+        # Login throttle is always enforced (10/min) as per security requirement
+        if self.scope != "login" and not getattr(settings, "RATE_LIMITING_ENABLED", False):
             return True
         for backend in (self._shared_cache(), _FALLBACK_THROTTLE_CACHE):
             if backend is None:
@@ -81,6 +82,14 @@ class TokenObtain(LoginThrottleMixin, TokenObtainPairView):
     authentication_classes: list = []
     permission_classes: list = []
     serializer_class = BoundedTokenObtainPairSerializer
+
+    def initial(self, request, *args, **kwargs):
+        if request.method == "POST":
+            ct = request.content_type
+            if ct and ct not in ("application/json", "application/x-www-form-urlencoded", "multipart/form-data"):
+                from rest_framework.exceptions import UnsupportedMediaType
+                raise UnsupportedMediaType(ct)
+        super().initial(request, *args, **kwargs)
 
 
 class TokenRefresh(LoginThrottleMixin, TokenRefreshView):

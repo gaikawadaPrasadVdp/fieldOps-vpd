@@ -26,7 +26,19 @@ COMPONENT_FIELDS = ["parent_id", "child_id", "relationship_type", "quantity", "p
 
 def _lock_org(org):
     with connection.cursor() as cur:
-        cur.execute("SELECT pg_advisory_xact_lock(%s)", [org.pk.int & 0x7FFFFFFFFFFFFFFF])
+        if connection.vendor == "postgresql":
+            cur.execute("SET LOCAL lock_timeout = '3s'")
+        try:
+            cur.execute("SELECT pg_advisory_xact_lock(%s)", [org.pk.int & 0x7FFFFFFFFFFFFFFF])
+        except Exception as exc:
+            # Catch PostgreSQL lock_timeout / OperationalError
+            if "lock_timeout" in str(exc).lower() or "canceling statement due to lock timeout" in str(exc).lower():
+                raise Conflict(
+                    "Asset hierarchy update locked by another concurrent operation. Please retry in a moment.",
+                    code="hierarchy_lock_timeout",
+                ) from exc
+            raise
+
 
 
 def ancestors(asset: Asset) -> list[Asset]:
