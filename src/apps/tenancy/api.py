@@ -90,7 +90,12 @@ class HasOrgPermission(permissions.BasePermission):
             return False  # unmapped action -> deny
         from apps.ui.utils import is_client_membership
         if is_client_membership(membership) and not request.path.startswith("/api/v1/portal/"):
-            client_incident_paths = ("/api/v1/service-requests", "/service-requests")
+            client_incident_paths = (
+                "/api/v1/service-requests",
+                "/service-requests",
+                "/api/v1/requests",
+                "/requests",
+            )
             client_incident_perms = {
                 "incident.view", "incident.view_assigned", "incident.view_owned",
                 "incident.report_owned", "incident.attach", "incident.confirm",

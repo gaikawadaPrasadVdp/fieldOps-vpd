@@ -538,3 +538,58 @@ def test_def015_issue_requires_reservation_before_issue(inv_, as_user):
         format="json",
     )
     assert r_ok.status_code == 200 and r_ok.json()["status"] == "ISSUED"
+
+
+# --- DEF-R001, DEF-R002, DEF-R003 & OBS-005 --------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_def_r001_r002_workspace_travel_and_labor_schema_and_runtime(p3, as_user):
+    from rest_framework.test import APIRequestFactory
+    from drf_spectacular.views import SpectacularAPIView
+
+    rf = APIRequestFactory()
+    req = rf.get("/api/v1/schema/")
+    view = SpectacularAPIView.as_view(throttle_classes=[])
+    schema_data = view(req).data
+    paths = schema_data["paths"]
+
+    # Verify 201 response schema exists for travel and labor
+    travel_responses = paths["/api/v1/workspace/jobs/{id}/travel/"]["post"]["responses"]
+    assert "201" in travel_responses, f"201 missing in travel responses: {travel_responses}"
+
+    labor_responses = paths["/api/v1/workspace/jobs/{id}/labor/"]["post"]["responses"]
+    assert "201" in labor_responses, f"201 missing in labor responses: {labor_responses}"
+
+    # Runtime verification: travel and labor return 201 Created
+    wo = wo_in_progress(p3)
+    c_tech = as_user(p3["tech"].user, p3["org"])
+
+    res_travel = c_tech.post(
+        f"/api/v1/workspace/jobs/{wo.pk}/travel/",
+        {"duration_hours": "1.0", "distance_km": "10.0"},
+        format="json",
+    )
+    assert res_travel.status_code == 201
+    assert "travel_log" in res_travel.json()
+
+    res_labor = c_tech.post(
+        f"/api/v1/workspace/jobs/{wo.pk}/labor/",
+        {"hours": "2.00", "description": "Replaced bearing"},
+        format="json",
+    )
+    assert res_labor.status_code == 201
+    assert res_labor.json()["hours"] == "2.00"
+
+
+@pytest.mark.django_db
+def test_obs005_client_requests_alias_allowed(p3, make_member, as_user):
+    client_m = make_member(p3["org"], "client_req_obs@example.com", "client_requester")
+    c_client = as_user(client_m.user, p3["org"])
+
+    res_alias = c_client.get("/api/v1/requests/")
+    assert res_alias.status_code == 200, f"/api/v1/requests/ returned {res_alias.status_code}: {res_alias.content}"
+
+    res_canon = c_client.get("/api/v1/service-requests/")
+    assert res_canon.status_code == 200, f"/api/v1/service-requests/ returned {res_canon.status_code}: {res_canon.content}"
+
