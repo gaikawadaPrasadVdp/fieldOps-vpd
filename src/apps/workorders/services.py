@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -178,6 +179,35 @@ def _validate_schedule_window(start, end, due_at, estimated_hours):
             raise ValidationFailed("Estimated hours cannot exceed the planned start-to-end window.",
                                    code="estimate_exceeds_schedule",
                                    details={"fields": {"estimated_hours": ["Estimated hours cannot exceed the planned start-to-end window."]}})
+
+
+def _validate_planned_start(work_order, planned_start):
+    if not planned_start:
+        return
+    source_request = getattr(work_order, "source_request", None)
+    if not source_request and getattr(work_order, "source_request_id", None):
+        from apps.incidents.models import ServiceRequest
+        source_request = ServiceRequest.objects.filter(pk=work_order.source_request_id).first()
+
+    is_incident = (
+        work_order.source_type == WorkOrder.SourceType.INCIDENT
+        or (source_request and getattr(source_request, "kind", "") == "INCIDENT")
+    )
+    if is_incident and source_request:
+        inc_dt = source_request.occurred_at or source_request.created_at
+        if inc_dt:
+            p_start = planned_start
+            i_dt = inc_dt
+            if timezone.is_aware(p_start) and timezone.is_naive(i_dt):
+                i_dt = timezone.make_aware(i_dt)
+            elif timezone.is_naive(p_start) and timezone.is_aware(i_dt):
+                p_start = timezone.make_aware(p_start)
+            if p_start < i_dt - timedelta(minutes=1):
+                raise ValidationFailed(
+                    "Planned start cannot be earlier than the incident logged date.",
+                    code="planned_start_before_incident",
+                    details={"fields": {"planned_start": ["Planned start cannot be earlier than the incident logged date."]}},
+                )
 
 
 def _validate_linked_priority(work_order, priority):
@@ -678,6 +708,7 @@ def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, plan
     if not effective_priority:
         raise ValidationFailed("Choose a priority before planning this work order.", code="priority_required")
     _validate_linked_priority(wo, effective_priority)
+    _validate_planned_start(wo, planned_start)
     if effective_due_at is None:
         raise ValidationFailed("Enter the due date and time before planning this work order.",
                                code="due_date_required")
