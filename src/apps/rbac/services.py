@@ -314,6 +314,24 @@ def is_owner(membership) -> bool:
     return bool(MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists())
 
 
+def is_stores_manager(membership) -> bool:
+    """Checks whether the membership is assigned the Stores / Inventory role."""
+    if membership is None:
+        return False
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
+        return False
+    if is_owner(membership):
+        return False
+    return (
+        MembershipRole.objects.filter(membership=membership, role__system_key="stores_manager").exists()
+        or MembershipRole.objects.filter(
+            membership=membership,
+            role__name__in={"Stores Manager", "Stores / Inventory", "Stores", "Stores / Inventory Manager"},
+        ).exists()
+    )
+
+
 # --- owner protection ----------------------------------------------------------------------
 
 

@@ -514,10 +514,15 @@ def _gate(wo, states: tuple, what: str):
 
 
 def can_request(wo, membership) -> bool:
-    """Who may put a part requirement on a work order: its assignee, dispatchers / reviewers, and stores staff."""
+    """Who may put a part requirement on a work order: its assignee, dispatchers / reviewers, and supervisors.
+    Stores / Inventory managers are responsible for stock management, reservations, and issuance, not requesting parts.
+    """
+    if rbac.is_stores_manager(membership):
+        return False
     return (wo.assigned_to_id == membership.pk
+            or rbac.is_owner(membership)
             or any(rbac.has_permission(membership, c, wo.site_id)
-                   for c in ("work_order.dispatch", "work_order.review", "inventory.reserve", "inventory.issue")))
+                   for c in ("work_order.dispatch", "work_order.review", "work_order.plan", "work_order.update")))
 
 
 @transaction.atomic
@@ -529,7 +534,7 @@ def request_part(wo, part: Part, quantity, *, actor, membership, notes: str = ""
     _active_part(part)
     _gate(wo, REQUEST_STATES, "Requesting parts")
     if not can_request(wo, membership):
-        raise PermissionDenied("Only the assigned technician, a dispatcher or stores staff can request parts.",
+        raise PermissionDenied("Stores / Inventory managers cannot request parts. Only the assigned technician, dispatcher, or supervisor can request parts.",
                                code="not_assignee")
     line = WorkOrderPart.objects.for_organization(wo.organization).select_for_update(of=("self",)).filter(
         work_order=wo, part=part).first()
