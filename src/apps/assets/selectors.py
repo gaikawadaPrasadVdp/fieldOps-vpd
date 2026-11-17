@@ -5,7 +5,7 @@ import uuid
 
 from django.db.models import OuterRef, Q, Subquery
 
-from apps.core.exceptions import NotFound
+from apps.core.exceptions import NotFound, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites.selectors import scoped_get
 
@@ -53,7 +53,9 @@ def filter_assets(qs, params):
             qs = qs.filter(**{field: parsed}) if parsed else qs.none()
     status = (params.get("status") or "").strip()
     if status:
-        qs = qs.filter(status=status) if status in Asset.Status.values else qs.none()
+        if status not in Asset.Status.values:
+            raise ValidationFailed(f"Invalid status '{status}'.", code="invalid_filter")
+        qs = qs.filter(status=status)
     q = (params.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(asset_tag__icontains=q) | Q(name__icontains=q) | Q(serial_number__icontains=q)

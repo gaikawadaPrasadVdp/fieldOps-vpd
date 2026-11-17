@@ -726,6 +726,12 @@ class PortalRequestReopenView(TenantAPIMixin, APIView):
         except DomainError as exc:
             raise DRFPermissionDenied(str(exc)) from exc
 
+        if not selectors.get_client_request(request.membership, pk):
+            from apps.core.api import _envelope
+            data = _envelope("not_found", "Service request not found.")
+            data.update({"detail": "Service request not found.", "code": "not_found"})
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
         serializer = PortalRequestReopenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data["reason"]

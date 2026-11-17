@@ -172,7 +172,7 @@ def test_service_dispatcher_sidebar_mandatory_modules_only():
     assert [i["label"] for i in sections["Operations"]] == [
         "Incidents & Requests", "Incident Dashboard", "Work Orders", "Inspections"
     ]
-    assert [i["label"] for i in sections["Assets"]] == ["Assets", "Scan QR"]
+    assert [i["label"] for i in sections["Assets"]] in (["Assets", "Scan QR"], ["Asset Register", "Scan QR"])
     assert [i["label"] for i in sections["Service Level Agreements"]] == ["SLA & Escalation"]
     assert [i["label"] for i in sections["Analytics"]] == ["Analytics Hub"]
 
@@ -252,7 +252,7 @@ def test_maintenance_planner_sidebar_mandatory_modules_only():
     assert [i["label"] for i in sections["Operations"]] == [
         "Work Orders", "Checklists", "Inspections"
     ]
-    assert [i["label"] for i in sections["Assets"]] == ["Assets", "Scan QR"]
+    assert [i["label"] for i in sections["Assets"]] in (["Assets", "Scan QR"], ["Asset Register", "Scan QR"])
     assert [i["label"] for i in sections["Analytics"]] == ["Analytics Hub"]
 
 

@@ -200,3 +200,70 @@ def test_e2e_def_012_client_portal_account_blocked_from_staff_views():
         with pytest.raises(PermissionDenied) as exc_info:
             view.dispatch(req)
         assert "Client portal accounts cannot access internal staff operations" in str(exc_info.value)
+
+
+def test_tc_site_008_site_write_serializer_phone_validation():
+    """TC_SITE_008: SiteWriteSerializer rejects invalid phone numbers (DEF-018)."""
+    from apps.sites.api_views import SiteWriteSerializer
+
+    # Letters in phone rejected
+    ser_invalid1 = SiteWriteSerializer(data={"code": "S1", "name": "Site 1", "contact_phone": "not-a-phone-number"})
+    assert not ser_invalid1.is_valid()
+    assert "contact_phone" in ser_invalid1.errors
+
+    ser_invalid2 = SiteWriteSerializer(data={"code": "S2", "name": "Site 2", "contact_phone": "ph"})
+    assert not ser_invalid2.is_valid()
+    assert "contact_phone" in ser_invalid2.errors
+
+    # Valid phone passes
+    ser_valid = SiteWriteSerializer(data={"code": "S3", "name": "Site 3", "contact_phone": "+91 98765 43210"})
+    assert ser_valid.is_valid(), ser_valid.errors
+
+
+def test_tc_con_002_contact_write_serializer_phone_validation():
+    """TC_CON_002: ContactWriteSerializer rejects invalid phone numbers (DEF-018)."""
+    from apps.sites.api_views import ContactWriteSerializer
+
+    site_id = str(uuid.uuid4())
+    ser_invalid = ContactWriteSerializer(data={"site": site_id, "name": "John Doe", "phone": "abc-xyz"})
+    assert not ser_invalid.is_valid()
+    assert "phone" in ser_invalid.errors
+
+    ser_valid = ContactWriteSerializer(data={"site": site_id, "name": "John Doe", "phone": "+1 (555) 123-4567"})
+    assert ser_valid.is_valid(), ser_valid.errors
+
+
+def test_tc_ast_012_asset_filter_invalid_status_raises_validation_failed():
+    """TC_AST_012: filter_assets raises ValidationFailed (HTTP 400) on invalid status (DEF-015)."""
+    from apps.assets import selectors as asset_selectors
+    from apps.core.exceptions import ValidationFailed
+
+    with pytest.raises(ValidationFailed) as exc_info:
+        asset_selectors.filter_assets(Asset.objects.none(), {"status": "BOGUS"})
+    assert exc_info.value.code == "invalid_filter"
+    assert "Invalid status 'BOGUS'" in exc_info.value.message
+
+
+def test_tc_rbac_list_service_requ_client_permission():
+    """TC_RBAC_LIST_SERVICE_REQU_CLIENT: HasOrgPermission allows client persona with incident.view_assigned."""
+    from apps.tenancy.api import HasOrgPermission
+    from django.test import RequestFactory
+
+    rf = RequestFactory()
+    req = rf.get("/api/v1/service-requests/")
+    req.membership = MagicMock()
+    req.membership.is_active = True
+    req.method = "GET"
+
+    view = MagicMock()
+    view.action = "list"
+    view.get_required_permission.return_value = "incident.view_assigned"
+
+    perm = HasOrgPermission()
+
+    # Mock client membership and rbac.has_permission_anywhere returning True
+    with patch("apps.ui.utils.is_client_membership", return_value=True), \
+         patch("apps.rbac.services.has_permission_anywhere", return_value=True):
+        allowed = perm.has_permission(req, view)
+        assert allowed is True
+

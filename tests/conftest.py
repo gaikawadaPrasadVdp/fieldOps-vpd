@@ -2,6 +2,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+# Ignore end-to-end Playwright tests during standard unit / coverage pytest runs
+collect_ignore = ["qa_playwright"]
+
 from apps.rbac import services as rbac
 from apps.tenancy import services as tenancy
 from apps.tenancy.models import Membership

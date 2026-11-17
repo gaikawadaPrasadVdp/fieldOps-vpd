@@ -14,7 +14,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // =========================================================================
 
-  // 1. Top Edge Gold Scroll Signal & Navbar Scrolled State
+  // 1. Dynamic Title & Favicon on Tab Visibility Change
+
+  // =========================================================================
+
+  const getFavicon = () => document.getElementById('favicon') || document.querySelector('link[rel~="icon"]');
+
+  document.addEventListener('visibilitychange', () => {
+    const favicon = getFavicon();
+    if (document.visibilityState === 'visible') {
+      document.title = 'FieldOps Nexus — Field Service Management Platform';
+      if (favicon) {
+        favicon.href = '/static/images/favicon.png';
+      }
+    } else if (document.visibilityState === 'hidden') {
+      document.title = 'FieldOps Nexus ';
+      if (favicon) {
+        favicon.href = '/static/images/favicon-inactive.png';
+      }
+    }
+  });
+
+  // =========================================================================
+
+  // 1b. Top Edge Gold Scroll Signal & Navbar Scrolled State
 
   // =========================================================================
 
@@ -43,8 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxScroll = scrollHeight - clientHeight;
 
     const progress = maxScroll > 0 ? Math.min(Math.max(scrollY / maxScroll, 0), 1) : 0;
-
-
 
     // Top navbar indicator & scroll class toggle
 

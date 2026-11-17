@@ -29,6 +29,8 @@ WORK_TYPE_CHOICES = [(w, w) for w in services.WORK_TYPES]
 
 
 class ProviderSerializer(serializers.ModelSerializer):
+    address = serializers.CharField(allow_null=True, required=False, allow_blank=True)
+
     class Meta:
         model = ServiceProvider
         fields = [
