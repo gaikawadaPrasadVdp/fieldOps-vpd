@@ -73,6 +73,11 @@ def _resolve_role_ids(org, role_str, role_ids=None):
     role_map = {
         "super_admin": "admin",
         "super admin": "admin",
+        "superadmin": "admin",
+        "owner/superadmin": "admin",
+        "owner/super admin": "admin",
+        "owner / super admin": "admin",
+        "owner": "admin",
         "administrator": "admin",
         "field_technician": "technician",
         "field technician": "technician",
