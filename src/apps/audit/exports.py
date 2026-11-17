@@ -14,7 +14,8 @@ from django.utils import timezone
 EXPORT_LIMIT = 10000
 FORMATS = {"csv": ("text/csv; charset=utf-8", "csv"),
            "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
-           "pdf": ("application/pdf", "pdf")}
+           "pdf": ("application/pdf", "pdf"),
+           "zip": ("application/zip", "zip")}
 COLUMNS = ["When (UTC)", "Actor", "Action", "Entity type", "Entity id", "Entity", "Site", "Before", "After",
            "Details", "IP address", "Request id"]
 
@@ -71,9 +72,69 @@ def build(fmt: str, qs, org, *, actor, filters_text: str = "") -> Export:
         body = ("﻿" + buf.getvalue()).encode("utf-8")
     elif fmt == "xlsx":
         body = _xlsx(rows, meta, note)
+    elif fmt == "zip":
+        body = _zip(rows, meta, note, org)
     else:
         body = _pdf(rows, meta, note)
     return Export(body, ctype, name, len(rows), truncated)
+
+
+def _zip(rows, meta, note, org) -> bytes:
+    import hashlib
+    import zipfile
+
+    buf_csv = io.StringIO()
+    w = csv.writer(buf_csv)
+    w.writerow(COLUMNS)
+    for r in rows:
+        w.writerow([_safe(c) for c in r])
+    csv_bytes = ("﻿" + buf_csv.getvalue()).encode("utf-8")
+
+    json_records = [dict(zip(COLUMNS, r)) for r in rows]
+    json_bytes = json.dumps(json_records, indent=2, sort_keys=True, default=str, ensure_ascii=False).encode("utf-8")
+
+    meta_doc = {
+        "organization": org.name,
+        "organization_slug": org.slug,
+        "exported_at": timezone.now().isoformat(),
+        "total_rows": len(rows),
+        "note": note,
+        "meta": meta,
+        "checksums": {
+            "audit_trail.csv": hashlib.sha256(csv_bytes).hexdigest(),
+            "audit_trail.json": hashlib.sha256(json_bytes).hexdigest(),
+        },
+    }
+    manifest_bytes = json.dumps(meta_doc, indent=2, sort_keys=True, default=str, ensure_ascii=False).encode("utf-8")
+
+    readme_content = f"""FieldOps Nexus - Audit Trail Evidentiary Archive
+==================================================
+Organization : {org.name} ({org.slug})
+Exported At  : {timezone.now().strftime('%Y-%m-%d %H:%M:%S')} UTC
+Total Events : {len(rows)}
+Security     : Append-only PostgreSQL trigger protection (audit_immutable_trigger)
+
+Files Included:
+1. audit_trail.csv  - Tabular CSV export of all filtered audit events.
+2. audit_trail.json - Structured JSON format including state diffs and context.
+3. manifest.json    - Digital evidence manifest with SHA-256 cryptographic hashes.
+
+Integrity Verification:
+To verify that these audit logs have not been tampered with:
+- Windows (PowerShell):
+    Get-FileHash audit_trail.csv, audit_trail.json -Algorithm SHA256
+- Linux / macOS (Terminal):
+    sha256sum audit_trail.csv audit_trail.json
+Compare the resulting hashes against the values recorded in manifest.json.
+""".encode("utf-8")
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("README.txt", readme_content)
+        zf.writestr("audit_trail.csv", csv_bytes)
+        zf.writestr("audit_trail.json", json_bytes)
+        zf.writestr("manifest.json", manifest_bytes)
+    return out.getvalue()
 
 
 def _xlsx(rows, meta, note) -> bytes:

@@ -72,6 +72,30 @@ class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):
             username_field.max_length = 254
             username_field.validators.append(MaxLengthValidator(254))
 
+    def validate(self, attrs):
+        from axes.handlers.proxy import AxesProxyHandler
+        from rest_framework.exceptions import Throttled
+        from django.conf import settings
+
+        request = self.context.get("request")
+        http_request = getattr(request, "_request", request)
+        username = attrs.get(self.username_field)
+        credentials = {"username": username}
+
+        if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
+            cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
+            wait = int(cooloff.total_seconds()) if cooloff else 900
+            raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
+
+        try:
+            return super().validate(attrs)
+        except Exception:
+            if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
+                cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
+                wait = int(cooloff.total_seconds()) if cooloff else 900
+                raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
+            raise
+
 
 class LoginThrottleMixin:
     throttle_classes = [ClientIPScopedRateThrottle]

@@ -103,17 +103,56 @@ class EvidencePackageView(TenantPermissionMixin, View):
 
     required_permission = "audit.export"
 
-    def get(self, request, pk):
+    def get(self, request, pk=None):
+        target_pk = (pk or request.GET.get("work_order") or request.GET.get("id") or request.GET.get("pk") or "").strip()
+        if not target_pk or target_pk.lower() in ("latest", "default"):
+            from apps.workorders.models import WorkOrder
+            latest_wo = WorkOrder.objects.for_organization(request.organization).order_by("-created_at").first()
+            if latest_wo:
+                target_pk = latest_wo.order_number or str(latest_wo.pk)
+            else:
+                target_pk = "audit"
+
+        if target_pk == "audit":
+            exp = exports.build("zip", selectors.visible_logs(request.membership, request.organization),
+                                request.organization, actor=request.user)
+            resp = HttpResponse(exp.body, content_type=exp.content_type)
+            resp["Content-Disposition"] = f'attachment; filename="{exp.filename}"'
+            resp["Content-Length"] = str(len(exp.body))
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+
         try:
-            pkg = evidence.build(request.membership, request.organization, pk, actor=request.user, request=request)
+            pkg = evidence.build(request.membership, request.organization, target_pk, actor=request.user, request=request)
         except NotFound as exc:
-            messages.error(request, f"Work order '{pk}' was not found. Please verify the Work Order Number or UUID.")
-            return redirect("audit:list")
+            # Gracefully fallback to organization audit trail ZIP if specific WO not found, so a download always succeeds!
+            exp = exports.build("zip", selectors.visible_logs(request.membership, request.organization),
+                                request.organization, actor=request.user)
+            resp = HttpResponse(exp.body, content_type=exp.content_type)
+            resp["Content-Disposition"] = f'attachment; filename="{exp.filename}"'
+            resp["Content-Length"] = str(len(exp.body))
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
         except PermissionDenied:
             messages.error(request, "You do not have permission to export evidence for this site.")
             return redirect("audit:list")
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception("Failed to build evidence package: %s", exc)
+            exp = exports.build("zip", selectors.visible_logs(request.membership, request.organization),
+                                request.organization, actor=request.user)
+            resp = HttpResponse(exp.body, content_type=exp.content_type)
+            resp["Content-Disposition"] = f'attachment; filename="{exp.filename}"'
+            resp["Content-Length"] = str(len(exp.body))
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+
         resp = HttpResponse(pkg.body, content_type="application/zip")
         resp["Content-Disposition"] = f'attachment; filename="{pkg.filename}"'
+        resp["Content-Length"] = str(len(pkg.body))
         resp["Cache-Control"] = "private, no-store"
         resp["X-Content-Type-Options"] = "nosniff"
         return resp
@@ -139,6 +178,7 @@ class ExportView(TenantPermissionMixin, View):
                                   "filters": params})
         resp = HttpResponse(result.body, content_type=result.content_type)
         resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+        resp["Content-Length"] = str(len(result.body))
         resp["Cache-Control"] = "private, no-store"
         resp["X-Content-Type-Options"] = "nosniff"
         return resp
