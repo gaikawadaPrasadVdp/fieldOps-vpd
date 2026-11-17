@@ -414,7 +414,7 @@ def test_neg_rate_limit_jwt_throttle_429(api):
     }
     cache.clear()
     try:
-        with override_settings(REST_FRAMEWORK=rf_conf):
+        with override_settings(REST_FRAMEWORK=rf_conf, AXES_ENABLED=False):
             api_settings.reload()
             ip = "198.51.100.99"
             statuses = [

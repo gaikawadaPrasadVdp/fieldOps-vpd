@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -11,6 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.core.net import client_ip
 from apps.tenancy import selectors
+from .jwt_revocation import revoke_token_jti, revoke_user_tokens
 
 _FALLBACK_THROTTLE_CACHE = LocMemCache("fieldops-throttle-fallback", {})
 
@@ -72,6 +74,75 @@ class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):
             username_field.max_length = 254
             username_field.validators.append(MaxLengthValidator(254))
 
+    def validate(self, attrs):
+        from django.conf import settings
+        from django.contrib.auth import authenticate
+        from rest_framework import exceptions
+        from rest_framework.exceptions import Throttled
+
+        request = self.context.get("request")
+        http_request = getattr(request, "_request", request)
+
+        username = (attrs.get(self.username_field) or "").strip().lower()
+        credentials = {"username": username, "email": username}
+
+        # Check if already locked out by Axes
+        if getattr(settings, "AXES_ENABLED", True) and http_request:
+            try:
+                from axes.handlers.proxy import AxesProxyHandler
+                if AxesProxyHandler.is_locked(http_request, credentials):
+                    if hasattr(http_request, "axes_locked_out"):
+                        http_request.axes_locked_out = True
+                    raise Throttled(detail="Too many failed login attempts. Account is temporarily locked.")
+            except ImportError:
+                pass
+
+        authenticate_kwargs = {
+            self.username_field: attrs[self.username_field],
+            "password": attrs["password"],
+        }
+        if request:
+            authenticate_kwargs["request"] = http_request
+
+        self.user = authenticate(**authenticate_kwargs)
+
+        if not jwt_settings.USER_AUTHENTICATION_RULE(self.user):
+            # Allow this failure response to return 401 (completing the failed attempt),
+            # while ensuring subsequent requests (attempts >= failure limit) lock out with 429.
+            if getattr(settings, "AXES_ENABLED", True):
+                if http_request and hasattr(http_request, "axes_locked_out"):
+                    http_request.axes_locked_out = False
+                if request and hasattr(request, "axes_locked_out"):
+                    request.axes_locked_out = False
+
+            raise exceptions.AuthenticationFailed(
+                self.error_messages["no_active_account"],
+                "no_active_account",
+            )
+
+        # On successful login: notify Axes to reset failures
+        if getattr(settings, "AXES_ENABLED", True) and http_request and self.user:
+            try:
+                from django.contrib.auth.signals import user_logged_in
+                user_logged_in.send(
+                    sender=self.user.__class__,
+                    request=http_request,
+                    user=self.user,
+                )
+            except Exception:
+                pass
+
+        data = {}
+        refresh = self.get_token(self.user)
+        data["refresh"] = str(refresh)
+        data["access"] = str(refresh.access_token)
+
+        if jwt_settings.UPDATE_LAST_LOGIN:
+            from django.contrib.auth.models import update_last_login
+            update_last_login(None, self.user)
+
+        return data
+
 
 class LoginThrottleMixin:
     throttle_classes = [ClientIPScopedRateThrottle]
@@ -91,6 +162,20 @@ class TokenObtain(LoginThrottleMixin, TokenObtainPairView):
                 raise UnsupportedMediaType(ct)
         super().initial(request, *args, **kwargs)
 
+    def check_throttles(self, request):
+        if request.method == "POST":
+            try:
+                data = request.data
+                if isinstance(data, dict):
+                    email = str(data.get("email") or data.get("username") or "").strip()
+                    password = str(data.get("password") or "").strip()
+                    if not email or not password:
+                        # Allow serializer validation to return HTTP 400 Bad Request
+                        return
+            except Exception:
+                pass
+        super().check_throttles(request)
+
 
 class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
     authentication_classes: list = []
@@ -98,7 +183,7 @@ class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
 
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")
+    refresh = serializers.CharField(required=False, allow_blank=True, default="", help_text="Refresh token to blacklist")
 
 
 class LogoutView(APIView):
@@ -113,21 +198,42 @@ class LogoutView(APIView):
     def post(self, request):
         serializer = LogoutSerializer(data=request.data if isinstance(request.data, dict) else {})
         serializer.is_valid(raise_exception=True)
-        refresh_token = serializer.validated_data["refresh"]
-        try:
-            from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        except TokenError as exc:
-            return Response(
-                {"error": {"code": "invalid_token", "message": str(exc), "details": {}}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except Exception:
-            return Response(
-                {"error": {"code": "invalid_token", "message": "Invalid token.", "details": {}}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        refresh_token = serializer.validated_data.get("refresh", "").strip()
+
+        user_id = None
+        if refresh_token:
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+                token = RefreshToken(refresh_token)
+                user_id = token.payload.get("user_id")
+                token.blacklist()
+            except TokenError as exc:
+                if not getattr(request.user, "is_authenticated", False):
+                    return Response(
+                        {"error": {"code": "invalid_token", "message": str(exc), "details": {}}},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except Exception:
+                if not getattr(request.user, "is_authenticated", False):
+                    return Response(
+                        {"error": {"code": "invalid_token", "message": "Invalid token.", "details": {}}},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # Revoke access token JTI if present in request.auth
+        if hasattr(request, "auth") and isinstance(request.auth, dict):
+            jti = request.auth.get("jti")
+            if jti:
+                revoke_token_jti(jti)
+            if not user_id:
+                user_id = request.auth.get("user_id")
+
+        if not user_id and getattr(request.user, "is_authenticated", False):
+            user_id = str(request.user.pk)
+
+        if user_id:
+            revoke_user_tokens(str(user_id))
+
         return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
 
 
