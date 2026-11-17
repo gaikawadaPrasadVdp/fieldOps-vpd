@@ -1719,6 +1719,7 @@ document.addEventListener("click", function (e) {
     var nameEl = form.querySelector("input[name='full_name']");
     var pwdEl = form.querySelector("input[name='password']");
     var rolesEls = form.querySelectorAll("input[name='roles']");
+    var sitesEls = form.querySelectorAll("input[name='sites']");
 
     var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
 
@@ -1830,12 +1831,35 @@ document.addEventListener("click", function (e) {
       });
     });
 
+    function validateSites() {
+      if (!sitesEls || sitesEls.length === 0) {
+        if (window.fxToast) {
+          window.fxToast("At least one site must be created before users can be created.", "warning");
+        }
+        return false;
+      }
+      var anyChecked = Array.from(sitesEls).some(function (s) { return s.checked; });
+      if (!anyChecked) {
+        setFieldError(sitesEls[0], "Please select at least one site.");
+        return false;
+      }
+      clearFieldError(sitesEls[0]);
+      return true;
+    }
+
+    sitesEls.forEach(function (s) {
+      s.addEventListener("change", function () {
+        validateSites();
+      });
+    });
+
     form.addEventListener("submit", function (e) {
       var valid = true;
       if (!validateEmail()) valid = false;
       if (!validateFullName()) valid = false;
       if (!validatePassword()) valid = false;
       if (!validateRoles()) valid = false;
+      if (!validateSites()) valid = false;
 
       if (!valid) {
         e.preventDefault();

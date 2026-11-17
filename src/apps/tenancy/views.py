@@ -65,20 +65,41 @@ class MemberListView(TenantPermissionMixin, View):
 class MemberInviteView(TenantPermissionMixin, View):
     required_permission = "user.invite"
 
+    def _has_sites(self, request):
+        from apps.sites.models import Site
+        try:
+            return Site.objects.for_organization(request.organization).exists()
+        except Exception:
+            return False
+
     def get(self, request):
+        has_sites = self._has_sites(request)
         initial = {}
         role_param = request.GET.get("role")
         if role_param:
             from django.db.models import Q
+
             from apps.rbac.models import Role
+            aliases = {
+                "superadmin": "admin",
+                "super admin": "admin",
+                "owner/superadmin": "admin",
+                "owner/super admin": "admin",
+                "owner / super admin": "admin",
+            }
+            resolved_key = aliases.get(role_param.strip().lower(), role_param)
             role = Role.objects.for_organization(request.organization).filter(
-                Q(system_key=role_param) | Q(name__iexact=role_param)
+                Q(system_key=resolved_key) | Q(name__iexact=role_param)
             ).first()
             if role:
                 initial["roles"] = [role.pk]
-        return render(request, "tenancy/member_invite.html", {"form": InviteForm(initial=initial, org=request.organization, membership=request.membership)})
+        return render(request, "tenancy/member_invite.html", {
+            "form": InviteForm(initial=initial, org=request.organization, membership=request.membership),
+            "has_sites": has_sites,
+        })
 
     def post(self, request):
+        has_sites = self._has_sites(request)
         post_data = request.POST.copy()
         form = InviteForm(post_data, org=request.organization, membership=request.membership)
         if not (post_data.get("password") or "").strip():
@@ -102,7 +123,7 @@ class MemberInviteView(TenantPermissionMixin, View):
                 else:
                     messages.success(request, f"Invitation sent to {m.user.email}.")
                 return redirect("tenancy:member_detail", pk=m.pk)
-        return render(request, "tenancy/member_invite.html", {"form": form})
+        return render(request, "tenancy/member_invite.html", {"form": form, "has_sites": has_sites})
 
 
 class MemberDetailView(TenantPermissionMixin, View):
