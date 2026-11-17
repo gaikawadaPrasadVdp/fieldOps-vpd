@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
         titleInput.setCustomValidity("");
         return;
       }
-      if (/\d/.test(val)) {
+      if (/\d/.test(val) && !/[a-zA-Z]/.test(val)) {
         titleInput.setCustomValidity("Title must contain only alphabetical characters and cannot contain numbers.");
       } else {
         titleInput.setCustomValidity("");
