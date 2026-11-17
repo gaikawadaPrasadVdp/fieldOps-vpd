@@ -27,27 +27,27 @@
         <form method="post" class="row g-3">
           {% csrf_token %}
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Reporting Section</label>
-            <select name="section" class="form-select">
+            <label class="form-label fw-semibold">Reporting Section <span class="text-danger">*</span></label>
+            <select name="section" class="form-select" required>
               {% for code, label in sections %}
               <option value="{{ code }}">{{ label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Cadence</label>
-            <select name="snapshot_type" class="form-select">
+            <label class="form-label fw-semibold">Cadence <span class="text-danger">*</span></label>
+            <select name="snapshot_type" class="form-select" required>
               {% for code, label in types %}
               <option value="{{ code }}">{{ label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Period Start</label>
+            <label class="form-label fw-semibold">Period Start <span class="text-danger">*</span></label>
             <input type="date" name="period_start" class="form-control" required>
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Period End</label>
+            <label class="form-label fw-semibold">Period End <span class="text-danger">*</span></label>
             <input type="date" name="period_end" class="form-control" required>
           </div>
           <div class="col-12">
