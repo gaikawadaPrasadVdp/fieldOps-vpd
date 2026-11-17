@@ -8,11 +8,7 @@
   <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
     <div>
       <div class="d-flex align-items-center gap-2 mb-1">
-        <a href="{% url 'portal:dashboard' %}" class="text-decoration-none">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">
-            {% icon 'arrow-left' 12 %} Client Portal
-          </span>
-        </a>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">Client Portal</span>
       </div>
       {% if is_report_mode or request.GET.action == 'report' %}
         <h1 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">

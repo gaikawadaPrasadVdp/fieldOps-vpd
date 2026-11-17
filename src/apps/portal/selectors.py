@@ -153,6 +153,9 @@ def granted_assets_for(membership: Membership | None):
     if account is None or not account.is_enabled or not membership.is_active:
         from apps.assets.models import Asset
         return Asset.objects.none()
+    if account.auto_grant_assets:
+        from .services import sync_portal_grants_for_account
+        sync_portal_grants_for_account(account)
     from apps.assets.models import Asset
     return (
         Asset.objects.for_organization(membership.organization)

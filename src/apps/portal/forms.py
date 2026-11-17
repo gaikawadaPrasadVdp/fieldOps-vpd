@@ -32,45 +32,74 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
     title = forms.CharField(
         max_length=200,
         min_length=3,
+        required=True,
         label="Request Title / Subject",
         help_text="Brief summary of the issue or requested maintenance (minimum 3 characters).",
+        error_messages={
+            "required": "Request Title / Subject is required.",
+            "min_length": "Request Title / Subject must be at least 3 characters.",
+        },
         widget=forms.TextInput(attrs={"placeholder": "e.g., Water pump pressure drop on Line 2"}),
     )
     site = forms.ModelChoiceField(
         queryset=Site.objects.none(),
-        required=False,
+        required=True,
         empty_label="All Sites / Locations",
         label="Site / Location",
-        help_text="Filter facility assets by site or location.",
+        help_text="Select facility site or location.",
+        error_messages={
+            "required": "Please select a site / location.",
+        },
         widget=forms.Select(attrs={"id": "id_site", "class": "form-select"}),
     )
     asset = _PortalAssetChoiceField(
         queryset=Asset.objects.none(),
+        required=True,
         label="Related Asset",
         help_text="Select the facility asset requiring service.",
+        error_messages={
+            "required": "Please select a related asset.",
+        },
         widget=_PortalAssetSelect(attrs={"id": "id_asset", "class": "form-select"}),
     )
     description = forms.CharField(
-        required=False,
+        required=True,
+        min_length=3,
         label="Problem Description",
         help_text="Detailed description of the fault symptoms, observed behavior, or specific service needed.",
+        error_messages={
+            "required": "Problem Description is required.",
+            "min_length": "Problem Description must be at least 3 characters.",
+        },
         widget=forms.Textarea(attrs={"rows": 4, "placeholder": "Describe what happened, error codes, unusual sounds, leaks, etc."}),
     )
     severity = forms.ChoiceField(
         choices=[
+            ("", "Select priority / urgency..."),
             (ServiceRequest.Severity.LOW, "Low — Minor issue, system operational"),
             (ServiceRequest.Severity.MEDIUM, "Medium — Standard maintenance request"),
             (ServiceRequest.Severity.HIGH, "High — Urgent breakdown impacting operations"),
         ],
-        initial=ServiceRequest.Severity.MEDIUM,
+        required=True,
         label="Priority / Urgency",
         help_text="Select requested urgency. Note: Staff will verify and triage severity.",
+        error_messages={
+            "required": "Please select a priority / urgency.",
+        },
+        widget=forms.Select(attrs={"id": "id_severity", "class": "form-select"}),
     )
     service_impact = forms.ChoiceField(
-        choices=ServiceRequest.Impact.choices,
-        initial=ServiceRequest.Impact.NONE,
+        choices=[
+            ("", "Select service impact..."),
+            *ServiceRequest.Impact.choices,
+        ],
+        required=True,
         label="Service Impact",
         help_text="Current impact on operational capability.",
+        error_messages={
+            "required": "Please select a service impact.",
+        },
+        widget=forms.Select(attrs={"id": "id_service_impact", "class": "form-select"}),
     )
     impact_notes = forms.CharField(
         max_length=500,
@@ -95,11 +124,46 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
 
     def __init__(self, *args, organization=None, membership=None, **kwargs):
         super().__init__(*args, **kwargs)
+        org = organization or (membership.organization if membership else None)
         if membership:
             from . import selectors
+            from .services import _portal_account_site_ids, sync_portal_grants_for_account
+
+            account = selectors.get_portal_account(membership)
+            if account and account.auto_grant_assets and account.is_enabled:
+                sync_portal_grants_for_account(account)
+
             asset_qs = selectors.granted_assets_for(membership)
-            site_ids = list(asset_qs.values_list("site_id", flat=True).distinct())
-            sites = Site.objects.filter(id__in=site_ids).order_by("name", "code")
+            granted_site_ids = set(asset_qs.values_list("site_id", flat=True).distinct())
+            allowed_site_ids = _portal_account_site_ids(account) if account else None
+
+            if org:
+                active_sites_qs = Site.objects.for_organization(org).filter(status=Site.Status.ACTIVE)
+            else:
+                active_sites_qs = Site.objects.filter(status=Site.Status.ACTIVE)
+
+            if allowed_site_ids is not None:
+                active_sites_qs = active_sites_qs.filter(id__in=allowed_site_ids)
+
+            if account and account.auto_grant_assets:
+                sites = active_sites_qs.order_by("name", "code")
+            else:
+                sites_with_assets = (
+                    set(
+                        Asset.objects.for_organization(org)
+                        .exclude(status__in=["RETIRED", "DISPOSED"])
+                        .values_list("site_id", flat=True)
+                        .distinct()
+                    )
+                    if org
+                    else set()
+                )
+                empty_or_new_site_ids = set(active_sites_qs.exclude(id__in=sites_with_assets).values_list("id", flat=True))
+                visible_site_ids = granted_site_ids | empty_or_new_site_ids
+                if not visible_site_ids and not sites_with_assets:
+                    sites = active_sites_qs.order_by("name", "code")
+                else:
+                    sites = active_sites_qs.filter(id__in=visible_site_ids).order_by("name", "code")
         elif organization:
             asset_qs = (
                 Asset.objects.for_organization(organization)
@@ -107,8 +171,7 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
                 .select_related("site")
                 .order_by("asset_tag")
             )
-            site_ids = list(asset_qs.values_list("site_id", flat=True).distinct())
-            sites = Site.objects.filter(id__in=site_ids).order_by("name", "code")
+            sites = Site.objects.for_organization(organization).filter(status=Site.Status.ACTIVE).order_by("name", "code")
         else:
             asset_qs = Asset.objects.none()
             sites = Site.objects.none()
@@ -124,19 +187,24 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
         cleaned_data = super().clean()
         site = cleaned_data.get("site")
         asset = cleaned_data.get("asset")
+        if not site and "site" not in self._errors:
+            self.add_error("site", "Please select a site / location.")
         if site and asset and asset.site_id != site.pk:
             self.add_error("asset", "The selected asset does not belong to the chosen site / location.")
         return cleaned_data
 
     def clean_title(self):
         title = (self.cleaned_data.get("title") or "").strip()
+        if not title:
+            raise forms.ValidationError("Request Title / Subject is required.")
         validate_incident_title(title, field_label="Request Title / Subject")
         return title
 
     def clean_description(self):
         description = (self.cleaned_data.get("description") or "").strip()
-        if description:
-            validate_alphabetical_description(description, field_label="Problem Description")
+        if not description:
+            raise forms.ValidationError("Problem Description is required.")
+        validate_alphabetical_description(description, field_label="Problem Description")
         return description
 
     def clean_impact_notes(self):
