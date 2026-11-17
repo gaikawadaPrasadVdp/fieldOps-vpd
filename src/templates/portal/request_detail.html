@@ -3,16 +3,21 @@
 
 {% block title %}{{ sr.number }} · Service Request Tracking · FieldOps Nexus{% endblock %}
 
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-3 d-print-none d-flex align-items-center gap-2">
+  <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to My Requests" aria-label="Back">
+    &larr; Back
+  </a>
+  <ol class="breadcrumb mb-0 small">
+    <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Portal</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'portal:requests_list' %}">My Requests</a></li>
+    <li class="breadcrumb-item active font-monospace fw-semibold" aria-current="page">{{ sr.number }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-0">
-  <!-- Breadcrumb Navigation -->
-  <nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb small">
-      <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}" class="text-decoration-none">Client Portal</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'portal:requests_list' %}" class="text-decoration-none">My Requests</a></li>
-      <li class="breadcrumb-item active font-monospace fw-semibold" aria-current="page">{{ sr.number }}</li>
-    </ol>
-  </nav>
 
   <!-- Page Header -->
   <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">

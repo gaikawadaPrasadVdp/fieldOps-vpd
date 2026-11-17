@@ -16,8 +16,12 @@ def _resolve_active(sections, req_path):
         for item in items:
             prefixes = item.get("match_prefixes") or [item.get("match_prefix", "") or item.get("url", "")]
             for mp in prefixes:
-                if mp == "/app/" or mp == "/app":
+                if mp in ("/app/", "/app"):
                     if req_path.rstrip("/") == "/app" and len(mp) > best_len:
+                        best_len = len(mp)
+                        best_item = item
+                elif mp in ("/app/portal/", "/app/portal"):
+                    if req_path.rstrip("/") == "/app/portal" and len(mp) > best_len:
                         best_len = len(mp)
                         best_item = item
                 elif mp and req_path.startswith(mp):
@@ -60,7 +64,6 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Analytics Hub", "url": _safe_reverse("dashboards:hub"), "icon": "activity", "match_prefix": "/app/dashboards"},
             {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "clock", "match_prefix": "/app/dashboards/snapshots"},
         ]
-        sections["Analytics & Governance"] = sections["Overview"]
         sections["Operations"] = [
             {"label": "Incidents & Requests", "url": _safe_reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
             {"label": "Incident Dashboard", "url": _safe_reverse("incidents:dashboard"), "icon": "activity", "match_prefix": "/app/incidents/dashboard"},
@@ -92,7 +95,6 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
             {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
-        sections["Commercial"] = sections["Commercial & Contracts"]
         sections["Service Level Agreements"] = [
             {"label": "SLA & Escalation", "url": _safe_reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
         ]
@@ -368,14 +370,6 @@ def _build_tenant_nav(membership, is_owner):
                 {"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "archive", "match_prefix": "/app/dashboards/snapshots"},
             ]
 
-        # Analytics
-        analytics_items = []
-        if rbac.has_permission_anywhere(membership, "report.view"):
-            analytics_items.append({"label": "Operational Dashboards", "url": _safe_reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"})
-            analytics_items.append({"label": "KPI Snapshots", "url": _safe_reverse("dashboards:snapshot_list"), "icon": "clock", "match_prefix": "/app/dashboards/snapshots"})
-        if analytics_items:
-            sections["Analytics"] = analytics_items
-
         # Compliance & Governance
         audit_items = []
         if rbac.has_permission_anywhere(membership, "audit.view"):
@@ -405,7 +399,7 @@ def _build_tenant_nav(membership, is_owner):
 def _build_breadcrumbs(request):
     """Generates structured breadcrumbs and back URL for sub-screens across all modules."""
     path = getattr(request, "path", "").rstrip("/")
-    if not path or path in ("/app", "/platform", "/platform/organizations"):
+    if not path or path in ("/app", "/app/portal", "/platform", "/platform/organizations"):
         return [], None
 
     crumbs = []
@@ -418,6 +412,9 @@ def _build_breadcrumbs(request):
         crumbs.append({"label": "Home", "url": _safe_reverse("ui:home")})
 
     MODULE_MAP = [
+        ("/app/portal/requests/new", "New Request", "portal:request_create"),
+        ("/app/portal/requests", "My Requests", "portal:requests_list"),
+        ("/app/portal/scan", "Scan QR", "portal:scan"),
         ("/app/work-orders", "Work Orders", "workorders:list"),
         ("/app/incidents/dashboard", "Incident Dashboard", "incidents:dashboard"),
         ("/app/incidents", "Incidents & Requests", "incidents:list"),

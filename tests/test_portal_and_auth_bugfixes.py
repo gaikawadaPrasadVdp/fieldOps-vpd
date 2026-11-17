@@ -159,7 +159,11 @@ def test_bug002_portal_request_create_client_and_server_validation(
 
     assert "Please select a related asset." in html
     assert "validateTitle()" in html
+    assert "validateSite()" in html
     assert "validateAsset()" in html
+    assert "validateDescription()" in html
+    assert "validateSeverity()" in html
+    assert "validateServiceImpact()" in html
     assert "validateAttachment()" in html
 
     # Empty fields & unselected asset rejected by server
@@ -167,12 +171,14 @@ def test_bug002_portal_request_create_client_and_server_validation(
     assert res_empty.status_code == 400
     assert "title" in res_empty.context["form"].errors
     assert "asset" in res_empty.context["form"].errors
+    assert "description" in res_empty.context["form"].errors
 
     # Special character strings rejected
     res_special = client.post(
         "/app/portal/requests/new/",
         {
             "title": "@@@###$$$",
+            "site": str(site_a1.pk),
             "asset": str(asset.pk),
             "description": "--- !!!",
             "severity": "MEDIUM",

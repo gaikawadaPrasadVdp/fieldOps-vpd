@@ -9,19 +9,10 @@
   <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
     <div>
       <div class="d-flex align-items-center gap-2 mb-1">
-        <a href="{% url 'portal:dashboard' %}" class="text-decoration-none">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">
-            {% icon 'arrow-left' 12 %} Client Portal
-          </span>
-        </a>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">Client Portal</span>
       </div>
       <h1 class="h3 fw-bold mb-1">Create Service Request</h1>
       <p class="text-body-secondary mb-0">Submit a new equipment breakdown, maintenance need, or service request for {{ company_name }}.</p>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-      <a href="{% url 'portal:dashboard' %}" class="btn btn-outline-secondary btn-sm">
-        {% icon 'x' 14 %} Cancel
-      </a>
     </div>
   </div>
 
@@ -82,7 +73,7 @@
             <!-- Site / Location Filter -->
             <div class="mb-3">
               <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">
-                {{ form.site.label }}
+                {{ form.site.label }} <span class="text-danger">*</span>
               </label>
               {{ form.site }}
               <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.site.errors %} d-block{% else %} d-none{% endif %}" id="site-error">{% if form.site.errors %}{{ form.site.errors.0 }}{% endif %}</div>
@@ -116,7 +107,7 @@
             <!-- Problem Description -->
             <div class="mb-3">
               <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
-                {{ form.description.label }}
+                {{ form.description.label }} <span class="text-danger">*</span>
               </label>
               {{ form.description }}
               <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.description.errors %} d-block{% else %} d-none{% endif %}" id="description-error">{% if form.description.errors %}{{ form.description.errors.0 }}{% endif %}</div>
@@ -129,7 +120,7 @@
               <!-- Priority / Severity -->
               <div class="col-12 col-md-6">
                 <label for="{{ form.severity.id_for_label }}" class="form-label fw-semibold">
-                  {{ form.severity.label }}
+                  {{ form.severity.label }} <span class="text-danger">*</span>
                 </label>
                 {{ form.severity }}
                 <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.severity.errors %} d-block{% else %} d-none{% endif %}" id="severity-error">{% if form.severity.errors %}{{ form.severity.errors.0 }}{% endif %}</div>
@@ -141,7 +132,7 @@
               <!-- Service Impact -->
               <div class="col-12 col-md-6">
                 <label for="{{ form.service_impact.id_for_label }}" class="form-label fw-semibold">
-                  {{ form.service_impact.label }}
+                  {{ form.service_impact.label }} <span class="text-danger">*</span>
                 </label>
                 {{ form.service_impact }}
                 <div class="invalid-feedback text-danger small mt-1 fw-medium field-error-message{% if form.service_impact.errors %} d-block{% else %} d-none{% endif %}" id="service_impact-error">{% if form.service_impact.errors %}{{ form.service_impact.errors.0 }}{% endif %}</div>
@@ -180,9 +171,6 @@
               <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2" id="submitRequestBtn">
                 {% icon 'send' 16 %} Submit Request
               </button>
-              <a href="{% url 'portal:dashboard' %}" class="btn btn-light border">
-                Cancel
-              </a>
             </div>
           </form>
         </div>
@@ -249,17 +237,38 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   });
 
+  function isSiteSelected() {
+    if (!siteSelect) return false;
+    const val = (siteSelect.value || "").trim();
+    if (!val) return false;
+    if (val.toLowerCase() === "all sites / locations" || val.toLowerCase() === "all") return false;
+    if (siteSelect.selectedIndex <= 0) return false;
+    return true;
+  }
+
   function filterAssets() {
-    const selectedSiteId = siteSelect.value;
-    const currentAssetVal = assetSelect.value;
+    const siteSelected = isSiteSelected();
+    const selectedSiteId = siteSelected ? (siteSelect.value || "").trim() : "";
+    const currentAssetVal = (assetSelect.value || "").trim();
 
     assetSelect.innerHTML = "";
 
     const defaultOpt = document.createElement("option");
     defaultOpt.value = "";
-    defaultOpt.textContent = selectedSiteId
-      ? "Select an asset at this location..."
-      : "Select a related asset...";
+
+    if (!siteSelected) {
+      defaultOpt.textContent = "Select a site / location first...";
+      assetSelect.appendChild(defaultOpt);
+      assetSelect.disabled = true;
+      assetSelect.value = "";
+      if (noAssetsMsg) {
+        noAssetsMsg.hidden = true;
+      }
+      return;
+    }
+
+    assetSelect.disabled = false;
+    defaultOpt.textContent = "Select an asset at this location...";
     assetSelect.appendChild(defaultOpt);
 
     let matchCount = 0;
@@ -267,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     initialAssetOptions.forEach(function (item) {
       if (!item.value) return;
-      if (!selectedSiteId || item.siteId === selectedSiteId) {
+      if (item.siteId === selectedSiteId) {
         const opt = document.createElement("option");
         opt.value = item.value;
         opt.textContent = item.text;
@@ -288,21 +297,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (noAssetsMsg) {
-      noAssetsMsg.hidden = !(selectedSiteId && matchCount === 0);
+      noAssetsMsg.hidden = matchCount > 0;
     }
   }
 
   siteSelect.addEventListener("change", function () {
     filterAssets();
+    validateSite();
     if (assetSelect.classList.contains("is-invalid")) {
       validateAsset();
     }
   });
+  siteSelect.addEventListener("blur", validateSite);
 
-  // If a site is pre-selected, apply filter on load
-  if (siteSelect.value) {
-    filterAssets();
-  }
+  // Always apply filter on load so asset dropdown is gated by site selection
+  filterAssets();
 
   function setFieldError(inputEl, errorId, msg) {
     if (!inputEl) return true;
@@ -388,8 +397,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function validateDescription() {
     return validateTextField(descEl, "description-error", "Problem Description", {
-      required: false,
+      required: true,
+      minLength: 3,
     });
+  }
+
+  function validateSeverity() {
+    return validateSelectRequired(severityEl, "severity-error", "priority / urgency");
+  }
+
+  function validateServiceImpact() {
+    return validateSelectRequired(impactTypeEl, "service_impact-error", "service impact");
   }
 
   function validateImpactNotes() {
@@ -399,14 +417,26 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function validateSite() {
+    if (!siteSelect) return true;
+    if (!isSiteSelected()) {
+      return setFieldError(siteSelect, "site-error", "Please select a site / location.");
+    }
+    return setFieldError(siteSelect, "site-error", "");
+  }
+
   function validateAsset() {
+    if (!isSiteSelected()) {
+      return setFieldError(assetSelect, "asset-error", "Please select a site / location first.");
+    }
     const val = (assetSelect.value || "").trim();
     if (!val) {
       return setFieldError(assetSelect, "asset-error", "Please select a related asset.");
     }
     const selectedOpt = assetSelect.options[assetSelect.selectedIndex];
     const optSiteId = selectedOpt ? (selectedOpt.dataset.siteId || "") : "";
-    if (siteSelect.value && optSiteId && optSiteId !== siteSelect.value) {
+    const siteVal = (siteSelect.value || "").trim();
+    if (optSiteId && optSiteId !== siteVal) {
       return setFieldError(assetSelect, "asset-error", "The selected asset does not belong to the chosen site / location.");
     }
     return setFieldError(assetSelect, "asset-error", "");
@@ -446,14 +476,12 @@ document.addEventListener("DOMContentLoaded", function () {
   assetSelect.addEventListener("change", validateAsset);
   assetSelect.addEventListener("blur", validateAsset);
   if (severityEl) {
-    severityEl.addEventListener("change", function () {
-      validateSelectRequired(severityEl, "severity-error", "priority / urgency");
-    });
+    severityEl.addEventListener("change", validateSeverity);
+    severityEl.addEventListener("blur", validateSeverity);
   }
   if (impactTypeEl) {
-    impactTypeEl.addEventListener("change", function () {
-      validateSelectRequired(impactTypeEl, "service_impact-error", "service impact");
-    });
+    impactTypeEl.addEventListener("change", validateServiceImpact);
+    impactTypeEl.addEventListener("blur", validateServiceImpact);
   }
   if (attachmentEl) {
     attachmentEl.addEventListener("change", validateAttachment);
@@ -464,10 +492,11 @@ document.addEventListener("DOMContentLoaded", function () {
     formEl.addEventListener("submit", function (e) {
       const checks = [
         { el: titleEl, ok: validateTitle() },
+        { el: siteSelect, ok: validateSite() },
         { el: assetSelect, ok: validateAsset() },
         { el: descEl, ok: validateDescription() },
-        { el: severityEl, ok: validateSelectRequired(severityEl, "severity-error", "priority / urgency") },
-        { el: impactTypeEl, ok: validateSelectRequired(impactTypeEl, "service_impact-error", "service impact") },
+        { el: severityEl, ok: validateSeverity() },
+        { el: impactTypeEl, ok: validateServiceImpact() },
         { el: impactEl, ok: validateImpactNotes() },
         { el: attachmentEl, ok: validateAttachment() },
       ];
@@ -490,6 +519,10 @@ document.addEventListener("DOMContentLoaded", function () {
           window.fxToast("Please complete all required fields correctly before submitting.", "warning");
         }
         return false;
+      }
+
+      if (assetSelect.disabled) {
+        assetSelect.disabled = false;
       }
     });
   }
