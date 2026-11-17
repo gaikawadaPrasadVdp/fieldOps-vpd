@@ -191,6 +191,7 @@ urlpatterns = [
     path("redoc", RedirectView.as_view(url="/api/v1/redoc/", permanent=False)),
     path("schema/", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
     path("schema", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
+    re_path(r"^assets/(?P<pk>[0-9a-fA-F-]+)/transition/?$", AssetViewSet.as_view({"post": "transition"}), name="asset_transition_direct"),
     path("assets/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("planner/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("inventory/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),

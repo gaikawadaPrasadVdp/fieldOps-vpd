@@ -75,73 +75,39 @@ class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):
             username_field.validators.append(MaxLengthValidator(254))
 
     def validate(self, attrs):
-        from django.conf import settings
-        from django.contrib.auth import authenticate
-        from rest_framework import exceptions
+        from axes.handlers.proxy import AxesProxyHandler
         from rest_framework.exceptions import Throttled
+        from django.conf import settings
 
         request = self.context.get("request")
         http_request = getattr(request, "_request", request)
-
         username = (attrs.get(self.username_field) or "").strip().lower()
         credentials = {"username": username, "email": username}
 
-        # Check if already locked out by Axes
-        if getattr(settings, "AXES_ENABLED", True) and http_request:
-            try:
-                from axes.handlers.proxy import AxesProxyHandler
-                if AxesProxyHandler.is_locked(http_request, credentials):
-                    if hasattr(http_request, "axes_locked_out"):
-                        http_request.axes_locked_out = True
-                    raise Throttled(detail="Too many failed login attempts. Account is temporarily locked.")
-            except ImportError:
-                pass
+        if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
+            cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
+            wait = int(cooloff.total_seconds()) if cooloff else 900
+            raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
 
-        authenticate_kwargs = {
-            self.username_field: attrs[self.username_field],
-            "password": attrs["password"],
-        }
-        if request:
-            authenticate_kwargs["request"] = http_request
-
-        self.user = authenticate(**authenticate_kwargs)
-
-        if not jwt_settings.USER_AUTHENTICATION_RULE(self.user):
-            # Allow this failure response to return 401 (completing the failed attempt),
-            # while ensuring subsequent requests (attempts >= failure limit) lock out with 429.
-            if getattr(settings, "AXES_ENABLED", True):
-                if http_request and hasattr(http_request, "axes_locked_out"):
-                    http_request.axes_locked_out = False
-                if request and hasattr(request, "axes_locked_out"):
-                    request.axes_locked_out = False
-
-            raise exceptions.AuthenticationFailed(
-                self.error_messages["no_active_account"],
-                "no_active_account",
-            )
-
-        # On successful login: notify Axes to reset failures
-        if getattr(settings, "AXES_ENABLED", True) and http_request and self.user:
-            try:
-                from django.contrib.auth.signals import user_logged_in
-                user_logged_in.send(
-                    sender=self.user.__class__,
-                    request=http_request,
-                    user=self.user,
-                )
-            except Exception:
-                pass
-
-        data = {}
-        refresh = self.get_token(self.user)
-        data["refresh"] = str(refresh)
-        data["access"] = str(refresh.access_token)
-
-        if jwt_settings.UPDATE_LAST_LOGIN:
-            from django.contrib.auth.models import update_last_login
-            update_last_login(None, self.user)
-
-        return data
+        try:
+            data = super().validate(attrs)
+            if getattr(settings, "AXES_ENABLED", True) and http_request and getattr(self, "user", None):
+                try:
+                    from django.contrib.auth.signals import user_logged_in
+                    user_logged_in.send(
+                        sender=self.user.__class__,
+                        request=http_request,
+                        user=self.user,
+                    )
+                except Exception:
+                    pass
+            return data
+        except Exception:
+            if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
+                cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
+                wait = int(cooloff.total_seconds()) if cooloff else 900
+                raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
+            raise
 
 
 class LoginThrottleMixin:
