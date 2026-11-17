@@ -63,7 +63,7 @@
                       <input type="hidden" name="category" value="{{ cat.pk }}">
                       <div class="row g-2">
                         <div class="col-md-6">
-                          <label class="form-label small">Name</label>
+                          <label class="form-label small">Name <span class="text-danger ms-1" title="Required">*</span></label>
                           <input type="text" name="name" value="{{ cat.name }}" required class="form-control form-control-sm">
                         </div>
                         <div class="col-md-6">
@@ -106,7 +106,7 @@
         <div class="fx-card-body">
           <form method="post" action="{% url 'assets:categories' %}">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
             <button type="submit" class="btn btn-primary btn-sm w-100 mt-3">Create Category</button>
           </form>
         </div>

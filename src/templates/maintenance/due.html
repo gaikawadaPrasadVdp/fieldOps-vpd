@@ -1,15 +1,15 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Due &amp; upcoming maintenance · FieldOps Nexus{% endblock %}
+{% block title %}Due &amp; Upcoming Maintenance · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header">
   <div>
-    <h1>Due &amp; upcoming</h1>
+    <h1>Due &amp; Upcoming</h1>
     <div class="text-body-secondary">Enabled schedules, soonest first. DUE = an occurrence is due now (the scheduler generates it; you can also generate it here).</div>
   </div>
 </div>
 
-{% include "components/_section_tabs.html" with section="Maintenance" %}
+{% include "components/_section_tabs.html" with section="Maintenance Planning" %}
 
 <!-- Standardized KPI Cards Row -->
 <div class="row g-3 mb-4">
@@ -54,10 +54,10 @@
       <tbody>
         {% for r in page %}
         <tr>
-          <td><a href="{% url 'maintenance:plan' r.schedule.plan_id %}" class="fw-semibold text-decoration-none">{{ r.schedule.plan.name }}</a></td>
-          <td>{{ r.schedule.plan.asset.asset_tag }}</td>
-          <td><a href="{% url 'maintenance:schedule' r.schedule.pk %}" class="text-decoration-none">{{ r.schedule.describe }}</a></td>
-          <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y" }}{% else %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit }}{% endif %}</td>
+          <td>{% if r.schedule and r.schedule.plan_id %}<a href="{% url 'maintenance:plan' r.schedule.plan_id %}" class="fw-semibold text-decoration-none">{{ r.schedule.plan.name|default:"Plan" }}</a>{% else %}—{% endif %}</td>
+          <td>{{ r.schedule.plan.asset.asset_tag|default:"—" }}</td>
+          <td>{% if r.schedule and r.schedule.pk %}<a href="{% url 'maintenance:schedule' r.schedule.pk %}" class="text-decoration-none">{{ r.schedule.describe }}</a>{% else %}—{% endif %}</td>
+          <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y"|default:"—" }}{% elif r.schedule.next_due_value %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit|default:"" }}{% else %}—{% endif %}</td>
           <td>{% status_badge r.state %}</td>
           <td>
             {% if can_generate %}

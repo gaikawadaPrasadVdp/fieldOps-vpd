@@ -9,7 +9,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.mark.parametrize(("role_key", "expected_title"), [
     ("owner", "Organization Owner"),
-    ("operations_manager", "Operations Manager"),
+    ("service_dispatcher", "Service Dispatcher"),
     ("asset_manager", "Asset Manager"),
     ("maintenance_planner", "Maintenance Planner"),
     ("supervisor", "Maintenance Supervisor"),
@@ -34,7 +34,7 @@ def test_technician_dashboard_does_not_expose_unassigned_incidents(org_a, site_a
     from apps.incidents import services as incident_services
 
     asset = make_asset(org_a, site_a1, "DASHBOARD-PUMP")
-    reporter = make_member(org_a, "dashboard-report@alpha.test", "operations_manager")
+    reporter = make_member(org_a, "dashboard-report@alpha.test", "service_dispatcher")
     technician = make_member(org_a, "dashboard-tech@alpha.test", "technician")
     incident_services.create_request(org_a, asset=asset, reporter=reporter, actor=reporter.user,
                                      title="Visible only after assignment")
@@ -47,14 +47,14 @@ def test_technician_dashboard_does_not_expose_unassigned_incidents(org_a, site_a
     assert b"Visible only after assignment" not in response.content
 
 
-def test_platform_incident_dashboard_is_cross_organization_and_restricted(platform_admin):
+def test_platform_admin_cannot_access_tenant_incidents(platform_admin):
     client = Client()
     client.force_login(platform_admin)
 
     response = client.get(reverse("platform_admin:incident_dashboard"))
 
-    assert response.status_code == 200
-    assert b"Platform Super Admin" in response.content
+    # Rule D-008: Platform Super Admin is restricted to platform governance and cannot access tenant incidents
+    assert response.status_code == 403
 
 
 def test_client_requester_can_report_only_against_an_asset_assigned_to_them(

@@ -12,7 +12,7 @@ from django.db import IntegrityError, transaction
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, ValidationFailed
 
-from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Site, SiteContact, Zone
+from .models import MAX_ESCALATION_ORDER, CalendarHoliday, OperatingCalendar, Shift, Site, SiteContact, Zone
 from .workflow import ACTIVATION, INACTIVE
 
 SITE_FIELDS = ["code", "name", "description", "address", "city", "state_region", "postal_code", "country",
@@ -141,28 +141,42 @@ def assert_site_active(site: Site):
 # --- zones -----------------------------------------------------------------------------------------
 
 
-def _depth_above(zone: Zone | None) -> int:
+def _depth_above(zone: Zone | None, *, parent_map: dict | None = None) -> int:
     """Number of ancestors of ``zone`` including itself (walks up; bounded, detects corrupt cycles)."""
+    if zone is None:
+        return 0
+    if parent_map is None:
+        parent_map = dict(Zone.objects.filter(site_id=zone.site_id).values_list("pk", "parent_id"))
     depth = 0
     seen = set()
-    while zone is not None:
-        if zone.pk in seen:
+    cur_id = zone.pk
+    while cur_id is not None:
+        if cur_id in seen:
             raise ValidationFailed("Zone hierarchy contains a cycle.", code="zone_cycle")
-        seen.add(zone.pk)
+        seen.add(cur_id)
         depth += 1
-        zone = zone.parent
+        cur_id = parent_map.get(cur_id)
     return depth
 
 
-def _height_below(zone: Zone) -> int:
+def _height_below(zone: Zone, *, parent_map: dict | None = None) -> int:
     """Levels of descendants below ``zone`` (0 = leaf)."""
+    if parent_map is None:
+        parent_map = dict(Zone.objects.filter(site_id=zone.site_id).values_list("pk", "parent_id"))
+    children_by_parent: dict = {}
+    for pk, pid in parent_map.items():
+        if pid is not None:
+            children_by_parent.setdefault(pid, []).append(pk)
     level = [zone.pk]
     height = 0
+    seen = {zone.pk}
     while True:
-        level = list(Zone.objects.filter(parent_id__in=level).values_list("pk", flat=True))
-        if not level:
+        nxt = [cid for pid in level for cid in children_by_parent.get(pid, []) if cid not in seen]
+        if not nxt:
             return height
         height += 1
+        seen.update(nxt)
+        level = nxt
         if height > MAX_ZONE_DEPTH:
             return height
 
@@ -176,14 +190,19 @@ def validate_zone_parent(site: Site, zone: Zone | None, parent: Zone | None, zon
         raise ValidationFailed("A building must be a top-level location of the site.", code="invalid_parent")
     if parent.status != "ACTIVE":
         raise ValidationFailed("The parent location is inactive.", code="invalid_parent")
+    parent_map = dict(Zone.objects.filter(site=site).values_list("pk", "parent_id"))
     if zone is not None:
-        node = parent
-        while node is not None:  # parent chain must not reach the zone itself
-            if node.pk == zone.pk:
+        cur_id = parent.pk
+        seen = set()
+        while cur_id is not None:  # parent chain must not reach the zone itself
+            if cur_id == zone.pk:
                 raise ValidationFailed("A location cannot be placed under itself or its own descendant.",
                                        code="zone_cycle")
-            node = node.parent
-    total = _depth_above(parent) + 1 + (_height_below(zone) if zone is not None else 0)
+            if cur_id in seen:
+                raise ValidationFailed("Zone hierarchy contains a cycle.", code="zone_cycle")
+            seen.add(cur_id)
+            cur_id = parent_map.get(cur_id)
+    total = _depth_above(parent, parent_map=parent_map) + 1 + (_height_below(zone, parent_map=parent_map) if zone is not None else 0)
     if total > MAX_ZONE_DEPTH:
         raise ValidationFailed(f"Location hierarchy is limited to {MAX_ZONE_DEPTH} levels.", code="zone_too_deep")
 
@@ -380,7 +399,11 @@ def delete_calendar(cal: OperatingCalendar, *, actor, request=None):
     snap, site, pk = audit.snapshot(cal, CALENDAR_FIELDS), cal.site, cal.pk
     org = cal.organization
     cal.holidays.all().delete()
-    cal.delete()
+    from django.db.models.deletion import ProtectedError
+    try:
+        cal.delete()
+    except ProtectedError as exc:
+        raise Conflict("Cannot delete calendar because it is referenced by an SLA profile or another object.", code="calendar_in_use") from exc
     audit.record("calendar.deleted", actor=actor, organization=org, target_repr=f"Calendar {snap['name']} ({pk})",
                  before=snap, metadata={"site": site.code}, request=request)
 
@@ -461,4 +484,93 @@ def remove_contact(contact: SiteContact, *, actor, request=None):
     contact.delete()
     audit.record("site.contact_removed", actor=actor, organization=org,
                  target_repr=f"Contact {snap['name']} ({pk})", before=snap, metadata={"site": site.code},
+                 request=request)
+
+
+# --- shifts ---------------------------------------------------------------------------------------
+
+SHIFT_FIELDS = ["name", "code", "start_time", "end_time", "is_overnight", "days_of_week", "is_active"]
+
+
+@transaction.atomic
+def create_shift(
+    org,
+    site: Site,
+    *,
+    name: str,
+    code: str,
+    start_time: time,
+    end_time: time,
+    days_of_week: list[int] | None = None,
+    is_overnight: bool | None = None,
+    is_active: bool = True,
+    actor=None,
+    request=None,
+) -> Shift:
+    if site.organization_id != org.pk:
+        raise Conflict("Site does not belong to the specified organization.", code="cross_tenant_site")
+    assert_site_active(site)
+    clean_code = _code(code, what="Shift code")
+    clean_name = (name or "").strip()
+    if not clean_name:
+        raise ValidationFailed("Shift name is required.", code="name_required")
+    if not isinstance(start_time, time) or not isinstance(end_time, time):
+        raise ValidationFailed("Valid start_time and end_time are required.", code="times_required")
+
+    if is_overnight is None:
+        is_overnight = end_time <= start_time
+    elif not is_overnight and end_time <= start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
+    if days_of_week is None:
+        days_of_week = [0, 1, 2, 3, 4]
+
+    shift = Shift(
+        organization=org,
+        site=site,
+        name=clean_name,
+        code=clean_code,
+        start_time=start_time,
+        end_time=end_time,
+        is_overnight=is_overnight,
+        days_of_week=days_of_week,
+        is_active=is_active,
+    )
+    _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
+    audit.record("shift.created", actor=actor, organization=org, target=shift,
+                 after=audit.snapshot(shift, SHIFT_FIELDS), metadata={"site": site.code}, request=request)
+    return shift
+
+
+@transaction.atomic
+def update_shift(shift: Shift, *, actor=None, request=None, **changes) -> Shift:
+    changes = _clean(changes, SHIFT_FIELDS)
+    before = audit.snapshot(shift, SHIFT_FIELDS)
+    if "code" in changes:
+        changes["code"] = _code(changes["code"], what="Shift code")
+    if "name" in changes:
+        clean_name = (changes["name"] or "").strip()
+        if not clean_name:
+            raise ValidationFailed("Shift name is required.", code="name_required")
+        changes["name"] = clean_name
+    for k, v in changes.items():
+        if v is not None:
+            setattr(shift, k, v)
+    if "is_overnight" not in changes and ("start_time" in changes or "end_time" in changes):
+        shift.is_overnight = shift.end_time <= shift.start_time
+    elif not shift.is_overnight and shift.end_time <= shift.start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
+    _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
+    after = audit.snapshot(shift, SHIFT_FIELDS)
+    if before != after:
+        audit.record("shift.updated", actor=actor, organization=shift.organization, target=shift,
+                     before=before, after=after, metadata={"site": shift.site.code}, request=request)
+    return shift
+
+
+@transaction.atomic
+def delete_shift(shift: Shift, *, actor=None, request=None) -> None:
+    snap, org, site, pk = audit.snapshot(shift, SHIFT_FIELDS), shift.organization, shift.site, shift.pk
+    shift.delete()
+    audit.record("shift.deleted", actor=actor, organization=org,
+                 target_repr=f"Shift {snap['code']} ({pk})", before=snap, metadata={"site": site.code},
                  request=request)

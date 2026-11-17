@@ -21,5 +21,26 @@
     <dt>Status</dt><dd><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></dd>
     <dt>Planned dates</dt><dd>{{ wo.planned_start|date:"M j, Y · H:i"|default:"Not planned" }}{% if wo.planned_end %} – {{ wo.planned_end|date:"M j, Y · H:i" }}{% endif %}</dd>
     <dt>Due</dt><dd>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% else %}No due date{% endif %}{% if due_is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</dd>
+    <dt>Warranty / AMC</dt>
+    <dd id="wo-coverage-status">
+      {% if wo.latest_coverage_check %}
+        {% if wo.latest_coverage_check.eligible %}
+          <span class="badge bg-success text-white">Covered</span>
+          <span class="ms-1 fw-medium text-dark">{{ wo.latest_coverage_check.agreement.get_kind_display|default:"Agreement" }} {{ wo.latest_coverage_check.agreement.reference }}</span>
+          {% if wo.latest_coverage_check.agreement.provider %}<span class="text-muted">({{ wo.latest_coverage_check.agreement.provider.name }})</span>{% endif %}
+          <div class="text-muted small">Valid through {{ wo.latest_coverage_check.agreement.end_date|date:"M j, Y" }}</div>
+        {% else %}
+          <span class="badge bg-warning text-dark">Not Covered</span>
+          <span class="ms-1 text-muted">{{ wo.latest_coverage_check.reason }}</span>
+        {% endif %}
+      {% else %}
+        <span class="text-muted">No coverage check recorded</span>
+      {% endif %}
+      {% if wo.coverage_expiry_warning %}
+        <div class="alert alert-warning py-1 px-2 small mt-1 mb-0" id="wo-coverage-expiry-warning">
+          <strong>Warning:</strong> {{ wo.coverage_expiry_warning }}
+        </div>
+      {% endif %}
+    </dd>
   </dl>
 </section>

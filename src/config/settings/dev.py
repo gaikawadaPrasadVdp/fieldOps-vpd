@@ -8,3 +8,10 @@ STORAGES = {  # no manifest build step needed in development
 }
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 
+# Ensure templates reload on every request in development without memory caching
+TEMPLATES[0]["APP_DIRS"] = False
+TEMPLATES[0]["OPTIONS"]["loaders"] = [
+    "django.template.loaders.filesystem.Loader",
+    "django.template.loaders.app_directories.Loader",
+]
+

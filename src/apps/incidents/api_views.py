@@ -1,19 +1,23 @@
+from datetime import timedelta
+
 from django.apps import apps
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import DomainError
+from apps.core.exceptions import NotFound
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 
 from . import selectors, services
-from .models import Downtime, ServiceRequest
+from .models import Downtime, ServiceRequest, ServiceRequestComment
 from .workflow import ACTION_PERMISSIONS, REQUEST_STATUS, SYSTEM_ACTIONS
 
 
@@ -27,6 +31,27 @@ class DowntimeSerializer(serializers.ModelSerializer):
 
     def get_duration_seconds(self, obj) -> int | None:
         return int(obj.duration.total_seconds()) if obj.duration is not None else None
+
+
+class ServiceRequestCommentSerializer(serializers.ModelSerializer):
+    author_display = serializers.CharField(read_only=True)
+    author_id = serializers.UUIDField(source="author.id", read_only=True)
+    is_client = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceRequestComment
+        fields = [
+            "id", "request", "author_id", "author_display", "author_name",
+            "body", "is_internal", "is_client", "created_at"
+        ]
+        read_only_fields = [
+            "id", "request", "author_id", "author_display", "author_name",
+            "is_client", "created_at"
+        ]
+
+    def get_is_client(self, obj) -> bool:
+        from apps.ui.utils import is_client_membership
+        return bool(obj.author_membership and is_client_membership(obj.author_membership))
 
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
@@ -85,6 +110,14 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     asset = serializers.UUIDField()
     kind = serializers.ChoiceField(choices=ServiceRequest.Kind.choices, required=False)
     title = serializers.CharField(max_length=200)
+
+    def validate_title(self, value):
+        from apps.ui.forms import validate_incident_title
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_incident_title(value, field_label="Title")
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message)
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)
@@ -97,9 +130,45 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     occurred_at = serializers.DateTimeField(required=False)
     downtime_started_at = serializers.DateTimeField(required=False, allow_null=True)
 
+    def validate(self, attrs):
+        now = timezone.now()
+        future_limit = now + timedelta(minutes=5)
+        past_limit = now - timedelta(days=90)
+
+        occurred_at = attrs.get("occurred_at")
+        downtime_started_at = attrs.get("downtime_started_at")
+
+        if occurred_at:
+            if occurred_at > future_limit:
+                raise serializers.ValidationError({"occurred_at": "The time of the failure cannot be in the future."})
+            if occurred_at < past_limit:
+                raise serializers.ValidationError({"occurred_at": "The time of the failure cannot be more than 90 days in the past."})
+
+        if downtime_started_at:
+            if downtime_started_at > future_limit:
+                raise serializers.ValidationError({"downtime_started_at": "The downtime start cannot be in the future."})
+            if downtime_started_at < past_limit:
+                raise serializers.ValidationError({"downtime_started_at": "The downtime start cannot be more than 90 days in the past."})
+
+        if occurred_at and downtime_started_at and downtime_started_at < occurred_at:
+            raise serializers.ValidationError({
+                "downtime_started_at": "The downtime start cannot be before the incident occurred."
+            })
+        return attrs
+
 
 class ServiceRequestPatchSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200, required=False)
+
+    def validate_title(self, value):
+        if value:
+            from apps.ui.forms import validate_incident_title
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            try:
+                return validate_incident_title(value, field_label="Title")
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.message)
+        return value
     description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=ServiceRequest.Severity.choices, required=False)
     service_impact = serializers.ChoiceField(choices=ServiceRequest.Impact.choices, required=False)
@@ -185,6 +254,8 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
+    serializer_class = ServiceRequestSerializer
+    pagination_class = StandardPagination
     permission_map = {
         "list": "incident.view_assigned", "retrieve": "incident.view_assigned", "create": "incident.create",
         "partial_update": "incident.update", "transition": "incident.view_assigned",
@@ -192,6 +263,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "downtime:put": "incident.downtime.manage",
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
+        "comments:get": "incident.view_assigned", "comments:post": "incident.view_assigned", "delete_comment": "incident.update",
     }
 
     def _qs(self, request, scope="incident.view"):
@@ -215,7 +287,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
                     OpenApiTypes.UUID), query_param("status", "request status"), query_param("severity", "severity"),
                     query_param("kind", "INCIDENT | SERVICE_REQUEST"), query_param("q", "number / title / asset"),
                     query_param("ordering", "-created_at, number, severity, status")],
-        responses=ServiceRequestSerializer(many=True))
+        responses=ServiceRequestSerializer)
     def list(self, request):
         return paginate(request, selectors.filter_requests(self._qs(request), request.query_params),
                         ServiceRequestSerializer)
@@ -224,23 +296,59 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         return Response(ServiceRequestSerializer(self._obj(request, pk)).data)
 
-    @extend_schema(request=CheckDuplicateSerializer)
+    @extend_schema(
+        methods=["GET"],
+        parameters=[
+            query_param("asset", "Asset UUID", OpenApiTypes.UUID),
+            query_param("kind", "INCIDENT | SERVICE_REQUEST"),
+            query_param("failure_category", "Failure category"),
+            query_param("service_impact", "NONE | DEGRADED | PARTIAL_OUTAGE | FULL_OUTAGE"),
+            query_param("severity", "LOW | MEDIUM | HIGH | CRITICAL"),
+            query_param("description", "Problem description"),
+            query_param("title", "Request title"),
+        ],
+        responses={
+            200: inline_serializer(
+                "CheckDuplicateResponse",
+                fields={
+                    "duplicate_found": serializers.BooleanField(),
+                    "duplicates": serializers.ListField(child=serializers.DictField()),
+                },
+            )
+        },
+    )
+    @extend_schema(
+        methods=["POST"],
+        request=CheckDuplicateSerializer,
+        responses={
+            200: inline_serializer(
+                "CheckDuplicatePostResponse",
+                fields={
+                    "duplicate_found": serializers.BooleanField(),
+                    "duplicates": serializers.ListField(child=serializers.DictField()),
+                },
+            )
+        },
+    )
     @action(detail=False, methods=["get", "post"], url_path="check-duplicate")
     def check_duplicate(self, request):
         """Checks for existing active duplicate incidents linked to the target asset."""
-        params = request.query_params if request.method == "GET" else request.data
-        asset_id = params.get("asset")
-        if not asset_id:
-            if request.method == "POST":
-                raise ValidationFailed("asset and title are required for duplicate checking.", code="validation_failed")
-            return Response({"duplicate_found": False, "duplicates": []})
+        if request.method == "POST":
+            d = _validated(CheckDuplicateSerializer, request)
+            asset_id = d["asset"]
+            params = d
+        else:
+            params = request.query_params
+            asset_id = params.get("asset")
+            if not asset_id:
+                return Response({"duplicate_found": False, "duplicates": []})
         if selectors.is_owned_asset_reporter(request.membership):
             from apps.assets.models import Asset
 
             asset = Asset.objects.for_organization(request.organization).filter(
                 pk=asset_id, owner=request.membership).first()
             if asset is None:
-                return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+                raise NotFound("Asset not found.")
             require_permission(request.membership, "incident.report_owned", asset.site_id)
         else:
             asset = asset_selectors.get_asset(request.membership, request.organization, asset_id, "asset.view")
@@ -267,18 +375,15 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = scoped_get(self._qs(request, "incident.create"), pk, "Request")
         require_permission(request.membership, "incident.create", sr.site_id)
         d = _validated(LinkDuplicateSerializer, request)
-        try:
-            new_sr = services.link_duplicate_request(
-                sr,
-                reporter=request.membership,
-                actor=request.user,
-                title=d.get("title", ""),
-                description=d.get("description", ""),
-                notes=d.get("notes", ""),
-                request=request,
-            )
-        except DomainError as exc:
-            return Response({"error": exc.message, "code": exc.code}, status=exc.status_code)
+        new_sr = services.link_duplicate_request(
+            sr,
+            reporter=request.membership,
+            actor=request.user,
+            title=d.get("title", ""),
+            description=d.get("description", ""),
+            notes=d.get("notes", ""),
+            request=request,
+        )
         return Response(ServiceRequestSerializer(self._obj(request, new_sr.pk)).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=ServiceRequestWriteSerializer, responses={201: ServiceRequestSerializer, 409: OpenApiTypes.OBJECT})
@@ -291,7 +396,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
             asset = Asset.objects.for_organization(request.organization).filter(
                 pk=asset_id, owner=request.membership).exclude(status__in=("RETIRED", "DISPOSED")).first()
             if asset is None:
-                return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+                raise NotFound("Asset not found.")
             require_permission(request.membership, "incident.report_owned", asset.site_id)
         else:
             asset = asset_selectors.get_asset(request.membership, request.organization, asset_id, "asset.view")
@@ -312,7 +417,9 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         except services.DuplicateIncidentError as exc:
             from apps.core.api import _envelope
             data = _envelope(exc.code, exc.message, {"duplicates": exc.duplicates})
-            data.update({"error": exc.message, "code": exc.code, "duplicates": exc.duplicates})
+            data["code"] = exc.code
+            data["message"] = exc.message
+            data["duplicates"] = exc.duplicates
             return Response(data, status=status.HTTP_409_CONFLICT)
         return Response(ServiceRequestSerializer(self._obj(request, sr.pk)).data, status=status.HTTP_201_CREATED)
 
@@ -339,7 +446,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = self._obj(request, pk)
         return paginate(request, selectors.history_for(request.organization, sr), HistorySerializer)
 
-    @extend_schema(methods=["GET"], responses=DowntimeSerializer)
+    @extend_schema(methods=["GET"], responses={200: DowntimeSerializer, 404: OpenApiTypes.OBJECT})
     @extend_schema(methods=["PUT"], request=DowntimeWriteSerializer, responses=DowntimeSerializer)
     @action(detail=True, methods=["get", "put"])
     def downtime(self, request, pk=None):
@@ -347,7 +454,11 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = self._obj(request, pk)
         if request.method == "GET":
             dt = selectors.downtime_for(request.organization, sr)
-            return Response(DowntimeSerializer(dt).data if dt else None)
+            if dt is None:
+                # A missing record is a 404 with the standard error envelope, not a
+                # 200 with a null body (the Swagger contract documents an object).
+                raise NotFound("No downtime record exists for this request.")
+            return Response(DowntimeSerializer(dt).data)
         require_permission(request.membership, "incident.downtime.manage", sr.site_id)
         d = _validated(DowntimeWriteSerializer, request)
         dt = services.set_downtime(sr, started_at=d["started_at"], ended_at=d.get("ended_at"), actor=request.user,
@@ -367,3 +478,52 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         att = services.add_evidence(sr, d["file"], description=d.get("description", ""), actor=request.user,
                                     request=request)
         return Response(RequestEvidenceSerializer(att).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(methods=["GET"], responses=ServiceRequestCommentSerializer(many=True))
+    @extend_schema(
+        methods=["POST"],
+        request=inline_serializer(
+            "ServiceRequestCommentCreateRequest",
+            fields={
+                "body": serializers.CharField(),
+                "is_internal": serializers.BooleanField(required=False, default=False),
+            },
+        ),
+        responses={201: ServiceRequestCommentSerializer},
+    )
+    @action(detail=True, methods=["get", "post"])
+    def comments(self, request, pk=None):
+        sr = self._obj(request, pk)
+        m, org = request.membership, request.organization
+
+        if request.method.lower() == "get":
+            qs = selectors.comments_for(m, org, sr)
+            return Response(ServiceRequestCommentSerializer(qs, many=True).data)
+
+        # POST: create comment
+        body = request.data.get("body", "")
+        is_internal = bool(request.data.get("is_internal", False))
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(m):
+            is_internal = False
+        comment = services.add_comment(
+            sr,
+            body=body,
+            actor=request.user,
+            membership=m,
+            is_internal=is_internal,
+            request=request,
+        )
+        return Response(ServiceRequestCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"comments/(?P<comment_id>[0-9a-f-]+)")
+    def delete_comment(self, request, pk=None, comment_id=None):
+        self._obj(request, pk)
+        services.delete_comment(
+            request.organization,
+            comment_id,
+            actor=request.user,
+            membership=request.membership,
+            request=request,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

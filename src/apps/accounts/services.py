@@ -1,6 +1,8 @@
 """Account lifecycle: invitation/activation tokens + emails, membership activation, password events."""
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
@@ -10,6 +12,17 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from apps.audit import services as audit
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_delay_invitation(user_id: str, org_id: str, new_account: bool):
+    from .tasks import send_invitation_email
+
+    try:
+        send_invitation_email.delay(user_id, org_id, new_account)
+    except Exception:
+        logger.exception("Failed to queue invitation email for user=%s org=%s", user_id, org_id)
 
 
 def activation_url(user) -> str:
@@ -27,9 +40,8 @@ def password_reset_url(user) -> str:
 
 
 def queue_invitation_email(user, org, membership, *, new_account: bool):
-    from .tasks import send_invitation_email
-
-    transaction.on_commit(lambda: send_invitation_email.delay(str(user.pk), str(org.pk), new_account))
+    user_id, org_id = str(user.pk), str(org.pk)
+    transaction.on_commit(lambda: _safe_delay_invitation(user_id, org_id, new_account))
 
 
 @transaction.atomic

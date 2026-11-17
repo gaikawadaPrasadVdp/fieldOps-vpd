@@ -157,3 +157,18 @@ def test_htmx_and_static_assets_still_load_under_the_policy(client, owner_a):
     r = client.get("/app/search/?q=ow", HTTP_HX_REQUEST="true")
     assert r.status_code == 200 and "Content-Security-Policy" in r
     assert "<script" not in r.content.decode()
+
+
+def test_request_id_translates_request_data_too_big_into_413():
+    from django.core.exceptions import RequestDataTooBig
+    from apps.core.middleware import RequestIdMiddleware
+    from django.test import RequestFactory
+
+    def get_response(req):
+        raise RequestDataTooBig("Payload too large")
+
+    middleware = RequestIdMiddleware(get_response)
+    req = RequestFactory().post("/api/v1/something/")
+    resp = middleware(req)
+    assert resp.status_code == 413
+    assert resp["Connection"] == "close"

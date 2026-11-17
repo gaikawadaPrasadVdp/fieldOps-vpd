@@ -137,7 +137,51 @@ def filter_movements(qs, params):
     kind = (params.get("type") or "").strip()
     if kind:
         qs = qs.filter(movement_type=kind) if kind in M.Type.values else qs.none()
-    return qs.order_by("-created_at", "-id")
+
+    ordering = (params.get("ordering") or "").strip()
+    sort = (params.get("sort") or "").strip()
+    direction = (params.get("dir") or params.get("direction") or "").lower().strip()
+
+    if not ordering and sort:
+        if direction == "desc" or sort.startswith("-"):
+            ordering = f"-{sort.lstrip('-')}"
+        else:
+            ordering = sort.lstrip("+")
+
+    ordering_map = {
+        "-created_at": ("-created_at", "-id"),
+        "created_at": ("created_at", "id"),
+        "-when": ("-created_at", "-id"),
+        "when": ("created_at", "id"),
+        "type": ("movement_type", "-created_at"),
+        "-type": ("-movement_type", "-created_at"),
+        "movement_type": ("movement_type", "-created_at"),
+        "-movement_type": ("-movement_type", "-created_at"),
+        "warehouse": ("warehouse__code", "-created_at"),
+        "-warehouse": ("-warehouse__code", "-created_at"),
+        "part": ("part__part_number", "-created_at"),
+        "-part": ("-part__part_number", "-created_at"),
+        "part_number": ("part__part_number", "-created_at"),
+        "-part_number": ("-part__part_number", "-created_at"),
+        "qty": ("quantity", "-created_at"),
+        "-qty": ("-quantity", "-created_at"),
+        "quantity": ("quantity", "-created_at"),
+        "-quantity": ("-quantity", "-created_at"),
+        "on_hand_delta": ("on_hand_delta", "-created_at"),
+        "-on_hand_delta": ("-on_hand_delta", "-created_at"),
+        "reserved_delta": ("reserved_delta", "-created_at"),
+        "-reserved_delta": ("-reserved_delta", "-created_at"),
+        "on_hand_after": ("on_hand_after", "-created_at"),
+        "-on_hand_after": ("-on_hand_after", "-created_at"),
+        "work_order": ("work_order__order_number", "-created_at"),
+        "-work_order": ("-work_order__order_number", "-created_at"),
+        "actor": ("actor__email", "-created_at"),
+        "-actor": ("-actor__email", "-created_at"),
+        "by": ("actor__email", "-created_at"),
+        "-by": ("-actor__email", "-created_at"),
+    }
+    order_fields = ordering_map.get(ordering, ("-created_at", "-id"))
+    return qs.order_by(*order_fields)
 
 
 def reservations_for(membership, org):
@@ -147,12 +191,64 @@ def reservations_for(membership, org):
 
 
 def filter_reservations(qs, params):
-    qs = _uuid_filter(qs, params, "work_order", "work_order_id")
-    qs = _uuid_filter(qs, params, "warehouse", "warehouse_id")
+    for param, field in (("warehouse", "warehouse_id"), ("part", "part_id"), ("work_order", "work_order_id")):
+        qs = _uuid_filter(qs, params, param, field)
+
     status = (params.get("status") or "").strip()
-    if status:
+    if status and status.upper() != "ALL":
         qs = qs.filter(status=status) if status in PartReservation.Status.values else qs.none()
-    return qs.order_by("-updated_at")
+
+    q = (params.get("q") or "").strip()
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(work_order__number__icontains=q)
+            | Q(work_order__title__icontains=q)
+            | Q(part__part_number__icontains=q)
+            | Q(part__name__icontains=q)
+            | Q(warehouse__code__icontains=q)
+            | Q(warehouse__name__icontains=q)
+        )
+
+    ordering = (params.get("ordering") or "").strip()
+    sort = (params.get("sort") or "").strip()
+    direction = (params.get("dir") or params.get("direction") or "").lower().strip()
+
+    if not ordering and sort:
+        if direction == "desc" or sort.startswith("-"):
+            ordering = f"-{sort.lstrip('-')}"
+        else:
+            ordering = sort.lstrip("+")
+
+    ordering_map = {
+        "-updated_at": ("-updated_at", "-id"),
+        "updated_at": ("updated_at", "id"),
+        "-updated": ("-updated_at", "-id"),
+        "updated": ("updated_at", "id"),
+        "-created_at": ("-created_at", "-id"),
+        "created_at": ("created_at", "id"),
+        "work_order": ("work_order__number", "-updated_at"),
+        "-work_order": ("-work_order__number", "-updated_at"),
+        "wo": ("work_order__number", "-updated_at"),
+        "-wo": ("-work_order__number", "-updated_at"),
+        "warehouse": ("warehouse__code", "-updated_at"),
+        "-warehouse": ("-warehouse__code", "-updated_at"),
+        "part": ("part__part_number", "-updated_at"),
+        "-part": ("-part__part_number", "-updated_at"),
+        "part_number": ("part__part_number", "-updated_at"),
+        "-part_number": ("-part__part_number", "-updated_at"),
+        "held": ("quantity", "-updated_at"),
+        "-held": ("-quantity", "-updated_at"),
+        "qty": ("quantity", "-updated_at"),
+        "-qty": ("-quantity", "-updated_at"),
+        "quantity": ("quantity", "-updated_at"),
+        "-quantity": ("-quantity", "-updated_at"),
+        "status": ("status", "-updated_at"),
+        "-status": ("-status", "-updated_at"),
+    }
+
+    cols = ordering_map.get(ordering, ("-updated_at", "-id"))
+    return qs.order_by(*cols)
 
 
 # --- work-order part lines ----------------------------------------------------------------------------------------
@@ -164,21 +260,39 @@ def lines_for_work_order(org, wo):
 
 
 def get_line(membership, org, pk) -> WorkOrderPart:
-    """A part line is visible when its work order is (M06 visibility: site scope or assignment)."""
+    """A part line is visible when its work order is (M06 visibility: site scope or assignment) or within inventory scope."""
     from apps.workorders.selectors import work_orders_for
+
+    if rbac.has_permission_anywhere(membership, "inventory.view"):
+        scope = rbac.site_scope(membership, "inventory.view")
+        qs = WorkOrderPart.objects.for_organization(org).select_related(
+            "part", "warehouse", "work_order__site", "requested_by"
+        )
+        if not scope.all_sites:
+            qs = qs.filter(work_order__site_id__in=scope.site_ids)
+        return scoped_get(qs, pk, "Part line")
 
     visible = work_orders_for(membership, org).values("pk")
     qs = WorkOrderPart.objects.for_organization(org).filter(work_order__in=visible).select_related(
-        "part", "warehouse", "work_order__site")
+        "part", "warehouse", "work_order__site", "requested_by")
     return scoped_get(qs, pk, "Part line")
 
 
 def lines_visible(membership, org):
     from apps.workorders.selectors import work_orders_for
 
+    if rbac.has_permission_anywhere(membership, "inventory.view"):
+        scope = rbac.site_scope(membership, "inventory.view")
+        qs = WorkOrderPart.objects.for_organization(org).select_related(
+            "part", "warehouse", "work_order", "work_order__site", "requested_by"
+        )
+        if not scope.all_sites:
+            qs = qs.filter(work_order__site_id__in=scope.site_ids)
+        return qs
+
     visible = work_orders_for(membership, org).values("pk")
     return WorkOrderPart.objects.for_organization(org).filter(work_order__in=visible).select_related(
-        "part", "warehouse", "work_order")
+        "part", "warehouse", "work_order", "work_order__site", "requested_by")
 
 
 def usable_warehouses(membership, org, site_id, code: str):

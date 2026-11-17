@@ -9,26 +9,38 @@ from django.utils import timezone
 from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole
 from apps.workorders.models import WorkOrder
+from apps.ui.pagination import paginate_dashboard_queryset
 
 from .models import Downtime, ServiceRequest
 from .workflow import CLOSED, REJECTED
 
 
 ROLE_TITLES = {
+    "owner": "Organization Owner",
     "admin": "Organization Owner",
+    "service_dispatcher": "Service Dispatcher",
     "operations_manager": "Operations Manager",
+    "service_dispatcher": "Service Dispatcher",
+    "service_dispatcher": "Service Dispatcher",
     "asset_manager": "Asset Manager",
     "maintenance_planner": "Maintenance Planner",
     "supervisor": "Maintenance Supervisor",
     "technician": "Lead Field Technician",
+    "field_technician": "Lead Field Technician",
     "stores_manager": "Stores / Inventory Manager",
+    "stores_inventory": "Stores / Inventory Manager",
     "service_manager": "Service & SLA Manager",
     "auditor": "Compliance & Audit Officer",
+    "compliance": "Compliance & Audit Officer",
     "client_requester": "Client / Requester",
 }
 
 
 def _dashboard_context(request, *, platform=False):
+    if platform:
+        # Rule D-008: Platform admin has no tenant rights and cannot access tenant operational data
+        raise PermissionDenied("Platform administrators do not have access to tenant operational data.")
+
     from apps.audit.models import AuditLog
     from apps.incidents import selectors
     from apps.sla.models import SLABreach, SLATracking
@@ -37,78 +49,65 @@ def _dashboard_context(request, *, platform=False):
     membership = request.membership
     organization = request.organization
     now = timezone.now()
-    if platform:
-        requests = ServiceRequest.objects.all().select_related("asset", "site", "reported_by__user")
-        work_orders = WorkOrder.objects.all().select_related("site", "asset", "source_request", "assigned_to__user")
-        title = "Platform Super Admin"
-        audits = AuditLog.objects.all().filter(action__in=("incident.created", "incident.updated",
-            "incident.status_changed", "incident.duplicate_detected", "incident.duplicate_linked",
-            "incident.duplicate_overridden", "incident.downtime_recorded", "incident.downtime_updated",
-            "incident.evidence_added"))
-        breaches = SLABreach.objects.all().filter(tracking__request__isnull=False)
-        has_incidents = has_work_orders = has_sla = has_audit = True
-        role_keys = {"platform_admin"}
-        client_no_assets = False
+    if membership is None or not membership.is_active:
+        raise PermissionDenied
+    role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))
+    if "admin" in role_keys or rbac.is_owner(membership):
+        title = "Organization Owner"
     else:
-        if membership is None or not membership.is_active:
-            raise PermissionDenied
-        role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))
-        if "admin" in role_keys or rbac.is_owner(membership):
-            title = "Organization Owner"
-        else:
-            title = next((ROLE_TITLES[key] for key in (
-                "operations_manager", "asset_manager", "maintenance_planner", "supervisor", "technician",
-                "stores_manager", "service_manager", "auditor", "client_requester") if key in role_keys),
-                "Incident & Service Dashboard")
+        title = next((ROLE_TITLES[key] for key in (
+            "operations_manager", "service_dispatcher", "asset_manager", "maintenance_planner", "supervisor", "technician",
+            "stores_manager", "service_manager", "auditor", "client_requester") if key in role_keys),
+            "Incident & Service Dashboard")
 
-        has_incidents = (rbac.has_permission_anywhere(membership, "incident.view") or
-                         rbac.has_permission_anywhere(membership, "incident.view_assigned"))
-        has_work_orders = (rbac.has_permission_anywhere(membership, "work_order.view") or
-                           rbac.has_permission_anywhere(membership, "work_order.view_assigned"))
-        has_sla = rbac.has_permission_anywhere(membership, "sla.view")
-        has_audit = rbac.has_permission_anywhere(membership, "audit.view")
-        requester_only = ("client_requester" in role_keys and not has_incidents)
-        client_no_assets = ("client_requester" in role_keys and not Asset.objects.for_organization(
-            organization).filter(owner=membership).exclude(status__in=("RETIRED", "DISPOSED")).exists())
+    has_incidents = (rbac.has_permission_anywhere(membership, "incident.view") or
+                     rbac.has_permission_anywhere(membership, "incident.view_assigned"))
+    has_work_orders = (rbac.has_permission_anywhere(membership, "work_order.view") or
+                       rbac.has_permission_anywhere(membership, "work_order.view_assigned"))
+    has_sla = rbac.has_permission_anywhere(membership, "sla.view")
+    has_audit = rbac.has_permission_anywhere(membership, "audit.view")
+    requester_only = ("client_requester" in role_keys and not has_incidents)
+    client_no_assets = ("client_requester" in role_keys and not Asset.objects.for_organization(
+        organization).filter(owner=membership).exclude(status__in=("RETIRED", "DISPOSED")).exists())
 
-        if has_incidents:
-            requests = (selectors.requests_for(membership, organization, "incident.view") |
-                        selectors.requests_for(membership, organization, "incident.view_assigned"))
-        elif requester_only:
-            requests = ServiceRequest.objects.for_organization(organization).filter(reported_by=membership)
-        else:
-            requests = ServiceRequest.objects.for_organization(organization).none()
-        requests = requests.select_related("asset", "site", "reported_by__user")
+    if has_incidents:
+        requests = (selectors.requests_for(membership, organization, "incident.view") |
+                    selectors.requests_for(membership, organization, "incident.view_assigned"))
+    elif requester_only:
+        requests = ServiceRequest.objects.for_organization(organization).filter(reported_by=membership)
+    else:
+        requests = ServiceRequest.objects.for_organization(organization).none()
+    requests = requests.select_related("asset", "site", "reported_by__user")
 
-        if rbac.has_permission_anywhere(membership, "work_order.view"):
-            work_orders = rbac.site_scope(membership, "work_order.view").filter(
-                WorkOrder.objects.for_organization(organization).select_related(
-                    "site", "asset", "source_request", "assigned_to__user"), "site_id")
-        elif rbac.has_permission_anywhere(membership, "work_order.view_assigned"):
-            work_orders = WorkOrder.objects.for_organization(organization).filter(assigned_to=membership).select_related(
-                "site", "asset", "source_request", "assigned_to__user")
-        elif has_incidents:
-            work_orders = WorkOrder.objects.for_organization(organization).filter(source_request__in=requests).select_related(
-                "site", "asset", "source_request", "assigned_to__user")
-        else:
-            work_orders = WorkOrder.objects.for_organization(organization).none()
+    if rbac.has_permission_anywhere(membership, "work_order.view"):
+        work_orders = rbac.site_scope(membership, "work_order.view").filter(
+            WorkOrder.objects.for_organization(organization).select_related(
+                "site", "asset", "source_request", "assigned_to__user"), "site_id")
+    elif rbac.has_permission_anywhere(membership, "work_order.view_assigned"):
+        work_orders = WorkOrder.objects.for_organization(organization).filter(assigned_to=membership).select_related(
+            "site", "asset", "source_request", "assigned_to__user")
+    elif has_incidents:
+        work_orders = WorkOrder.objects.for_organization(organization).filter(source_request__in=requests).select_related(
+            "site", "asset", "source_request", "assigned_to__user")
+    else:
+        work_orders = WorkOrder.objects.for_organization(organization).none()
 
-        request_ids = requests.values("pk")
-        if has_audit:
-            request_target_ids = [str(pk) for pk in requests.values_list("pk", flat=True)]
-            audits = AuditLog.objects.for_organization(organization).filter(
-                Q(action__startswith="incident.") | Q(target_id__in=request_target_ids)).order_by("-occurred_at")
-        else:
-            audits = AuditLog.objects.none()
-        if has_sla:
-            breaches = SLABreach.objects.for_organization(organization).filter(
-                tracking__request_id__in=request_ids)
-        else:
-            breaches = SLABreach.objects.none()
+    request_ids = requests.values("pk")
+    if has_audit:
+        request_target_ids = [str(pk) for pk in requests.values_list("pk", flat=True)]
+        audits = AuditLog.objects.for_organization(organization).filter(
+            Q(action__startswith="incident.") | Q(target_id__in=request_target_ids)).order_by("-occurred_at")
+    else:
+        audits = AuditLog.objects.none()
+    if has_sla:
+        breaches = SLABreach.objects.for_organization(organization).filter(
+            tracking__request_id__in=request_ids)
+    else:
+        breaches = SLABreach.objects.none()
 
-        if not any((has_incidents, has_work_orders, has_sla, has_audit,
-                    "client_requester" in role_keys)):
-            raise PermissionDenied
+    if not any((has_incidents, has_work_orders, has_sla, has_audit,
+                "client_requester" in role_keys)):
+        raise PermissionDenied
 
     active_requests = requests.exclude(status__in=(CLOSED, REJECTED, "CANCELLED"))
     active_downtime = Downtime.objects.filter(request__in=active_requests, ended_at__isnull=True)
@@ -163,9 +162,13 @@ def _dashboard_context(request, *, platform=False):
             balance = stock_by_part.get(line.part_id, {})
             line.available_stock = (balance.get("on_hand") or 0) - (balance.get("reserved") or 0)
             line.shortage = max(line.remaining_to_issue - line.available_stock, 0)
-    request_rows = list((requests if not platform and "client_requester" in role_keys and not has_incidents
-                         else active_requests).order_by("-created_at")[:12])
-    work_order_rows = list(open_work_orders.order_by("due_at", "-created_at")[:12])
+    req_qs = (requests if not platform and "client_requester" in role_keys and not has_incidents else active_requests).order_by("-created_at")
+    requests_page_obj, requests_params = paginate_dashboard_queryset(request, req_qs, page_param="req_page", per_page=12)
+    request_rows = list(requests_page_obj)
+
+    wo_qs = open_work_orders.order_by("due_at", "-created_at")
+    work_orders_page_obj, wo_params = paginate_dashboard_queryset(request, wo_qs, page_param="wo_page", per_page=12)
+    work_order_rows = list(work_orders_page_obj)
     recent_audits = list(audits.order_by("-occurred_at")[:10])
     open_breaches = list(breaches.filter(status=SLABreach.Status.OPEN).select_related(
         "tracking__request", "site").order_by("-breached_at")[:10]) if can["sla"] else []
@@ -174,6 +177,8 @@ def _dashboard_context(request, *, platform=False):
     return {
         "platform": platform, "dashboard_title": title, "role_keys": role_keys,
         "requests": request_rows, "work_orders": work_order_rows, "parts": parts,
+        "requests_page_obj": requests_page_obj, "requests_params": requests_params,
+        "work_orders_page_obj": work_orders_page_obj, "wo_params": wo_params,
         "recent_audits": recent_audits, "open_breaches": open_breaches,
         "at_risk": at_risk,
         "repeated_assets": repeated_assets, "by_category": by_category, "by_site": by_site,
@@ -190,6 +195,7 @@ def _dashboard_context(request, *, platform=False):
         },
         "can": can, "has_incidents": has_incidents, "has_work_orders": has_work_orders,
         "has_sla": has_sla, "has_audit": has_audit,
+        "is_portal_client": not platform and membership is not None and hasattr(membership, "portal_account") and membership.portal_account.is_enabled,
         "client_portal_gap": client_no_assets,
         "as_of": now,
     }
@@ -204,6 +210,6 @@ def dashboard(request):
 
 @login_required
 def platform_dashboard(request):
-    if not request.user.is_platform_admin:
-        raise PermissionDenied
-    return render(request, "incidents/dashboard.html", _dashboard_context(request, platform=True))
+    # Rule D-008: Platform Super Admin is restricted to platform governance.
+    # Tenant operational data (incidents, work orders, assets) cannot be accessed by platform admin.
+    raise PermissionDenied("Platform administrators do not have access to tenant operational data.")

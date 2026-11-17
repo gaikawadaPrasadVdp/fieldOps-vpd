@@ -26,7 +26,7 @@
   </div>
   {% endfor %}
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
   (function() {
     function autoDismissAll() {
       var alerts = document.querySelectorAll('.fx-toast-message:not([data-dismiss-queued])');

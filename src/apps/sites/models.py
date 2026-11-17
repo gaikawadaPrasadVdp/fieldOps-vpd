@@ -37,6 +37,12 @@ class Site(TenantOwnedModel):
     def __str__(self):
         return f"{self.code} · {self.name}"
 
+    def clean(self):
+        super().clean()
+        if self.name is not None and not str(self.name).strip():
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"name": "This field cannot be blank."})
+
     @property
     def is_active(self):
         return self.status == Status.ACTIVE
@@ -143,3 +149,26 @@ class SiteContact(TenantOwnedModel):
 
     def __str__(self):
         return f"{self.name} (L{self.escalation_order})"
+
+
+class Shift(TenantOwnedModel):
+    """Working shift definition tied to an operating site."""
+
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="shifts")
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=30)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_overnight = models.BooleanField(default=False)
+    days_of_week = models.JSONField(default=list, help_text="Weekday indices, 0=Monday ... 6=Sunday")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["site__code", "code"]
+        constraints = [
+            models.UniqueConstraint(Lower("code"), "site", name="uniq_shift_code_per_site"),
+        ]
+        indexes = [models.Index(fields=["organization", "site", "is_active"])]
+
+    def __str__(self):
+        return f"{self.site.code} - {self.name} ({self.code})"

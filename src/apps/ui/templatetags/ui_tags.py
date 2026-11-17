@@ -89,6 +89,7 @@ _ICONS = {
     "play": '<polygon points="5 3 19 12 5 21 5 3"/>',
     "play-circle": '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
     "plus-circle": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+    "qr": '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 19v2h-2"/>',
     "rotate-ccw": '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
     "send": '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
@@ -100,6 +101,7 @@ _ICONS = {
     "upload": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
     "upload-cloud": '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/>',
     "user": '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    "log-out": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
 }
 
 
@@ -271,3 +273,86 @@ def hierarchy_trail(asset):
     trail_html = ' <span class="text-muted mx-1">›</span> '.join(items)
     return format_html('<span class="fx-hierarchy-trail small text-body-secondary">Machine Path: {}</span>', mark_safe(trail_html))
 
+
+_SORT_ALIASES = {
+    "when": ("created_at", "when"),
+    "created_at": ("created_at", "when"),
+    "part": ("part", "part_number"),
+    "part_number": ("part", "part_number"),
+    "qty": ("qty", "quantity"),
+    "quantity": ("qty", "quantity"),
+    "type": ("type", "movement_type"),
+    "movement_type": ("type", "movement_type"),
+    "by": ("by", "actor"),
+    "actor": ("by", "actor"),
+    "work_order": ("work_order", "wo", "work_order_number"),
+    "wo": ("work_order", "wo", "work_order_number"),
+    "warehouse": ("warehouse", "wh"),
+    "wh": ("warehouse", "wh"),
+    "held": ("held", "quantity", "qty"),
+    "status": ("status",),
+    "updated": ("updated", "updated_at"),
+    "updated_at": ("updated", "updated_at"),
+}
+
+
+@register.simple_tag(takes_context=True)
+def sort_url(context, field):
+    """Generates a URL with preserved query parameters and toggled ordering for field."""
+    request = context.get("request")
+    if not request:
+        return f"?ordering={field}"
+    params = request.GET.copy()
+    params.pop("page", None)
+    current_ordering = params.get("ordering", "-created_at")
+
+    aliases = _SORT_ALIASES.get(field, (field,))
+    is_asc = current_ordering in aliases
+    is_desc = any(current_ordering == f"-{a}" for a in aliases)
+
+    if is_asc:
+        params["ordering"] = f"-{field}"
+    elif is_desc:
+        params["ordering"] = field
+    else:
+        if field in ("created_at", "when", "quantity", "qty", "held", "on_hand_delta", "reserved_delta", "on_hand_after", "updated", "updated_at"):
+            params["ordering"] = f"-{field}"
+        else:
+            params["ordering"] = field
+
+    encoded = params.urlencode()
+    return f"?{encoded}" if encoded else "?"
+
+
+@register.simple_tag(takes_context=True)
+def sort_icon(context, field):
+    """Returns sort indicator icon HTML or symbol for the table header."""
+    request = context.get("request")
+    if not request:
+        return ""
+    current_ordering = request.GET.get("ordering", "-created_at")
+    aliases = _SORT_ALIASES.get(field, (field,))
+
+    if current_ordering in aliases:
+        return mark_safe('<span class="text-primary ms-1" title="Ascending">▲</span>')
+    elif any(current_ordering == f"-{a}" for a in aliases):
+        return mark_safe('<span class="text-primary ms-1" title="Descending">▼</span>')
+    return mark_safe('<span class="text-muted opacity-50 ms-1" style="font-size: 0.75em;">↕</span>')
+
+
+
+
+@register.filter
+def avatar_initials(value):
+    """Extract clean 2-letter uppercase initials from name or email (e.g. 'John Doe' -> 'JD')."""
+    if not value:
+        return ""
+    val_str = str(value).strip()
+    if "@" in val_str and " " not in val_str:
+        val_str = val_str.split("@")[0]
+    parts = val_str.replace(".", " ").replace("_", " ").replace("-", " ").split()
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[-1][0]).upper()
+    elif len(parts) == 1:
+        return parts[0][:2].upper()
+    return ""

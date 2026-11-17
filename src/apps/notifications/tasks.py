@@ -2,6 +2,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
+from apps.core.net import is_suppressed_test_email
 from apps.core.tenant import tenant_context
 
 from .models import Notification
@@ -11,6 +12,8 @@ from .models import Notification
              retry_backoff=True, max_retries=5)
 def send_notification_email(notification_ids: list[str]):
     for n in Notification.objects.filter(pk__in=notification_ids).select_related("recipient", "organization"):
+        if is_suppressed_test_email(n.recipient.email):
+            continue
         with tenant_context(n.organization):
             link = f"\n\n{settings.SITE_BASE_URL.rstrip('/')}{n.link}" if n.link else ""
             send_mail(

@@ -194,6 +194,13 @@ def run_performance_benchmark():
 
         latencies = []
         html_size_kb = 0
+        settings.DEBUG = True
+        reset_queries()
+        resp = client.get(tree_url)
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        html_query_count = len(connection.queries)
+        settings.DEBUG = False
+        assert html_query_count <= 20, f"HTML tree queries {html_query_count} exceeded bound 20!"
         for i in range(5):
             t_req = time.perf_counter()
             resp = client.get(tree_url)
@@ -207,10 +214,11 @@ def run_performance_benchmark():
         max_html_ms = max(latencies)
 
         print(f"  • Response Payload Size:         {html_size_kb:.1f} KB HTML (Optimized progressive payload)")
+        print(f"  • HTML Render DB Queries:        {html_query_count} queries (No per-node N+1)")
         print(f"  • Latency (Average across 5):    {avg_html_ms:.2f} ms")
         print(f"  • Latency (Min / Max):           {min_html_ms:.2f} ms / {max_html_ms:.2f} ms")
         html_sla_met = avg_html_ms < 200.0
-        print(f"  {'✅ [PASS]' if html_sla_met else '⚠️ [WARN]'} Initial HTML render: {avg_html_ms:.2f} ms (Payload: {html_size_kb:.1f} KB)")
+        print(f"  {'✅ [PASS]' if html_sla_met else '⚠️ [WARN]'} Initial HTML render: {avg_html_ms:.2f} ms ({html_query_count} queries, {html_size_kb:.1f} KB)")
 
         # [Test 2b] Benchmark On-Demand Branch Expansion (HTMX branch=1)
         print("\n[Benchmark 2b] Testing On-Demand Branch Expansion (GET /app/assets/<l1_pk>/tree/?branch=1)...")

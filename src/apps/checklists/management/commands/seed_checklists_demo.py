@@ -164,7 +164,7 @@ class Command(BaseCommand):
             if not wo_gen:
                 wo_gen = wo_services.create_work_order(
                     org, asset=asset_gen, actor=actor, title="Generator Standby Operational Readiness Inspection",
-                    work_type="PREVENTIVE", priority="URGENT"
+                    work_type="PREVENTIVE", priority="CRITICAL"
                 )
                 wo_gen = wo_services.transition(wo_gen, action="plan", actor=actor, membership=owner_m, planned_start=t3_start, planned_end=t3_end)
                 wo_gen = wo_services.transition(wo_gen, action="assign", actor=actor, membership=owner_m, technician=tech_m)

@@ -14,4 +14,6 @@ urlpatterns = [
     path("incidents/<uuid:pk>/transition/<str:action>/", views.RequestTransitionView.as_view(), name="transition"),
     path("incidents/<uuid:pk>/downtime/", views.RequestDowntimeView.as_view(), name="downtime"),
     path("incidents/<uuid:pk>/evidence/", views.RequestEvidenceView.as_view(), name="evidence"),
+    path("incidents/<uuid:pk>/comments/", views.RequestCommentCreateView.as_view(), name="comments"),
+    path("incidents/<uuid:pk>/comments/<uuid:comment_id>/delete/", views.RequestCommentDeleteView.as_view(), name="comment_delete"),
 ]

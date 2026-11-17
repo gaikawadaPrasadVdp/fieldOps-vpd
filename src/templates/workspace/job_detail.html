@@ -9,7 +9,8 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb small mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'workspace:my_jobs' %}" class="text-decoration-none">← My Jobs</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'workspace:my_jobs' %}" class="text-decoration-none">← My Jobs</a>
+        </li>
         <li class="breadcrumb-item active" aria-current="page">{{ work_order.order_number }}</li>
       </ol>
     </nav>
@@ -23,19 +24,22 @@
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
         <div class="flex-grow-1">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <span class="badge {% if work_order.priority == 'CRITICAL' %}bg-danger{% elif work_order.priority == 'HIGH' %}bg-warning text-dark{% elif work_order.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+            <span
+              class="badge {% if work_order.priority == 'CRITICAL' %}bg-danger{% elif work_order.priority == 'HIGH' %}bg-warning text-dark{% elif work_order.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
               {{ work_order.get_priority_display }}
             </span>
             <span class="badge bg-light text-dark border">
               {{ work_order.get_work_type_display }}
             </span>
-            <span class="badge {% if work_order.status == 'IN_PROGRESS' %}bg-success{% elif work_order.status == 'ON_HOLD' %}bg-warning text-dark{% elif work_order.status == 'DISPATCHED' %}bg-info text-dark{% elif work_order.status == 'COMPLETED' or work_order.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+            <span
+              class="badge {% if work_order.status == 'IN_PROGRESS' %}bg-success{% elif work_order.status == 'ON_HOLD' %}bg-warning text-dark{% elif work_order.status == 'DISPATCHED' %}bg-info text-dark{% elif work_order.status == 'COMPLETED' or work_order.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
               {{ work_order.get_status_display }}
             </span>
             {% if work_order.checklist_required %}
-              <span class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% else %}bg-warning text-dark{% endif %} border">
-                Checklist: {{ work_order.checklist_status }}
-              </span>
+            <span
+              class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% else %}bg-warning text-dark{% endif %} border">
+              Checklist: {{ work_order.checklist_status }}
+            </span>
             {% endif %}
           </div>
           <h1 class="h3 fw-bold mb-1">{{ work_order.order_number }}: {{ work_order.title }}</h1>
@@ -71,7 +75,8 @@
           {% if work_order.resolution_notes %}
           <div class="mt-3">
             <h6 class="small fw-bold text-uppercase text-success mb-1">Resolution Summary</h6>
-            <p class="small text-dark mb-0 bg-success-subtle p-2 rounded border border-success-subtle" style="white-space: pre-line;">{{ work_order.resolution_notes }}</p>
+            <p class="small text-dark mb-0 bg-success-subtle p-2 rounded border border-success-subtle"
+              style="white-space: pre-line;">{{ work_order.resolution_notes }}</p>
           </div>
           {% endif %}
         </div>
@@ -103,26 +108,25 @@
           {% endif %}
 
           {% if drawer.can_complete or work_order.status == 'IN_PROGRESS' %}
-          <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm" id="completeJobBtn">
+          <a href="{% url 'workspace:complete' work_order.pk %}"
+            class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm" id="completeJobBtn">
             {% icon 'clipboard-check' 16 %} Complete & Sign-off
           </a>
           {% endif %}
           {% if work_order.signoff %}
-          <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-outline-success d-inline-flex align-items-center gap-1" id="viewSignoffBtn">
+          <a href="{% url 'workspace:complete' work_order.pk %}"
+            class="btn btn-outline-success d-inline-flex align-items-center gap-1" id="viewSignoffBtn">
             {% icon 'check-circle' 16 %} View Sign-off
           </a>
           {% endif %}
 
           <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-1 shadow-sm"
-                  data-bs-toggle="modal" data-bs-target="#reportAuxiliaryDefectModal" id="btnReportDefect">
+            data-bs-toggle="modal" data-bs-target="#reportAuxiliaryDefectModal" id="btnReportDefect">
             {% icon 'alert-triangle' 16 %} Report Defect
           </button>
 
-          <button class="btn btn-outline-secondary"
-                  hx-get="{% url 'workspace:drawer' work_order.pk %}"
-                  hx-target="#drawer-content"
-                  data-bs-toggle="offcanvas"
-                  data-bs-target="#technicianExecutionDrawer">
+          <button class="btn btn-outline-secondary" hx-get="{% url 'workspace:drawer' work_order.pk %}"
+            hx-target="#drawer-content" data-bs-toggle="offcanvas" data-bs-target="#technicianExecutionDrawer">
             {% icon 'sliders' 16 %} Execution Drawer
           </button>
         </div>
@@ -141,7 +145,8 @@
           <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2 text-danger">
             {% icon 'alert-triangle' 18 %} Reported On-Site Defects ({{ auxiliary_defects|length }})
           </h5>
-          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reportAuxiliaryDefectModal">
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+            data-bs-target="#reportAuxiliaryDefectModal">
             + Report Another
           </button>
         </div>
@@ -151,7 +156,8 @@
             <div class="list-group-item p-3">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <div>
-                  <span class="badge {% if defect.severity == 'CRITICAL' %}bg-danger{% elif defect.severity == 'HIGH' %}bg-warning text-dark{% elif defect.severity == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %} me-1">
+                  <span
+                    class="badge {% if defect.severity == 'CRITICAL' %}bg-danger{% elif defect.severity == 'HIGH' %}bg-warning text-dark{% elif defect.severity == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %} me-1">
                     {{ defect.get_severity_display }}
                   </span>
                   <a href="{% url 'incidents:detail' defect.pk %}" class="fw-bold text-dark text-decoration-none">
@@ -181,10 +187,8 @@
             {% icon 'pin' 18 %} Site &amp; Route Guidance
           </h5>
           {% if route.maps_query %}
-          <a href="https://maps.google.com/?q={{ route.maps_query|urlencode }}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-primary">
+          <a href="https://maps.google.com/?q={{ route.maps_query|urlencode }}" target="_blank"
+            rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
             {% icon 'navigation' 14 %} Open in Maps
           </a>
           {% endif %}
@@ -243,8 +247,17 @@
             {% icon 'box' 18 %} Target Asset Context
           </h5>
           <div class="d-flex gap-2">
-            <a href="{% url 'identification:scan' %}?work_order={{ work_order.pk }}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btnVerifyAsset">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+            <a href="{% url 'identification:scan' %}?work_order={{ work_order.pk }}"
+              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm"
+              id="btnVerifyAsset">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <rect x="7" y="7" width="10" height="10" rx="1" />
+              </svg>
               Verify Machine (Scan)
             </a>
             <a href="{% url 'assets:detail' work_order.asset.pk %}" class="btn btn-sm btn-outline-secondary">
@@ -322,18 +335,18 @@
                   <td class="fw-semibold text-dark">{{ m.name }}</td>
                   <td>
                     {% if m.latest_value is not None %}
-                      <span class="badge bg-primary-subtle text-primary border font-monospace fs-6">
-                        {{ m.latest_value }} {{ m.unit }}
-                      </span>
+                    <span class="badge bg-primary-subtle text-primary border font-monospace fs-6">
+                      {{ m.latest_value }} {{ m.unit }}
+                    </span>
                     {% else %}
-                      <span class="text-muted fst-italic">No readings yet</span>
+                    <span class="text-muted fst-italic">No readings yet</span>
                     {% endif %}
                   </td>
                   <td class="text-secondary">
                     {% if m.latest_read_at %}
-                      {{ m.latest_read_at|date:"M j, Y H:i" }}
+                    {{ m.latest_read_at|date:"M j, Y H:i" }}
                     {% else %}
-                      —
+                    —
                     {% endif %}
                   </td>
                   <td class="text-muted text-truncate" style="max-width: 180px;">
@@ -350,7 +363,8 @@
             <h6 class="small fw-bold text-uppercase text-secondary mb-2 d-flex align-items-center gap-1">
               {% icon 'plus' 14 %} Log New Meter Reading
             </h6>
-            <form method="post" action="{% url 'workspace:meter_reading' work_order.pk %}" class="row g-2 align-items-end">
+            <form method="post" action="{% url 'workspace:meter_reading' work_order.pk %}"
+              class="row g-2 align-items-end">
               {% csrf_token %}
               <div class="col-12 col-md-4">
                 <label class="form-label small fw-semibold text-secondary mb-1">Target Meter *</label>
@@ -364,11 +378,14 @@
               </div>
               <div class="col-12 col-md-3">
                 <label class="form-label small fw-semibold text-secondary mb-1">Reading Value *</label>
-                <input type="number" step="0.01" min="0" name="value" class="form-control form-control-sm font-monospace" placeholder="e.g. 1250.5" required id="id_meter_value">
+                <input type="number" step="0.01" min="0" name="value"
+                  class="form-control form-control-sm font-monospace" placeholder="e.g. 1250.5" required
+                  id="id_meter_value">
               </div>
               <div class="col-12 col-md-3">
                 <label class="form-label small fw-semibold text-secondary mb-1">Notes / Remarks</label>
-                <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Regular shift check" id="id_meter_notes">
+                <input type="text" name="notes" class="form-control form-control-sm"
+                  placeholder="e.g. Regular shift check" id="id_meter_notes">
               </div>
               <div class="col-12 col-md-2">
                 <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold" id="btn_record_meter">
@@ -393,14 +410,16 @@
           <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
             {% icon 'clipboard-check' 18 %} Inspection Checklist
           </h5>
-          <span class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% elif work_order.checklist_status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+          <span
+            class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% elif work_order.checklist_status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
             {{ work_order.checklist_status }}
           </span>
         </div>
         <div class="card-body">
           {% if work_order.checklist_required %}
           <p class="small text-secondary mb-3">
-            This work order requires execution of checklist template: <code>{{ work_order.checklist_template_ref }}</code>.
+            This work order requires execution of checklist template:
+            <code>{{ work_order.checklist_template_ref }}</code>.
           </p>
           {% if work_order.checklist_status != 'COMPLETED' %}
           <div class="alert alert-warning small py-2 px-3 mb-3 d-flex align-items-center gap-2">
@@ -428,26 +447,29 @@
             {% icon 'paperclip' 18 %} Photos &amp; Completion Evidence
           </h5>
           {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' %}
-            {% if evidence %}
-              <span class="badge bg-success">Evidence Uploaded ({{ evidence|length }})</span>
-            {% else %}
-              <span class="badge bg-danger">Mandatory for Completion</span>
-            {% endif %}
+          {% if evidence %}
+          <span class="badge bg-success">Evidence Uploaded ({{ evidence|length }})</span>
           {% else %}
-            <span class="badge bg-light text-dark border">{{ evidence|length }} Files</span>
+          <span class="badge bg-danger">Mandatory for Completion</span>
+          {% endif %}
+          {% else %}
+          <span class="badge bg-light text-dark border">{{ evidence|length }} Files</span>
           {% endif %}
         </div>
         <div class="card-body">
           <!-- Upload Form -->
-          <form method="post" action="{% url 'workspace:evidence' work_order.pk %}" enctype="multipart/form-data" class="mb-4 p-3 bg-light rounded border">
+          <form method="post" action="{% url 'workspace:evidence' work_order.pk %}" enctype="multipart/form-data"
+            class="mb-4 p-3 bg-light rounded border">
             {% csrf_token %}
             <div class="mb-2">
               <label class="form-label small fw-semibold">Select Photo or Evidence File *</label>
-              <input type="file" name="evidence_file" class="form-control form-control-sm" required accept="image/*,.pdf,.doc,.docx,.txt">
+              <input type="file" name="evidence_file" class="form-control form-control-sm" required
+                accept="image/*,.pdf,.doc,.docx,.txt">
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Description / Note</label>
-              <input type="text" name="description" class="form-control form-control-sm" placeholder="e.g. As-found condition, completed repair, sensor reading">
+              <input type="text" name="description" class="form-control form-control-sm"
+                placeholder="e.g. As-found condition, completed repair, sensor reading">
             </div>
             <button type="submit" class="btn btn-sm btn-primary w-100">
               {% icon 'upload' 14 %} Upload Evidence File
@@ -460,7 +482,8 @@
             {% if evidence %}
             <div class="list-group list-group-flush">
               {% for ev in evidence %}
-              <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center bg-transparent small">
+              <div
+                class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center bg-transparent small">
                 <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 75%;">
                   {% icon 'file-text' 16 %}
                   <div>
@@ -507,30 +530,43 @@
           </h5>
         </div>
         <div class="card-body">
+          {% if work_order.status == 'COMPLETED' or work_order.status == 'SUPERVISOR_REVIEW' or work_order.status == 'CLOSED' %}
+          <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2">
+            {% icon 'check-circle' 18 %}
+            <div class="small">
+              <strong>Work Completed:</strong> Work order is in {{ work_order.get_status_display }} status. Travel cannot be logged after completion.
+            </div>
+          </div>
+          {% else %}
           <form method="post" action="{% url 'workspace:travel' work_order.pk %}" class="mb-4">
             {% csrf_token %}
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Duration (Hours) *</label>
-                <input type="number" step="0.25" min="0.1" max="24" name="duration_hours" class="form-control form-control-sm" required placeholder="e.g. 1.5">
+                <input type="number" step="any" min="0.01" max="24" name="duration_hours"
+                  class="form-control form-control-sm" required placeholder="e.g. 1.5">
               </div>
               <div class="col-6">
                 <label class="form-label small fw-semibold">Distance (km)</label>
-                <input type="number" step="0.1" min="0" name="distance_km" class="form-control form-control-sm" placeholder="e.g. 35">
+                <input type="number" step="any" min="0" name="distance_km" class="form-control form-control-sm"
+                  placeholder="e.g. 35">
               </div>
             </div>
             <div class="mb-2">
               <label class="form-label small fw-semibold">Route / Highway</label>
-              <input type="text" name="route_details" class="form-control form-control-sm" placeholder="e.g. Service Van #04 via Expressway">
+              <input type="text" name="route_details" class="form-control form-control-sm"
+                placeholder="e.g. Service Van #04 via Expressway">
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Transit Notes</label>
-              <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Rain delay, bridge transit">
+              <input type="text" name="notes" class="form-control form-control-sm"
+                placeholder="e.g. Rain delay, bridge transit">
             </div>
             <button type="submit" class="btn btn-sm btn-outline-primary w-100">
               {% icon 'plus' 14 %} Record Travel Time
             </button>
           </form>
+          {% endif %}
 
           <!-- Travel Logs List -->
           <div class="border-top pt-3">
@@ -563,26 +599,50 @@
           </h5>
         </div>
         <div class="card-body">
-          <form method="post" action="{% url 'workspace:labor' work_order.pk %}" class="mb-4">
+          {% if work_order.status == 'COMPLETED' or work_order.status == 'SUPERVISOR_REVIEW' or work_order.status == 'CLOSED' %}
+          <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2">
+            {% icon 'check-circle' 18 %}
+            <div class="small">
+              <strong>Work Completed:</strong> Work order is in {{ work_order.get_status_display }} status. Additional labor hours cannot be logged.
+            </div>
+          </div>
+          {% elif work_order.status == 'IN_PROGRESS' or work_order.status == 'ON_HOLD' %}
+          <form method="post" action="{% url 'workspace:labor' work_order.pk %}" id="onSiteLaborForm" class="mb-4" novalidate>
             {% csrf_token %}
             <div class="row g-2 mb-2">
               <div class="col-6">
-                <label class="form-label small fw-semibold">Hours Worked *</label>
-                <input type="number" step="0.25" min="0.05" max="24" name="hours" class="form-control form-control-sm" required placeholder="e.g. 2.0">
+                <label class="form-label small fw-semibold" for="id_labor_hours">Hours Worked *</label>
+                <input type="number" step="any" min="0.01" max="24" name="hours" id="id_labor_hours"
+                  class="form-control form-control-sm" required placeholder="e.g. 2.0">
+                <div class="invalid-feedback field-error-message" id="labor-hours-error"></div>
               </div>
               <div class="col-6">
-                <label class="form-label small fw-semibold">Work Date</label>
-                <input type="date" name="work_date" class="form-control form-control-sm">
+                <label class="form-label small fw-semibold" for="id_labor_work_date">Work Date</label>
+                <input type="date" name="work_date" id="id_labor_work_date" class="form-control form-control-sm">
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label small fw-semibold">Work Description *</label>
-              <input type="text" name="description" class="form-control form-control-sm" required placeholder="e.g. Replaced faulty gasket and pressure tested">
+              <label class="form-label small fw-semibold" for="id_labor_description">Work Description *</label>
+              <input type="text" name="description" id="id_labor_description" maxlength="500"
+                class="form-control form-control-sm" required
+                pattern="^[A-Za-z\s.,;:'&quot;\-()/]+$"
+                title="Work Description must contain only alphabetical characters and cannot contain numbers."
+                data-alphabetical-only="true"
+                autocomplete="off"
+                placeholder="e.g. Replaced faulty gasket and pressure tested">
+              <div class="invalid-feedback field-error-message d-none" id="labor-description-error"></div>
+              <div class="form-text small">Alphabetical characters and basic punctuation only (numbers are not allowed).</div>
             </div>
             <button type="submit" class="btn btn-sm btn-outline-success w-100">
               {% icon 'plus' 14 %} Record Labor Time
             </button>
           </form>
+          {% else %}
+          <div class="alert alert-light border d-flex align-items-center gap-2 mb-3 py-2 text-secondary">
+            {% icon 'info' 18 %}
+            <div class="small">Work order must be in progress to record labor hours.</div>
+          </div>
+          {% endif %}
 
           <!-- Labor Entries List -->
           <div class="border-top pt-3">
@@ -618,28 +678,37 @@
             </div>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-primary" id="btn-request-part">
+            <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-primary"
+              id="btn-request-part">
               {% icon 'plus' 14 %} Request part
             </a>
             {% if has_consumable_parts %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle">
-                {{ consumable_parts|length }} available to consume
-              </span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle">
+              {{ consumable_parts|length }} available to consume
+            </span>
             {% else %}
-              <span class="badge bg-light text-secondary border">0 pending consumption</span>
+            <span class="badge bg-light text-secondary border">0 pending consumption</span>
             {% endif %}
           </div>
         </div>
         <div class="card-body">
+          {% if has_pending_part_requests %}
+          <div class="alert alert-warning small mb-3 d-flex align-items-center justify-content-between gap-2">
+            <span><strong>Pending Part Request:</strong> {{ pending_part_requests|length }} part request{{ pending_part_requests|length|pluralize }} awaiting store issue. Fulfill or cancel unused requests before completing this job.</span>
+            <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-dark flex-shrink-0">Manage Parts</a>
+          </div>
+          {% endif %}
           {% if has_consumable_parts %}
           <ul class="nav nav-pills nav-fill mb-3 p-1 bg-light rounded" role="tablist">
             <li class="nav-item" role="presentation">
-              <button class="nav-link active py-1 px-3 small fw-semibold" id="tab-consume" data-bs-toggle="pill" data-bs-target="#pane-consume" type="button" role="tab">
+              <button class="nav-link active py-1 px-3 small fw-semibold" id="tab-consume" data-bs-toggle="pill"
+                data-bs-target="#pane-consume" type="button" role="tab">
                 {% icon 'check-circle' 14 %} Record Consumed
               </button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link py-1 px-3 small fw-semibold text-warning-emphasis" id="tab-return" data-bs-toggle="pill" data-bs-target="#pane-return" type="button" role="tab">
+              <button class="nav-link py-1 px-3 small fw-semibold text-warning-emphasis" id="tab-return"
+                data-bs-toggle="pill" data-bs-target="#pane-return" type="button" role="tab">
                 {% icon 'rotate-ccw' 14 %} Return Unused to Stores
               </button>
             </li>
@@ -651,16 +720,13 @@
               <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}" id="parts-consumption-form">
                 {% csrf_token %}
                 <div class="mb-2">
-                  <label for="part-line-select" class="form-label small fw-semibold">Select Reserved / Issued Part *</label>
+                  <label for="part-line-select" class="form-label small fw-semibold">Select Reserved / Issued Part
+                    *</label>
                   <select name="part_line_id" id="part-line-select" class="form-select form-select-sm" required>
                     {% for line in consumable_parts %}
-                    <option value="{{ line.pk }}"
-                            data-max="{{ line.outstanding }}"
-                            data-unit="{{ line.part.unit }}"
-                            data-name="{{ line.part.name }}"
-                            data-code="{{ line.part.part_number }}"
-                            data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
-                            {% if forloop.first %}selected{% endif %}>
+                    <option value="{{ line.pk }}" data-max="{{ line.outstanding }}" data-unit="{{ line.part.unit }}"
+                      data-name="{{ line.part.name }}" data-code="{{ line.part.part_number }}"
+                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{% endif %}>
                       {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
                     </option>
                     {% endfor %}
@@ -682,7 +748,9 @@
                   <div class="col-8">
                     <label for="part-quantity-input" class="form-label small fw-semibold">Quantity Used *</label>
                     <div class="input-group input-group-sm">
-                      <input type="number" step="0.001" min="0.001" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                      <input type="number" step="1" min="1" name="quantity" id="part-quantity-input"
+                        class="form-control form-control-sm" required placeholder="1"
+                        value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
                       <span class="input-group-text" id="part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
                     </div>
                   </div>
@@ -704,16 +772,13 @@
               <form method="post" action="{% url 'workspace:return_part' work_order.pk %}" id="parts-return-form">
                 {% csrf_token %}
                 <div class="mb-2">
-                  <label for="return-part-line-select" class="form-label small fw-semibold">Select Issued Part to Return *</label>
+                  <label for="return-part-line-select" class="form-label small fw-semibold">Select Issued Part to Return
+                    *</label>
                   <select name="part_line_id" id="return-part-line-select" class="form-select form-select-sm" required>
                     {% for line in consumable_parts %}
-                    <option value="{{ line.pk }}"
-                            data-max="{{ line.outstanding }}"
-                            data-unit="{{ line.part.unit }}"
-                            data-name="{{ line.part.name }}"
-                            data-code="{{ line.part.part_number }}"
-                            data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
-                            {% if forloop.first %}selected{% endif %}>
+                    <option value="{{ line.pk }}" data-max="{{ line.outstanding }}" data-unit="{{ line.part.unit }}"
+                      data-name="{{ line.part.name }}" data-code="{{ line.part.part_number }}"
+                      data-wh="{{ line.warehouse.name|default:line.warehouse.code }}" {% if forloop.first %}selected{% endif %}>
                       {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
                     </option>
                     {% endfor %}
@@ -733,10 +798,13 @@
 
                 <div class="row g-2 mb-2">
                   <div class="col-8">
-                    <label for="return-part-quantity-input" class="form-label small fw-semibold">Quantity to Return *</label>
+                    <label for="return-part-quantity-input" class="form-label small fw-semibold">Quantity to Return
+                      *</label>
                     <div class="input-group input-group-sm">
-                      <input type="number" step="0.001" min="0.001" name="quantity" id="return-part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
-                      <span class="input-group-text" id="return-part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
+                      <input type="number" step="1" min="1" name="quantity" id="return-part-quantity-input"
+                        class="form-control form-control-sm" required placeholder="1"
+                        value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                        <span class="input-group-text" id="return-part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
                     </div>
                   </div>
                   <div class="col-4 d-flex align-items-end">
@@ -748,7 +816,8 @@
 
                 <div class="mb-3">
                   <label for="return-reason-input" class="form-label small fw-semibold">Return Reason / Notes</label>
-                  <input type="text" name="reason" id="return-reason-input" class="form-control form-control-sm" placeholder="e.g. Unused surplus, packaging intact, job completed">
+                  <input type="text" name="reason" id="return-reason-input" class="form-control form-control-sm"
+                    placeholder="e.g. Unused surplus, packaging intact, job completed">
                 </div>
 
                 <button type="submit" class="btn btn-sm btn-warning w-100 fw-bold" id="btn-confirm-return">
@@ -758,13 +827,13 @@
             </div>
           </div>
           {% elif part_lines %}
-            <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
-              {% icon 'check-circle' 16 %} All warehouse parts allocated for this job have been consumed or returned.
-            </div>
+          <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
+            {% icon 'check-circle' 16 %} All warehouse parts allocated for this job have been consumed or returned.
+          </div>
           {% else %}
-            <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
-              {% icon 'info' 16 %} No spare parts have been requested or issued for this work order.
-            </div>
+          <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
+            {% icon 'info' 16 %} No spare parts have been requested or issued for this work order.
+          </div>
           {% endif %}
 
           <!-- Consumed / Issued / Returned Parts Table Summary -->
@@ -794,10 +863,14 @@
                     <td class="text-end">{{ ln.quantity_requested|floatformat:"-3" }}</td>
                     <td class="text-end">{{ ln.quantity_issued|floatformat:"-3" }}</td>
                     <td class="text-end text-success fw-bold">{{ ln.quantity_consumed|floatformat:"-3" }}</td>
-                    <td class="text-end {% if ln.quantity_returned > 0 %}text-info fw-bold{% else %}text-muted{% endif %}">{{ ln.quantity_returned|floatformat:"-3" }}</td>
-                    <td class="text-end {% if ln.outstanding > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ ln.outstanding|floatformat:"-3" }}</td>
+                    <td
+                      class="text-end {% if ln.quantity_returned > 0 %}text-info fw-bold{% else %}text-muted{% endif %}">
+                      {{ ln.quantity_returned|floatformat:"-3" }}</td>
+                    <td class="text-end {% if ln.outstanding > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                      {{ ln.outstanding|floatformat:"-3" }}</td>
                     <td class="text-center">
-                      <span class="badge {% if ln.status == 'CONSUMED' %}bg-success{% elif ln.status == 'RETURNED' %}bg-info text-dark{% elif ln.status == 'ISSUED' %}bg-primary{% elif ln.status == 'RESERVED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                      <span
+                        class="badge {% if ln.status == 'CONSUMED' %}bg-success{% elif ln.status == 'RETURNED' %}bg-info text-dark{% elif ln.status == 'ISSUED' %}bg-primary{% elif ln.status == 'RESERVED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
                         {{ ln.status }}
                       </span>
                     </td>
@@ -826,21 +899,25 @@
             {% csrf_token %}
             <div class="mb-2">
               <label class="form-label small fw-semibold">Item / Part Name *</label>
-              <input type="text" name="item_name" class="form-control form-control-sm" required placeholder="e.g. High Pressure O-Ring 25mm">
+              <input type="text" name="item_name" class="form-control form-control-sm" required
+                placeholder="e.g. High Pressure O-Ring 25mm">
             </div>
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Quantity *</label>
-                <input type="number" step="0.01" min="0.01" name="quantity" class="form-control form-control-sm" required placeholder="e.g. 2.00">
+                <input type="number" step="1" min="1" name="quantity" class="form-control form-control-sm" required
+                  placeholder="e.g. 2">
               </div>
               <div class="col-6">
                 <label class="form-label small fw-semibold">Unit</label>
-                <input type="text" name="unit" class="form-control form-control-sm" placeholder="ea, m, L, kg" value="ea">
+                <input type="text" name="unit" class="form-control form-control-sm" placeholder="ea, m, L, kg"
+                  value="ea">
               </div>
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Usage Notes / Reference</label>
-              <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Part #PRT-8821 from service van">
+              <input type="text" name="notes" class="form-control form-control-sm"
+                placeholder="e.g. Part #PRT-8821 from service van">
             </div>
             <button type="submit" class="btn btn-sm btn-outline-primary w-100">
               {% icon 'plus' 14 %} Record Material Used
@@ -887,10 +964,12 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-secondary small">Putting the job on hold pauses execution time tracking. A reason is mandatory.</p>
+          <p class="text-secondary small">Putting the job on hold pauses execution time tracking. A reason is mandatory.
+          </p>
           <div class="mb-3">
             <label class="form-label small fw-bold">Hold Reason *</label>
-            <textarea name="reason" class="form-control" rows="3" required placeholder="e.g. Awaiting spare parts clearance from warehouse"></textarea>
+            <textarea name="reason" class="form-control" rows="3" required
+              placeholder="e.g. Awaiting spare parts clearance from warehouse"></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -916,20 +995,23 @@
           <!-- Blocker Alerts in Completion Modal -->
           {% if work_order.checklist_required and work_order.checklist_status != 'COMPLETED' %}
           <div class="alert alert-danger small py-2 mb-3">
-            <strong>Checklist Blocker:</strong> Inspection checklist must be completed and valid before completing this job.
+            <strong>Checklist Blocker:</strong> Inspection checklist must be completed and valid before completing this
+            job.
           </div>
           {% endif %}
 
           {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' and not evidence %}
           <div class="alert alert-danger small py-2 mb-3">
-            <strong>Evidence Blocker:</strong> At least one completion photo or evidence file must be uploaded before completion.
+            <strong>Evidence Blocker:</strong> At least one completion photo or evidence file must be uploaded before
+            completion.
           </div>
           {% endif %}
 
           <p class="text-secondary small">Submit final resolution summary. Minimum 10 characters required.</p>
           <div class="mb-3">
             <label class="form-label small fw-bold">Resolution Summary *</label>
-            <textarea name="resolution_notes" class="form-control" rows="4" minlength="10" required placeholder="Describe the corrective action taken, testing performed, and operational outcome..."></textarea>
+            <textarea name="resolution_notes" class="form-control" rows="4" minlength="10" required
+              placeholder="Describe the corrective action taken, testing performed, and operational outcome..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -942,7 +1024,8 @@
 </div>
 
 <!-- Reusable Offcanvas Execution Drawer Component -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="technicianExecutionDrawer" aria-labelledby="technicianExecutionDrawerLabel" style="width: 520px; max-width: 95vw;">
+<div class="offcanvas offcanvas-end" tabindex="-1" id="technicianExecutionDrawer"
+  aria-labelledby="technicianExecutionDrawerLabel" style="width: 520px; max-width: 95vw;">
   <div class="offcanvas-body p-0" id="drawer-content">
     <div class="d-flex justify-content-center align-items-center h-100 p-5">
       <div class="spinner-border text-primary" role="status">
@@ -953,7 +1036,8 @@
 </div>
 
 <!-- Modal: Report Auxiliary Defect / Service Request (Add-On 5) -->
-<div class="modal fade" id="reportAuxiliaryDefectModal" tabindex="-1" aria-labelledby="reportAuxiliaryDefectModalLabel" aria-hidden="true">
+<div class="modal fade" id="reportAuxiliaryDefectModal" tabindex="-1" aria-labelledby="reportAuxiliaryDefectModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
       <form method="post" action="{% url 'workspace:report_defect' work_order.pk %}" id="reportDefectForm">
@@ -980,11 +1064,11 @@
               </option>
               {% endif %}
               {% for sa in site_assets %}
-                {% if not work_order.asset or sa.pk != work_order.asset.pk %}
-                <option value="{{ sa.pk }}">
-                  {{ sa.asset_tag }} — {{ sa.name }}{% if sa.zone %} [Zone: {{ sa.zone.name }}]{% endif %}
-                </option>
-                {% endif %}
+              {% if not work_order.asset or sa.pk != work_order.asset.pk %}
+              <option value="{{ sa.pk }}">
+                {{ sa.asset_tag }} — {{ sa.name }}{% if sa.zone %} [Zone: {{ sa.zone.name }}]{% endif %}
+              </option>
+              {% endif %}
               {% endfor %}
             </select>
             <div class="form-text small">Lists all active equipment located at {{ route.site_name }}.</div>
@@ -993,8 +1077,9 @@
           <!-- Defect Title -->
           <div class="mb-3">
             <label for="defect-title-input" class="form-label small fw-bold">Defect / Fault Summary *</label>
-            <input type="text" name="title" id="defect-title-input" class="form-control form-control-sm" required minlength="3" maxlength="200"
-                   placeholder="e.g. Auxiliary cooling line hydraulic leak, abnormal bearing vibration">
+            <input type="text" name="title" id="defect-title-input" class="form-control form-control-sm" required
+              minlength="3" maxlength="200"
+              placeholder="e.g. Auxiliary cooling line hydraulic leak, abnormal bearing vibration">
           </div>
 
           <!-- Kind & Severity & Impact -->
@@ -1029,21 +1114,24 @@
           <!-- Failure Category -->
           <div class="mb-3">
             <label for="defect-category-input" class="form-label small fw-bold">Failure Category (Optional)</label>
-            <input type="text" name="failure_category" id="defect-category-input" class="form-control form-control-sm" maxlength="100"
-                   placeholder="e.g. Mechanical, Electrical, Hydraulic, Piping, Instrumentation">
+            <input type="text" name="failure_category" id="defect-category-input" class="form-control form-control-sm"
+              maxlength="100" placeholder="e.g. Mechanical, Electrical, Hydraulic, Piping, Instrumentation">
           </div>
 
           <!-- Detailed Observations -->
           <div class="mb-3">
-            <label for="defect-description-input" class="form-label small fw-bold">Detailed Observations &amp; Immediate Action Taken</label>
+            <label for="defect-description-input" class="form-label small fw-bold">Detailed Observations &amp; Immediate
+              Action Taken</label>
             <textarea name="description" id="defect-description-input" class="form-control form-control-sm" rows="3"
-                      placeholder="Describe visual symptoms, fluid leak origin, containment actions applied, or parts required..."></textarea>
-            <div class="form-text small text-muted">A reference to work order {{ work_order.order_number }} will be attached automatically.</div>
+              placeholder="Describe visual symptoms, fluid leak origin, containment actions applied, or parts required..."></textarea>
+            <div class="form-text small text-muted">A reference to work order {{ work_order.order_number }} will be
+              attached automatically.</div>
           </div>
         </div>
         <div class="modal-footer bg-light p-3">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-danger fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="btnSubmitDefect">
+          <button type="submit" class="btn btn-sm btn-danger fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
+            id="btnSubmitDefect">
             {% icon 'alert-triangle' 16 %} Submit Defect Report
           </button>
         </div>
@@ -1054,88 +1142,201 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  var partSelect = document.getElementById('part-line-select');
-  var qtyInput = document.getElementById('part-quantity-input');
-  var unitLabel = document.getElementById('part-unit-label');
-  var btnUseAll = document.getElementById('btn-use-all');
-  var summaryWh = document.getElementById('summary-wh');
-  var summaryOutstanding = document.getElementById('summary-outstanding');
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var partSelect = document.getElementById('part-line-select');
+    var qtyInput = document.getElementById('part-quantity-input');
+    var unitLabel = document.getElementById('part-unit-label');
+    var btnUseAll = document.getElementById('btn-use-all');
+    var summaryWh = document.getElementById('summary-wh');
+    var summaryOutstanding = document.getElementById('summary-outstanding');
 
-  function updateSelectedPart() {
-    if (!partSelect) return;
-    var opt = partSelect.options[partSelect.selectedIndex];
-    if (!opt) return;
-    var maxVal = opt.getAttribute('data-max') || '1';
-    var unit = opt.getAttribute('data-unit') || 'ea';
-    var wh = opt.getAttribute('data-wh') || '-';
-
-    if (qtyInput) {
-      qtyInput.max = maxVal;
-      if (!qtyInput.value || parseFloat(qtyInput.value) > parseFloat(maxVal)) {
-        qtyInput.value = maxVal;
-      }
-    }
-    if (unitLabel) unitLabel.textContent = unit;
-    if (summaryWh) summaryWh.textContent = wh;
-    if (summaryOutstanding) summaryOutstanding.textContent = maxVal + ' ' + unit;
-  }
-
-  if (partSelect) {
-    partSelect.addEventListener('change', updateSelectedPart);
-    updateSelectedPart();
-  }
-
-  if (btnUseAll && partSelect && qtyInput) {
-    btnUseAll.addEventListener('click', function() {
+    function updateSelectedPart() {
+      if (!partSelect) return;
       var opt = partSelect.options[partSelect.selectedIndex];
-      if (opt) {
-        qtyInput.value = opt.getAttribute('data-max') || '';
+      if (!opt) return;
+      var maxVal = opt.getAttribute('data-max') || '1';
+      var unit = opt.getAttribute('data-unit') || 'ea';
+      var wh = opt.getAttribute('data-wh') || '-';
+
+      if (qtyInput) {
+        qtyInput.max = maxVal;
+        if (!qtyInput.value || parseFloat(qtyInput.value) > parseFloat(maxVal)) {
+          qtyInput.value = maxVal;
+        }
       }
-    });
-  }
-
-  // Return Part Dropdown Synchronization
-  var returnPartSelect = document.getElementById('return-part-line-select');
-  var returnQtyInput = document.getElementById('return-part-quantity-input');
-  var returnUnitLabel = document.getElementById('return-part-unit-label');
-  var btnReturnAll = document.getElementById('btn-return-all');
-  var returnSummaryWh = document.getElementById('return-summary-wh');
-  var returnSummaryOutstanding = document.getElementById('return-summary-outstanding');
-
-  function updateReturnSelectedPart() {
-    if (!returnPartSelect) return;
-    var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
-    if (!opt) return;
-    var maxVal = opt.getAttribute('data-max') || '1';
-    var unit = opt.getAttribute('data-unit') || 'ea';
-    var wh = opt.getAttribute('data-wh') || '-';
-
-    if (returnQtyInput) {
-      returnQtyInput.max = maxVal;
-      if (!returnQtyInput.value || parseFloat(returnQtyInput.value) > parseFloat(maxVal)) {
-        returnQtyInput.value = maxVal;
-      }
+      if (unitLabel) unitLabel.textContent = unit;
+      if (summaryWh) summaryWh.textContent = wh;
+      if (summaryOutstanding) summaryOutstanding.textContent = maxVal + ' ' + unit;
     }
-    if (returnUnitLabel) returnUnitLabel.textContent = unit;
-    if (returnSummaryWh) returnSummaryWh.textContent = wh;
-    if (returnSummaryOutstanding) returnSummaryOutstanding.textContent = maxVal + ' ' + unit;
-  }
 
-  if (returnPartSelect) {
-    returnPartSelect.addEventListener('change', updateReturnSelectedPart);
-    updateReturnSelectedPart();
-  }
+    if (partSelect) {
+      partSelect.addEventListener('change', updateSelectedPart);
+      updateSelectedPart();
+    }
 
-  if (btnReturnAll && returnPartSelect && returnQtyInput) {
-    btnReturnAll.addEventListener('click', function() {
+    if (btnUseAll && partSelect && qtyInput) {
+      btnUseAll.addEventListener('click', function () {
+        var opt = partSelect.options[partSelect.selectedIndex];
+        if (opt) {
+          qtyInput.value = opt.getAttribute('data-max') || '';
+        }
+      });
+    }
+
+    // Return Part Dropdown Synchronization
+    var returnPartSelect = document.getElementById('return-part-line-select');
+    var returnQtyInput = document.getElementById('return-part-quantity-input');
+    var returnUnitLabel = document.getElementById('return-part-unit-label');
+    var btnReturnAll = document.getElementById('btn-return-all');
+    var returnSummaryWh = document.getElementById('return-summary-wh');
+    var returnSummaryOutstanding = document.getElementById('return-summary-outstanding');
+
+    function updateReturnSelectedPart() {
+      if (!returnPartSelect) return;
       var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
-      if (opt) {
-        returnQtyInput.value = opt.getAttribute('data-max') || '';
+      if (!opt) return;
+      var maxVal = opt.getAttribute('data-max') || '1';
+      var unit = opt.getAttribute('data-unit') || 'ea';
+      var wh = opt.getAttribute('data-wh') || '-';
+
+      if (returnQtyInput) {
+        returnQtyInput.max = maxVal;
+        if (!returnQtyInput.value || parseFloat(returnQtyInput.value) > parseFloat(maxVal)) {
+          returnQtyInput.value = maxVal;
+        }
       }
-    });
-  }
-});
+      if (returnUnitLabel) returnUnitLabel.textContent = unit;
+      if (returnSummaryWh) returnSummaryWh.textContent = wh;
+      if (returnSummaryOutstanding) returnSummaryOutstanding.textContent = maxVal + ' ' + unit;
+    }
+
+    if (returnPartSelect) {
+      returnPartSelect.addEventListener('change', updateReturnSelectedPart);
+      updateReturnSelectedPart();
+    }
+
+    if (btnReturnAll && returnPartSelect && returnQtyInput) {
+      btnReturnAll.addEventListener('click', function () {
+        var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
+        if (opt) {
+          returnQtyInput.value = opt.getAttribute('data-max') || '';
+        }
+      });
+    }
+
+    var onSiteLaborForm = document.getElementById('onSiteLaborForm');
+    if (onSiteLaborForm) {
+      var hoursInput = document.getElementById('id_labor_hours');
+      var hoursError = document.getElementById('labor-hours-error');
+      var descInput = document.getElementById('id_labor_description');
+      var descError = document.getElementById('labor-description-error');
+      var alphaPattern = /^[A-Za-z\s.,;:'"\-()/]+$/;
+
+      function setFieldValidation(input, errEl, message) {
+        if (!input || !errEl) return;
+        if (message) {
+          input.classList.add('is-invalid');
+          errEl.textContent = message;
+          errEl.classList.remove('d-none');
+          errEl.classList.add('d-block');
+          errEl.style.display = 'block';
+        } else {
+          input.classList.remove('is-invalid');
+          errEl.textContent = '';
+          errEl.classList.remove('d-block');
+          errEl.classList.add('d-none');
+          errEl.style.display = 'none';
+        }
+      }
+
+      function validateHoursField() {
+        if (!hoursInput) return true;
+        var raw = (hoursInput.value || '').trim();
+        var val = parseFloat(raw);
+        if (!raw || isNaN(val) || val < 0.05 || val > 24) {
+          setFieldValidation(hoursInput, hoursError, 'Hours Worked must be between 0.05 and 24.');
+          return false;
+        }
+        setFieldValidation(hoursInput, hoursError, '');
+        return true;
+      }
+
+      function validateDescriptionField() {
+        if (!descInput) return true;
+        var raw = descInput.value || '';
+        if (/\d/.test(raw)) {
+          descInput.value = raw.replace(/[0-9]/g, '');
+          setFieldValidation(
+            descInput,
+            descError,
+            'Work Description must contain only alphabetical characters and cannot contain numbers.'
+          );
+          return false;
+        }
+        var val = raw.trim();
+        if (!val) {
+          setFieldValidation(descInput, descError, 'Work Description is required.');
+          return false;
+        }
+        if (!/[A-Za-z]/.test(val) || !alphaPattern.test(val)) {
+          setFieldValidation(
+            descInput,
+            descError,
+            'Work Description must contain only alphabetical characters and cannot contain numbers.'
+          );
+          return false;
+        }
+        setFieldValidation(descInput, descError, '');
+        return true;
+      }
+
+      if (hoursInput) {
+        hoursInput.addEventListener('input', validateHoursField);
+      }
+      if (descInput) {
+        // Prevent numeric keystrokes directly
+        descInput.addEventListener('keydown', function (e) {
+          if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key && e.key.length === 1 && /\d/.test(e.key)) {
+            e.preventDefault();
+            setFieldValidation(
+              descInput,
+              descError,
+              'Work Description must contain only alphabetical characters and cannot contain numbers.'
+            );
+          }
+        });
+        // Sanitize paste input
+        descInput.addEventListener('paste', function (e) {
+          var pasteData = (e.clipboardData || window.clipboardData).getData('text');
+          if (/\d/.test(pasteData)) {
+            e.preventDefault();
+            var sanitized = pasteData.replace(/[0-9]/g, '');
+            document.execCommand('insertText', false, sanitized);
+            setFieldValidation(
+              descInput,
+              descError,
+              'Numbers were removed. Work Description must contain only alphabetical characters.'
+            );
+          }
+        });
+        descInput.addEventListener('input', validateDescriptionField);
+      }
+
+      onSiteLaborForm.addEventListener('submit', function (e) {
+        var hoursOk = validateHoursField();
+        var descOk = validateDescriptionField();
+        if (!hoursOk || !descOk) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!hoursOk && hoursInput) {
+            hoursInput.focus();
+          } else if (!descOk && descInput) {
+            descInput.focus();
+          }
+        }
+      });
+    }
+  });
 </script>
 {% endblock %}

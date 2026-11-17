@@ -144,11 +144,17 @@
     locked = true;                       // duplicate detections while the page navigates are ignored
     stopCamera();
     viewport.classList.add("fx-scan-found");
-    setStatus("Label detected. Opening the asset…", "ok");
-    var navUrl = resolveBase.replace("__TOKEN__", encodeURIComponent(token)) + "?open=asset";
     var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("work_order")) {
-      navUrl += "&work_order=" + encodeURIComponent(urlParams.get("work_order"));
+    var isReport = urlParams.get("action") === "report" || urlParams.get("report") === "1";
+    setStatus(isReport ? "Label detected. Opening incident report…" : "Label detected. Opening the asset…", "ok");
+    var navUrl;
+    if (isReport) {
+      navUrl = resolveBase.replace("__TOKEN__", encodeURIComponent(token)) + "report/";
+    } else {
+      navUrl = resolveBase.replace("__TOKEN__", encodeURIComponent(token)) + "?open=asset";
+      if (urlParams.get("work_order")) {
+        navUrl += "&work_order=" + encodeURIComponent(urlParams.get("work_order"));
+      }
     }
     window.location.assign(navUrl);
   }

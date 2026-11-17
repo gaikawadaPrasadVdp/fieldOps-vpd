@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.audit.models import AuditLog
@@ -10,10 +11,11 @@ from apps.rbac import services as rbac
 from apps.rbac.models import Role
 from apps.tenancy import selectors
 from apps.tenancy.models import Membership
-from .forms import ClientOnboardingForm
-from .utils import is_client_membership
-from .public_catalog import get_catalog_item, DETAIL_PAGES
 
+from .forms import ClientOnboardingForm, DashboardFilterForm
+from .pagination import paginate_dashboard_queryset
+from .public_catalog import DETAIL_PAGES, get_catalog_item
+from .utils import is_client_membership
 
 PRD_MODULES = [
     {"id": "FON-M01", "slug": "organization-management", "name": "Organization & Location Master", "category": "Master Data", "app": "apps.sites", "desc": "Multi-site facility hierarchy: Organization, Site, Building, Floor, Zone, and Room mappings."},
@@ -35,14 +37,7 @@ PRD_MODULES = [
 
 
 def root(request):
-    """Public landing page for visitors; authenticated users are routed to their workspace."""
-    if request.user.is_authenticated:
-        if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-            return redirect("platform_admin:organizations")
-        membership = getattr(request, "membership", None)
-        if membership and is_client_membership(membership):
-            return redirect("portal:dashboard")
-        return redirect("ui:home")
+    """Public landing page for all visitors and authenticated users."""
     return render(request, "public/landing.html", {"active_page": "home"})
 
 
@@ -113,8 +108,8 @@ def public_module(request, module_id):
         {
             "active_page": "modules",
             "category": "modules",
-            "section_name": "Modules",
-            "section_url": "/modules/",
+            "section_name": "Platform",
+            "section_url": "/platform/",
             "item": item,
             "selected_slug": canonical_slug,
         },
@@ -164,82 +159,80 @@ def client_register(request):
     return render(request, "accounts/client_register.html", {"form": form})
 
 
+def public_privacy_policy(request):
+    return render(
+        request,
+        "public/privacy_policy.html",
+        {
+            "active_page": "privacy_policy",
+            "active_legal": "privacy-policy",
+            "page_title": "Privacy Policy & Data Protection",
+        },
+    )
+
+
+def public_terms_of_service(request):
+    return render(
+        request,
+        "public/terms_of_service.html",
+        {
+            "active_page": "terms_of_service",
+            "active_legal": "terms-of-service",
+            "page_title": "Terms of Service & Agreement",
+        },
+    )
+
+
+def public_disclaimer(request):
+    return render(
+        request,
+        "public/disclaimer.html",
+        {
+            "active_page": "disclaimer",
+            "active_legal": "disclaimer",
+            "page_title": "Enterprise System Disclaimer",
+        },
+    )
+
+
+def public_cookie_policy(request):
+    return render(
+        request,
+        "public/cookie_policy.html",
+        {
+            "active_page": "cookie_policy",
+            "active_legal": "cookie-policy",
+            "page_title": "Cookie & Session Policy",
+        },
+    )
+
+
 def public_legal(request, slug):
-    titles = {
-        "privacy-policy": "Privacy Policy & Data Protection",
-        "terms-and-conditions": "Terms and Conditions of Use",
-        "terms-of-service": "Terms of Service & User Agreement",
-        "disclaimer": "Enterprise System Disclaimer",
-        "cookie-policy": "Cookie & Session Policy",
-        "sitemap": "Platform Sitemap & Directory",
+    dedicated_views = {
+        "privacy-policy": public_privacy_policy,
+        "terms-of-service": public_terms_of_service,
+        "terms-and-conditions": public_terms_of_service,
+        "disclaimer": public_disclaimer,
+        "cookie-policy": public_cookie_policy,
     }
-    title = titles.get(slug, "Legal Notice")
-    contents = {
-        "privacy-policy": "<p>FieldOps Nexus enforces strict tenant-isolated data protection compliant with enterprise standards. User credentials and operational telemetry are encrypted and never shared cross-tenant.</p><p>Audit logs record user interactions solely for traceability, accountability, and compliance verification under HPE Delivery Oversight guidelines.</p>",
-        "terms-and-conditions": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
-        "terms-of-service": "<p>This enterprise software platform is licensed under the governance of HPE-PRD-2026-FOPS02. All authorized users must adhere to organizational role boundaries and data access controls.</p><p>Unauthorized attempts to bypass tenant boundaries or tamper with audit records constitute strict grounds for immediate revocation and incident reporting.</p>",
-        "disclaimer": "<p>This system operates as an Enterprise Asset, Maintenance & Field Service ERP. System specifications and operational workflows adhere to verified technical draft standards.</p><p>Final formal acceptance is subject to the mandatory 90-calendar-day evaluation gate.</p>",
-        "cookie-policy": "<p>FieldOps Nexus utilizes strictly necessary session cookies (<code>sessionid</code> and <code>csrftoken</code>) configured with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections to maintain authenticated sessions and protect against cross-site request forgery.</p>",
-    }
+    if slug in dedicated_views:
+        return dedicated_views[slug](request)
     if slug == "sitemap":
         return public_sitemap(request)
-    content = contents.get(slug, "<p>Legal terms and conditions apply as specified in project governance documentation.</p>")
-    return render(request, "public/legal.html", {"active_page": "legal", "selected_slug": slug, "title": title, "content": content})
-
-
-def public_contact(request):
-    title = "Contact Sales & Enterprise Support"
-    content = (
-        "<p class='lead text-dark'>Get in touch with the FieldOps Nexus team for enterprise deployment, technical evaluations, and platform inquiries.</p>"
-        "<div class='row g-4 mt-2'>"
-        "  <div class='col-md-6'>"
-        "    <div class='p-4 rounded-3 border bg-light h-100'>"
-        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Sales & Commercial</h4>"
-        "      <p class='small text-secondary mb-2'>Speak with our solutions team about licensing tiers, pilot programs, and service contracts.</p>"
-        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:sales@fieldopsnexus.com' class='text-decoration-none'>sales@fieldopsnexus.com</a></p>"
-        "      <p class='mb-0'><strong>Response Time:</strong> Within 1 business day</p>"
-        "    </div>"
-        "  </div>"
-        "  <div class='col-md-6'>"
-        "    <div class='p-4 rounded-3 border bg-light h-100'>"
-        "      <h4 class='h6 fw-bold text-dark text-uppercase mb-3' style='letter-spacing: 0.08em; color: #0B1F3B;'>Technical Support & Headquarters</h4>"
-        "      <p class='small text-secondary mb-2'>Operational telemetry assistance, SLA escalations, and platform diagnostics.</p>"
-        "      <p class='mb-1'><strong>Email:</strong> <a href='mailto:support@fieldopsnexus.com' class='text-decoration-none'>support@fieldopsnexus.com</a></p>"
-        "      <p class='mb-1'><strong>Phone:</strong> <a href='tel:+919876543210' class='text-decoration-none'>+91 98765 43210</a></p>"
-        "      <p class='mb-0'><strong>Location:</strong> Bangalore, Karnataka, India</p>"
-        "    </div>"
-        "  </div>"
-        "</div>"
+    return render(
+        request,
+        "public/legal.html",
+        {
+            "active_page": "legal",
+            "selected_slug": slug,
+            "title": "Legal Notice",
+            "content": "<p>Legal terms and conditions apply as specified in project governance documentation.</p>",
+        },
     )
-    return render(request, "public/legal.html", {"active_page": "contact", "selected_slug": "contact", "title": title, "content": content})
 
 
-def public_careers(request):
-    title = "Careers & Engineering Opportunities"
-    content = (
-        "<p class='lead text-dark'>Join our mission to transform industrial maintenance, field service execution, and enterprise asset reliability.</p>"
-        "<div class='mt-4'>"
-        "  <h4 class='h5 fw-bold text-dark mb-3'>Open Engineering & Operations Positions</h4>"
-        "  <div class='list-group list-group-flush border rounded-3 mb-4'>"
-        "    <div class='list-group-item p-3'>"
-        "      <div class='d-flex justify-content-between align-items-center'>"
-        "        <h6 class='mb-1 fw-bold text-dark'>Senior Systems Architect &bull; Multi-Tenant Core</h6>"
-        "        <span class='badge bg-primary'>Full-Time</span>"
-        "      </div>"
-        "      <p class='small text-secondary mb-0'>Distributed Python/Django backend systems, telemetry streaming, and cryptographic audit ledgers.</p>"
-        "    </div>"
-        "    <div class='list-group-item p-3'>"
-        "      <div class='d-flex justify-content-between align-items-center'>"
-        "        <h6 class='mb-1 fw-bold text-dark'>Field Operations Solutions Engineer</h6>"
-        "        <span class='badge bg-success'>Bangalore / Hybrid</span>"
-        "      </div>"
-        "      <p class='small text-secondary mb-0'>Client onboarding, ERP integration (SAP/Oracle), and field workflow calibration.</p>"
-        "    </div>"
-        "  </div>"
-        "  <p class='small text-secondary'>To apply or submit an open inquiry, contact talent acquisition at <a href='mailto:careers@fieldopsnexus.com' class='fw-bold text-decoration-none'>careers@fieldopsnexus.com</a>.</p>"
-        "</div>"
-    )
-    return render(request, "public/legal.html", {"active_page": "careers", "selected_slug": "careers", "title": title, "content": content})
+def public_contact_sales(request):
+    return render(request, "public/contact_sales.html", {"active_page": "contact_sales"})
 
 
 def public_sitemap(request):
@@ -254,18 +247,18 @@ def public_sitemap(request):
         "        <li><a href='/' class='text-decoration-none fw-semibold'>&rarr; Home &amp; Enterprise Landing</a></li>"
         "        <li><a href='/features/' class='text-decoration-none fw-semibold'>&rarr; Features &amp; 8-Stage Connected Service Flow</a></li>"
         "        <li><a href='/product/' class='text-decoration-none fw-semibold'>&rarr; Product Architecture Overview</a></li>"
-        "        <li><a href='/modules/' class='text-decoration-none fw-semibold'>&rarr; Operational Modules Index</a></li>"
+        "        <li><a href='/platform/' class='text-decoration-none fw-semibold'>&rarr; Platform Capabilities Index</a></li>"
         "      </ul>"
         "    </div>"
         "  </div>"
         "  <div class='col-md-6'>"
         "    <div class='p-3 border rounded-3 bg-light h-100'>"
-        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Enterprise Modules</h5>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Enterprise Platform</h5>"
         "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
-        "        <li><a href='/modules/asset-management/' class='text-decoration-none'>&bull; Asset Management &amp; Telemetry</a></li>"
-        "        <li><a href='/modules/service-management/' class='text-decoration-none'>&bull; Service Requests &amp; Triage</a></li>"
-        "        <li><a href='/modules/work-order-management/' class='text-decoration-none'>&bull; Work Order Formulation &amp; Execution</a></li>"
-        "        <li><a href='/modules/analytics-reporting/' class='text-decoration-none'>&bull; Analytics &amp; Operational Intelligence</a></li>"
+        "        <li><a href='/platform/asset-management/' class='text-decoration-none'>&bull; Asset Management &amp; Telemetry</a></li>"
+        "        <li><a href='/platform/service-management/' class='text-decoration-none'>&bull; Service Requests &amp; Triage</a></li>"
+        "        <li><a href='/platform/work-order-management/' class='text-decoration-none'>&bull; Work Order Formulation &amp; Execution</a></li>"
+        "        <li><a href='/platform/analytics-reporting/' class='text-decoration-none'>&bull; Analytics &amp; Operational Intelligence</a></li>"
         "      </ul>"
         "    </div>"
         "  </div>"
@@ -335,13 +328,13 @@ ROLE_PERSONA_CONFIG = {
         "badge": "Maintenance Planning & PM",
         "title": "Preventive Maintenance & Job Planning",
         "role_name": "Senior Maintenance Planner",
-        "subtitle": "Time and meter-based recurrence plans, job specifications, and PM work order backlog.",
+        "subtitle": "Time and meter-based recurrence Maintenance plans, job specifications, and PM work order backlog.",
     },
     "service_dispatcher": {
         "badge": "Service Dispatch & Operations",
-        "title": "Service Dispatch & SLA Coordination",
+        "title": "Operational Overview",
         "role_name": "Service Dispatcher",
-        "subtitle": "Emergency incident triage, technician assignments, dispatch board, and SLA countdowns.",
+        "subtitle": "Incident triage, work order planning, technician dispatch, and SLA coordination.",
     },
     "technician": {
         "badge": "Field Mobility & Execution",
@@ -399,15 +392,14 @@ def home(request):
     """Org dashboard. Dynamically renders role-tailored metrics, shortcuts, and activity (PRD §3.2)."""
     from django.db.models import F
     from django.urls import reverse
-    from apps.assets.models import Asset, AssetCategory, AssetComponent, AssetMeter
+
+    from apps.assets.models import Asset, AssetComponent, AssetMeter
     from apps.checklists.models import ChecklistTemplate, Inspection
     from apps.contracts.models import CoverageAgreement
     from apps.incidents.models import ServiceRequest
-    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse
-    from apps.maintenance.models import MaintenancePlan
+    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse, WorkOrderPart
     from apps.portal.models import PortalAccount
     from apps.rbac.models import MembershipRole
-    from apps.sites.models import Site
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
@@ -425,7 +417,7 @@ def home(request):
     perms = rbac.membership_permissions(request.membership)
     client_allowed = {
         "incident.report_owned", "incident.view_owned", "incident.view_assigned",
-        "incident.attach", "incident.confirm"
+        "incident.attach", "incident.confirm", "qr.scan"
     }
     if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):
         return redirect("portal:dashboard")
@@ -476,22 +468,32 @@ def home(request):
     activity_link_label = ""
 
     # Standard stats mapping for backwards-compatibility
-    can_view_users = rbac.has_permission(request.membership, "user.view")
-    can_view_roles = rbac.has_permission(request.membership, "role.view")
-    can_view_assets = rbac.has_permission(request.membership, "asset.view")
-    can_view_sites = rbac.has_permission(request.membership, "site.view")
+    can_view_users = rbac.has_permission_anywhere(request.membership, "user.view")
+    can_view_roles = rbac.has_permission_anywhere(request.membership, "role.view")
+    can_view_assets = rbac.has_permission_anywhere(request.membership, "asset.view")
+    can_view_sites = rbac.has_permission_anywhere(request.membership, "site.view")
     can_view_work_orders = (
-        rbac.has_permission(request.membership, "work_order.view")
-        or rbac.has_permission(request.membership, "work_order.view_assigned")
+        rbac.has_permission_anywhere(request.membership, "work_order.view")
+        or rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+    )
+    can_view_incidents = (
+        rbac.has_permission_anywhere(request.membership, "incident.view")
+        or rbac.has_permission_anywhere(request.membership, "incident.view_assigned")
     )
     capacity_summary = None
     current_in_progress_job = None
     assigned_work_orders = []
 
+    from apps.assets import selectors as asset_selectors
+    from apps.incidents import selectors as incident_selectors
+    from apps.maintenance import selectors as maintenance_selectors
+    from apps.sites import selectors as site_selectors
+    from apps.workorders import selectors as wo_selectors
+
+    TERMINAL_WO_STATUSES = [WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED]
+
     if can_view_work_orders:
-        open_wo_qs = WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED])
-        if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
-            open_wo_qs = open_wo_qs.filter(assigned_to=request.membership)
+        open_wo_qs = wo_selectors.work_order_list(request.membership, org).exclude(status__in=TERMINAL_WO_STATUSES)
         open_wo_count = open_wo_qs.count()
     else:
         open_wo_count = 0
@@ -500,8 +502,8 @@ def home(request):
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
         "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count() if can_view_users else 0,
         "roles": Role.objects.for_organization(org).count() if can_view_roles else 0,
-        "total_assets": Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
-        "total_sites": Site.objects.for_organization(org).filter(status="ACTIVE").count() if can_view_sites else 0,
+        "total_assets": asset_selectors.assets_for(request.membership, org).exclude(status__in=["RETIRED", "DISPOSED"]).count() if can_view_assets else 0,
+        "total_sites": site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").count() if can_view_sites else 0,
         "open_work_orders": open_wo_count,
     }
 
@@ -512,6 +514,7 @@ def home(request):
             {"title": "Pending Invitations", "value": stats["pending_invites"], "subtitle": "Pending activation links", "tone": "warning", "icon": "clock"},
             {"title": "RBAC Roles", "value": stats["roles"], "subtitle": "Configured system & custom roles", "tone": "gold", "icon": "shield"},
             {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "accent", "icon": "building"},
+            {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating plant & facility assets", "tone": "accent", "icon": "box"},
         ]
         shortcuts = [
             {"label": "Operations Analytics", "url": reverse("dashboards:hub"), "icon": "activity"},
@@ -560,58 +563,222 @@ def home(request):
         activity_link_label = "Asset Registry →"
 
     elif persona_key == "maintenance_planner":
-        active_pms = MaintenancePlan.objects.for_organization(org).filter(is_active=True).count()
-        prev_wos = WorkOrder.objects.for_organization(org).filter(work_type="PREVENTIVE").exclude(status__in=["COMPLETED", "CANCELLED"]).count()
-        backlog = WorkOrder.objects.for_organization(org).filter(status__in=["DRAFT", "PLANNED"]).count()
-        checklists = ChecklistTemplate.objects.for_organization(org).count()
-        kpi_cards = [
-            {"title": "Active PM Plans", "value": active_pms, "subtitle": "Active recurrence plans", "tone": "accent", "icon": "wrench"},
-            {"title": "Preventive Orders", "value": prev_wos, "subtitle": "Scheduled active PM jobs", "tone": "gold", "icon": "clipboard"},
-            {"title": "Planning Backlog", "value": backlog, "subtitle": "Orders awaiting dispatch", "tone": "warning", "icon": "clock"},
-            {"title": "Inspection Checklists", "value": checklists, "subtitle": "Configured templates", "tone": "accent", "icon": "list-check"},
-        ]
+        can_maint = rbac.has_permission_anywhere(request.membership, "maintenance.view")
+        can_wo = rbac.has_permission_anywhere(request.membership, "work_order.view")
+        can_chk = rbac.has_permission_anywhere(request.membership, "checklist.view")
+
+        plans_qs = maintenance_selectors.plans_for(request.membership, org) if can_maint else None
+        schedules_qs = maintenance_selectors.schedules_for(request.membership, org).filter(is_active=True, plan__is_active=True) if can_maint else None
+        pm_wos_qs = (
+            wo_selectors.work_order_list(request.membership, org)
+            .filter(work_type=WorkOrder.WorkType.PREVENTIVE)
+            .exclude(status__in=TERMINAL_WO_STATUSES)
+            if can_wo
+            else WorkOrder.objects.none()
+        )
+
+        kpi_cards = []
+        if can_maint:
+            active_pms = plans_qs.filter(is_active=True).count()
+            due_schedules_count = schedules_qs.filter(next_due_date__lte=timezone.localdate()).count()
+            kpi_cards.append({
+                "title": "Active PM Plans",
+                "value": active_pms,
+                "subtitle": "Active recurrence plans",
+                "tone": "accent",
+                "icon": "wrench",
+            })
+            kpi_cards.append({
+                "title": "Due PM Schedules",
+                "value": due_schedules_count,
+                "subtitle": "Time-based schedules due today/overdue",
+                "tone": "warning",
+                "icon": "clock",
+            })
+        if can_wo:
+            backlog = pm_wos_qs.filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED]).count()
+            kpi_cards.append({
+                "title": "PM Planning Backlog",
+                "value": backlog,
+                "subtitle": "Draft & planned PM orders",
+                "tone": "gold",
+                "icon": "clipboard",
+            })
+        if can_chk:
+            checklists = ChecklistTemplate.objects.for_organization(org).exclude(status="ARCHIVED").count()
+            kpi_cards.append({
+                "title": "Checklist Templates",
+                "value": checklists,
+                "subtitle": "Active PM & inspection templates",
+                "tone": "accent",
+                "icon": "list-check",
+            })
+
+        planner_show_schedules = can_maint
+        planner_show_work_orders = can_wo
+        planner_due_schedules = list(
+            schedules_qs.select_related("plan__site", "plan__asset", "meter")
+            .order_by("next_due_date", "created_at")[:6]
+        ) if can_maint else []
+
+        planner_work_orders = list(
+            pm_wos_qs.filter(status__in=[WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED])
+            .select_related("site", "asset", "assigned_to__user")
+            .order_by("-created_at")[:6]
+        ) if can_wo else []
+
         shortcuts = [
             {"label": "Maintenance Plans", "url": reverse("maintenance:plans"), "icon": "wrench"},
             {"label": "Due & Upcoming PMs", "url": reverse("maintenance:due"), "icon": "clock"},
-            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
-            {"label": "Inspection Checklists", "url": reverse("checklists:list"), "icon": "list-check"},
+            {"label": "PM History", "url": reverse("maintenance:history"), "icon": "list-check"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Checklists", "url": reverse("checklists:list"), "icon": "list-check"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "clipboard"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub") + "?section=maintenance", "icon": "activity"},
         ]
         header_actions = [
             {"label": "Maintenance Plans", "url": reverse("maintenance:plans"), "icon": "wrench"},
+            {"label": "Due & Upcoming", "url": reverse("maintenance:due"), "icon": "clock"},
             {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
         ]
-        recent_objs = WorkOrder.objects.for_organization(org).filter(work_type="PREVENTIVE").order_by("-created_at")[:8]
-        recent = [ActivityEntry(f"PM Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "unassigned") if w.assigned_to else "unassigned", w.title) for w in recent_objs]
+        if can_wo:
+            recent_objs = pm_wos_qs.select_related("assigned_to__user").order_by("-created_at")[:8]
+            recent = [
+                ActivityEntry(
+                    f"PM Work Order [{w.status}]: {w.order_number}",
+                    w.updated_at or w.created_at,
+                    getattr(w.assigned_to.user, "email", "unassigned") if w.assigned_to else "unassigned",
+                    w.title,
+                )
+                for w in recent_objs
+            ]
+        else:
+            recent = []
         activity_title = "Recent Preventive Work Orders"
-        activity_link = reverse("maintenance:due")
-        activity_link_label = "Due Maintenance →"
+        activity_link = reverse("maintenance:due") if can_maint else ""
+        activity_link_label = "Due Maintenance →" if can_maint else ""
 
     elif persona_key == "service_dispatcher":
-        open_reqs = ServiceRequest.objects.for_organization(org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count()
-        unassigned = WorkOrder.objects.for_organization(org).filter(assigned_to__isnull=True).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
-        dispatched = WorkOrder.objects.for_organization(org).filter(status__in=["DISPATCHED", "IN_PROGRESS"]).count()
-        breaches = SLABreach.objects.for_organization(org).count()
+        from django.db.models import Count
+        can_inc = rbac.has_permission_anywhere(request.membership, "incident.view")
+        can_wo = rbac.has_permission_anywhere(request.membership, "work_order.view")
+        can_sla = rbac.has_permission_anywhere(request.membership, "sla.view")
+        can_site = rbac.has_permission_anywhere(request.membership, "site.view")
+
+        disp_reqs = incident_selectors.requests_for(request.membership, org) if can_inc else ServiceRequest.objects.none()
+        disp_wos = wo_selectors.work_order_list(request.membership, org) if can_wo else WorkOrder.objects.none()
+
+        open_reqs_qs = disp_reqs.exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"])
+        open_wos_qs = disp_wos.exclude(status__in=TERMINAL_WO_STATUSES)
+
         kpi_cards = [
-            {"title": "Open Incidents", "value": open_reqs, "subtitle": "Unresolved breakdown tickets", "tone": "warning", "icon": "bell"},
-            {"title": "Unassigned Jobs", "value": unassigned, "subtitle": "Orders requiring dispatch", "tone": "accent", "icon": "clipboard"},
-            {"title": "Dispatched Orders", "value": dispatched, "subtitle": "Field jobs in execution", "tone": "gold", "icon": "activity"},
-            {"title": "SLA Breaches", "value": breaches, "subtitle": "Missed response / resolution targets", "tone": "danger", "icon": "clock"},
+            {
+                "title": "Open Incidents",
+                "value": open_reqs_qs.count() if can_inc else 0,
+                "subtitle": "Unresolved field incidents",
+                "tone": "danger" if (can_inc and open_reqs_qs.count() > 0) else "accent",
+                "icon": "bell",
+            },
+            {
+                "title": "Facility Sites",
+                "value": stats.get("total_sites", 0),
+                "subtitle": "Active physical plant sites",
+                "tone": "gold",
+                "icon": "building",
+            },
         ]
+        if can_wo:
+            dispatch_queue_count = open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED"]).count()
+            active_dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
+            kpi_cards.append({
+                "title": "Dispatch Queue",
+                "value": dispatch_queue_count,
+                "subtitle": "Draft, planned & assigned orders",
+                "tone": "accent",
+                "icon": "clipboard",
+            })
+            kpi_cards.append({
+                "title": "Active Dispatched",
+                "value": active_dispatched,
+                "subtitle": "Dispatched, in-progress & on-hold",
+                "tone": "gold",
+                "icon": "activity",
+            })
+        if can_sla:
+            breaches = rbac.site_scope(request.membership, "sla.view").filter(
+                SLABreach.objects.for_organization(org), "site_id"
+            ).count()
+            kpi_cards.append({
+                "title": "SLA Breaches",
+                "value": breaches,
+                "subtitle": "Missed response / resolution targets",
+                "tone": "danger",
+                "icon": "clock",
+            })
+
+        dispatcher_requests = list(
+            disp_reqs.filter(status__in=["NEW", "TRIAGED", "APPROVED"])
+            .select_related("site", "asset", "reported_by__user")
+            .order_by("-created_at")[:6]
+        ) if can_inc else []
+
+        dispatcher_work_orders = list(
+            open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED", "ON_HOLD"])
+            .select_related("site", "asset", "assigned_to__user")
+            .order_by("-updated_at", "-created_at")[:6]
+        ) if can_wo else []
+
+        if can_site and (can_inc or can_wo):
+            inc_by_site = dict(open_reqs_qs.values_list("site_id").annotate(cnt=Count("pk"))) if can_inc else {}
+            wo_by_site = dict(open_wos_qs.values_list("site_id").annotate(cnt=Count("pk"))) if can_wo else {}
+            unassigned_by_site = dict(
+                open_wos_qs.filter(assigned_to__isnull=True).values_list("site_id").annotate(cnt=Count("pk"))
+            ) if can_wo else {}
+            active_sites = list(site_selectors.sites_for(request.membership, org).filter(status="ACTIVE").order_by("code")[:12])
+            site_stats = [
+                {
+                    "id": s.pk,
+                    "code": s.code,
+                    "name": s.name,
+                    "open_incidents": inc_by_site.get(s.pk, 0),
+                    "open_work_orders": wo_by_site.get(s.pk, 0),
+                    "unassigned_orders": unassigned_by_site.get(s.pk, 0),
+                }
+                for s in active_sites
+            ]
+        else:
+            site_stats = []
+
         shortcuts = [
             {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
             {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "list-check"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box"},
             {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock"},
             {"label": "Service Analytics", "url": reverse("dashboards:hub") + "?section=service", "icon": "activity"},
         ]
         header_actions = [
-            {"label": "Incidents", "url": reverse("incidents:list"), "icon": "bell"},
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell"},
+            {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
         ]
-        recent_objs = ServiceRequest.objects.for_organization(org).order_by("-created_at")[:8]
-        recent = [ActivityEntry(f"Service Request [{r.status}]: {r.number}", r.created_at, getattr(r.reported_by.user, "email", "system") if r.reported_by else "system", r.title) for r in recent_objs]
+        if can_inc:
+            recent_qs = disp_reqs.select_related("reported_by__user").order_by("-created_at")
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
+            recent = [
+                ActivityEntry(
+                    f"Service Request [{r.status}]: {r.number}",
+                    r.created_at,
+                    getattr(r.reported_by.user, "email", "system") if r.reported_by else "system",
+                    r.title,
+                )
+                for r in recent_page_obj
+            ]
+        else:
+            recent = []
         activity_title = "Recent Incident & Service Calls"
-        activity_link = reverse("incidents:list")
-        activity_link_label = "All Incidents →"
+        activity_link = reverse("incidents:list") if can_inc else ""
+        activity_link_label = "All Incidents →" if can_inc else ""
 
     elif persona_key in ("technician", "field_technician"):
         from apps.workspace import selectors as workspace_selectors
@@ -631,7 +798,7 @@ def home(request):
             .select_related("site", "asset")
             .order_by("-status", "-priority", "planned_start", "due_at")[:8]
         )
-        my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=["COMPLETED", "CANCELLED"]).count()
+        my_assigned = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership).exclude(status__in=TERMINAL_WO_STATUSES).count()
         my_active = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status="IN_PROGRESS").count()
         my_completed = WorkOrder.objects.for_organization(org).filter(assigned_to=request.membership, status__in=["COMPLETED", "CLOSED"]).count()
         my_inspections = Inspection.objects.for_organization(org).filter(Q(started_by=request.membership) | Q(completed_by=request.membership)).count()
@@ -692,19 +859,32 @@ def home(request):
         low_stock = StockBalance.objects.for_organization(org).filter(min_level__isnull=False, on_hand__lte=F("min_level")).count()
         warehouses = Warehouse.objects.for_organization(org).count()
         reservations = PartReservation.objects.for_organization(org).filter(status="ACTIVE").count()
+        
+        pending_requests_qs = (
+            WorkOrderPart.objects.for_organization(org)
+            .filter(status=WorkOrderPart.Status.REQUESTED)
+            .select_related("part", "work_order", "work_order__site", "requested_by")
+            .order_by("-created_at")
+        )
+        pending_requests_count = pending_requests_qs.count()
+        stores_pending_requests = list(pending_requests_qs[:20])
+
         kpi_cards = [
+            {"title": "Pending Requests", "value": pending_requests_count, "subtitle": "Awaiting store issue / fulfillment", "tone": "warning", "icon": "package"},
             {"title": "Cataloged Parts", "value": total_parts, "subtitle": "Active spare part SKU catalog", "tone": "accent", "icon": "box"},
             {"title": "Low Stock Alerts", "value": low_stock, "subtitle": "Items below reorder point", "tone": "danger", "icon": "alert-triangle"},
             {"title": "Storage Warehouses", "value": warehouses, "subtitle": "Active storage locations", "tone": "gold", "icon": "building"},
-            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "warning", "icon": "clipboard"},
+            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "accent", "icon": "clipboard"},
         ]
         shortcuts = [
+            {"label": "Pending Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Warehouse Stock", "url": reverse("inventory:stock"), "icon": "grid"},
             {"label": "Stock Reservations", "url": reverse("inventory:reservations"), "icon": "list-check"},
             {"label": "Stock Movements", "url": reverse("inventory:movements"), "icon": "clipboard"},
         ]
         header_actions = [
+            {"label": "Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Stock Ledger", "url": reverse("inventory:stock"), "icon": "grid"},
         ]
@@ -768,7 +948,7 @@ def home(request):
         activity_link_label = "Full Audit Trail →"
 
     else:  # operations_manager / fallback
-        open_incidents = ServiceRequest.objects.for_organization(org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count() if rbac.has_permission(request.membership, "incident.view") else 0
+        open_incidents = incident_selectors.requests_for(request.membership, org).exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"]).count() if can_view_incidents else 0
         kpi_cards = [
             {"title": "Master Assets", "value": stats["total_assets"], "subtitle": "Operating plant & facility assets", "tone": "accent", "icon": "box"},
             {"title": "Facility Sites", "value": stats["total_sites"], "subtitle": "Active physical plant sites", "tone": "gold", "icon": "building"},
@@ -781,12 +961,13 @@ def home(request):
             {"label": "Work Order Board", "url": reverse("workorders:list"), "icon": "clipboard"},
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
         ]
-        header_actions = [
-            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard"},
-            {"label": "Asset Registry", "url": reverse("assets:list"), "icon": "box"},
-        ]
+        header_actions = []
+        filter_form = DashboardFilterForm(request.GET)
+        filter_form.is_valid()
         if rbac.has_permission(request.membership, "audit.view"):
-            recent = list(AuditLog.objects.for_organization(org)[:8])
+            recent_qs = AuditLog.objects.for_organization(org)
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs, page_param="activity_page", per_page=8)
+            recent = list(recent_page_obj)
             activity_title = "Recent Immutable Audit Activity"
             activity_link = reverse("audit:list")
             activity_link_label = "Full Audit Trail →"
@@ -794,8 +975,8 @@ def home(request):
             recent_qs = WorkOrder.objects.for_organization(org)
             if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
                 recent_qs = recent_qs.filter(assigned_to=request.membership)
-            recent_objs = recent_qs.order_by("-created_at")[:8]
-            recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_objs]
+            recent_page_obj, preserved_params = paginate_dashboard_queryset(request, recent_qs.order_by("-created_at"), page_param="activity_page", per_page=8)
+            recent = [ActivityEntry(f"Work Order [{w.status}]: {w.order_number}", w.updated_at or w.created_at, getattr(w.assigned_to.user, "email", "system") if w.assigned_to else "system", w.title) for w in recent_page_obj]
             activity_title = "Recent Work Orders"
             activity_link = reverse("workorders:list")
             activity_link_label = "Work Order Board →"
@@ -807,19 +988,27 @@ def home(request):
         if "/app/organization" in u or "/app/users" in u or "/app/roles" in u:
             if not can_view_users:
                 continue
-        if "/app/audit" in u and not rbac.has_permission(request.membership, "audit.view"):
+        if "/app/audit" in u and not rbac.has_permission_anywhere(request.membership, "audit.view"):
             continue
-        if "/app/inventory" in u and not (rbac.has_permission(request.membership, "inventory.view") or rbac.has_permission(request.membership, "inventory.part.view")):
+        if "/app/inventory" in u and not (rbac.has_permission_anywhere(request.membership, "inventory.view") or rbac.has_permission_anywhere(request.membership, "inventory.part.view")):
             continue
-        if "/app/contracts" in u and not rbac.has_permission(request.membership, "contract.view"):
+        if "/app/contracts" in u and not rbac.has_permission_anywhere(request.membership, "contract.view"):
             continue
-        if "/app/maintenance" in u and not rbac.has_permission(request.membership, "maintenance.view"):
+        if "/app/maintenance" in u and not rbac.has_permission_anywhere(request.membership, "maintenance.view"):
             continue
-        if "/app/incidents" in u and not (rbac.has_permission(request.membership, "incident.view") or rbac.has_permission(request.membership, "incident.view_assigned")):
+        if "/app/incidents" in u and not (rbac.has_permission_anywhere(request.membership, "incident.view") or rbac.has_permission_anywhere(request.membership, "incident.view_assigned")):
             continue
-        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission_anywhere(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
-        if "/app/sla" in u and not rbac.has_permission(request.membership, "sla.view"):
+        if "/app/sla" in u and not rbac.has_permission_anywhere(request.membership, "sla.view"):
+            continue
+        if "/app/inspections" in u and not rbac.has_permission_anywhere(request.membership, "inspection.view"):
+            continue
+        if "/app/assets" in u and not can_view_assets:
+            continue
+        if "/app/work-orders" in u and not can_view_work_orders:
+            continue
+        if "/app/checklists" in u and not rbac.has_permission_anywhere(request.membership, "checklist.view"):
             continue
         filtered_shortcuts.append(s)
 
@@ -828,29 +1017,36 @@ def home(request):
         u = h["url"]
         if "/app/users" in u and not can_view_users:
             continue
-        if "/app/audit" in u and not rbac.has_permission(request.membership, "audit.view"):
+        if "/app/audit" in u and not rbac.has_permission_anywhere(request.membership, "audit.view"):
             continue
         if "/app/assets" in u and not can_view_assets:
             continue
         if "/app/work-orders" in u and not can_view_work_orders:
             continue
-        if "/app/inventory" in u and not (rbac.has_permission(request.membership, "inventory.part.view") or rbac.has_permission(request.membership, "inventory.view")):
+        if "/app/inventory" in u and not (rbac.has_permission_anywhere(request.membership, "inventory.part.view") or rbac.has_permission_anywhere(request.membership, "inventory.view")):
             continue
-        if "/app/maintenance" in u and not rbac.has_permission(request.membership, "maintenance.view"):
+        if "/app/maintenance" in u and not rbac.has_permission_anywhere(request.membership, "maintenance.view"):
             continue
-        if "/app/incidents" in u and not rbac.has_permission(request.membership, "incident.view"):
+        if "/app/incidents" in u and not rbac.has_permission_anywhere(request.membership, "incident.view"):
             continue
-        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission(request.membership, "report.view") or rbac.is_owner(request.membership)):
+        if "/app/dashboards" in u and not u.startswith("/app/dashboards/my-work") and not (rbac.has_permission_anywhere(request.membership, "report.view") or rbac.is_owner(request.membership)):
             continue
         filtered_headers.append(h)
 
     is_tech = persona_key in ("technician", "field_technician")
+    is_dispatcher = persona_key == "service_dispatcher"
+    is_planner = persona_key == "maintenance_planner"
+    is_stores = persona_key in ("stores_manager", "stores_inventory")
     return render(request, "ui/home.html", {
         "persona": persona,
+        "recent_page_obj": locals().get("recent_page_obj"),
+        "preserved_params": locals().get("preserved_params", ""),
+        "filter_form": locals().get("filter_form"),
         "kpi_cards": kpi_cards,
         "shortcuts": filtered_shortcuts,
         "header_actions": filtered_headers,
         "stats": stats,
+        "site_stats": locals().get("site_stats", []),
         "recent": recent,
         "activity_title": activity_title,
         "activity_link": activity_link,
@@ -858,6 +1054,17 @@ def home(request):
         "can_view_users": can_view_users,
         "can_view_assets": can_view_assets,
         "is_technician": is_tech,
+        "is_dispatcher": is_dispatcher,
+        "is_planner": is_planner,
+        "is_stores_manager": is_stores,
+        "stores_pending_requests": locals().get("stores_pending_requests", []),
+        "stores_pending_count": locals().get("pending_requests_count", 0),
+        "dispatcher_requests": locals().get("dispatcher_requests", []),
+        "dispatcher_work_orders": locals().get("dispatcher_work_orders", []),
+        "planner_show_schedules": locals().get("planner_show_schedules", False),
+        "planner_show_work_orders": locals().get("planner_show_work_orders", False),
+        "planner_due_schedules": locals().get("planner_due_schedules", []),
+        "planner_work_orders": locals().get("planner_work_orders", []),
         "current_in_progress_job": current_in_progress_job if is_tech else None,
         "assigned_work_orders": assigned_work_orders if is_tech else [],
         "capacity_summary": capacity_summary if is_tech else None,
@@ -903,6 +1110,18 @@ def search(request):
         if rbac.has_permission(m, "role.view"):
             for r in Role.objects.for_organization(org).filter(name__icontains=q)[:5]:
                 results.append({"kind": "Role", "label": r.name, "sub": r.description, "url": f"/app/roles/{r.pk}/"})
+        if rbac.has_permission_anywhere(m, "work_order.view"):
+            from apps.workorders.models import WorkOrder
+            for wo in WorkOrder.objects.filter(organization=org).filter(
+                Q(order_number__icontains=q)
+            )[:5]:
+                results.append({"kind": "Work Order", "label": wo.order_number, "sub": str(wo.site or "Work Order"), "url": f"/app/work-orders/{wo.pk}/"})
+        if rbac.has_permission_anywhere(m, "asset.view"):
+            from apps.assets.models import Asset
+            for a in Asset.objects.filter(organization=org).filter(
+                Q(asset_tag__icontains=q) | Q(name__icontains=q)
+            )[:5]:
+                results.append({"kind": "Asset", "label": a.asset_tag or a.name, "sub": a.name, "url": f"/app/assets/{a.pk}/"})
     return render(request, "ui/_search_results.html", {"results": results, "q": q})
 
 
@@ -922,42 +1141,54 @@ def bad_request(request, exception=None):
             },
             status=400,
         )
-    return render(request, "errors/400.html", status=400)
+    try:
+        return render(request, "errors/400.html", status=400)
+    except Exception:
+        return HttpResponse("Bad request.", status=400)
 
 
-def bad_request(request, exception=None):
-    if request.path.startswith("/api/"):
-        from django.http import JsonResponse
-        req_id = getattr(request, "request_id", "-")
-        return JsonResponse(
-            {
-                "success": False,
-                "error": {
-                    "code": "bad_request",
-                    "message": str(exception) if exception else "Bad request.",
-                    "details": {},
-                },
-                "meta": {"request_id": req_id},
-            },
-            status=400,
-        )
-    return render(request, "errors/400.html", status=400)
+def _api_error_json(request, code: str, message: str, status: int):
+    from django.http import JsonResponse
+
+    req_id = getattr(request, "request_id", "-")
+    return JsonResponse(
+        {
+            "error": {
+                "code": code,
+                "message": message,
+                "details": {},
+                "request_id": req_id,
+            }
+        },
+        status=status,
+    )
 
 
 def forbidden(request, exception=None):
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(request, "permission_denied", "Permission denied.", 403)
     return render(request, "errors/403.html", status=403)
 
 
 def not_found(request, exception=None):
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(request, "not_found", "Not found.", 404)
     return render(request, "errors/404.html", status=404)
 
 
 def server_error(request):
-    import sys
     import logging
+    import sys
     logger = logging.getLogger("django.request")
     exc_type, exc_value, exc_tb = sys.exc_info()
     if exc_value:
         logger.error("Internal Server Error on %s: %s", request.path, exc_value, exc_info=(exc_type, exc_value, exc_tb))
+    if (request.path or "").startswith("/api/"):
+        return _api_error_json(
+            request,
+            "server_error",
+            "Server error. Please quote the X-Request-ID header when reporting this.",
+            500,
+        )
     return HttpResponse("Server error. Please quote the X-Request-ID header when reporting this.", status=500)
 

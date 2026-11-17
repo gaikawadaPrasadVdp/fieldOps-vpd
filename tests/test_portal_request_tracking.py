@@ -362,12 +362,17 @@ def test_sensitive_internal_fields_excluded(as_user, org_a, asset_a, make_portal
         "internal_notes",
         "technician",
         "assigned_to",
-        "work_order",
         "work_orders",
         "audit_metadata",
     ]
     for key in forbidden_keys:
         assert key not in data
+
+    # work_order is a documented nullable field on the detail payload (DEF-003,
+    # QA 2026-11-10): always present, null while no work order is linked, and the
+    # linked work order's order number once one exists.
+    assert "work_order" in data
+    assert data["work_order"] is None
 
     # History-level sensitive fields excluded
     for item in data.get("history", []):

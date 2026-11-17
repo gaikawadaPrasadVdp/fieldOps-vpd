@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
+from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -9,16 +12,18 @@ from django.utils import timezone
 from apps.audit import services as audit
 from apps.core.exceptions import PermissionDenied, ValidationFailed
 from apps.rbac import services as rbac
+from apps.ui.forms import validate_alphabetical_description
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff
 
-from .models import TravelLog, WorkNote
 from . import selectors
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
+
     from apps.accounts.models import User
-    from apps.tenancy.models import Membership
+    from apps.tenancy.models import Membership, Organization
 
 
 def assert_can_execute_job(work_order: WorkOrder, membership: Membership) -> None:
@@ -38,6 +43,10 @@ def start_job(work_order: WorkOrder, *, membership: Membership, actor: User, req
     """Technician starts the assigned work order (calls M06 start transition)."""
     assert_can_execute_job(work_order, membership)
     order = wo_services.start_work_order(work_order, membership=membership, actor=actor, request=request)
+    profile = getattr(membership, "technician_profile", None)
+    if profile and profile.availability_status == TechnicianProfile.AvailabilityStatus.AVAILABLE:
+        profile.availability_status = TechnicianProfile.AvailabilityStatus.ON_JOB
+        profile.save(update_fields=["availability_status", "updated_at"])
     audit.record(
         action="workspace.job_started",
         organization=order.organization,
@@ -55,7 +64,7 @@ def pause_job(work_order: WorkOrder, *, reason: str, membership: Membership, act
     assert_can_execute_job(work_order, membership)
     reason = (reason or "").strip()
     if not reason:
-        raise ValidationFailed("A reason is required to pause the job.")
+        raise ValidationFailed("Add a Pause Reason before moving this Work Order into a configured pause state.", code="pause_reason_required")
     order = wo_services.hold_work_order(work_order, membership=membership, actor=actor, reason=reason, request=request)
     audit.record(
         action="workspace.job_paused",
@@ -101,7 +110,7 @@ def log_travel(
     request: HttpRequest | None = None,
 ) -> TravelLog:
     """Log technician travel time and route details.
-    
+
     If record_labor_entry is True and work order is active, authoritatively persists
     a labor entry in M06 WorkOrderLabor so total job hours stay unified.
     """
@@ -192,6 +201,7 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
     can_complete = "complete" in action_ops
 
     all_parts = selectors.part_lines_for(work_order)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
     meters = selectors.meters_for(work_order)
@@ -212,6 +222,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
         "total_travel_hours": total_travel_hours,
         "labor_entries": labor_entries,
         "total_labor_hours": total_labor_hours,
+        "pending_part_requests": pending_part_requests,
+        "pending_part_requests_count": len(pending_part_requests),
         "consumable_parts": consumable_parts,
         "consumable_parts_count": len(consumable_parts),
         "returned_parts": returned_parts,
@@ -231,6 +243,7 @@ def record_work_note(
     membership: Membership,
     actor: User,
     request: HttpRequest | None = None,
+    is_internal: bool = False,
 ) -> WorkNote:
     """Appends an execution note for the technician work order."""
     assert_can_execute_job(work_order, membership)
@@ -248,6 +261,7 @@ def record_work_note(
         work_order=work_order,
         author=membership,
         body=note_clean,
+        is_internal=bool(is_internal),
     )
     audit.record(
         action="workspace.work_note_added",
@@ -257,7 +271,8 @@ def record_work_note(
         metadata={"note_id": str(entry.pk), "note_preview": note_clean[:80]},
         request=request,
     )
-    return entry
+    # Refresh with select_related so author.user is fully available for serialization
+    return WorkNote.objects.select_related("author__user").get(pk=entry.pk)
 
 
 @transaction.atomic
@@ -307,7 +322,9 @@ def complete_job_with_signoff(
 ) -> tuple[WorkOrder, WorkOrderSignoff]:
     """Complete a work order and persist customer digital signature & final photo evidence."""
     import base64
+
     from django.core.files.base import ContentFile
+
     from apps.files import services as files_services
 
     assert_can_execute_job(work_order, membership)
@@ -349,7 +366,7 @@ def complete_job_with_signoff(
         except Exception as exc:
             raise ValidationFailed(f"Invalid digital signature image data: {exc}", code="invalid_signature") from exc
     else:
-        raise ValidationFailed("A digital signature is required to complete this job.", code="signature_required")
+        raise ValidationFailed("Digital signature is required.", code="signature_required")
 
     # If final photo evidence was provided, attach it as completion evidence
     if final_photo_file:
@@ -415,13 +432,31 @@ def record_job_labor(
 ):
     """Records on-site technician labor entry in M06."""
     assert_can_execute_job(work_order, membership)
+    cleaned_description = (description or "").strip()
+    if not cleaned_description:
+        raise ValidationFailed(
+            "Work Description is required.",
+            code="invalid_description",
+            details={"description": "Work Description is required."},
+        )
+    try:
+        cleaned_description = validate_alphabetical_description(
+            cleaned_description, field_label="Work Description"
+        )
+    except DjangoValidationError as exc:
+        msg = exc.messages[0] if getattr(exc, "messages", None) else str(exc)
+        raise ValidationFailed(
+            msg,
+            code="invalid_description",
+            details={"description": msg},
+        ) from exc
     labor = wo_services.record_labor(
         work_order,
         membership=membership,
         actor=actor,
         work_date=work_date or timezone.localdate(),
         hours=hours,
-        description=description,
+        description=cleaned_description,
         request=request,
     )
     audit.record(
@@ -429,7 +464,7 @@ def record_job_labor(
         organization=work_order.organization,
         actor=actor,
         target=work_order,
-        metadata={"hours": str(hours), "description": description[:80]},
+        metadata={"hours": str(hours), "description": cleaned_description[:80]},
         request=request,
     )
     return labor
@@ -687,7 +722,6 @@ def report_auxiliary_defect(
     """
     assert_can_execute_job(work_order, membership)
 
-    from apps.assets.models import Asset
     from apps.incidents import services as incident_services
 
     target_asset = asset
@@ -722,14 +756,23 @@ def report_auxiliary_defect(
         request=request,
     )
 
-    # Cross-link note onto work order execution journal
-    record_work_note(
-        work_order,
-        note=f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}.",
-        membership=membership,
-        actor=actor,
-        request=request,
-    )
+    # DEF-002 fix: Cross-link note onto work order execution journal.
+    # Use direct WorkNote.objects.create to avoid record_work_note's status guard
+    # (defect reporting is allowed regardless of exact WO status).
+    try:
+        _note_body = f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}."
+        WorkNote.objects.create(
+            organization=work_order.organization,
+            work_order=work_order,
+            author=membership,
+            body=_note_body,
+        )
+    except Exception:
+        import logging as _logging
+        _logging.getLogger("apps.workspace").warning(
+            "Could not create cross-link worknote for defect %s on WO %s",
+            sr.number, work_order.order_number, exc_info=True,
+        )
 
     audit.record(
         action="workspace.auxiliary_defect_reported",
@@ -749,3 +792,281 @@ def report_auxiliary_defect(
     return sr
 
 
+
+
+# ==============================================================================
+# TechnicianProfile and Shift Services (PRD §4.2, D-054)
+# ==============================================================================
+
+@transaction.atomic
+def create_shift(
+    org: Organization,
+    *,
+    code: str,
+    name: str,
+    start_time: any,
+    end_time: any,
+    days_of_week: list[int] | None = None,
+    site=None,
+    is_active: bool = True,
+    notes: str = "",
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+) -> Shift:
+    """Create a new technician shift within the organization."""
+    code = (code or "").strip().upper()
+    name = (name or "").strip()
+    if not code:
+        raise ValidationFailed("Shift code is required.", code="shift_code_required")
+    if not name:
+        raise ValidationFailed("Shift name is required.", code="shift_name_required")
+    if Shift.objects.filter(organization=org, code=code).exists():
+        raise ValidationFailed(f"Shift with code '{code}' already exists.", code="duplicate_shift_code")
+
+    shift = Shift(
+        organization=org,
+        code=code,
+        name=name,
+        start_time=start_time,
+        end_time=end_time,
+        days_of_week=days_of_week or [0, 1, 2, 3, 4],
+        site=site,
+        is_active=is_active,
+        notes=notes or "",
+    )
+    try:
+        shift.full_clean()
+    except ValidationError as exc:
+        raise ValidationFailed(exc.message_dict if hasattr(exc, "message_dict") else str(exc))
+    shift.save()
+
+    if actor:
+        audit.record(
+            action="workspace.shift_created",
+            organization=org,
+            actor=actor,
+            target=shift,
+            metadata={"code": code, "name": name, "notes": f"Created shift {code} ({name})"},
+            request=request,
+        )
+    return shift
+
+
+@transaction.atomic
+def update_shift(
+    shift: Shift,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> Shift:
+    """Update attributes on an existing shift."""
+    for field, val in kwargs.items():
+        if hasattr(shift, field):
+            setattr(shift, field, val)
+    try:
+        shift.full_clean()
+    except ValidationError as exc:
+        raise ValidationFailed(exc.message_dict if hasattr(exc, "message_dict") else str(exc))
+    shift.save()
+
+    if actor:
+        audit.record(
+            action="workspace.shift_updated",
+            organization=shift.organization,
+            actor=actor,
+            target=shift,
+            metadata={"code": shift.code, "name": shift.name, "notes": f"Updated shift {shift.code}"},
+            request=request,
+        )
+    return shift
+
+
+@transaction.atomic
+def get_or_create_technician_profile(
+    membership: Membership,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> tuple[TechnicianProfile, bool]:
+    """Retrieve or create a TechnicianProfile for the given membership."""
+    profile = TechnicianProfile.objects.filter(
+        organization=membership.organization,
+        membership=membership,
+    ).first()
+    created = False
+    if profile is None:
+        profile = TechnicianProfile(
+            organization=membership.organization,
+            membership=membership,
+            **kwargs,
+        )
+        profile.full_clean()
+        profile.save()
+        created = True
+        if actor:
+            audit.record(
+                action="workspace.technician_profile_created",
+                organization=membership.organization,
+                actor=actor,
+                target=profile,
+                metadata={"member_id": str(membership.pk), "notes": f"Created technician profile for {membership.user.email}"},
+                request=request,
+            )
+    return profile, created
+
+
+@transaction.atomic
+def update_technician_profile(
+    profile: TechnicianProfile,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+    **kwargs,
+) -> TechnicianProfile:
+    """Update an existing technician profile."""
+    for field, val in kwargs.items():
+        if hasattr(profile, field):
+            setattr(profile, field, val)
+    profile.full_clean()
+    profile.save()
+
+    if actor:
+        audit.record(
+            action="workspace.technician_profile_updated",
+            organization=profile.organization,
+            actor=actor,
+            target=profile,
+            metadata={"member_id": str(profile.membership_id), "notes": f"Updated technician profile for {profile.membership.user.email}"},
+            request=request,
+        )
+    return profile
+
+
+@transaction.atomic
+def set_technician_availability(
+    membership: Membership,
+    status: str,
+    *,
+    actor: User | None = None,
+    request: HttpRequest | None = None,
+) -> TechnicianProfile:
+    """Set the availability status of a technician (AVAILABLE, ON_JOB, ON_LEAVE, OFF_DUTY)."""
+    if status not in TechnicianProfile.AvailabilityStatus.values:
+        raise ValidationFailed(f"Invalid availability status '{status}'.", code="invalid_status")
+
+    profile, _ = get_or_create_technician_profile(membership, actor=actor, request=request)
+    old_status = profile.availability_status
+    profile.availability_status = status
+    profile.save(update_fields=["availability_status", "updated_at"])
+
+    if actor:
+        audit.record(
+            action="workspace.technician_availability_changed",
+            organization=profile.organization,
+            actor=actor,
+            target=profile,
+            metadata={
+                "old_status": old_status,
+                "new_status": status,
+                "notes": f"Changed technician availability from {old_status} to {status}",
+            },
+            request=request,
+        )
+
+    if status in (TechnicianProfile.AvailabilityStatus.ON_LEAVE, TechnicianProfile.AvailabilityStatus.OFF_DUTY):
+        from apps.workorders import services as wo_services
+        from apps.workorders.models import WorkOrder
+        from apps.notifications.services import notify
+
+        status_label = status.replace("_", " ").title()
+        reason = f"Technician availability set to {status_label}."
+        active_jobs = WorkOrder.objects.filter(
+            organization=membership.organization,
+            assigned_to=membership,
+            status__in=[
+                WorkOrder.Status.ASSIGNED,
+                WorkOrder.Status.DISPATCHED,
+                WorkOrder.Status.IN_PROGRESS,
+            ],
+        ).select_related("site")
+
+        held_orders = []
+        for job in active_jobs:
+            try:
+                held_wo = wo_services.transition_work_order(
+                    job,
+                    WorkOrder.Status.ON_HOLD,
+                    membership=membership,
+                    actor=actor,
+                    permission="work_order.hold",
+                    action="held",
+                    changes={"hold_reason": reason},
+                    reason=reason,
+                    request=request,
+                )
+                held_orders.append(held_wo)
+            except Exception:
+                job.status = WorkOrder.Status.ON_HOLD
+                job.hold_reason = reason
+                job.save(update_fields=["status", "hold_reason", "updated_at"])
+                held_orders.append(job)
+
+        if held_orders:
+            dispatcher_memberships = Membership.objects.for_organization(membership.organization).filter(
+                status=Membership.Status.ACTIVE,
+                membership_roles__role__role_permissions__permission__code__in=[
+                    "work_order.assign",
+                    "work_order.dispatch",
+                ],
+            ).select_related("user").distinct()
+            dispatcher_users = list({m.user for m in dispatcher_memberships if m.user != actor})
+            if dispatcher_users:
+                order_nums = ", ".join(wo.order_number for wo in held_orders[:5])
+                notify(
+                    membership.organization,
+                    dispatcher_users,
+                    title=f"Work orders placed On Hold ({membership.user.full_name or membership.user.email})",
+                    body=f"Technician availability changed to {status_label}. Work orders placed On Hold: {order_nums}",
+                    link="/app/work-orders/",
+                    source="technician_availability",
+                )
+
+    return profile
+
+
+def check_technician_shift_eligibility(membership: Membership, dt=None) -> tuple[bool, str]:
+    """Check if the technician is actively scheduled on shift at the specified datetime."""
+    from zoneinfo import ZoneInfo
+
+    profile = getattr(membership, "technician_profile", None)
+    if not profile or not profile.shift or not profile.shift.is_active:
+        return True, "No active shift restriction configured."
+
+    shift = profile.shift
+    tz_str = "UTC"
+    if shift.site and shift.site.timezone:
+        tz_str = shift.site.timezone
+    elif hasattr(membership.organization, "timezone") and membership.organization.timezone:
+        tz_str = membership.organization.timezone
+
+    zone = ZoneInfo(tz_str)
+    now = timezone.localtime(dt or timezone.now(), zone)
+    weekday = now.weekday()  # 0=Mon..6=Sun
+
+    if shift.days_of_week and weekday not in shift.days_of_week:
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        return False, f"Technician is not scheduled on {day_names[weekday]}."
+
+    current_time = now.time()
+    if shift.start_time <= shift.end_time:
+        in_hours = shift.start_time <= current_time <= shift.end_time
+    else:
+        # Overnight shift (e.g. 22:00 to 06:00)
+        in_hours = current_time >= shift.start_time or current_time <= shift.end_time
+
+    if not in_hours:
+        return False, f"Time is outside technician shift ({shift.start_time:%H:%M}–{shift.end_time:%H:%M})."
+
+    return True, "On shift."

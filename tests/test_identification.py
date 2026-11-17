@@ -267,3 +267,11 @@ def test_def002_resolve_token_with_query_strings_and_urls(org_a, site_a1, make_a
         assert ident == qr, f"Failed resolving for input: {raw_input}"
         assert resolved_asset == asset, f"Wrong asset for input: {raw_input}"
         assert is_active is True
+
+
+def test_def010_extract_token_root_url_returns_empty():
+    """Verify DEF-010: extract_token returns empty string when scan URL has no token segment."""
+    assert id_services.extract_token("https://x.io/") == ""
+    assert id_services.extract_token("https://x.io") == ""
+    assert id_services.extract_token("http://localhost:8000/") == ""
+    assert id_services.extract_token("") == ""

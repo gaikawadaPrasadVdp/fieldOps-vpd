@@ -2,8 +2,8 @@
 organization-wide (parts are not tied to a site)."""
 from apps.rbac.catalog import register
 
-register("inventory", "inventory.part.view", "View the spare-part catalogue")
-register("inventory", "inventory.part.manage", "Create / edit / deactivate spare parts")
+register("inventory", "inventory.part.view", "View the spare-part catalogue", site_scoped=True)
+register("inventory", "inventory.part.manage", "Create / edit / deactivate spare parts", site_scoped=True)
 register("inventory", "inventory.view", "View warehouses, stock levels, reservations and movements", site_scoped=True)
 register("inventory", "inventory.warehouse.manage", "Create / edit / deactivate warehouses", site_scoped=True)
 register("inventory", "inventory.receive", "Receive stock into a warehouse", site_scoped=True)

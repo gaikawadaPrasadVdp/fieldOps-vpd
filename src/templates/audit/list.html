@@ -7,6 +7,12 @@
 <!-- Dashboard Hero Header -->
 <div class="fx-page-header d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Overview</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Audit &amp; Compliance Dashboard</li>
+      </ol>
+    </nav>
     <div class="d-flex align-items-center gap-2 mb-1">
       <h1 class="h3 fw-bold mb-0">Audit &amp; Compliance Dashboard</h1>
       <span class="badge bg-success-subtle text-success border border-success-subtle small">
@@ -18,6 +24,9 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">
+      {% icon 'arrow-left' 14 %} Back to Overview
+    </a>
     <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:reports' %}">
       {% icon 'list-check' 14 %} Compliance reports
     </a>
@@ -31,9 +40,10 @@
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm">
         <li><h6 class="dropdown-header">Export Current View</h6></li>
-        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=csv">CSV Spreadsheet</a></li>
-        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=xlsx">Excel Workbook (XLSX)</a></li>
-        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=pdf">PDF Audit Report</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=csv" download>CSV Spreadsheet</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=xlsx" download>Excel Workbook (XLSX)</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=pdf" download>PDF Audit Report</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=zip" download>ZIP Archive (Evidence Manifest)</a></li>
         <li><hr class="dropdown-divider"></li>
         <li><span class="dropdown-item-text small text-body-secondary">Max {{ total_hint }} rows per export (newest first)</span></li>
       </ul>
@@ -388,10 +398,165 @@
       <p class="small text-body-secondary mb-3">
         Compiles the complete audit-ready evidentiary archive for any work order: lifecycle timeline, checklist answers &amp; findings, labor/material logs, SLA tracking, attached files, and SHA-256 checksum manifest.
       </p>
-      <form id="evidence-form" onsubmit="event.preventDefault(); var id=document.getElementById('wo-evidence-id').value.trim(); if(id){ window.location.href='/app/audit/evidence/work-order/' + id + '/'; }" class="d-flex gap-2">
-        <input type="text" id="wo-evidence-id" class="form-control form-control-sm" placeholder="Work Order UUID (e.g. b8f...)" required aria-label="Work Order UUID">
-        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Download ZIP Archive</button>
+      <form id="evidence-form" method="get" action="/app/audit/evidence/work-order/" onsubmit="return handleEvidenceSubmit(event)" class="d-flex flex-column gap-2">
+        <div class="d-flex gap-2 flex-wrap flex-sm-nowrap">
+          <select name="work_order" id="wo-target-select" class="form-select form-select-sm" onchange="onTargetSelectChange(this.value)" aria-label="Select Work Order or Audit Trail">
+            <option value="latest" selected>Latest Work Order (Auto) · {{ recent_work_orders.0.order_number|default:"WO-000001" }}</option>
+            {% for wo in recent_work_orders %}
+              <option value="{{ wo.order_number }}">{{ wo.order_number }} · {{ wo.title }}</option>
+            {% endfor %}
+            <option value="audit">Full Organization Audit Trail (All Events ZIP)</option>
+            <option value="custom">Type Custom Work Order # or UUID...</option>
+          </select>
+          <input type="text" id="wo-custom-id" class="form-control form-control-sm d-none" placeholder="e.g. WO-000001 or UUID" aria-label="Work Order Number or UUID" autocomplete="off">
+          <button type="submit" id="btn-download-zip" class="btn btn-sm btn-primary text-nowrap d-flex align-items-center gap-1">
+            {% icon 'download' 14 %} <span id="btn-download-text">Download ZIP Archive</span>
+          </button>
+        </div>
+        {% if recent_work_orders %}
+        <div class="d-flex align-items-center gap-1 flex-wrap small text-body-secondary mt-1">
+          <span class="me-1">Quick Select:</span>
+          {% for wo in recent_work_orders|slice:":4" %}
+          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 small" style="font-size: 0.75rem;"
+                  onclick="pickWorkOrder('{{ wo.order_number }}')">
+            {{ wo.order_number }}
+          </button>
+          {% endfor %}
+          {% endfor %}
+          <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small" style="font-size: 0.75rem;"
+                  onclick="pickWorkOrder('audit')">
+            Full Audit Trail
+          </button>
+        </div>
+        {% endif %}
+        <!-- Download Feedback Banner -->
+        <div id="download-success-toast" class="alert alert-success d-none align-items-center justify-content-between p-2 mt-2 mb-0 small" role="alert">
+          <div class="d-flex align-items-center gap-2">
+            {% icon 'check-circle' 16 %}
+            <span>Downloading <strong id="toast-target-name">package</strong>... Check your browser's <strong>Downloads</strong> folder.</span>
+          </div>
+          <a id="fallback-link" href="/app/audit/evidence/work-order/latest/" download class="btn btn-xs btn-outline-success py-0 px-2 fw-semibold">
+            Direct Link &rarr;
+          </a>
+        </div>
       </form>
+      <script>
+        function getSelectedTarget() {
+          var sel = document.getElementById('wo-target-select');
+          var customInput = document.getElementById('wo-custom-id');
+          var val = sel ? sel.value : 'latest';
+          if (val === 'custom') {
+            val = (customInput ? customInput.value : '').trim();
+          }
+          return val || 'latest';
+        }
+
+        function getTargetDownloadUrl(target) {
+          var val = target || getSelectedTarget();
+          if (val === 'audit') {
+            return "{% url 'audit:export' %}?format=zip";
+          }
+          var match = val.match(/(WO-\d+|[0-9a-fA-F-]{36})/i);
+          var cleanId = match ? match[1] : (val.split(/[\s·]/)[0].trim() || val);
+          return '/app/audit/evidence/work-order/' + encodeURIComponent(cleanId) + '/';
+        }
+
+        function updateFallbackLink() {
+          var target = getSelectedTarget();
+          var url = getTargetDownloadUrl(target);
+          var fb = document.getElementById('fallback-link');
+          if (fb) fb.href = url;
+          var form = document.getElementById('evidence-form');
+          if (form) {
+            if (target === 'audit') {
+              form.action = "{% url 'audit:export' %}";
+            } else {
+              form.action = "/app/audit/evidence/work-order/";
+            }
+          }
+        }
+
+        function onTargetSelectChange(val) {
+          var customInput = document.getElementById('wo-custom-id');
+          if (customInput) {
+            if (val === 'custom') {
+              customInput.classList.remove('d-none');
+              customInput.focus();
+            } else {
+              customInput.classList.add('d-none');
+            }
+          }
+          updateFallbackLink();
+        }
+
+        function pickWorkOrder(val) {
+          var sel = document.getElementById('wo-target-select');
+          var customInput = document.getElementById('wo-custom-id');
+          var form = document.getElementById('evidence-form');
+          if (!sel || !form) return;
+          var found = false;
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === val) {
+              sel.selectedIndex = i;
+              found = true;
+              break;
+            }
+          }
+          if (!found && customInput) {
+            sel.value = 'custom';
+            customInput.value = val;
+            customInput.classList.remove('d-none');
+          } else if (customInput) {
+            customInput.classList.add('d-none');
+          }
+          updateFallbackLink();
+          form.requestSubmit();
+        }
+
+        function handleEvidenceSubmit(e) {
+          var sel = document.getElementById('wo-target-select');
+          var customInput = document.getElementById('wo-custom-id');
+          var target = getSelectedTarget();
+
+          if (sel && sel.value === 'custom') {
+            var customVal = (customInput ? customInput.value : '').trim();
+            if (!customVal) {
+              if (customInput) customInput.focus();
+              e.preventDefault();
+              return false;
+            }
+            var opt = sel.querySelector('option[value="' + customVal.replace(/"/g, '\\"') + '"]');
+            if (!opt) {
+              opt = document.createElement('option');
+              opt.value = customVal;
+              opt.text = customVal;
+              sel.add(opt);
+            }
+            sel.value = customVal;
+          }
+
+          var url = getTargetDownloadUrl(target);
+          var toast = document.getElementById('download-success-toast');
+          var fb = document.getElementById('fallback-link');
+          var toastName = document.getElementById('toast-target-name');
+          var btnText = document.getElementById('btn-download-text');
+
+          if (fb) fb.href = url;
+          if (toastName) toastName.textContent = target === 'audit' ? 'Audit Trail' : target;
+          if (toast) toast.classList.remove('d-none');
+          if (btnText) btnText.textContent = 'Downloading...';
+
+          setTimeout(function() {
+            if (btnText) btnText.textContent = 'Download ZIP Archive';
+          }, 3500);
+
+          return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+          updateFallbackLink();
+        });
+      </script>
     </div>
   </div>
 

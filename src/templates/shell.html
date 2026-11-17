@@ -1,33 +1,64 @@
 {% extends "base.html" %}
-{% load ui_tags %}
+{% load static ui_tags %}
 {% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
-<div class="fx-layout" id="fx-layout">
+<div class="fx-layout" id="fx-layout" data-idle-timeout-ms="{{ session_idle_timeout_ms|default:1800000 }}">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
       <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
-        <span class="fx-brand-mark">FX</span> FieldOps Nexus
+        <span class="fx-brand-mark" aria-hidden="true">
+          <picture>
+            <source srcset="{% static 'images/logo-icon.webp' %}" type="image/webp">
+            <img src="{% static 'images/logo-icon.png' %}" alt="" class="fx-brand-img"
+                 onerror="this.style.display='none'; if(this.parentElement && this.parentElement.nextElementSibling) this.parentElement.nextElementSibling.style.display='inline-block';">
+          </picture>
+          <span class="fx-brand-fallback" style="display:none;">FN</span>
+        </span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
     </div>
     <nav class="fx-nav">
       {% for section, items in shell_nav_sections.items %}
-        <div class="fx-nav-section">{{ section }}</div>
+        <div class="fx-nav-section{% for it in items %}{% if it.active %} is-active{% endif %}{% endfor %}">{{ section }}</div>
         {% for item in items %}
-          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
+          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}" {% if item.active %}aria-current="page"{% endif %}>{% icon item.icon %} {{ item.label }}</a>
         {% endfor %}
       {% endfor %}
+      {% if shell_org and not is_client %}
+      <div class="fx-nav-section d-lg-none">Personal</div>
+      <a class="fx-nav-link d-lg-none {% if '/app/notifications' in request.path %}active{% endif %}" href="{% url 'notifications:list' %}">{% icon 'bell' %} Notifications</a>
+      {% endif %}
     </nav>
   </aside>
   <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
   <div class="fx-main">
     <header class="fx-topbar d-print-none">
-      <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
-              data-fx-toggle-nav>{% icon 'menu' %}</button>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
+                data-fx-toggle-nav>{% icon 'menu' %}</button>
+        {% if shell_back_url %}
+        <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-1 px-2 text-decoration-none d-inline-flex align-items-center gap-1 fx-topbar-back-btn" title="Go back to previous page" aria-label="Back" data-action="go-back" data-fallback="{{ shell_back_url }}">
+          <span aria-hidden="true">&larr;</span> <span>Back</span>
+        </a>
+        {% endif %}
+      </div>
+      {% if shell_breadcrumbs %}
+      <nav aria-label="Breadcrumb navigation" class="fx-topbar-breadcrumbs d-none d-md-flex align-items-center overflow-hidden">
+        <ol class="breadcrumb mb-0 small text-truncate">
+          {% for crumb in shell_breadcrumbs %}
+            {% if forloop.last or not crumb.url %}
+              <li class="breadcrumb-item active text-truncate" aria-current="page" title="{{ crumb.label }}">{{ crumb.label }}</li>
+            {% else %}
+              <li class="breadcrumb-item text-truncate"><a href="{{ crumb.url }}" class="text-decoration-none" title="{{ crumb.label }}">{{ crumb.label }}</a></li>
+            {% endif %}
+          {% endfor %}
+        </ol>
+      </nav>
+      {% endif %}
       {% if shell_org and not is_client %}
-      <form class="fx-search" role="search" autocomplete="off">
+      <form class="fx-search ms-auto ms-md-2" role="search" autocomplete="off">
         {% icon 'search' 16 %}
-        <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"
+        <input type="search" name="q" placeholder="Search FieldOps Nexus…" aria-label="Search"
                hx-get="{% url 'ui:search' %}" hx-trigger="input changed delay:300ms, search"
                hx-target="#fx-search-results" hx-indicator=".fx-search">
         <div id="fx-search-results" class="fx-search-results"></div>
@@ -39,7 +70,7 @@
         {% endif %}
         {% if shell_memberships|length > 1 %}
         <form method="post" action="{% url 'ui:switch_org' %}" class="m-0">{% csrf_token %}
-          <select name="organization" class="form-select form-select-sm" aria-label="Switch organization" onchange="this.form.submit()">
+          <select name="organization" class="form-select form-select-sm" aria-label="Switch organization" data-auto-submit="change">
             {% for m in shell_memberships %}<option value="{{ m.organization_id }}" {% if m.organization_id == shell_org.pk %}selected{% endif %}>{{ m.organization.name }}</option>{% endfor %}
           </select>
         </form>
@@ -48,10 +79,11 @@
           <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-truncate" style="max-width: 140px;" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
+            {% if shell_org %}<li><a class="dropdown-item" href="{% url 'notifications:list' %}">Notifications</a></li>{% endif %}
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>
             <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}">Change password</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="dropdown-item">Sign out</button></form></li>
+            <li><form method="post" action="{% url 'accounts:logout' %}" id="fx-logout-form" class="m-0">{% csrf_token %}<button type="submit" class="dropdown-item text-danger" id="fx-logout-btn">Sign out</button></form></li>
           </ul>
         </div>
       </div>

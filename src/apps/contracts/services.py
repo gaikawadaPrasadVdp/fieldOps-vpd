@@ -35,12 +35,20 @@ KIND_ORDER = {Kind.WARRANTY: 0, Kind.AMC: 1, Kind.SERVICE_CONTRACT: 2}
 # --- validation helpers ----------------------------------------------------------------------------------------------
 
 
+import re
+
+_HTML_TAG_RE = re.compile(r"<[^>]*>|[<>]|javascript:|onerror=|onload=", re.IGNORECASE)
+_REPEATED_CHARS_RE = re.compile(r"(.)\1{4,}|\S{35,}")
+
+
 def _text(value, what, *, minimum=1, maximum=200, required=True):
     value = (value or "").strip()
     if required and len(value) < minimum:
         raise ValidationFailed(f"{what} is required.", code="field_required")
     if len(value) > maximum:
         raise ValidationFailed(f"{what} is too long (max {maximum}).", code="field_too_long")
+    if _HTML_TAG_RE.search(value):
+        raise ValidationFailed(f"{what} cannot contain HTML tags or script injection patterns.", code="invalid_characters")
     return value
 
 
@@ -150,14 +158,41 @@ def _lock_assets(org, asset_ids):
 # --- providers -------------------------------------------------------------------------------------------------------
 
 
-PROVIDER_FIELDS = ["name", "contact_name", "email", "phone", "notes", "is_active"]
+PROVIDER_FIELDS = ["name", "provider_type", "contact_name", "email", "phone", "address", "notes", "is_active"]
+
+
+def _provider_type(value):
+    val = (value or ServiceProvider.ProviderType.OEM).strip()
+    if val not in ServiceProvider.ProviderType.values:
+        raise ValidationFailed("Unknown provider type.", code="invalid_provider_type")
+    return val
 
 
 @transaction.atomic
-def create_provider(org, *, name, contact_name="", email="", phone="", notes="", actor, request=None):
-    name = _text(name, "Name", minimum=2, maximum=150)
+def create_provider(
+    org,
+    *,
+    name,
+    provider_type=ServiceProvider.ProviderType.OEM,
+    contact_name="",
+    email="",
+    phone="",
+    address="",
+    notes="",
+    is_active=True,
+    actor,
+    request=None,
+):
+    from apps.ui.forms import validate_business_name
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    try:
+        name = validate_business_name(name, field_label="Provider name", min_len=2, max_len=150)
+    except DjangoValidationError as exc:
+        msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+        raise ValidationFailed(msg, code="invalid_provider_name") from exc
     if ServiceProvider.objects.for_organization(org).filter(name__iexact=name).exists():
         raise Conflict("A provider with that name already exists.", code="provider_name_taken")
+    provider_type = _provider_type(provider_type)
     if email and email.strip():
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError as DjangoValidationError
@@ -165,18 +200,17 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
             validate_email(email.strip())
         except DjangoValidationError:
             raise ValidationFailed("Invalid email format.", code="invalid_email")
-    if email and email.strip():
-        from django.core.validators import validate_email
-        from django.core.exceptions import ValidationError as DjangoValidationError
-        try:
-            validate_email(email.strip())
-        except DjangoValidationError:
-            raise ValidationFailed("Invalid email format.", code="invalid_email")
-    p = ServiceProvider(organization=org, name=name, contact_name=_text(contact_name, "Contact", maximum=120,
-                                                                         required=False),
-                        email=_text(email, "Email", maximum=254, required=False),
-                        phone=_text(phone, "Phone", maximum=40, required=False),
-                        notes=_text(notes, "Notes", maximum=500, required=False))
+    p = ServiceProvider(
+        organization=org,
+        name=name,
+        provider_type=provider_type,
+        contact_name=_text(contact_name, "Contact", maximum=120, required=False),
+        email=_text(email, "Email", maximum=254, required=False),
+        phone=_text(phone, "Phone", maximum=40, required=False),
+        address=_text(address, "Address", maximum=300, required=False),
+        notes=_text(notes, "Notes", maximum=500, required=False),
+        is_active=bool(is_active),
+    )
     p.save()
     audit.record("contract.provider_created", actor=actor, organization=org, target=p,
                  after=audit.snapshot(p, PROVIDER_FIELDS), request=request)
@@ -186,18 +220,31 @@ def create_provider(org, *, name, contact_name="", email="", phone="", notes="",
 @transaction.atomic
 def update_provider(provider, *, actor, request=None, **changes):
     provider = ServiceProvider.objects.select_for_update(of=("self",)).get(pk=provider.pk)
-    unknown = set(changes) - {"name", "contact_name", "email", "phone", "notes"}
+    unknown = set(changes) - {"name", "provider_type", "contact_name", "email", "phone", "address", "notes"}
     if unknown:
         raise ValidationFailed(f"Fields cannot be edited: {', '.join(sorted(unknown))}.", code="field_not_editable")
     before = audit.snapshot(provider, PROVIDER_FIELDS)
     if "name" in changes:
-        name = _text(changes["name"], "Name", minimum=2, maximum=150)
+        from apps.ui.forms import validate_business_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            name = validate_business_name(changes["name"], field_label="Provider name", min_len=2, max_len=150)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise ValidationFailed(msg, code="invalid_provider_name") from exc
         if ServiceProvider.objects.for_organization(provider.organization).filter(
                 name__iexact=name).exclude(pk=provider.pk).exists():
             raise Conflict("A provider with that name already exists.", code="provider_name_taken")
         provider.name = name
-    for f, n, m in (("contact_name", "Contact", 120), ("email", "Email", 254), ("phone", "Phone", 40),
-                    ("notes", "Notes", 500)):
+    if "provider_type" in changes:
+        provider.provider_type = _provider_type(changes["provider_type"])
+    for f, n, m in (
+        ("contact_name", "Contact", 120),
+        ("email", "Email", 254),
+        ("phone", "Phone", 40),
+        ("address", "Address", 300),
+        ("notes", "Notes", 500),
+    ):
         if f in changes:
             setattr(provider, f, _text(changes[f], n, maximum=m, required=False))
     provider.save()
@@ -497,14 +544,15 @@ def reference_date_for(work_order) -> datetime.date:
 
 
 @transaction.atomic
-def record_check(work_order, *, actor, request=None) -> CoverageCheck:
+def record_check(work_order, *, actor=None, request=None) -> CoverageCheck:
     """Evaluates and PERSISTS the eligibility of a work order (evidence; a new check appends a new row)."""
     org = work_order.organization
     on = reference_date_for(work_order)
-    res = evaluate(org, work_order.asset, on, work_order.work_type)
+    wt = (getattr(work_order, "work_type", "") or "").strip() or "OTHER"
+    res = evaluate(org, work_order.asset, on, wt)
     best = res.best
     check = CoverageCheck(organization=org, work_order=work_order, asset=work_order.asset,
-                          agreement=best.agreement if best else None, work_type=work_order.work_type,
+                          agreement=best.agreement if best else None, work_type=wt,
                           reference_date=on, eligible=res.eligible, reason=res.reason[:500], checked_by=actor)
     check.save()
     audit.record("contract.coverage_checked", actor=actor, organization=org, target=work_order,
@@ -546,3 +594,25 @@ def run_alerts(org, today: datetime.date | None = None) -> int:
                          after={"end_date": ag.end_date, "notified": len(users)})
             sent += 1
     return sent
+
+
+def check_coverage_expiry_mid_job(work_order) -> tuple[bool, str]:
+    """Check if an asset's warranty/AMC coverage agreement expires during scheduled work order execution."""
+    if not getattr(work_order, "asset_id", None) or not work_order.planned_start or not work_order.planned_end:
+        return False, ""
+
+    from zoneinfo import ZoneInfo
+    try:
+        zone = ZoneInfo(work_order.site.timezone or "UTC")
+    except Exception:
+        zone = ZoneInfo("UTC")
+
+    start_date = work_order.planned_start.astimezone(zone).date()
+    end_date = work_order.planned_end.astimezone(zone).date()
+
+    res = evaluate(work_order.organization, work_order.asset, on=start_date, work_type=work_order.work_type)
+    if res.eligible and res.best:
+        ag = res.best.agreement
+        if start_date <= ag.end_date < end_date:
+            return True, f"{ag.get_kind_display()} {ag.reference} expires on {ag.end_date}, before scheduled completion on {end_date}."
+    return False, ""

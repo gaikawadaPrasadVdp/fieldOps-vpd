@@ -14,7 +14,7 @@ PROGRESS) -> COMPLETED -> SUPERVISOR REVIEW -> CLOSED; never DRAFT -> CLOSED).
     DRAFT/PLANNED/ASSIGNED/DISPATCHED --cancel--> CANCELLED (terminal; reason)
 
 ``reject_review`` and ``cancel`` are OUR IMPLEMENTATION DECISIONS (HPE lists neither); see D-036.
-Re-assignment (``reassign``) keeps the state and is a service operation on ASSIGNED / DISPATCHED orders.
+Re-assignment (``reassign``) keeps the state and is supported on ASSIGNED, DISPATCHED, and ON_HOLD orders.
 """
 from apps.core.workflow import StateMachine, Transition
 

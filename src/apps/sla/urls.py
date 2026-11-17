@@ -18,5 +18,6 @@ urlpatterns = [
     path("sla/profiles/<uuid:pk>/targets/<uuid:target_pk>/remove/", views.TargetRemoveView.as_view(),
          name="target_remove"),
     path("sla/profiles/<uuid:pk>/rules/", views.RuleCreateView.as_view(), name="rule_new"),
+    path("sla/profiles/<uuid:pk>/rules/<uuid:rule_pk>/edit/", views.RuleUpdateView.as_view(), name="rule_edit"),
     path("sla/profiles/<uuid:pk>/rules/<uuid:rule_pk>/remove/", views.RuleDeleteView.as_view(), name="rule_remove"),
 ]

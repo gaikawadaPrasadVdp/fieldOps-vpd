@@ -10,5 +10,6 @@ urlpatterns = [
     path("assets/<uuid:pk>/labels/<str:action>/", views.PanelActionView.as_view(), name="panel_action"),
     path("assets/<uuid:pk>/label/", views.LabelPrintView.as_view(), name="label"),
     path("scan/", views.ScanView.as_view(), name="scan"),
+    path("s/<str:token>/report/", views.ResolveReportView.as_view(), name="resolve_report"),
     path("s/<str:token>/", views.ResolveView.as_view(), name="resolve"),
 ]

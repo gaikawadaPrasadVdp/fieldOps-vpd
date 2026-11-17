@@ -35,8 +35,20 @@ def sites_for(membership, org, code: str = "site.view"):
     return scope.filter(Site.objects.for_organization(org), "pk")
 
 
-def get_site(membership, org, pk, code: str = "site.view") -> Site:
-    return scoped_get(sites_for(membership, org, code), pk, "Site")
+def with_site_counts(qs):
+    qs = qs.annotate(zone_count=Count("zones", distinct=True))
+    if assets_installed():
+        from apps.assets.workflow import TERMINAL_STATES
+
+        return qs.annotate(asset_count=Count("assets", filter=~Q(assets__status__in=TERMINAL_STATES), distinct=True))
+    return qs.annotate(asset_count=Value(0, output_field=IntegerField()))
+
+
+def get_site(membership, org, pk, code: str = "site.view", *, with_counts: bool = False) -> Site:
+    qs = sites_for(membership, org, code)
+    if with_counts:
+        qs = with_site_counts(qs)
+    return scoped_get(qs, pk, "Site")
 
 
 def get_site_for(membership, org, pk, code: str) -> Site:
@@ -70,13 +82,7 @@ def assets_installed() -> bool:
 
 
 def site_list(membership, org, params):
-    qs = filter_sites(sites_for(membership, org), params).annotate(zone_count=Count("zones", distinct=True))
-    if assets_installed():
-        from apps.assets.workflow import TERMINAL_STATES
-
-        qs = qs.annotate(asset_count=Count("assets", filter=~Q(assets__status__in=TERMINAL_STATES), distinct=True))
-    else:
-        qs = qs.annotate(asset_count=Value(0, output_field=IntegerField()))
+    qs = with_site_counts(filter_sites(sites_for(membership, org), params))
     ordering = (params.get("ordering") or "").strip()
     ordering_map = {
         "-created_at": "-created_at",

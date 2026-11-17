@@ -1,17 +1,34 @@
 {% extends "shell.html" %}
 {% load static %}
-{% block title %}Scan asset label · FieldOps Nexus{% endblock %}
+{% block title %}{% if is_report_mode or request.GET.action == 'report' %}Scan to Report Incident{% else %}Scan asset label{% endif %} · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header">
   <div>
     {% if request.GET.work_order %}
       <h1>Verify Machine Tag</h1>
       <div class="text-body-secondary">Point the camera at the physical QR or barcode label to verify this equipment matches your assigned work order.</div>
+    {% elif is_report_mode or request.GET.action == 'report' %}
+      <h1 class="d-flex align-items-center gap-2">
+        <span>Scan Asset to Report Incident</span>
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-6">Direct Intake</span>
+      </h1>
+      <div class="text-body-secondary">Point the camera at the equipment's QR code to verify the asset and open its incident reporting form directly.</div>
     {% else %}
       <h1>Scan an asset label</h1>
       <div class="text-body-secondary">Point the camera at the QR code on the asset. The asset opens automatically.</div>
     {% endif %}
   </div>
+
+  {% if not request.GET.work_order %}
+    <div class="btn-group" role="group" aria-label="Scan Mode">
+      <a href="{% url 'identification:scan' %}" class="btn btn-sm {% if not is_report_mode and not request.GET.action == 'report' %}btn-primary active{% else %}btn-outline-primary{% endif %}">
+        View Asset
+      </a>
+      <a href="{% url 'identification:scan' %}?action=report" class="btn btn-sm {% if is_report_mode or request.GET.action == 'report' %}btn-danger active{% else %}btn-outline-danger{% endif %}">
+        Report Incident
+      </a>
+    </div>
+  {% endif %}
 </div>
 
 {% if request.GET.work_order %}
@@ -24,6 +41,18 @@
   </div>
   <a href="{% url 'workspace:job_detail' request.GET.work_order %}" class="btn btn-sm btn-outline-primary fw-semibold">
     &larr; Return to Work Order
+  </a>
+</div>
+{% elif is_report_mode or request.GET.action == 'report' %}
+<div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center justify-content-between shadow-sm border-warning-subtle">
+  <div class="d-flex align-items-center gap-2">
+    <span>⚠️</span>
+    <div>
+      <strong>Report Mode Active:</strong> Scanning or entering a code will take you directly to the incident reporting form for that machine.
+    </div>
+  </div>
+  <a href="{% url 'identification:scan' %}" class="btn btn-sm btn-outline-secondary">
+    Switch to Standard View
   </a>
 </div>
 {% endif %}
@@ -48,8 +77,15 @@
     {% if request.GET.work_order %}
       <input type="hidden" name="work_order" value="{{ request.GET.work_order }}">
     {% endif %}
+    {% if is_report_mode or request.GET.action == 'report' %}
+      <input type="hidden" name="action" value="report">
+    {% endif %}
     <label class="form-label" for="scan-token">Label code or scanned link</label>
     <input class="form-control mb-3" id="scan-token" name="token" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="e.g. K3V9Q2…  or the full link">
-    <button class="btn btn-primary">{% if request.GET.work_order %}Verify machine{% else %}Open asset{% endif %}</button></form></div></div></div></div>
+    <button class="btn {% if is_report_mode or request.GET.action == 'report' %}btn-danger{% else %}btn-primary{% endif %}">
+      {% if request.GET.work_order %}Verify machine{% elif is_report_mode or request.GET.action == 'report' %}Report Incident on Machine{% else %}Open asset{% endif %}
+    </button>
+  </form>
+</div></div></div></div>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/qr_scan.js' %}" defer></script>{% endblock %}

@@ -24,7 +24,13 @@ CYCLE_STATES = {  # work-order status -> PM lifecycle state (HPE: GENERATED -> A
 
 
 def cycle_state(cycle: MaintenanceCycle) -> str:
-    return CYCLE_STATES.get(cycle.work_order.status, "GENERATED") if cycle.work_order_id else "GENERATED"
+    try:
+        wo = getattr(cycle, "work_order", None)
+        if wo and hasattr(wo, "status") and wo.status:
+            return CYCLE_STATES.get(wo.status, "GENERATED")
+    except Exception:
+        pass
+    return "GENERATED"
 
 
 def _uuid_or_none(value):
@@ -161,27 +167,45 @@ def pm_compliance_ratio(
     skipped = 0
 
     for c in qs:
-        c_skipped = c.skipped or 0
+        c_skipped = getattr(c, "skipped", 0) or 0
         skipped += c_skipped
         scheduled += (1 + c_skipped)
 
-        wo = c.work_order
-        target_due = c.due_date or (wo.due_at.date() if wo and wo.due_at else c.created_at.date())
+        try:
+            wo = getattr(c, "work_order", None)
+        except Exception:
+            wo = None
+
+        target_due = None
+        if getattr(c, "due_date", None):
+            target_due = c.due_date
+        elif wo and getattr(wo, "due_at", None):
+            target_due = wo.due_at.date() if hasattr(wo.due_at, "date") else wo.due_at
+        elif getattr(c, "created_at", None):
+            target_due = c.created_at.date() if hasattr(c.created_at, "date") else c.created_at
+        else:
+            target_due = today
 
         if wo:
-            if wo.status in ("COMPLETED", "CLOSED", "SUPERVISOR_REVIEW"):
-                effective_end = (wo.completed_at or wo.closed_at or wo.updated_at).date()
-                if effective_end <= target_due:
+            wo_status = getattr(wo, "status", "")
+            if wo_status in ("COMPLETED", "CLOSED", "SUPERVISOR_REVIEW"):
+                effective_dt = (
+                    getattr(wo, "completed_at", None)
+                    or getattr(wo, "closed_at", None)
+                    or getattr(wo, "updated_at", None)
+                )
+                effective_end = effective_dt.date() if hasattr(effective_dt, "date") else effective_dt
+                if effective_end and target_due and effective_end <= target_due:
                     on_time += 1
                 else:
                     overdue += 1
-            elif wo.status == "CANCELLED":
+            elif wo_status == "CANCELLED":
                 overdue += 1
             else:
-                if today > target_due:
+                if target_due and today > target_due:
                     overdue += 1
         else:
-            if today > target_due:
+            if target_due and today > target_due:
                 overdue += 1
 
     denominator = on_time + overdue + skipped

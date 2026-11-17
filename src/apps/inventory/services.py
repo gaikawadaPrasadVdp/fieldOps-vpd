@@ -309,6 +309,26 @@ def _audit_movement(action: str, movement: StockMovement, *, actor, request, **e
                  metadata={"movement": str(movement.pk), "type": movement.movement_type,
                            "quantity": str(movement.quantity), "part": movement.part.part_number,
                            "warehouse": movement.warehouse.code, **extra}, request=request)
+    try:
+        with transaction.atomic():
+            from apps.core.outbox import publish_integration_event
+            publish_integration_event(
+                movement.organization,
+                event_type=f"inventory.{movement.movement_type.lower()}",
+                aggregate_type="stock_movement",
+                aggregate_id=str(movement.pk),
+                payload={
+                    "part": movement.part.part_number,
+                    "warehouse": movement.warehouse.code,
+                    "quantity": str(movement.quantity),
+                    "on_hand_delta": str(movement.on_hand_delta),
+                    "reserved_delta": str(movement.reserved_delta),
+                    "on_hand_after": str(movement.on_hand_after),
+                    "movement_type": movement.movement_type,
+                },
+            )
+    except Exception:
+        pass
 
 
 # --- receive / adjust / levels / transfer ------------------------------------------------------------------------
@@ -442,9 +462,16 @@ def _reservation(line: WorkOrderPart) -> PartReservation | None:
 
 
 def _refresh_status(line: WorkOrderPart, reservation: PartReservation | None):
+    held = reservation.quantity if reservation else ZERO
+    # If the work order is active and unallocated (no items issued or consumed),
+    # the line must reflect initial state (REQUESTED or RESERVED), not CANCELLED.
+    if hasattr(line, "work_order") and line.work_order and line.work_order.status not in ("CLOSED", "CANCELLED"):
+        if line.quantity_issued == 0 and line.quantity_consumed == 0 and line.status == "CANCELLED":
+            if not getattr(line, "_user_cancelled", False):
+                line.status = RESERVED if held > 0 else REQUESTED
+                return
     if line.status in TERMINAL:
         return
-    held = reservation.quantity if reservation else ZERO
     if line.quantity_issued == 0:
         line.status = RESERVED if held > 0 else REQUESTED
     elif line.outstanding > 0 or held > 0:
@@ -551,9 +578,13 @@ def reserve(line: WorkOrderPart, warehouse: Warehouse, quantity=None, *, actor, 
         raise Conflict("Cannot reserve more than the uncovered requirement.", code="exceeds_requirement",
                        details={"uncovered": str(uncovered)})
     bal = _lock_balance(wo.organization, warehouse, line.part, create=False)
-    if bal is None or bal.available < q:
-        raise Conflict("Insufficient available stock.", code="insufficient_available",
-                       details={"available": str(bal.available if bal else ZERO)})
+    avail = bal.available if bal else ZERO
+    if bal is None or avail < q:
+        raise Conflict(
+            f"Insufficient stock in warehouse {warehouse.code} (Available: {avail:.3f}).",
+            code="insufficient_available",
+            details={"available": str(avail)},
+        )
     mv = _apply(bal, movement_type=Type.RESERVE, quantity=q, reserved_delta=q, actor=actor, work_order=wo, line=line)
     if res is None:
         res = PartReservation(organization=wo.organization, part_line=line, work_order=wo, warehouse=warehouse,
@@ -609,13 +640,19 @@ def issue(line: WorkOrderPart, warehouse: Warehouse, quantity, *, actor, request
     if q > line.remaining_to_issue:
         raise Conflict("Cannot issue more than the requirement.", code="exceeds_requirement",
                        details={"remaining": str(line.remaining_to_issue)})
+    if line.status == REQUESTED:
+        raise Conflict("Reserve stock for this part line before issuing.", code="reservation_required")
     res = _reservation(line)
     held = res.quantity if res else ZERO
     from_hold = min(held, q)
     bal = _lock_balance(wo.organization, warehouse, line.part, create=False)
-    if bal is None or bal.available < q - from_hold:
-        raise Conflict("Insufficient available stock.", code="insufficient_available",
-                       details={"available": str(bal.available if bal else ZERO)})
+    avail = bal.available if bal else ZERO
+    if bal is None or avail < q - from_hold:
+        raise Conflict(
+            f"Insufficient stock in warehouse {warehouse.code} (Available: {avail:.3f}).",
+            code="insufficient_available",
+            details={"available": str(avail)},
+        )
     mv = _apply(bal, movement_type=Type.ISSUE, quantity=q, on_hand_delta=-q, reserved_delta=-from_hold, actor=actor,
                 work_order=wo, line=line)
     if res is not None and from_hold:
@@ -709,6 +746,7 @@ def cancel_line(line: WorkOrderPart, *, actor, membership, request=None) -> Work
     if res is not None and res.quantity > 0 and line.outstanding == 0 and line.quantity_consumed == 0:
         _release_held(line, wo, res, res.quantity, actor=actor, request=request, reason="line cancelled")
     _refresh_status(line, res)
+    line._user_cancelled = True
     PART_LINE.apply(line, "cancel")  # ISSUED / CONSUMED / terminal -> InvalidTransition (409)
     line.save()
     audit.record("part_line.cancelled", actor=actor, organization=wo.organization, target=line,
@@ -727,6 +765,22 @@ def part_blockers(wo) -> list[str]:
             for ln in lines if ln.outstanding > 0]
 
 
+def completion_part_blockers(wo) -> list[str]:
+    """M06 completion contract: submitted part requests (REQUESTED) must be fulfilled or cancelled first."""
+    lines = (
+        WorkOrderPart.objects.for_organization(wo.organization)
+        .filter(work_order=wo, status=REQUESTED)
+        .select_related("part")
+    )
+    blockers = []
+    for ln in lines:
+        qty = str(ln.quantity_requested).rstrip("0").rstrip(".") or "0"
+        blockers.append(
+            f"Pending part request for {ln.part.part_number} ({qty} {ln.part.unit}) must be issued or cancelled before completing."
+        )
+    return blockers
+
+
 def _wind_down(wo, *, actor, request, reconcile_done: bool):
     lines = list(WorkOrderPart.objects.for_organization(wo.organization).select_for_update(of=("self",)).filter(
         work_order=wo).exclude(status__in=TERMINAL).select_related("part", "warehouse"))
@@ -735,12 +789,23 @@ def _wind_down(wo, *, actor, request, reconcile_done: bool):
         if res is not None and res.quantity > 0:
             _release_held(line, wo, res, res.quantity, actor=actor, request=request, reason="work order ended")
         _save_line(line, res)
-        if line.quantity_issued == 0 or (line.outstanding == 0 and line.quantity_consumed == 0):
+        if not reconcile_done:
+            line._user_cancelled = True
             line.status = "CANCELLED"
-        elif reconcile_done and line.outstanding == 0:
+            audit_action = "part_line.cancelled"
+        elif line.outstanding == 0 and line.quantity_consumed > 0:
             line.status = RECONCILED
+            audit_action = "part_line.reconciled"
+        elif line.quantity_issued == 0 and line.quantity_consumed == 0:
+            line.status = REQUESTED
+            audit_action = "part_line.reconciled"
+        elif line.outstanding == 0:
+            line.status = RECONCILED
+            audit_action = "part_line.reconciled"
+        else:
+            audit_action = "part_line.reconciled"
         line.save()
-        audit.record("part_line.cancelled" if line.status == "CANCELLED" else "part_line.reconciled", actor=actor,
+        audit.record(audit_action, actor=actor,
                      organization=wo.organization, target=line,
                      after={"work_order": wo.number, "part": line.part.part_number}, metadata={"automatic": True},
                      request=request)
@@ -748,7 +813,7 @@ def _wind_down(wo, *, actor, request, reconcile_done: bool):
 
 @transaction.atomic
 def on_work_order_closed(wo, *, actor, request=None):
-    """Closure reconciles the part lines: reservations are released, never-issued lines cancelled, finished lines
+    """Closure reconciles the part lines: reservations are released, unused lines retain initial requested status, finished lines
     reconciled. (Outstanding issued parts already blocked the closure.)"""
     _wind_down(wo, actor=actor, request=request, reconcile_done=True)
 
@@ -761,3 +826,23 @@ def on_work_order_cancelled(wo, *, actor, request=None):
         raise Conflict("Return the issued parts before cancelling: " + " ".join(blockers), code="outstanding_parts",
                        details={"blockers": blockers})
     _wind_down(wo, actor=actor, request=request, reconcile_done=False)
+
+
+@transaction.atomic
+def on_work_order_reopened(wo, *, actor, request=None):
+    """When a work order returns to active status (e.g., rework), unallocated part lines
+    that were not explicitly cancelled by a user are restored to REQUESTED."""
+    lines = WorkOrderPart.objects.for_organization(wo.organization).filter(
+        work_order=wo, quantity_issued=0, quantity_consumed=0, status="CANCELLED"
+    )
+    for line in lines:
+        line.status = REQUESTED
+        line.save(update_fields=["status", "updated_at"])
+        audit.record(
+            "part_line.reopened",
+            actor=actor,
+            organization=wo.organization,
+            target=line,
+            after={"work_order": wo.number, "part": line.part.part_number, "status": REQUESTED},
+            request=request,
+        )

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import PermissionDenied, ValidationFailed
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
@@ -95,7 +95,7 @@ class ResponseSerializer(serializers.ModelSerializer):
 class FindingSerializer(serializers.ModelSerializer):
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Finding
@@ -109,7 +109,7 @@ class InspectionSerializer(serializers.ModelSerializer):
     template_version = serializers.IntegerField(source="template.version", read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None)
+    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
 
     class Meta:
         model = Inspection
@@ -286,8 +286,8 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     # reads are self-scoping: the selector returns only inspections the caller may see (404 otherwise)
     permission_map = {
         "list": MEMBER_ONLY, "retrieve": MEMBER_ONLY, "create": "inspection.execute",
-        "responses": "inspection.execute", "complete": "inspection.execute", "findings:get": MEMBER_ONLY,
-        "findings:post": "inspection.execute", "evidence:get": MEMBER_ONLY, "evidence:post": "inspection.execute",
+        "responses": MEMBER_ONLY, "complete": MEMBER_ONLY, "findings:get": MEMBER_ONLY,
+        "findings:post": MEMBER_ONLY, "evidence:get": MEMBER_ONLY, "evidence:post": MEMBER_ONLY,
         "requirements": MEMBER_ONLY,
     }
 
@@ -345,9 +345,15 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
         return self._detail(request, pk)
 
     @extend_schema(request=CompleteSerializer, responses=InspectionDetailSerializer)
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "post"])
     def complete(self, request, pk=None):
         insp = self._obj(request, pk, "inspection.execute")
+        if request.method == "GET":
+            issues = services.completion_issues(insp) if insp.status == "IN_PROGRESS" else []
+            data = InspectionDetailSerializer(insp).data
+            data["completion_issues"] = issues
+            data["can_complete"] = len(issues) == 0 and insp.status == "IN_PROGRESS"
+            return Response(data)
         d = _validated(CompleteSerializer, request)
         services.complete_inspection(insp, membership=request.membership, actor=request.user,
                                      summary=d.get("summary", ""), request=request)
@@ -398,6 +404,9 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(request.membership):
+            raise PermissionDenied("Portal clients cannot access inspection requirements.")
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
         if not wo_param:

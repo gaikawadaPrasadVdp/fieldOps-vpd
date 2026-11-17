@@ -26,7 +26,19 @@ COMPONENT_FIELDS = ["parent_id", "child_id", "relationship_type", "quantity", "p
 
 def _lock_org(org):
     with connection.cursor() as cur:
-        cur.execute("SELECT pg_advisory_xact_lock(%s)", [org.pk.int & 0x7FFFFFFFFFFFFFFF])
+        if connection.vendor == "postgresql":
+            cur.execute("SET LOCAL lock_timeout = '3s'")
+        try:
+            cur.execute("SELECT pg_advisory_xact_lock(%s)", [org.pk.int & 0x7FFFFFFFFFFFFFFF])
+        except Exception as exc:
+            # Catch PostgreSQL lock_timeout / OperationalError
+            if "lock_timeout" in str(exc).lower() or "canceling statement due to lock timeout" in str(exc).lower():
+                raise Conflict(
+                    "Asset hierarchy update locked by another concurrent operation. Please retry in a moment.",
+                    code="hierarchy_lock_timeout",
+                ) from exc
+            raise
+
 
 
 def ancestors(asset: Asset) -> list[Asset]:
@@ -35,7 +47,9 @@ def ancestors(asset: Asset) -> list[Asset]:
     seen = {asset.pk}
     node = asset
     while True:
-        link = AssetComponent.objects.filter(child=node).select_related("parent").first()
+        link = AssetComponent.objects.filter(child=node).select_related(
+            "parent", "parent__category", "parent__site"
+        ).first()
         if link is None:
             return chain
         node = link.parent
@@ -258,13 +272,14 @@ def build_tree(root: Asset, *, annotate_health: bool = True) -> dict:
             break
         nxt = {}
         for link in links:
+            link.parent = level[link.parent_id]["asset"]
             child_node = {"asset": link.child, "link": link, "children": [], "depth": depth}
             level[link.parent_id]["children"].append(child_node)
             nxt[link.child_id] = child_node
         level = nxt
     if annotate_health and root:
         try:
-            annotate_tree_health(node, organization=root.organization)
+            annotate_tree_health(node, organization=root.organization_id)
         except Exception:
             pass
     return node
@@ -280,7 +295,7 @@ def flatten(node: dict) -> list[dict]:
 def validate_tree(root: Asset) -> dict:
     """Integrity report for the subtree below ``root`` (the API 'validate' action)."""
     issues = []
-    tree = build_tree(root)
+    tree = build_tree(root, annotate_health=False)
     nodes = flatten(tree)
     for n in nodes:
         link = n["link"]

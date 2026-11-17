@@ -70,7 +70,7 @@ def test_existing_user_invited_to_second_org_is_active_and_notified(org_a, org_b
     make_member(org_a, "shared@x.test", "technician")
     r = as_user(owner_b, org_b).post("/api/v1/members/", {
         "email": "shared@x.test", "role_ids": [str(__import__("apps.rbac.models", fromlist=["Role"]).Role.objects
-                                                   .unscoped().get(organization=org_b, system_key="admin").pk)]},
+                                                   .unscoped().get(organization=org_b, system_key="owner").pk)]},
         format="json")
     assert r.status_code == 201 and r.json()["status"] == "ACTIVE"
 

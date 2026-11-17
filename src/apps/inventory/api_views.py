@@ -4,11 +4,12 @@ Every view: ``TenantAPIMixin`` (identity -> ACTIVE membership -> organization) +
 denied) -> object lookup restricted to the caller's organization AND site scope (404) -> permission for the object's
 site (403) -> service (validation, locks, ledger, audit)."""
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.sites import selectors as site_selectors
 from apps.tenancy.api import TenantAPIMixin
@@ -127,7 +128,7 @@ class TransferSerializer(serializers.Serializer):
 class MovementSerializer(serializers.ModelSerializer):
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True)
     part_number = serializers.CharField(source="part.part_number", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True, default=None, allow_null=True)
+    work_order_number = serializers.SerializerMethodField()
     actor_email = serializers.SerializerMethodField()
 
     class Meta:
@@ -141,11 +142,18 @@ class MovementSerializer(serializers.ModelSerializer):
     def get_actor_email(self, obj) -> str | None:
         return obj.actor.email if obj.actor_id else None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
 
 class ReservationSerializer(serializers.ModelSerializer):
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True)
     part_number = serializers.CharField(source="part.part_number", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
 
     class Meta:
         model = PartReservation
@@ -153,26 +161,61 @@ class ReservationSerializer(serializers.ModelSerializer):
                   "part_number", "quantity", "status", "created_at", "updated_at"]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
 
 class PartLineSerializer(serializers.ModelSerializer):
     part_number = serializers.CharField(source="part.part_number", read_only=True)
     part_name = serializers.CharField(source="part.name", read_only=True)
     unit = serializers.CharField(source="part.unit", read_only=True)
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
+    site_name = serializers.CharField(source="work_order.site.name", read_only=True, default=None, allow_null=True)
+    requested_by_email = serializers.SerializerMethodField()
     warehouse_code = serializers.CharField(source="warehouse.code", read_only=True, default=None, allow_null=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     reserved = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    fulfillment_status = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkOrderPart
-        fields = ["id", "work_order", "work_order_number", "part", "part_number", "part_name", "unit", "warehouse",
-                  "warehouse_code", "status", "quantity_requested", "reserved", "quantity_issued",
-                  "quantity_consumed", "quantity_returned", "outstanding", "notes", "created_at", "updated_at"]
+        fields = ["id", "work_order", "work_order_number", "site_name", "part", "part_number", "part_name", "unit", "warehouse",
+                  "warehouse_code", "status", "status_display", "fulfillment_status", "quantity_requested", "reserved", "quantity_issued",
+                  "quantity_consumed", "quantity_returned", "outstanding", "requested_by_email", "notes", "created_at", "updated_at"]
         read_only_fields = fields
 
     def get_reserved(self, obj) -> str:
         res = getattr(obj, "reservation", None)  # reverse one-to-one: absent -> None
         return str(res.quantity if res else 0)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_requested_by_email(self, obj) -> str | None:
+        rb = getattr(obj, "requested_by", None)
+        return getattr(rb, "email", None) if rb else None
+
+    @extend_schema_field(serializers.CharField())
+    def get_status_display(self, obj) -> str:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
+            return "Pending Fulfillment"
+        return obj.get_status_display()
+
+    @extend_schema_field(serializers.CharField())
+    def get_fulfillment_status(self, obj) -> str:
+        if obj.display_status == WorkOrderPart.Status.REQUESTED:
+            return "Pending Fulfillment"
+        return obj.get_status_display()
 
 
 class PartLineCreateSerializer(serializers.Serializer):
@@ -214,13 +257,14 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class PartViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "inventory.part.view", "retrieve": "inventory.part.view",
                       "create": "inventory.part.manage", "partial_update": "inventory.part.manage",
                       "activate": "inventory.part.manage", "deactivate": "inventory.part.manage",
                       "stock": "inventory.view"}
 
     @extend_schema(parameters=[query_param("q", "part number / name"), query_param("active", "1 / 0")],
-                   responses=PartSerializer(many=True))
+                   responses=PartSerializer)
     def list(self, request):
         qs = selectors.filter_parts(selectors.parts_for(request.organization), request.query_params)
         return paginate(request, qs, PartSerializer)
@@ -267,6 +311,7 @@ class PartViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class WarehouseViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "inventory.view", "retrieve": "inventory.view",
                       "create": "inventory.warehouse.manage", "partial_update": "inventory.warehouse.manage",
                       "activate": "inventory.warehouse.manage", "deactivate": "inventory.warehouse.manage"}
@@ -278,7 +323,7 @@ class WarehouseViewSet(TenantAPIMixin, viewsets.ViewSet):
         return wh
 
     @extend_schema(parameters=[query_param("q", "code / name"), query_param("site", "site id", OpenApiTypes.UUID),
-                               query_param("active", "1 / 0")], responses=WarehouseSerializer(many=True))
+                               query_param("active", "1 / 0")], responses=WarehouseSerializer)
     def list(self, request):
         qs = selectors.filter_warehouses(selectors.warehouses_for(request.membership, request.organization),
                                          request.query_params)
@@ -320,6 +365,7 @@ class WarehouseViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "inventory.view", "retrieve": "inventory.view", "receive": "inventory.receive",
                       "adjust": "inventory.adjust", "scrap": "inventory.adjust", "levels": "inventory.adjust",
                       "transfer": "inventory.transfer", "movements": "inventory.view"}
@@ -332,7 +378,7 @@ class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("part", "part id", OpenApiTypes.UUID),
                                query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("low", "1 = at or below the minimum"),
-                               query_param("in_stock", "1 = on hand > 0")], responses=BalanceSerializer(many=True))
+                               query_param("in_stock", "1 = on hand > 0")], responses=BalanceSerializer)
     def list(self, request):
         qs = selectors.filter_balances(selectors.balances_for(request.membership, request.organization),
                                        request.query_params)
@@ -401,12 +447,13 @@ class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class StockMovementViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "inventory.view", "retrieve": "inventory.view"}
 
     @extend_schema(parameters=[query_param("warehouse", "warehouse id", OpenApiTypes.UUID),
                                query_param("part", "part id", OpenApiTypes.UUID),
                                query_param("work_order", "work order id", OpenApiTypes.UUID),
-                               query_param("type", "movement type")], responses=MovementSerializer(many=True))
+                               query_param("type", "movement type")], responses=MovementSerializer)
     def list(self, request):
         qs = selectors.filter_movements(selectors.movements_for(request.membership, request.organization),
                                         request.query_params)
@@ -422,12 +469,13 @@ class StockMovementViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class PartReservationViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "inventory.view", "retrieve": "inventory.view"}
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID),
                                query_param("warehouse", "warehouse id", OpenApiTypes.UUID),
                                query_param("status", "ACTIVE / RELEASED / FULFILLED")],
-                   responses=ReservationSerializer(many=True))
+                   responses=ReservationSerializer)
     def list(self, request):
         qs = selectors.filter_reservations(selectors.reservations_for(request.membership, request.organization),
                                            request.query_params)
@@ -445,8 +493,11 @@ class PartReservationViewSet(TenantAPIMixin, viewsets.ViewSet):
 class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
     """Part requirements of work orders (M09 part request) and their stock operations."""
 
+    pagination_class = StandardPagination
     permission_map = {
-        "list": "work_order.view_assigned", "retrieve": "work_order.view_assigned", "create": "inventory.request",
+        "list": ("inventory.view", "work_order.view", "work_order.view_assigned"),
+        "retrieve": ("inventory.view", "work_order.view", "work_order.view_assigned"),
+        "create": "inventory.request",
         "reserve": "inventory.reserve", "release": "inventory.reserve", "issue": "inventory.issue",
         "consume": "inventory.consume", "return_stock": "inventory.return", "reconcile": "inventory.reconcile",
         "cancel": "inventory.request", "movements": "inventory.view",
@@ -465,13 +516,19 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
         return Response(PartLineSerializer(selectors.get_line(request.membership, request.organization, line.pk)).data)
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID),
-                               query_param("status", "line status")], responses=PartLineSerializer(many=True))
+                               query_param("status", "line status")], responses=PartLineSerializer)
     def list(self, request):
-        qs = selectors.lines_visible(request.membership, request.organization).select_related("reservation")
+        qs = selectors.lines_visible(request.membership, request.organization).select_related(
+            "part", "work_order", "work_order__site", "warehouse", "requested_by", "reservation"
+        )
         qs = selectors._uuid_filter(qs, request.query_params, "work_order", "work_order_id")
         st = (request.query_params.get("status") or "").strip()
         if st:
-            qs = qs.filter(status=st)
+            norm_st = st.lower().replace("-", "_").replace(" ", "_")
+            if norm_st in ("pending", "pending_fulfillment", "requested"):
+                qs = qs.filter(status=WorkOrderPart.Status.REQUESTED)
+            else:
+                qs = qs.filter(status=st.upper())
         return paginate(request, qs.order_by("-created_at"), PartLineSerializer)
 
     @extend_schema(responses=PartLineSerializer)

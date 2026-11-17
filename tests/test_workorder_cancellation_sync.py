@@ -200,13 +200,19 @@ def test_cancel_work_order_with_outstanding_issued_parts_is_refused(org_a, site_
     WorkOrder.objects.filter(pk=wo.pk).update(status=WorkOrder.Status.PLANNED)
     wo.refresh_from_db()
 
-    # Request and issue part
+    # Request, reserve, and issue part
     line = inventory_services.request_part(
         wo,
         part=part,
         quantity=Decimal("2"),
         actor=stores.user,
         membership=stores,
+    )
+    inventory_services.reserve(
+        line,
+        warehouse=warehouse,
+        quantity=Decimal("2"),
+        actor=stores.user,
     )
     inventory_services.issue(
         line,

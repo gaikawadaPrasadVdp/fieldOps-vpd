@@ -1,0 +1,125 @@
+{% extends "public/legal_base.html" %}
+{% load static ui_tags %}
+
+{% block legal_title %}Terms of Service &amp; Agreement{% endblock %}
+{% block breadcrumb_active %}Terms of Service{% endblock %}
+{% block hero_badge %}Enterprise Agreement &bull; Platform Licensing{% endblock %}
+{% block hero_heading %}Terms of Service &amp; Agreement{% endblock %}
+{% block hero_meta %}Version 3.1 &bull; Last Revised: October 2026 &bull; Reference: LEG-TOS-2026{% endblock %}
+
+{% block legal_content %}
+<div class="border-bottom pb-4 mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h2 class="h4 fw-bold text-dark mb-1">FieldOps Nexus Enterprise Terms of Service</h2>
+      <p class="small text-muted mb-0">Version 3.1 &bull; Last Revised: October 2026 &bull; Governance Standard: HPE-PRD-2026-FOPS02</p>
+    </div>
+    <span class="badge px-3 py-2 fw-semibold" style="background-color: rgba(11,31,59,0.08); color: #0B1F3B; border: 1px solid rgba(11,31,59,0.15);">
+      LEG-TOS-2026
+    </span>
+  </div>
+</div>
+
+<div class="lead text-dark mb-4" style="font-size: 1.05rem; line-height: 1.7;">
+  These Terms of Service ("Agreement") govern the access to and operational use of the FieldOps Nexus Enterprise Asset, Maintenance &amp; Field Service ERP platform. By accessing or using our platform, the contracting enterprise entity ("Customer") agrees to be bound by these provisions.
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-4 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">1</span>
+  Acceptance of Terms &amp; Governance
+</h3>
+<p>
+  This enterprise software platform is licensed under the governance of <strong>HPE-PRD-2026-FOPS02</strong> and associated service tier exhibits. By signing an Enterprise Order Form or initiating an authenticated administrative tenant session, Customer confirms that it has the authority to enter into this Agreement and binds all authorized users within its organization to these terms.
+</p>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">2</span>
+  Platform Usage Conditions &amp; Licensing
+</h3>
+<p>
+  FieldOps Nexus grants Customer a non-exclusive, non-transferable, multi-tenant enterprise license to access and utilize the software for internal business operations during the active subscription term:
+</p>
+<ul>
+  <li>
+    <strong>Authorized Modules:</strong> Customer access is configured to subscribed operational modules (including Asset Management, Maintenance Schedules, Work Order Formulation, Dispatcher Workspace, Checklists, Inventory Management, and SLA Escalations).
+  </li>
+  <li>
+    <strong>Tenant Boundary Integrity:</strong> Under no circumstances may Customer attempt to probe, bypass, or alter tenant boundary filters, cryptographic database partitions, or foreign organization records.
+  </li>
+  <li>
+    <strong>Permitted Scale:</strong> Usage is scoped to the agreed asset tier, site count, and active seat allocation defined in Customer’s operational schedule.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">3</span>
+  User Responsibilities &amp; Acceptable Use
+</h3>
+<p>
+  Customer and all authorized end-users agree to uphold strict standards of operational integrity:
+</p>
+<ul>
+  <li><strong>Credential Confidentiality:</strong> Users must maintain the secrecy of administrative credentials, API access tokens, and multi-factor authentication tokens.</li>
+  <li><strong>Accuracy of Maintenance Records:</strong> Certified maintenance technicians and dispatchers are responsible for the factual accuracy of equipment meter readings, checklist inspection pass/fail determinations, and parts issuance entries.</li>
+  <li><strong>Prohibited Activities:</strong> Customer shall not: (a) reverse-engineer, decompile, or disassemble platform components; (b) deploy unauthorized automated web scrapers or flood attacks; or (c) tamper with cryptographic audit log records.</li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">4</span>
+  Account and Access Policies
+</h3>
+<p>
+  Administrative access to FieldOps Nexus is strictly managed through organization role boundaries:
+</p>
+<ul>
+  <li>
+    <strong>Role Scoping:</strong> System capabilities are enforced by Django Role-Based Access Control (RBAC). Only designated Platform Administrators and Organization Administrators may provision new users, assign roles, or authorize external contractor accounts.
+  </li>
+  <li>
+    <strong>Session Management:</strong> Authenticated sessions utilize secure session cookies with automated idle expiration. Re-authentication is required upon privilege elevation or administrative credential updates.
+  </li>
+  <li>
+    <strong>Access Revocation:</strong> FieldOps Nexus reserves the right to immediately suspend access for any individual account or tenant attempting unauthorized privilege escalation or malicious telemetry injection.
+  </li>
+</ul>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">5</span>
+  Limitations of Liability
+</h3>
+<p>
+  FieldOps Nexus provides advanced workflow automation and reliability intelligence software. Customer acknowledges that:
+</p>
+<ul>
+  <li>
+    <strong>Field Operations Disclaimer:</strong> The platform operates as a decision-support system. Physical equipment maintenance execution, environmental safety procedures, and occupational health compliance remain the sole responsibility of Customer’s qualified field operators.
+  </li>
+  <li>
+    <strong>Damages Cap:</strong> Except for gross negligence or willful misconduct, neither party shall be liable for indirect, incidental, special, or consequential damages (including loss of manufacturing output, production interruption, or commercial delay).
+  </li>
+  <li>
+    <strong>Total Liability:</strong> Cumulative liability arising under this Agreement is capped at the total subscription fees paid by Customer during the twelve (12) months preceding the incident giving rise to liability.
+  </li>
+</ul>
+
+<div class="alert mt-4 mb-4 border" style="background-color: rgba(245,196,81,0.08); border-color: rgba(245,196,81,0.3) !important;">
+  <div class="d-flex align-items-start gap-2">
+    <span class="text-warning mt-1">{% icon 'alert-circle' 16 %}</span>
+    <div class="small">
+      <strong class="text-dark">Enterprise Governance Note:</strong> Custom indemnification terms, extended liability ceilings, and enterprise-specific SLA penalty formulas require explicit review and signed approval by FieldOps Nexus legal counsel and corporate leadership.
+    </div>
+  </div>
+</div>
+
+<h3 class="h5 fw-bold text-dark mt-5 mb-3 d-flex align-items-center gap-2">
+  <span class="badge rounded-circle p-1 px-2 text-white" style="background-color: #0B1F3B; font-size: 11px;">6</span>
+  Changes to Terms &amp; Governing Law
+</h3>
+<p>
+  FieldOps Nexus may update these Terms of Service to reflect evolving technical standards, security practices, or regulatory requirements. For material changes affecting ongoing enterprise commitments, FieldOps Nexus will provide at least thirty (30) days advance notice to registered Organization Administrators.
+</p>
+<p class="mb-0">
+  This Agreement is governed by the laws applicable to enterprise software licensing agreements, without regard to conflicts of law principles. Inquiries regarding terms should be directed to <a href="mailto:compliance@fieldopsnexus.com" class="fw-semibold text-decoration-none" style="color: #0B1F3B;">compliance@fieldopsnexus.com</a>.
+</p>
+{% endblock %}
+

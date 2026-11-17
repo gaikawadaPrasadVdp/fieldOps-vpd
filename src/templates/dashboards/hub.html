@@ -6,16 +6,28 @@
 {% block content %}
 <div class="fx-page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
   <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'ui:home' %}">Overview</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Operational Dashboards</li>
+      </ol>
+    </nav>
     <h1 class="h3 fw-bold mb-1">Operational Dashboards</h1>
     <div class="text-body-secondary small">Live metric aggregations across operational records (Decision D-052).</div>
   </div>
-  {% if is_technician %}
   <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" data-action="go-back" data-fallback="{% url 'ui:home' %}">
+      {% icon 'arrow-left' 14 %} Back to Overview
+    </a>
+    <a href="{% url 'dashboards:snapshot_list' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+      {% icon 'archive' 14 %} KPI Snapshots
+    </a>
+    {% if is_technician %}
     <a href="{% url 'dashboards:my_work' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
       {% icon 'user' 14 %} My Work Cockpit
     </a>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <!-- Section Navigation Tabs -->
@@ -86,6 +98,7 @@
     {% include "dashboards/_kpi_card.html" with title="New Requests" value=kpis.new_requests_in_window unit="reported" hint="New incident calls in window" %}
     {% include "dashboards/_kpi_card.html" with title="SLA Breaches" value=kpis.sla_breaches unit="breaches" hint="Target SLA commitment breaches" %}
   {% elif section == "inventory" %}
+    {% include "dashboards/_kpi_card.html" with title="Pending Requests" value=kpis.pending_parts_requests unit="requests" hint="Technician part requests awaiting fulfillment" %}
     {% include "dashboards/_kpi_card.html" with title="Stocked SKU Lines" value=kpis.total_stock_lines unit="lines" hint="Total managed parts inventory items" %}
     {% include "dashboards/_kpi_card.html" with title="Low Stock Alerts" value=kpis.low_stock_alerts unit="items" hint="Items below reorder point" %}
     {% include "dashboards/_kpi_card.html" with title="Net Parts Consumed" value=kpis.net_parts_consumed unit="ledger" hint="Issues minus returns to work orders" %}
@@ -107,6 +120,12 @@
   </div>
   {% endif %}
 
+  {% if section == "operations" %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Work Completion Trend" items=css_bars.completion_trend %}
+  </div>
+  {% endif %}
+
   {% if css_bars.work_type_mix %}
   <div class="col-12 col-lg-6">
     {% include "dashboards/_css_bars.html" with title="Maintenance Work Mix (Preventive vs Corrective)" items=css_bars.work_type_mix %}
@@ -116,6 +135,12 @@
   {% if css_bars.top_failing %}
   <div class="col-12 col-lg-6">
     {% include "dashboards/_css_bars.html" with title="Top Failing Equipment (Outage Count)" items=css_bars.top_failing %}
+  </div>
+  {% endif %}
+
+  {% if css_bars.top_parts %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Top Consumed Spare Parts" items=css_bars.top_parts %}
   </div>
   {% endif %}
 </div>
@@ -242,11 +267,17 @@
         <tbody>
           {% for b in trace_data.low_stock_lines %}
           <tr>
-            <td data-label="Part Number"><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
-            <td data-label="Part Name">{{ b.part.name }}</td>
-            <td data-label="Warehouse">{{ b.warehouse.name }}</td>
-            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand }}</td>
-            <td data-label="Min Level">{{ b.min_level|default:"-" }}</td>
+            <td data-label="Part Number">
+              {% if b.part %}
+                <a href="{% url 'inventory:part' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td data-label="Part Name">{{ b.part.name|default:"—" }}</td>
+            <td data-label="Warehouse">{{ b.warehouse.name|default:"—" }}</td>
+            <td data-label="On Hand" class="text-danger fw-bold">{{ b.on_hand|floatformat:0 }}</td>
+            <td data-label="Min Level">{{ b.min_level|floatformat:0|default:"-" }}</td>
             <td data-label="Status"><span class="badge bg-danger">Low Stock Alert</span></td>
           </tr>
           {% empty %}
@@ -256,5 +287,146 @@
       {% endif %}
     </table>
   </div>
+  {% if trace_data.page_obj and trace_data.page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+      <span class="small text-secondary">
+        Page {{ trace_data.page_obj.number }} of {{ trace_data.page_obj.paginator.num_pages }} ({{ trace_data.page_obj.paginator.count }} items)
+      </span>
+      <ul class="pagination pagination-sm m-0">
+        {% if trace_data.page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ trace_data.page_obj.previous_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}" aria-label="Previous">&laquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ trace_data.page_obj.number }}</span></li>
+        {% if trace_data.page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ trace_data.page_obj.next_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}" aria-label="Next">&raquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  {% endif %}
 </div>
+
+{% if section == "inventory" %}
+<!-- Pending Parts Requests Queue for Stores & Inventory Dashboard -->
+<div class="card border-0 shadow-sm mt-4 bg-white overflow-hidden" style="border-radius:10px;">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-warning-subtle text-warning-emphasis p-2 rounded-circle">{% icon 'package' 16 %}</span>
+      <h6 class="mb-0 fw-bold text-dark">Pending Parts Requests Queue</h6>
+      <span class="badge bg-warning text-dark">{{ trace_data.pending_parts_requests|length }} Awaiting Fulfillment</span>
+    </div>
+    <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'inventory:requests' %}">
+      Open Full Queue &rarr;
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table fx-table align-middle mb-0">
+      <thead class="table-light small text-secondary">
+        <tr>
+          <th>Part Number &amp; SKU</th>
+          <th>Work Order &amp; Site</th>
+          <th class="text-center">Requested Qty</th>
+          <th>Requested By</th>
+          <th>Status</th>
+          <th class="text-end pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in trace_data.pending_parts_requests %}
+        <tr>
+          <td>
+            <div class="fw-bold font-monospace text-dark">
+              <a href="{% url 'inventory:part' req.part.pk %}" class="text-decoration-none">{{ req.part.part_number }}</a>
+            </div>
+            <div class="small text-secondary">{{ req.part.name }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark small">
+              <a href="{% url 'workorders:detail' req.work_order.pk %}" class="text-decoration-none">{{ req.work_order.order_number }}</a>
+            </div>
+            <div class="text-secondary small">{% icon 'pin' 12 %} {{ req.work_order.site.name }}</div>
+          </td>
+          <td class="text-center fw-bold">{{ req.quantity_requested|floatformat:0 }} {{ req.part.unit|default:"units" }}</td>
+          <td class="small">
+            {% if req.requested_by %}<div class="text-dark fw-medium">{{ req.requested_by.email }}</div>{% else %}<span class="text-secondary">Field Technician</span>{% endif %}
+            <div class="text-muted small">{{ req.created_at|date:"M d, H:i" }}</div>
+          </td>
+          <td>
+            <span class="badge bg-warning text-dark border border-warning-subtle fw-semibold">Pending Fulfillment</span>
+          </td>
+          <td class="text-end pe-3">
+            <a href="{% url 'inventory:wo_parts' req.work_order.pk %}" class="btn btn-sm btn-primary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm">
+              Fulfill &rarr;
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-4 text-body-secondary">
+            No incoming or pending parts requests. All technician orders are fulfilled.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal for MTBF Drilldown (BUG-007) -->
+<div class="modal fade" id="mtbfModal" tabindex="-1" aria-labelledby="mtbfModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6 fw-bold" id="mtbfModalLabel">Mean Time Between Failures (MTBF) Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-baseline gap-2 mb-3">
+          <div class="display-6 fw-bold text-dark">{{ kpis.mtbf|default:"n/a" }}</div>
+          <span class="badge bg-light text-dark border">hours</span>
+        </div>
+        <p class="text-secondary small mb-3">
+          <strong>Metric Formula:</strong> MTBF = (Total Operating Time &minus; Total Downtime) &divide; Breakdown Incident Count.
+        </p>
+        {% if kpis.mtbf == "n/a" or not kpis.mtbf %}
+        <div class="alert alert-info py-2 px-3 small mb-3">
+          <strong>Why does this show n/a?</strong><br>
+          Zero equipment breakdown failures were recorded across assets in this scope during the selected date window ({{ start_date }} to {{ end_date }}). When no failures occur, the denominator is zero, so MTBF is non-applicable.
+        </div>
+        {% else %}
+        <div class="alert alert-success py-2 px-3 small mb-3">
+          Calculated from completed corrective breakdown work orders and recorded downtime in this date window.
+        </div>
+        {% endif %}
+        <div class="text-secondary small mb-1">
+          To inspect equipment history, explore recorded assets and outage records below.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'assets:list' %}" class="btn btn-outline-primary btn-sm">Explore Assets Catalog</a>
+        <a href="{% url 'incidents:list' %}" class="btn btn-primary btn-sm">View Service Incidents</a>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    }
+  });
+</script>
 {% endblock %}

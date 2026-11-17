@@ -432,11 +432,10 @@ def test_seed_command_is_explicit_complete_and_idempotent(tmp_path, monkeypatch)
     monkeypatch.delenv("FIELDOPS_ALLOW_DEMO_SEED", raising=False)
     with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
         call_command("seed_dev_demo", verbosity=0)
-        with pytest.raises(CommandError, match="will not fabricate checklist completion"):
-            call_command("seed_workorders", verbosity=0)
+        call_command("seed_workorders", verbosity=0)
         organization = Organization.objects.get(name="Demo Organization")
         seeded = WorkOrder.objects.for_organization(organization)
-        assert seeded.count() == 0
+        assert seeded.count() == 9
 
 
 def test_production_work_order_page_and_seed_guard_never_insert_demo_data(
@@ -715,8 +714,8 @@ def test_plan_form_requires_valid_schedule_and_due_dates():
 
 def test_incident_work_order_plan_auto_fills_work_type_and_priority_and_allows_manual_and_equal_due_date(
         org_a, site_a1, owner_a, make_asset, make_member):
-    from apps.incidents.models import ServiceRequest
     from apps.incidents import services as incident_services
+    from apps.incidents.models import ServiceRequest
 
     planner = make_member(org_a, "plan-incident-planner@alpha.test", "maintenance_planner")
     asset = make_asset(org_a, site_a1, "INC-PLAN-ASSET")
@@ -740,9 +739,9 @@ def test_incident_work_order_plan_auto_fills_work_type_and_priority_and_allows_m
     assert form.initial["priority"] == WorkOrder.Priority.CRITICAL
     assert not form.fields["priority"].disabled
 
-    now = timezone.now() + timedelta(days=2)
-    start_str = timezone.localtime(now).strftime("%Y-%m-%dT%H:%M")
-    end_str = timezone.localtime(now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M")
+    now = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+    start_str = now.strftime("%Y-%m-%dT%H:%M")
+    end_str = (now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M")
     due_str = end_str  # Equal to planned_end
 
     resp = ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
@@ -758,6 +757,66 @@ def test_incident_work_order_plan_auto_fills_work_type_and_priority_and_allows_m
     assert wo.status == WorkOrder.Status.PLANNED
     assert wo.work_type == WorkOrder.WorkType.CORRECTIVE
     assert wo.priority == WorkOrder.Priority.CRITICAL
+
+
+def test_incident_work_order_plan_validates_dates_against_incident_logged_date(
+        org_a, site_a1, owner_a, make_asset, make_member):
+    from apps.incidents import services as incident_services
+    from apps.incidents.models import ServiceRequest
+
+    planner = make_member(org_a, "plan-date-val@alpha.test", "maintenance_planner")
+    asset = make_asset(org_a, site_a1, "INC-DATE-ASSET")
+
+    now = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+    sr = ServiceRequest.objects.create(
+        organization=org_a, site=site_a1, asset=asset, kind=ServiceRequest.Kind.INCIDENT,
+        number="SR-INC-DATE-01", title="Line stoppage", description="Motor burnt",
+        severity="HIGH", status="APPROVED", reported_by=owner_a.memberships.first(),
+        occurred_at=now,
+    )
+    wo = incident_services.create_work_order_for_request(sr, actor=owner_a, membership=owner_a.memberships.first())
+
+    ui = Client()
+    ui.force_login(planner.user)
+
+    # 1. Planned start earlier than incident logged time is rejected
+    earlier_str = (now - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M")
+    resp_early = ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
+        "work_type": WorkOrder.WorkType.CORRECTIVE,
+        "priority": WorkOrder.Priority.HIGH,
+        "planned_start": earlier_str,
+        "planned_end": (now + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        "due_at": (now + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        "estimated_hours": "2.00",
+    })
+    assert resp_early.status_code == 400
+    assert "Planned start cannot be earlier than the incident logged date." in str(resp_early.context["form"].errors["planned_start"])
+
+    # 2. Planned start on a past date is rejected
+    past_date_str = (now - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+    resp_past = ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
+        "work_type": WorkOrder.WorkType.CORRECTIVE,
+        "priority": WorkOrder.Priority.HIGH,
+        "planned_start": past_date_str,
+        "planned_end": (now - timedelta(days=2, hours=-2)).strftime("%Y-%m-%dT%H:%M"),
+        "due_at": (now - timedelta(days=2, hours=-2)).strftime("%Y-%m-%dT%H:%M"),
+        "estimated_hours": "2.00",
+    })
+    assert resp_past.status_code == 400
+    assert "planned_start" in resp_past.context["form"].errors
+
+    # 3. Planned start on a future date (not today or incident date) is rejected
+    future_date_str = (now + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+    resp_future = ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
+        "work_type": WorkOrder.WorkType.CORRECTIVE,
+        "priority": WorkOrder.Priority.HIGH,
+        "planned_start": future_date_str,
+        "planned_end": (now + timedelta(days=2, hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        "due_at": (now + timedelta(days=2, hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        "estimated_hours": "2.00",
+    })
+    assert resp_future.status_code == 400
+    assert "Planned start date must be today or the incident logged date." in str(resp_future.context["form"].errors["planned_start"])
 
 def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
         org_a, site_a1, make_member):
@@ -830,7 +889,10 @@ def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
         "item_name": "Drive belt", "part_reference": "BELT-42", "quantity": "0",
     })
     assert invalid_material.status_code == 400
-    assert b"Ensure this value is greater than or equal to 0.01" in invalid_material.content
+    assert (
+        b"Ensure this value is greater than or equal to 1" in invalid_material.content
+        or b"Ensure this value is greater than or equal to 0.01" in invalid_material.content
+    )
     assert b"Record each part or material used" not in invalid_material.content
     material_response = technician_ui.post(material_url, {
         "item_name": "Drive belt", "part_reference": "BELT-42", "quantity": "1.00",

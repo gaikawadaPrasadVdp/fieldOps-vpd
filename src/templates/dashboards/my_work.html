@@ -10,9 +10,11 @@
     <div class="text-body-secondary small">Personal operational workload, assigned jobs, and labor utilization.</div>
   </div>
   <div class="d-flex align-items-center gap-2">
+    {% if can_view_hub %}
     <a href="{% url 'dashboards:hub' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
       {% icon 'grid' 14 %} Operational Hub
     </a>
+    {% endif %}
     {% if is_technician %}
     <a href="{% url 'workspace:my_jobs' %}" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
       {% icon 'clipboard-check' 14 %} Technician Workspace
@@ -63,6 +65,11 @@
   </div>
 </div>
 
+<!-- Work Completion Trend -->
+<div class="mb-4">
+  {% include "dashboards/_css_bars.html" with title="Work Completion Trend" items=trend_bars %}
+</div>
+
 <!-- Assigned Jobs Queue Table -->
 <div class="fx-card p-3 shadow-sm mb-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
@@ -103,6 +110,30 @@
       </tbody>
     </table>
   </div>
+  {% if open_jobs_page_obj and open_jobs_page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-top p-2 d-flex justify-content-between align-items-center">
+      <span class="small text-secondary">
+        Page {{ open_jobs_page_obj.number }} of {{ open_jobs_page_obj.paginator.num_pages }} ({{ open_jobs_page_obj.paginator.count }} jobs)
+      </span>
+      <ul class="pagination pagination-sm m-0">
+        {% if open_jobs_page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?jobs_page={{ open_jobs_page_obj.previous_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}">&laquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ open_jobs_page_obj.number }}</span></li>
+        {% if open_jobs_page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?jobs_page={{ open_jobs_page_obj.next_page_number }}{% if preserved_params %}&amp;{{ preserved_params }}{% endif %}">&raquo;</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  {% endif %}
 </div>
 
 <!-- Recent Labor Entries Table -->

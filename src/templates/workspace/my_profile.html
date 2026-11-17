@@ -1,0 +1,84 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}My Profile & Shift | FieldOps Workspace{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0" style="max-width: 900px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="small text-uppercase text-secondary fw-semibold mb-1">TECHNICIAN WORKSPACE</p>
+      <h1 class="h3 mb-0">My Shift & Availability</h1>
+    </div>
+    <a href="{% url 'workspace:my_jobs' %}" class="btn btn-outline-secondary btn-sm">&larr; Back to My Jobs</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-light py-2">
+          <h5 class="card-title mb-0 small text-uppercase fw-bold text-secondary">My Status</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <span class="text-muted small d-block">Current Availability:</span>
+            <span class="fs-5 fw-bold text-primary">{{ profile.availability_status }}</span>
+          </div>
+
+          <form method="post" class="mt-4 pt-3 border-top">
+            {% csrf_token %}
+            <label class="form-label fw-semibold">Update My Availability</label>
+            <div class="d-flex gap-2">
+              <select name="availability_status" class="form-select form-select-sm">
+                {% for code, label in statuses %}
+                {% if code != "ON_JOB" %}
+                <option value="{{ code }}" {% if profile.availability_status == code %}selected{% endif %}>{{ label }}</option>
+                {% endif %}
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary btn-sm px-3">Update</button>
+            </div>
+            <div class="form-text small mt-2">Setting status to "Off Duty" or "On Leave" alerts dispatchers to avoid scheduling new jobs.</div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-light py-2">
+          <h5 class="card-title mb-0 small text-uppercase fw-bold text-secondary">Assigned Shift</h5>
+        </div>
+        <div class="card-body p-4">
+          {% if profile.shift %}
+          <div class="mb-2">
+            <span class="fw-bold fs-5 text-dark">{{ profile.shift.name }}</span>
+            <span class="badge bg-light text-dark border ms-2">{{ profile.shift.code }}</span>
+          </div>
+          <div class="text-muted mb-3">
+            Operating Hours: <span class="fw-semibold text-dark">{{ profile.shift.start_time|time:"H:i" }} &ndash; {{ profile.shift.end_time|time:"H:i" }}</span> ({{ profile.shift.duration_hours }} hours)
+          </div>
+          <div class="small text-muted mb-2">Scheduled Days:</div>
+          <div class="d-flex gap-1 mb-3">
+            <span class="badge {% if 0 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Mon</span>
+            <span class="badge {% if 1 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Tue</span>
+            <span class="badge {% if 2 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Wed</span>
+            <span class="badge {% if 3 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Thu</span>
+            <span class="badge {% if 4 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Fri</span>
+            <span class="badge {% if 5 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Sat</span>
+            <span class="badge {% if 6 in profile.shift.days_of_week %}bg-primary{% else %}bg-light text-muted border{% endif %}">Sun</span>
+          </div>
+          {% else %}
+          <div class="text-muted">No specific shift assigned. Organization default hours apply.</div>
+          {% endif %}
+
+          <div class="mt-4 pt-3 border-top">
+            <div class="small text-muted mb-1">Primary Site Assignment:</div>
+            <div class="fw-semibold">{{ profile.primary_site.name|default:"Organization-wide (All Sites)" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

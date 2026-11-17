@@ -1,9 +1,11 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
 app_name = "maintenance"
 urlpatterns = [
+    path("maintenance/", RedirectView.as_view(pattern_name="maintenance:plans", permanent=False)),
     path("maintenance/plans/", views.PlanListView.as_view(), name="plans"),
     path("maintenance/plans/new/", views.PlanCreateView.as_view(), name="plan_new"),
     path("maintenance/plans/<uuid:pk>/", views.PlanDetailView.as_view(), name="plan"),

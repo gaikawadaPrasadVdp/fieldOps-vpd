@@ -233,6 +233,40 @@ def test_portal_accounts_api_viewset(as_user, org_a, service_manager_a, tech_a, 
     assert r_toggle.json()["is_enabled"] is False
 
 
+def test_tc_port_002_portal_account_is_enabled_can_be_changed(as_user, org_a, service_manager_a, make_portal_client):
+    """TC_PORT_002: Portal account is_enabled can be changed via PATCH and toggle endpoints."""
+    _, mem, account = make_portal_client(org_a, "client.tcport002@acme.test", "TC_PORT_002 Co")
+    assert account.is_enabled is True
+
+    api = as_user(service_manager_a, org_a)
+
+    # 1. Test direct route PATCH /api/v1/portal-accounts/{id}/
+    r_patch = api.patch(f"/api/v1/portal-accounts/{account.pk}/", {"is_enabled": False}, format="json")
+    assert r_patch.status_code == 200
+    account.refresh_from_db()
+    assert account.is_enabled is False
+    assert r_patch.json()["is_enabled"] is False
+
+    # 2. Test direct route POST /api/v1/portal-accounts/{id}/toggle/
+    r_toggle = api.post(f"/api/v1/portal-accounts/{account.pk}/toggle/")
+    assert r_toggle.status_code == 200
+    account.refresh_from_db()
+    assert account.is_enabled is True
+    assert r_toggle.json()["is_enabled"] is True
+
+    # 3. Test alias route PATCH /api/v1/portal/accounts/{id}/
+    r_alias_patch = api.patch(f"/api/v1/portal/accounts/{account.pk}/", {"is_enabled": False}, format="json")
+    assert r_alias_patch.status_code == 200
+    account.refresh_from_db()
+    assert account.is_enabled is False
+
+    # 4. Test alias route POST /api/v1/portal/accounts/{id}/toggle/
+    r_alias_toggle = api.post(f"/api/v1/portal/accounts/{account.pk}/toggle/")
+    assert r_alias_toggle.status_code == 200
+    account.refresh_from_db()
+    assert account.is_enabled is True
+
+
 def test_seed_user_roles_command_idempotency(db):
     from apps.rbac.models import MembershipRole
 

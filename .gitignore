@@ -10,6 +10,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage.xml
+.scannerwork/
 htmlcov/
 .idea/
 .vscode/
@@ -21,3 +23,7 @@ uv.lock
 # Test artifacts, screenshots, and visual media
 qa/artifacts/
 *.png
+!src/static/**
+*.xlsx
+*.xls
+LICENSE

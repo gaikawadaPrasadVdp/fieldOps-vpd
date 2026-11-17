@@ -7,12 +7,13 @@ import csv
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
+from apps.core.apiutils import htmx_success
 from apps.core.exceptions import DomainError, NotFound, ValidationFailed
 from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
@@ -39,8 +40,8 @@ TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
 
 
-def _asset(request, pk, code=None) -> Asset:
-    asset = or404(selectors.get_asset, request.membership, request.organization, pk)
+def _asset(request, pk, code=None, *, with_parent: bool = False) -> Asset:
+    asset = or404(selectors.get_asset, request.membership, request.organization, pk, with_parent=with_parent)
     if code:
         need(request, code, asset.site_id)
     return asset
@@ -87,29 +88,30 @@ class AssetHierarchyHubView(AssetBase):
         m, org = request.membership, request.organization
         assets_qs = selectors.assets_for(m, org)
 
-        # Metrics & KPI Calculations
-        total_assets = assets_qs.count()
-        roots_with_children = assets_qs.filter(parent_link__isnull=True, child_links__isnull=False).distinct()
-        total_assemblies = roots_with_children.count()
-        total_components = AssetComponent.objects.for_organization(org).count()
-        replaceable_parts = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART").count()
-        parts_without_num = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART", part_number="").count()
+        # Consolidated AssetComponent KPI counts (1 query instead of 3)
+        comp_stats = AssetComponent.objects.for_organization(org).aggregate(
+            total_components=Count("pk"),
+            replaceable_parts=Count("pk", filter=Q(relationship_type="REPLACEABLE_PART")),
+            parts_without_num=Count("pk", filter=Q(relationship_type="REPLACEABLE_PART", part_number="")),
+        )
 
-        from apps.incidents.models import ServiceRequest
-        from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
-        total_breakdowns = ServiceRequest.objects.filter(
-            organization=org,
-            asset_id__in=assets_qs.values_list("id", flat=True),
-            status__in=ACTIVE_INCIDENT_STATUSES,
-        ).values("asset_id").distinct().count()
+        roots = list(
+            assets_qs.filter(parent_link__isnull=True)
+            .annotate(child_count=Count("child_links", distinct=True))
+            .filter(child_count__gt=0)
+            .order_by("asset_tag")
+        )
+        total_assemblies = len(roots)
 
         # Selected Root Asset for Tree View
-        root_id = request.GET.get("root")
-        selected_root = None
+        root_id = (request.GET.get("root") or "").strip()
         if root_id:
-            selected_root = assets_qs.filter(pk=selectors._uuid_or_none(root_id)).first()
-        if not selected_root:
-            selected_root = roots_with_children.first()
+            root_pk = selectors._uuid_or_none(root_id)
+            selected_root = next((r for r in roots if r.pk == root_pk), None) if root_pk else None
+            if selected_root is None and root_pk:
+                selected_root = assets_qs.filter(pk=root_pk).first()
+        else:
+            selected_root = roots[0] if roots else None
 
         tree = hierarchy.build_tree(selected_root) if selected_root else None
         total_nodes = len(hierarchy.flatten(tree)) if tree else 0
@@ -122,13 +124,11 @@ class AssetHierarchyHubView(AssetBase):
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
 
         return render(request, "assets/hierarchy_hub.html", {
-            "total_assets": total_assets,
             "total_assemblies": total_assemblies,
-            "total_components": total_components,
-            "replaceable_parts": replaceable_parts,
-            "parts_without_num": parts_without_num,
-            "total_breakdowns": total_breakdowns,
-            "roots": roots_with_children.select_related("site", "category"),
+            "total_components": comp_stats["total_components"],
+            "replaceable_parts": comp_stats["replaceable_parts"],
+            "parts_without_num": comp_stats["parts_without_num"],
+            "roots": roots,
             "selected_root": selected_root,
             "tree": tree,
             "can_manage": can_manage,
@@ -183,22 +183,48 @@ class AssetListView(AssetBase):
             return response
 
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+        page_items = list(page)
+        root_ids = [a.pk for a in page_items if getattr(a, "parent_link", None) is None]
+        counts_by_parent = (
+            dict(
+                AssetComponent.objects.filter(parent_id__in=root_ids)
+                .values_list("parent_id")
+                .annotate(c=Count("pk"))
+            )
+            if root_ids
+            else {}
+        )
+        for a in page_items:
+            a.child_count = counts_by_parent.get(a.pk, 0)
 
-        total_count = base_assets.count()
-        active_count = base_assets.filter(status=ACTIVE).count()
-        maintenance_count = base_assets.filter(status=UNDER_MAINTENANCE).count()
-        out_of_service_count = base_assets.filter(status=OUT_OF_SERVICE).count()
+        is_table_htmx = (
+            request.headers.get("HX-Request") == "true"
+            and request.headers.get("HX-Target") == "asset-list-card"
+        )
+        if is_table_htmx:
+            kpis = {"total_count": 0, "active_count": 0, "maintenance_count": 0, "out_of_service_count": 0}
+            sites = []
+            categories = []
+        else:
+            kpis = base_assets.aggregate(
+                total_count=Count("pk"),
+                active_count=Count("pk", filter=Q(status=ACTIVE)),
+                maintenance_count=Count("pk", filter=Q(status=UNDER_MAINTENANCE)),
+                out_of_service_count=Count("pk", filter=Q(status=OUT_OF_SERVICE)),
+            )
+            sites = site_selectors.sites_for(m, org, "asset.view").order_by("code")
+            categories = selectors.categories_for(org)
 
         return render(request, "assets/list.html", {
             "page": page, "filters": request.GET,
-            "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
-            "categories": selectors.categories_for(org), "statuses": Asset.Status.choices,
+            "sites": sites,
+            "categories": categories, "statuses": Asset.Status.choices,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
             "can_categories": rbac.has_permission(m, "asset.category.manage"),
-            "total_count": total_count,
-            "active_count": active_count,
-            "maintenance_count": maintenance_count,
-            "out_of_service_count": out_of_service_count,
+            "total_count": kpis["total_count"],
+            "active_count": kpis["active_count"],
+            "maintenance_count": kpis["maintenance_count"],
+            "out_of_service_count": kpis["out_of_service_count"],
         })
 
 
@@ -256,9 +282,14 @@ class ComponentListView(AssetBase):
                 ])
             return response
 
-        total_items = base_qs.count()
-        total_replaceable = base_qs.filter(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART).count()
-        missing_parts = base_qs.filter(Q(part_number__isnull=True) | Q(part_number="")).count()
+        comp_stats = base_qs.aggregate(
+            total_items=Count("pk"),
+            total_replaceable=Count("pk", filter=Q(relationship_type=AssetComponent.Relationship.REPLACEABLE_PART)),
+            missing_parts=Count("pk", filter=Q(part_number__isnull=True) | Q(part_number="")),
+        )
+        total_items = comp_stats["total_items"]
+        total_replaceable = comp_stats["total_replaceable"]
+        missing_parts = comp_stats["missing_parts"]
 
         from apps.incidents.models import ServiceRequest
         from apps.incidents.workflow import ACTIVE_INCIDENT_STATUSES
@@ -272,7 +303,8 @@ class ComponentListView(AssetBase):
         ).values("asset_id").distinct().count()
 
         page = Paginator(qs, 25).get_page(request.GET.get("page"))
-        batch_annotate_assets_health([comp.child for comp in page], organization=org)
+        page_items = list(page)
+        batch_annotate_assets_health([comp.child for comp in page_items], organization=org)
 
         return render(request, "assets/component_list.html", {
             "page": page,
@@ -315,7 +347,15 @@ class AssetCreateView(AssetBase):
             "crumbs": [("Assets", "/app/assets/"), (title, None)]}, status=status)
 
     def get(self, request):
-        parent = self._parent(request)
+        try:
+            parent = self._parent(request)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            pid = request.GET.get("parent")
+            if pid:
+                return redirect(f"/app/assets/{pid}/?tab=hierarchy")
+            return redirect("/app/assets/")
+
         initial = {}
         if parent:
             initial = {"site": parent.site_id, "zone": parent.zone_id, "category": parent.category_id}
@@ -324,18 +364,27 @@ class AssetCreateView(AssetBase):
         initial.update(_prefill(request))
         form = AssetForm(initial=initial, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, initial))
-        if request.headers.get("HX-Request") and not parent:
+        target = request.headers.get("HX-Target", "")
+        is_modal = not target or "modal" in target.lower()
+        if request.headers.get("HX-Request") and not parent and is_modal:
             return render(request, "assets/_asset_modal.html", {
                 "title": "Register asset", "form": form, "submit": "Register asset",
                 "action_url": request.path,
             })
-        return self._page(request, form, parent, NewChildForm() if parent else None)
+        return self._page(request, form, parent, NewChildForm(parent=parent) if parent else None)
 
     def post(self, request):
-        parent = self._parent(request)
+        try:
+            parent = self._parent(request)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            pid = request.POST.get("parent") or request.GET.get("parent")
+            if pid:
+                return redirect(f"/app/assets/{pid}/?tab=hierarchy")
+            return redirect("/app/assets/")
         form = AssetForm(request.POST, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, request.POST))
-        rel_form = NewChildForm(request.POST) if parent else None
+        rel_form = NewChildForm(request.POST, parent=parent) if parent else None
         if form.is_valid() and (rel_form is None or rel_form.is_valid()):
             d = dict(form.cleaned_data)
             refs = {k: d.pop(k) for k in ("site", "zone", "category", "owner")}
@@ -427,11 +476,66 @@ class AssetEditView(AssetBase):
 # --- detail ----------------------------------------------------------------------------------------------------
 
 
+class AssetStartInspectionView(AssetBase):
+    required_permission = "inspection.execute"
+
+    def get(self, request, pk):
+        asset = _asset(request, pk)
+        need(request, "inspection.execute", asset.site_id)
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot inspect asset in {asset.status} status.")
+            return redirect("assets:detail", pk=asset.pk)
+
+        from apps.checklists.models import ChecklistTemplate
+
+        templates = ChecklistTemplate.objects.for_organization(request.organization).filter(
+            status="ACTIVE"
+        ).order_by("name")
+        return render(request, "assets/start_inspection.html", {
+            "asset": asset,
+            "templates": templates,
+            "terminal": asset.status in TERMINAL_STATES,
+        })
+
+    def post(self, request, pk):
+        asset = _asset(request, pk)
+        need(request, "inspection.execute", asset.site_id)
+        if asset.status in TERMINAL_STATES:
+            messages.error(request, f"Cannot inspect asset in {asset.status} status.")
+            return redirect("assets:detail", pk=asset.pk)
+
+        template_id = request.POST.get("template_id")
+        from apps.checklists.models import ChecklistTemplate
+        template = ChecklistTemplate.objects.for_organization(request.organization).filter(
+            pk=template_id, status="ACTIVE"
+        ).first()
+        if not template:
+            messages.error(request, "Please select an active checklist template.")
+            return redirect("assets:start_inspection", pk=asset.pk)
+
+        from apps.checklists import services as checklist_services
+        try:
+            insp = checklist_services.start_inspection(
+                request.organization,
+                template=template,
+                membership=request.membership,
+                actor=request.user,
+                asset=asset,
+                request=request,
+            )
+            messages.success(request, f"Started inspection for {asset.asset_tag}.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
+        except Exception as exc:
+            msg = getattr(exc, "message", str(exc))
+            messages.error(request, msg)
+            return redirect("assets:start_inspection", pk=asset.pk)
+
+
 class AssetDetailView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
-        asset = _asset(request, pk)
+        asset = _asset(request, pk, with_parent=True)
         m, org = request.membership, request.organization
         tab = request.GET.get("tab", "overview")
         available_tabs = [
@@ -440,6 +544,7 @@ class AssetDetailView(AssetBase):
             ("meters", "Meters"),
             ("history", "History"),
             ("hierarchy", "Hierarchy"),
+            ("inspections", "Inspections"),
         ]
         if rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):
             available_tabs.append(("coverage", "Coverage"))
@@ -459,6 +564,7 @@ class AssetDetailView(AssetBase):
                 "asset.meter.record",
                 "asset.hierarchy.manage",
                 "incident.create",
+                "inspection.execute",
             )
         }
         transitions = []
@@ -491,6 +597,11 @@ class AssetDetailView(AssetBase):
                 ctx["change_log"] = selectors.change_log(org, asset)
         elif tab == "hierarchy":
             ctx.update(self._hierarchy_ctx(request, asset, can))
+        elif tab == "inspections":
+            from apps.checklists.models import Inspection
+            ctx["inspections"] = Inspection.objects.for_organization(org).filter(asset=asset).select_related(
+                "template", "started_by__user"
+            ).order_by("-started_at")
         return render(request, "assets/detail.html", ctx)
 
     def _hierarchy_ctx(self, request, asset, can):
@@ -503,17 +614,18 @@ class AssetDetailView(AssetBase):
             base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage",
                                            site=asset.site)
             parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+            child_ids = AssetComponent.objects.filter(organization=request.organization).values_list("child_id", flat=True)
             if not is_child:
                 candidates = base.filter(parent_link__isnull=True).exclude(
                     pk__in=exclude_ids
-                ).exclude(id__in=parent_ids)
+                ).exclude(id__in=parent_ids).exclude(id__in=child_ids)
                 ctx["add_form"] = ComponentAddForm(candidates=candidates, initial={"relationship_type": "COMPONENT", "quantity": 1})
             else:
                 link = asset.parent_link
                 ctx["edit_link_form"] = ComponentEditForm(initial={
                     "relationship_type": link.relationship_type, "quantity": link.quantity,
                     "part_number": link.part_number, "notes": link.notes})
-                below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset))}
+                below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset, annotate_health=False))}
                 # Only root assets can be candidates for new parent
                 ctx["move_form"] = ComponentMoveForm(candidates=base.filter(parent_link__isnull=True).exclude(pk__in=below))
 
@@ -588,8 +700,15 @@ class AssetStatusView(AssetBase):
 
     def post(self, request, pk, action):
         asset = _asset(request, pk, "asset.change_status")
+        reason = (request.POST.get("reason") or "").strip()
+        if not reason:
+            messages.error(request, "A reason is required for a status change.")
+            return redirect("assets:detail", pk=asset.pk)
+        if any(c.isdigit() for c in reason):
+            messages.error(request, "Reason must contain only alphabetical characters and cannot contain numbers.")
+            return redirect("assets:detail", pk=asset.pk)
         try:
-            services.change_status(asset, action=action, reason=request.POST.get("reason", ""),
+            services.change_status(asset, action=action, reason=reason,
                                    actor=request.user, request=request)
             messages.success(request, "Status updated.")
         except DomainError as exc:
@@ -605,15 +724,26 @@ class DocumentUploadView(AssetBase):
         asset = _asset(request, pk, "asset.document.manage")
         form = DocumentForm(request.POST, request.FILES)
         if not form.is_valid():
-            messages.error(request, "Choose a file to upload.")
+            error_msg = "Choose a file to upload."
+            for field in ["file", "doc_type", "title"]:
+                if field in form.errors and form.errors[field]:
+                    error_msg = str(form.errors[field][0])
+                    break
+            else:
+                for errs in form.errors.values():
+                    if errs:
+                        error_msg = str(errs[0])
+                        break
+            messages.error(request, error_msg)
             return _back(asset, "documents")
         d = form.cleaned_data
         try:
             services.add_document(asset, d["file"], title=d["title"], doc_type=d["doc_type"], actor=request.user,
                                   request=request)
             messages.success(request, "Document uploaded.")
-        except DomainError as exc:
-            messages.error(request, exc.message)
+        except (DomainError, ValidationError) as exc:
+            msg = exc.message if hasattr(exc, "message") else str(exc.messages[0] if hasattr(exc, "messages") else exc)
+            messages.error(request, msg)
         return _back(asset, "documents")
 
 
@@ -624,8 +754,12 @@ class DocumentRemoveView(AssetBase):
     def post(self, request, pk):
         doc = or404(selectors.get_document, request.membership, request.organization, pk)
         need(request, "asset.document.manage", doc.asset.site_id)
+        reason = (request.POST.get("reason") or "").strip()
+        if any(c.isdigit() for c in reason):
+            messages.error(request, "Reason must contain only alphabetical characters and cannot contain numbers.")
+            return _back(doc.asset, "documents")
         try:
-            services.remove_document(doc, reason=request.POST.get("reason", ""), actor=request.user, request=request)
+            services.remove_document(doc, reason=reason, actor=request.user, request=request)
             messages.success(request, "Document removed.")
         except DomainError as exc:
             messages.error(request, exc.message)
@@ -693,7 +827,8 @@ class ComponentAddView(AssetBase):
         asset = _asset(request, pk, "asset.hierarchy.manage")
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=asset.site)
         parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
-        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids)
+        child_ids = AssetComponent.objects.filter(organization=request.organization).values_list("child_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids).exclude(id__in=child_ids).exclude(pk=asset.pk)
         form = ComponentAddForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
@@ -723,7 +858,13 @@ class ComponentEditView(AssetBase):
 
     def post(self, request, pk):
         link = _link(request, pk)
-        form = ComponentEditForm(request.POST)
+        initial = {
+            "relationship_type": link.relationship_type,
+            "quantity": link.quantity,
+            "part_number": link.part_number,
+            "notes": link.notes,
+        }
+        form = ComponentEditForm(request.POST, initial=initial)
         try:
             if not form.is_valid():
                 raise DomainError("Check the relationship type and quantity.")
@@ -769,7 +910,7 @@ class ComponentReplaceView(AssetBase):
     def post(self, request, pk):
         link = _link(request, pk)
         child = link.child
-        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
+        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child, annotate_health=False))}
         parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, child.pk} | below
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=link.parent.site)
         parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
@@ -800,7 +941,7 @@ class ComponentDetailModalView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
-        asset = _asset(request, pk)
+        asset = _asset(request, pk, with_parent=True)
         tree = hierarchy.build_tree(asset)
         ancestors = list(reversed(hierarchy.ancestors(asset)))
         return render(request, "assets/_detail_modal.html", {

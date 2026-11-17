@@ -61,7 +61,8 @@ def get_portal_account(membership: Membership | None) -> PortalAccount | None:
     """Returns the portal account for the given membership, if any."""
     if membership is None:
         return None
-    return PortalAccount.objects.for_organization(membership.organization).filter(
+    return PortalAccount.objects.for_organization(membership.organization_id).filter(
+        organization_id=membership.organization_id,
         membership=membership,
     ).select_related("membership", "membership__user", "organization").first()
 
@@ -122,12 +123,23 @@ def get_client_request(membership: Membership | None, request_id: str | uuid.UUI
     return qs.filter(number=str(request_id).strip()).first()
 
 
+_INTERNAL_HISTORY_ACTIONS = (
+    "work_order_update",
+    "work_order_updated",
+    "work_order_labor",
+    "work_order_material",
+    "work_order_evidence",
+    "work_order_checklist",
+)
+
+
 def client_request_history_for(sr: ServiceRequest) -> QuerySet[ServiceRequestHistory]:
     """Returns the append-only status history for a service request in chronological order."""
     from apps.incidents.models import ServiceRequestHistory
     return (
         ServiceRequestHistory.objects.for_organization(sr.organization)
         .filter(request=sr)
+        .exclude(action__in=_INTERNAL_HISTORY_ACTIONS)
         .order_by("created_at")
     )
 
@@ -141,6 +153,9 @@ def granted_assets_for(membership: Membership | None):
     if account is None or not account.is_enabled or not membership.is_active:
         from apps.assets.models import Asset
         return Asset.objects.none()
+    if account.auto_grant_assets:
+        from .services import sync_portal_grants_for_account
+        sync_portal_grants_for_account(account)
     from apps.assets.models import Asset
     return (
         Asset.objects.for_organization(membership.organization)
@@ -226,6 +241,7 @@ def get_portal_dashboard_metrics(membership: Membership | None) -> dict:
     recent_activity = list(
         ServiceRequestHistory.objects.for_organization(org)
         .filter(request__reported_by=membership)
+        .exclude(action__in=_INTERNAL_HISTORY_ACTIONS)
         .select_related("request", "changed_by")
         .order_by("-created_at")[:6]
     )
@@ -244,3 +260,83 @@ def get_portal_dashboard_metrics(membership: Membership | None) -> dict:
         "granted_assets_count": granted_count,
     }
 
+
+
+def get_client_sla_indicator(service_request) -> dict | None:
+    """Return client-safe SLA commitment information for a ServiceRequest.
+
+    Strictly exposes customer-facing indicators (within SLA, response achieved,
+    expected resolution commitment, delayed indicator, status badge) while
+    completely withholding internal escalation rules, notification recipients,
+    or internal breach logs.
+    """
+    if not service_request:
+        return None
+
+    tracking_obj = getattr(service_request, "sla_trackings", None)
+    if tracking_obj is not None and hasattr(tracking_obj, "first"):
+        tracking_obj = tracking_obj.first()
+    else:
+        from apps.sla.models import SLATracking
+        tracking_obj = SLATracking.objects.filter(request=service_request).first()
+
+    if not tracking_obj:
+        return None
+
+    response_achieved = (
+        tracking_obj.response_state in ("MET", "MET_LATE")
+        or tracking_obj.response_met_at is not None
+    )
+    resolution_achieved = (
+        tracking_obj.resolution_state in ("MET", "MET_LATE")
+        or tracking_obj.resolution_met_at is not None
+    )
+    is_delayed = (
+        tracking_obj.is_breached
+        or tracking_obj.response_state in ("BREACHED", "MET_LATE")
+        or tracking_obj.resolution_state in ("BREACHED", "MET_LATE")
+    )
+    is_paused = tracking_obj.is_paused
+
+    if resolution_achieved:
+        badge_class = "success" if not is_delayed else "warning"
+        status_label = "Resolved within SLA" if not is_delayed else "Resolved (Delayed)"
+        status_code = "COMPLETED"
+    elif is_paused:
+        badge_class = "secondary"
+        status_label = "SLA Paused (Pending Information)"
+        status_code = "PAUSED"
+    elif is_delayed:
+        badge_class = "danger"
+        status_label = "Service Delayed"
+        status_code = "DELAYED"
+    elif tracking_obj.is_at_risk:
+        badge_class = "warning"
+        status_label = "Target Priority Attention"
+        status_code = "AT_RISK"
+    elif response_achieved:
+        badge_class = "info"
+        status_label = "Response Completed - In Progress"
+        status_code = "RESPONSE_MET"
+    else:
+        badge_class = "primary"
+        status_label = "Within SLA Commitment"
+        status_code = "ON_TRACK"
+
+    return {
+        "has_sla": True,
+        "is_within_sla": not is_delayed,
+        "response_achieved": response_achieved,
+        "resolution_achieved": resolution_achieved,
+        "is_delayed": is_delayed,
+        "is_paused": is_paused,
+        "status": status_code,
+        "status_label": status_label,
+        "badge_class": badge_class,
+        "response_due_at": tracking_obj.response_due_at.isoformat() if tracking_obj.response_due_at else None,
+        "response_met_at": tracking_obj.response_met_at.isoformat() if tracking_obj.response_met_at else None,
+        "expected_resolution_at": tracking_obj.resolution_due_at.isoformat() if tracking_obj.resolution_due_at else None,
+        "resolution_met_at": tracking_obj.resolution_met_at.isoformat() if tracking_obj.resolution_met_at else None,
+        "expected_resolution_datetime": tracking_obj.resolution_due_at,
+        "response_due_datetime": tracking_obj.response_due_at,
+    }

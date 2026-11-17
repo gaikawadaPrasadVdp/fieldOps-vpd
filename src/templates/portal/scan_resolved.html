@@ -1,0 +1,124 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ asset.asset_tag }} · Scan Result · Client Portal · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <a href="{% url 'portal:scan' %}" class="text-decoration-none">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">
+            {% icon 'arrow-left' 12 %} Scan QR
+          </span>
+        </a>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-7">Authorized Asset</span>
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ asset.name }} {% status_badge asset.status %}</h1>
+      <div class="text-body-secondary">
+        {{ asset.asset_tag }}{% if asset.category %} · {{ asset.category.name }}{% endif %} · {{ asset.site.name }} ({{ asset.site.code }}){% if asset.zone %} · {{ asset.zone.name }}{% endif %}
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if can_report %}
+        <a class="btn btn-primary" href="{% url 'portal:scan_report' identifier.token %}">
+          {% icon 'plus-circle' 15 %} Submit Service Request
+        </a>
+        <a class="btn btn-outline-primary" href="{% url 'portal:request_create' %}?asset={{ asset.pk }}">
+          Open Full Request Form
+        </a>
+      {% endif %}
+      <a class="btn btn-outline-secondary" href="{% url 'portal:scan' %}">
+        {% icon 'qr' 15 %} Scan Another
+      </a>
+    </div>
+  </div>
+
+  {% if revoked %}
+    <div class="alert alert-danger" role="alert">
+      This label was revoked or replaced. Do not rely on it; please scan the equipment's current label.
+    </div>
+  {% endif %}
+  {% if asset_inactive %}
+    <div class="alert alert-secondary" role="alert">
+      This asset is {{ asset.status|lower }}; no new requests can be opened for it.
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="fx-card shadow-sm">
+        <div class="fx-card-header fw-semibold">Verified Asset Summary</div>
+        <div class="fx-card-body small">
+          <dl class="fx-kv mb-0">
+            <dt>Asset Tag</dt>
+            <dd class="fw-semibold">{{ asset.asset_tag }}</dd>
+            <dt>Equipment Name</dt>
+            <dd>{{ asset.name }}</dd>
+            {% if asset.category %}
+              <dt>Category</dt>
+              <dd>{{ asset.category.name }}</dd>
+            {% endif %}
+            <dt>Site / Location</dt>
+            <dd>{{ asset.site.name }} ({{ asset.site.code }})</dd>
+            {% if asset.zone %}
+              <dt>Zone</dt>
+              <dd>{{ asset.zone.name }}</dd>
+            {% endif %}
+            <dt>Label Type</dt>
+            <dd>{{ identifier.get_kind_display }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    {% if can_report %}
+    <div class="col-lg-8">
+      <div class="fx-card shadow-sm" id="portal-scan-report-card">
+        <div class="fx-card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Report an Issue on {{ asset.asset_tag }}</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">QR Verified</span>
+        </div>
+        <div class="fx-card-body">
+          <form method="post" enctype="multipart/form-data" novalidate id="portal-scan-request-form">
+            {% csrf_token %}
+            {% if duplicate_detected %}
+              <div class="alert alert-warning border border-warning-subtle mb-3" role="alert">
+                <div class="fw-bold mb-1">Active Open Request Detected on this Equipment</div>
+                <ul class="mb-2 ps-4 small">
+                  {% for dup in duplicate_records %}
+                    <li><strong>{{ dup.number }}</strong>: {{ dup.title }} ({{ dup.status }} · {{ dup.severity }})</li>
+                  {% endfor %}
+                </ul>
+                <button type="submit" name="override_duplicate" value="true" class="btn btn-warning btn-sm fw-semibold">
+                  {% icon 'check' 14 %} Confirm &amp; Submit Anyway
+                </button>
+              </div>
+            {% elif form.non_field_errors %}
+              <div class="alert alert-danger py-2" role="alert">{{ form.non_field_errors.0 }}</div>
+            {% endif %}
+
+            <div class="fx-form-grid">
+              {% for field in form %}
+                {% if field.is_hidden %}
+                  {{ field }}
+                {% else %}
+                  <div class="{% if field.name == 'title' or field.name == 'description' %}grid-col-span-full{% endif %}">
+                    {% include "components/_form_field.html" %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <div class="mt-3 pt-3 border-top d-flex gap-2">
+              <button class="btn btn-primary" type="submit">{% icon 'send' 15 %} Submit Service Request</button>
+              <a class="btn btn-outline-secondary" href="{% url 'portal:dashboard' %}">Back to Portal</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

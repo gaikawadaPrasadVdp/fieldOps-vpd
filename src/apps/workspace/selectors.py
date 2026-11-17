@@ -6,7 +6,7 @@ from django.db.models import QuerySet
 from apps.sites.models import SiteContact
 from apps.workorders.models import WorkOrder
 
-from .models import TravelLog, WorkNote
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 if TYPE_CHECKING:
     from apps.tenancy.models import Membership, Organization
@@ -193,6 +193,7 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
     drawer_summary = get_drawer_summary(wo, membership=membership)
 
     all_parts = part_lines_for(wo)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
@@ -227,6 +228,8 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
         "labor_entries": list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at")),
         "materials": list(wo.material_entries.order_by("item_name")),
         "part_lines": all_parts,
+        "pending_part_requests": pending_part_requests,
+        "has_pending_part_requests": bool(pending_part_requests),
         "consumable_parts": consumable_parts,
         "has_consumable_parts": bool(consumable_parts),
         "consumed_parts": consumed_parts,
@@ -265,6 +268,7 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     total_labor_hours = sum((entry.hours for entry in labor_entries), Decimal("0.00"))
 
     all_parts = part_lines_for(wo)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
@@ -287,6 +291,9 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     if not wo.checklist_required:
         checklist_is_ready = True
 
+    from apps.inventory import services as inventory_services
+    part_request_blockers = inventory_services.completion_part_blockers(wo)
+
     # Overall completion blockers
     blockers = []
     if wo.status != WorkOrder.Status.IN_PROGRESS and wo.status != WorkOrder.Status.COMPLETED:
@@ -298,6 +305,8 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
             blockers.append("All mandatory checklists must be completed and validated.")
     if evidence_required and not has_evidence:
         blockers.append("At least one photo or file evidence attachment is required before completion.")
+    if part_request_blockers:
+        blockers.extend(part_request_blockers)
 
     can_complete = (len(blockers) == 0) and (wo.status == WorkOrder.Status.IN_PROGRESS)
     signoff = getattr(wo, "customer_signoff", None)
@@ -310,6 +319,8 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
         "total_labor_hours": total_labor_hours,
         "materials": list(wo.material_entries.order_by("item_name")),
         "part_lines": all_parts,
+        "pending_part_requests": pending_part_requests,
+        "has_pending_part_requests": bool(pending_part_requests),
         "consumable_parts": consumable_parts,
         "consumed_parts": consumed_parts,
         "returned_parts": returned_parts,
@@ -352,7 +363,11 @@ def daily_capacity_summary(
     total_hours_dec = labor_qs.aggregate(s=Sum("hours"))["s"] or Decimal("0.00")
     total_hours = float(total_hours_dec)
 
-    standard_capacity = 8.0
+    profile = getattr(membership, "technician_profile", None)
+    if profile and profile.shift and profile.shift.is_active:
+        standard_capacity = float(profile.shift.duration_hours)
+    else:
+        standard_capacity = 8.0
     util_pct = round((total_hours / standard_capacity) * 100.0, 1) if standard_capacity > 0 else 0.0
     progress_pct = min(100.0, util_pct)
     remaining_hours = max(0.0, round(standard_capacity - total_hours, 2))
@@ -384,3 +399,46 @@ def daily_capacity_summary(
     }
 
 
+
+
+def get_technician_profile(membership: Membership) -> TechnicianProfile | None:
+    """Retrieve the technician profile for a membership, or None."""
+    return TechnicianProfile.objects.filter(
+        organization=membership.organization,
+        membership=membership,
+    ).select_related("shift", "primary_site", "membership__user").first()
+
+
+def technician_profiles_for_org(
+    org: Organization,
+    site=None,
+    status: str | None = None,
+) -> QuerySet[TechnicianProfile]:
+    """List all technician profiles in an organization with optional site or status filters."""
+    qs = TechnicianProfile.objects.filter(organization=org).select_related(
+        "membership__user", "shift", "primary_site"
+    )
+    if site:
+        qs = qs.filter(primary_site=site)
+    if status:
+        qs = qs.filter(availability_status=status)
+    return qs.order_by("membership__user__full_name", "membership__user__email")
+
+
+def shifts_for_org(
+    org: Organization,
+    site=None,
+    is_active: bool | None = None,
+) -> QuerySet[Shift]:
+    """List configured shifts for an organization."""
+    qs = Shift.objects.filter(organization=org).select_related("site")
+    if site is not None:
+        qs = qs.filter(site=site)
+    if is_active is not None:
+        qs = qs.filter(is_active=is_active)
+    return qs.order_by("name")
+
+
+def get_shift(org: Organization, shift_id: any) -> Shift | None:
+    """Get a single shift by ID scoped to the organization."""
+    return Shift.objects.filter(organization=org, pk=shift_id).select_related("site").first()

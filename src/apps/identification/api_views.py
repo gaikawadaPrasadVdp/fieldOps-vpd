@@ -7,7 +7,8 @@ from rest_framework.response import Response
 from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import ValidationFailed
+from apps.core.exceptions import NotFound, ValidationFailed
+from apps.core.throttling import TokenResolveRateThrottle
 from apps.tenancy.api import TenantAPIMixin
 
 from . import selectors, services
@@ -140,7 +141,7 @@ class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
         ],
         responses={200: OpenApiTypes.OBJECT},
     )
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=["get"], throttle_classes=[TokenResolveRateThrottle])
     def resolve(self, request):
         token = request.query_params.get("token", "")
         if not token:
@@ -148,6 +149,8 @@ class IdentifierViewSet(TenantAPIMixin, viewsets.ViewSet):
         ident, asset, is_active = services.resolve_token(
             request.membership, token, actor=request.user, request=request
         )
+        if not is_active:
+            raise NotFound("Label has been revoked or replaced.", code="label_revoked")
 
         work_order_id = request.query_params.get("work_order")
         matching_job = None

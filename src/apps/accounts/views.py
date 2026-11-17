@@ -1,8 +1,15 @@
+import time
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import rotate_token
 
 from apps.audit import services as audit
 
@@ -10,14 +17,119 @@ from . import services
 from .forms import EmailAuthenticationForm, ProfileForm
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+@method_decorator(never_cache, name="dispatch")
 class LoginView(auth_views.LoginView):
     template_name = "accounts/login.html"
     authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "GET" and (request.GET.get("logout") or request.GET.get("logged_out")):
+            if request.user.is_authenticated:
+                from django.contrib.auth import logout as auth_logout
+                auth_logout(request)
+            rotate_token(request)
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if user:
+            services.activate_pending_memberships(user, request=self.request)
+        response = super().form_valid(form)
+        self.request.session["_last_activity_ts"] = int(time.time())
+        # Remember me cookie persistence: 0 = browser session cookie when unticked
+        if not self.request.POST.get("remember"):
+            self.request.session.set_expiry(0)
+        else:
+            self.request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+        if user:
+            try:
+                from apps.tenancy import selectors
+                memberships = list(selectors.active_memberships(user))
+                if memberships and (selectors.SESSION_KEY not in self.request.session or not self.request.session[selectors.SESSION_KEY]):
+                    self.request.session[selectors.SESSION_KEY] = str(memberships[0].organization_id)
+            except Exception:
+                pass
+        return response
+
+    def get_success_url(self):
+        redirect_to = self.get_redirect_url()
+        user = self.request.user
+        is_platform = bool(getattr(user, "is_platform_admin", False) or getattr(user, "is_superuser", False))
+
+        # Security & routing boundary: Non-platform users must NEVER be routed to /platform/*
+        if redirect_to and redirect_to.startswith("/platform/") and not is_platform:
+            redirect_to = None
+
+        if redirect_to and (redirect_to == "/app/portal" or redirect_to.startswith("/app/portal/")) and is_platform:
+            redirect_to = None
+
+        if redirect_to and not is_platform:
+            from apps.tenancy import selectors
+            from apps.ui.utils import is_client_membership
+
+            org_id = self.request.session.get(selectors.SESSION_KEY)
+            membership = None
+            if org_id:
+                membership = selectors.active_memberships(user).filter(organization_id=org_id).first()
+            if membership is None:
+                memberships = list(selectors.active_memberships(user))
+                if len(memberships) == 1:
+                    membership = memberships[0]
+
+            if membership is not None:
+                is_client = is_client_membership(membership)
+                is_portal_target = redirect_to == "/app/portal" or redirect_to.startswith("/app/portal/")
+                if not is_portal_target and redirect_to.startswith("/app/") and is_client:
+                    redirect_to = "/app/portal/"
+
+        # Ignore empty, root (/), or auth loop destinations; standard login always lands at /app/
+        if not redirect_to or redirect_to in ("/", "/accounts/login/", "/accounts/logout/") or redirect_to.startswith("/accounts/") or redirect_to == "/app":
+            return reverse("ui:home")
+
+        return redirect_to
+
 
 class LogoutView(auth_views.LogoutView):
-    pass  # POST only (Django 5); fires user_logged_out -> audit
+    """POST-only logout view with AJAX/Fetch API support, audit logging, and full cookie deletion."""
+
+    http_method_names = ["post", "options"]
+    next_page = "/"
+
+    def post(self, request, *args, **kwargs):
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in request.headers.get("accept", "")
+        )
+        if is_ajax:
+            from django.contrib.auth import logout as auth_logout
+            from django.http import JsonResponse
+            auth_logout(request)
+            rotate_token(request)
+            response = JsonResponse({"status": "logged_out", "redirect_url": "/"})
+        else:
+            response = super().post(request, *args, **kwargs)
+            rotate_token(request)
+
+        response.delete_cookie(
+            settings.SESSION_COOKIE_NAME,
+            domain=settings.SESSION_COOKIE_DOMAIN,
+            path=settings.SESSION_COOKIE_PATH or "/",
+        )
+        for cookie_name in request.COOKIES:
+            if cookie_name == settings.CSRF_COOKIE_NAME:
+                continue
+            response.delete_cookie(
+                cookie_name,
+                domain=settings.SESSION_COOKIE_DOMAIN,
+                path=settings.SESSION_COOKIE_PATH or "/",
+            )
+        response["Clear-Site-Data"] = '"cache"'
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
+        return response
 
 
 class ActivateView(auth_views.PasswordResetConfirmView):

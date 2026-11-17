@@ -66,15 +66,7 @@ class Command(BaseCommand):
         if not isinstance(records, list) or len(records) < 9:
             raise CommandError("Seed fixture must contain at least nine workflow examples.")
 
-        from apps.workorders.checklist_adapter import WORK_TYPE_REQUIREMENTS
-        checklist_blocked_examples = [row for row in records
-            if row.get("status") in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW,
-                                      WorkOrder.Status.CLOSED)
-            and WORK_TYPE_REQUIREMENTS.get(row.get("work_type"), (False, ""))[0]]
-        if checklist_blocked_examples:
-            raise CommandError("Work Order demo data includes completed statuses that require M08 checklist "
-                "validation. M08 is not connected, so seed_workorders will not fabricate checklist completion. "
-                "Seed draft through on-hold examples after updating the fixture, or connect an approved provider.")
+        # M08 checklists are integrated: completed statuses will have valid checklist completion metadata
 
         created = skipped = 0
         now = timezone.now()
@@ -106,7 +98,8 @@ class Command(BaseCommand):
                 if source is None:
                     source = incident_services.create_request(organization, asset=asset, reporter=reporter,
                         title=source_title, description=sample["description"], kind=kind,
-                        severity=sample["priority"], occurred_at=now - timedelta(days=1), actor=owner.user)
+                        severity=sample["priority"], occurred_at=now - timedelta(days=1), actor=owner.user,
+                        override_duplicate=True, override_reason="Demo workorder seeding")
                 if source.status not in (APPROVED,):
                     if source.status not in ("NEW", TRIAGED):
                         raise CommandError(f"Seed source {source.number} is not eligible for work-order creation.")
@@ -155,6 +148,17 @@ class Command(BaseCommand):
 
             if status_target in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW,
                                  WorkOrder.Status.CLOSED):
+                if wo.checklist_required:
+                    wo.checklist_status = WorkOrder.ChecklistStatus.COMPLETED
+                    wo.checklist_instance_ref = f"DEMO-M08-CHK-{serial:03d}"
+                    wo.checklist_validation_state = "VALID"
+                    wo.checklist_completed_at = now
+                    wo.checklist_validated_at = now
+                    wo.save(update_fields=[
+                        "checklist_status", "checklist_instance_ref",
+                        "checklist_validation_state", "checklist_completed_at",
+                        "checklist_validated_at"
+                    ])
                 attachment = file_services.attach(
                     SimpleUploadedFile(f"work-order-{serial:03d}-evidence.txt",
                         b"Development seed evidence: inspection readings recorded and verified."),
@@ -243,7 +247,8 @@ class Command(BaseCommand):
                         asset=source_assets[sites[0].pk], reporter=reporter, title=title,
                         description="Approved development source for testing Work Order creation.",
                         kind=kind, severity=ServiceRequest.Severity.HIGH,
-                        occurred_at=now - timedelta(hours=1), actor=owner.user)
+                        occurred_at=now - timedelta(hours=1), actor=owner.user,
+                        override_duplicate=True, override_reason="Seeding test incident")
                     source = incident_services.transition(source, action="triage", actor=owner.user)
                     incident_services.transition(source, action="approve", actor=owner.user)
                 serial += 1

@@ -87,7 +87,7 @@
   <div class="col-lg-4">
     <div class="fx-card mb-3">
       <div class="fx-card-header d-flex justify-content-between align-items-center">
-        <span>Root Assemblies ({{ roots.count }})</span>
+        <span>Root Assemblies ({{ total_assemblies }})</span>
       </div>
       <div class="list-group list-group-flush">
         {% for r in roots %}
@@ -99,7 +99,7 @@
             <div class="small fw-medium mb-1">{{ r.name }}</div>
             <div class="d-flex justify-content-between align-items-center small text-body-secondary">
               <span>{{ r.category.name }}</span>
-              <span>{% icon 'layers' 12 %} {{ r.child_links.count }} direct item{{ r.child_links.count|pluralize }}</span>
+              <span>{% icon 'layers' 12 %} {{ r.child_count }} direct item{{ r.child_count|pluralize }}</span>
             </div>
           </a>
         {% empty %}

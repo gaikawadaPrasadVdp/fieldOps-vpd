@@ -46,8 +46,22 @@ def database_from_url(url: str) -> dict:
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", required=True)
 DEBUG = env_bool("DJANGO_DEBUG", False)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+for _host in (".onrender.com", "fieldops.onrender.com", "fieldops-qry5.onrender.com", "fieldops-vpd-nb4u.onrender.com"):
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+for _origin in (
+    "https://*.onrender.com",
+    "https://fieldops.onrender.com",
+    "https://fieldops-qry5.onrender.com",
+    "https://fieldops-vpd-nb4u.onrender.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+):
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 SITE_BASE_URL = env("SITE_BASE_URL", "http://localhost:8000")
 
 INSTALLED_APPS = [
@@ -92,16 +106,19 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "apps.core.middleware.AuthPrefixRewriteMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
     "apps.core.csp.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.SessionIdleTimeoutMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.tenancy.middleware.TenantContextMiddleware",
     "apps.core.middleware.TimezoneMiddleware",
+    "apps.core.middleware.SecurityCacheControlMiddleware",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -149,9 +166,13 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "ui:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
+# --- Rate limiting / throttling toggles (Default: True = enabled for security & brute-force protection)
+RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", True)
+
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
 # Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.
 TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "0"))
+AXES_ENABLED = env_bool("AXES_ENABLED", True)
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",
@@ -163,11 +184,18 @@ AXES_USERNAME_CALLABLE = "apps.core.net.axes_username"  # lower-cased/stripped
 AXES_CLIENT_IP_CALLABLE = "apps.core.net.client_ip"
 AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
 AXES_RESET_ON_SUCCESS = True
+# DEF-004 fix: ensure lockout returns HTTP 429 (Too Many Requests) consistently
+AXES_HTTP_RESPONSE_CODE = 429
+# Do not reset failure counter on a lockout response — prevents counter clearing after the first lockout
+AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 
 # --- Sessions / cookies / security ------------------------------------------------------------
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_IDLE_TIMEOUT_SECONDS = int(env("DJANGO_SESSION_IDLE_TIMEOUT_SECONDS", "1800"))
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_CACHE_ALIAS = "default"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
@@ -176,13 +204,26 @@ CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 
 # --- Cache / Redis ----------------------------------------------------------------------------
-REDIS_URL = env("REDIS_URL", "").strip()
+_raw_redis_url = env("REDIS_URL", "").strip()
+_VALID_REDIS_SCHEMES = ("redis://", "rediss://", "unix://")
+
+if _raw_redis_url and any(_raw_redis_url.startswith(s) for s in _VALID_REDIS_SCHEMES):
+    REDIS_URL = _raw_redis_url
+elif _raw_redis_url and ":" in _raw_redis_url and " " not in _raw_redis_url and not _raw_redis_url.startswith(("http://", "https://")):
+    REDIS_URL = f"redis://{_raw_redis_url}"
+else:
+    REDIS_URL = ""
+
 if REDIS_URL:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": REDIS_URL,
             "KEY_PREFIX": "fieldops",
+            "OPTIONS": {
+                "socket_connect_timeout": 2,
+                "socket_timeout": 2,
+            },
         }
     }
 else:
@@ -193,6 +234,26 @@ else:
         }
     }
 
+# --- Shared login-throttle counter store --------------------------------------------------------
+# The documented 10/min login rate limit (docs/AUTH_RBAC_FOUNDATION.md §9.3) must hold
+# across workers and instances. Redis is used when configured; otherwise the database,
+# so the counter stays shared even on deployments without a cache service. Before this
+# existed the limit silently degraded to per-process memory when REDIS_URL was absent
+# (QA run 2026-11-10, DEF-002: 13 rapid bad logins were all answered 401).
+if REDIS_URL:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "fieldops-login-throttle",
+    }
+else:
+    CACHES["login_throttle"] = {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "core_login_throttle",
+        "KEY_PREFIX": "fieldops-login-throttle",
+        "OPTIONS": {"MAX_ENTRIES": 50000, "CULL_FREQUENCY": 3},
+    }
+
 # --- Celery -----------------------------------------------------------------------------------
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL or "memory://")
 CELERY_RESULT_BACKEND = None
@@ -200,6 +261,10 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_TIME_LIMIT = 60 * 10
 CELERY_TIMEZONE = "UTC"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "apps.core.tasks.process_integration_events": {"queue": "integrations"},
+}
 CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
@@ -224,6 +289,14 @@ CELERY_BEAT_SCHEDULE = {
     "process-scheduled-organization-deletions": {
         "task": "apps.tenancy.tasks.process_scheduled_deletions",
         "schedule": 60 * 60,
+    },
+    "process-integration-outbox": {
+        "task": "apps.core.tasks.process_integration_events",
+        "schedule": 30,
+    },
+    "archive-report-snapshots": {
+        "task": "apps.dashboards.tasks.archive_periodic_report_snapshots",
+        "schedule": 60 * 60 * 24,
     },
 }
 
@@ -279,7 +352,7 @@ FILE_UPLOAD_PERMISSIONS = 0o640
 # --- DRF / OpenAPI ----------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.auth.FieldOpsJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
@@ -287,13 +360,19 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "apps.core.api.StandardPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "apps.core.schema.FieldOpsAutoSchema",
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
+    "NUM_PROXIES": max(TRUSTED_PROXY_COUNT, 0),
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "600/min", "login": "10/min"},
+        "apps.core.throttling.SafeAnonRateThrottle",
+        "apps.core.throttling.SafeUserRateThrottle",
+    ] if RATE_LIMITING_ENABLED else [],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min" if RATE_LIMITING_ENABLED else "100000/min",
+        "user": "600/min" if RATE_LIMITING_ENABLED else "100000/min",
+        "login": "10/min",
+        "token_resolve": "60/min",
+    },
 }
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
@@ -311,6 +390,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # docs/schema list endpoint names only, never tenant data (D: public docs for testers)
     "COMPONENT_SPLIT_REQUEST": True,
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "apps.core.schema.strip_unused_path_parameters",
+    ],
     "ENUM_NAME_OVERRIDES": {
         "SiteStatusEnum": "apps.sites.models.Status",
         "MembershipStatusEnum": "apps.tenancy.models.Membership.Status",

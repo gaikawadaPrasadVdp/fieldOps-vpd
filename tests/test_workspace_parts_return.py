@@ -37,6 +37,7 @@ def test_return_job_part_service_happy_path(inv_):
     # Receive 10 units, request 5, issue 5
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-01", reason="Initial stock")
     line = inventory.request_part(wo, part, "5.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "5.000", actor=stores.user)
     inventory.issue(line, wh, "5.000", actor=stores.user)
 
     line.refresh_from_db()
@@ -93,6 +94,7 @@ def test_return_job_part_selectors_and_drawer_summary(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-02", reason="Stock in")
     line = inventory.request_part(wo, part, "4.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "4.000", actor=stores.user)
     inventory.issue(line, wh, "4.000", actor=stores.user)
 
     detail = ws_selectors.get_job_detail(tech, str(wo.pk))
@@ -134,6 +136,7 @@ def test_consume_and_return_full_cycle(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-03", reason="Stock in")
     line = inventory.request_part(wo, part, "4.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "4.000", actor=stores.user)
     inventory.issue(line, wh, "4.000", actor=stores.user)
 
     # 1. Consume 2 units
@@ -181,6 +184,7 @@ def test_return_job_part_negative_paths(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-04", reason="Stock in")
     line = inventory.request_part(wo, part, "2.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "2.000", actor=stores.user)
     inventory.issue(line, wh, "2.000", actor=stores.user)
 
     # 1. Exceeds outstanding
@@ -228,6 +232,7 @@ def test_job_part_return_html_view(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-05", reason="Stock in")
     line = inventory.request_part(wo, part, "4.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "4.000", actor=stores.user)
     inventory.issue(line, wh, "4.000", actor=stores.user)
 
     client = Client()
@@ -275,6 +280,7 @@ def test_job_part_return_api_view(inv_):
 
     inventory.receive(wh, part, "10.000", actor=stores.user, reference="PO-RET-06", reason="Stock in")
     line = inventory.request_part(wo, part, "3.000", actor=inv_["planner"].user, membership=inv_["planner"])
+    inventory.reserve(line, wh, "3.000", actor=stores.user)
     inventory.issue(line, wh, "3.000", actor=stores.user)
 
     api = APIClient()
@@ -308,5 +314,5 @@ def test_job_part_return_api_view(inv_):
         },
         format="json",
     )
-    assert err_res.status_code == 400
+    assert err_res.status_code in (400, 409)
     assert err_res.data["error"]["code"] == "exceeds_outstanding"

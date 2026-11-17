@@ -1,163 +1,119 @@
-# M02 Asset Registry
+# M02 Asset Registry — Technical Specification & Module Guide
 
-FieldOps Nexus --- Asset Registry Module
-Project: FieldOps Nexus
-HPE Code: HPE-PRD-2026-FOPS02
-Module: Asset Registry
-Recommended Django App: apps.assets
-1. Purpose
-The Asset Registry maintains the authoritative master record for
-physical assets in FieldOps Nexus, including identity, classification,
-model/serial details, dates, location, ownership-related data, warranty
-reference, lifecycle status, documents, meters, and status history.
-2. Scope
-In Scope
-- Asset records and categories
-- Asset documents
-- Asset meters and readings where implemented
-- Asset lifecycle status and status history
-- Controlled status transitions
-- Search/filtering
-- REST APIs
-- RBAC/object-scope enforcement
-- Audit integration
-Out of Scope
-Owned by other modules: - Asset Hierarchy - Warranty/AMC terms and
-claims - Preventive Maintenance schedules - Work Orders - Incidents -
-Inventory - QR generation - Operational Dashboards
-3. Core Entities
-- Asset
-- AssetCategory
-- AssetDocument
-- AssetMeter
-- AssetMeterReading where implemented
-- AssetStatusHistory
-Asset data includes Asset ID, category, model, serial number,
-purchase/commission dates, Site/Zone, owner, warranty reference, status,
-documents, notes and audit-related fields where supported.
-4. Lifecycle
-Confirmed broad lifecycle:
-ACTIVE → UNDER_MAINTENANCE → OUT_OF_SERVICE → ACTIVE / RETIRED / DISPOSED
-Statuses: - ACTIVE - UNDER_MAINTENANCE - OUT_OF_SERVICE -
-RETIRED - DISPOSED
-The complete transition matrix remains subject to HPE/team-lead
-confirmation unless already established. Status should be changed only
-through the controlled transition service, not ordinary asset editing.
-5. Backend Architecture
-Recommended structure:
-apps/assets/
-├── models.py
-├── forms.py
-├── views.py
-├── urls.py
-├── services.py
-├── transitions.py
-├── selectors.py
-├── filters.py
-├── validators.py
-├── permissions.py
-├── api/
-│   ├── serializers.py
-│   ├── views.py
-│   └── urls.py
-└── tests/
-Follow the repository's existing conventions where the actual layout
-differs.
-6. Service Layer
-Backend operations should cover: - Create asset - Update asset -
-Controlled status transition - Document operations - Meter operations -
-Meter readings
-Lifecycle transitions should preserve database, history and audit
-consistency.
-7. API Surface
-Confirmed/specification API groups include: - GET /api/v1/assets/ -
-POST /api/v1/assets/ - Asset detail/update -
-GET /api/v1/assets/{id}/history/ - Meter endpoints
-Recommended implementation may also expose controlled transition,
-category, meter-reading, document, and later token/QR lookup endpoints.
-Exact URLs must follow the repository router.
-8. Permissions and Security
-Use existing FieldOps Nexus authentication, RBAC, tenancy, Site/Location
-and Audit modules.
-Verify: - Authentication - Write/read scopes - Organization/tenant
-isolation - Site/object scope - Controlled status changes - Secure
-uploads - Append-only status history - Audit logging -
-Cross-organization IDOR prevention
-9. Validation
-Cover applicable rules for: - Asset ID presence/uniqueness - Category -
-Site/Zone relationship - Dates - Lifecycle transitions - Upload
-type/size policy - Meter readings - Organization/object scope
-Do not invent unresolved business rules.
-10. Audit and History
-Lifecycle transitions should record applicable: - From status - To
-status - Actor - Timestamp - Reason
-AssetStatusHistory should remain append-only.
-11. Frontend Integration
-Recommended frontend: Django Templates + HTMX.
-Expected screens: 1. Asset Registry Home 2. Asset List 3. Asset Detail
-4. Asset Create/Edit 5. Change Status 6. Document Upload 7. Meter
-Management 8. Category Management 9. Status History 10. Optional Import,
-subject to clarification
-The Registry dashboard/home cards are a technical recommendation, not a
-separately mandated PRD dashboard.
-12. Dependencies
-Required/existing: - Authentication/RBAC - Organization/Tenancy - Site &
-Location - Audit
-External/later integrations: - Asset Hierarchy - PM - Incident/Service
-Request - Work Orders - Warranty/AMC - QR/Barcode - Client Portal -
-Operational Dashboards
-Do not implement teammate-owned modules inside Asset Registry.
-13. Testing Requirements
-Test: - Asset create/edit - Duplicate Asset ID - Site/Zone mismatch -
-Document upload validation - Meter/readings - Valid/invalid
-transitions - Direct status-update prevention - RBAC -
-Cross-organization isolation - Append-only history - APIs - Audit -
-Transaction rollback - Concurrency where supported - Work Order
-integration boundary - Full regression suite
-14. Acceptance Criteria
-- Assets persist successfully.
-- Required initial history is created according to current design.
-- Invalid transitions are rejected.
-- Successful transitions record appropriate history.
-- Unauthorized operations are rejected.
-- Invalid uploads are rejected.
-- Status/change history is available.
-- APIs are registered and reachable.
-- Tenant/object isolation is enforced.
-- Asset-specific tests pass.
-- Regression testing shows Asset changes do not break teammate
-  modules.
-15. HPE / Team-Lead Clarifications
-Do not silently invent: 1. Exact Asset ID format and uniqueness scope 2.
-Meaning of owner 3. Complete lifecycle transition matrix/triggers 4.
-Warranty storage/reference ownership 5. Exact create/edit/retire/read
-roles 6. Retirement behavior with open WO/PM 7. Meter source rules 8.
-Serial-number rules 9. Bulk import/export requirements 10. Final
-document limits/types 11. Category hierarchy/custom fields
-16. Completion Checklist
-Database
-- [ ] Models verified
-- [ ] Migrations applied
-- [ ] Constraints/indexes verified
-- [ ] Append-only history verified
-Backend
-- [ ] Asset app enabled
-- [ ] Services verified
-- [ ] Transition service verified
-- [ ] Permissions/object scope verified
-- [ ] Upload validation verified
-- [ ] DRF endpoints registered
-- [ ] OpenAPI verified
-- [ ] Audit integration verified
-QA
-- [ ] Unit tests pass
-- [ ] API tests pass
-- [ ] RBAC negative tests pass
-- [ ] Tenant isolation passes
-- [ ] Lifecycle tests pass
-- [ ] Document/meter tests pass
-- [ ] Regression suite passes or unrelated failures are documented
-Completion rule: Mark the Asset Registry backend complete only when
-all currently confirmed backend requirements are implemented and
-verified. HPE/team-lead clarification items should remain documented
-rather than being treated as implementation defects.
+Part of the ONE integrated FieldOps Nexus ERP. Read `docs/PROJECT_SOURCE_OF_TRUTH.md` and `docs/FIELDOPS_NEXUS_MASTER_BUSINESS_WORKFLOW.md` first.
+
+- **Module Code:** M02
+- **Django Application:** `apps.assets`
+- **HPE PRD Scope Reference:** Section 7.2 (REQ-AST-01: Asset registry tracking make, model, serial number, purchase/commission dates, criticality, status history, document vaults, and category attributes; REQ-AST-03: Equipment meters)
+- **Status:** 🟢 **FINALIZED, VERIFIED & PRODUCTION SIGNED-OFF**
+- **Authoritative Ownership:** `Asset`, `AssetCategory`, `AssetDocument`, `AssetMeter`, `AssetMeterReading`, `AssetStatusHistory`.
+
+---
+
+## 1. Purpose & Core Responsibilities
+
+The Asset Registry serves as the authoritative single source of truth for all physical equipment, machinery, facilities, vehicles, and instrumentation managed across an enterprise organization.
+
+It governs asset identification, category classification with dynamic JSON-schema attributes, lifecycle state transitions, usage meter accumulation, document vaults, and immutable audit trails.
+
+---
+
+## 2. Core Entities & Database Architecture (`src/apps/assets/models.py`)
+
+### 2.1 Entity Model Specifications
+
+1. **`Asset`:**
+   - Primary physical master record scoped strictly to `organization` and `site`.
+   - Fields: `asset_tag` (unique business code, e.g. `AST-0001`), `name`, `description`, `category` (FK `AssetCategory`), `manufacturer`, `model`, `serial_number`, `purchase_date`, `commission_date`, `site` (FK `Site`), `zone` (FK `Zone`), `owner` (FK `User`), `warranty_ref`, `criticality` (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), `status`, `attributes` (JSONField for category-specific dynamic fields).
+   - Invariants:
+     - `asset_tag` is unique per organization (`unique_together = ("organization", "asset_tag")`).
+     - `site` is mandatory; cross-tenant site references are rejected at the ORM layer.
+     - `commission_date >= purchase_date` enforced by clean validation.
+
+2. **`AssetCategory`:**
+   - Enterprise taxonomy grouping assets with custom field schemas.
+   - Fields: `name`, `description`, `is_active`, `attribute_definitions` (JSONField array defining custom schema rules: `label`, `type` [`text`, `number`, `date`, `choice`], `required`, `choices`).
+
+3. **`AssetStatusHistory`:**
+   - Append-only chronological audit log tracking every lifecycle transition.
+   - Fields: `asset`, `from_status`, `to_status`, `reason`, `changed_by` (FK `User`), `changed_at`.
+   - Protected against UPDATE or DELETE statements.
+
+4. **`AssetDocument`:**
+   - Digital document vault storing equipment manuals, schematics, safety certifications, and warranty proofs.
+   - Supports file verification, MIME-type validation, size limits (up to 25 MB), and soft deletion with audit logging.
+
+5. **`AssetMeter` & `AssetMeterReading`:**
+   - Tracks cumulative equipment usage: running hours, operational cycles, production output, or kilometers.
+   - Enforces strictly non-decreasing monotonic readings (except when flagged with valid dial rollover math).
+   - Serves as the real-time trigger for M04 usage-based Preventive Maintenance work orders.
+
+---
+
+## 3. Finite State Machine & Lifecycle Transitions
+
+Assets follow a strictly controlled state machine. Direct modification of `asset.status` via ordinary edit forms is forbidden; transitions must execute through `apps.assets.services.transition_asset_status`.
+
+```
+                    ┌────────────────────────┐
+                    │        DRAFT           │
+                    └───────────┬────────────┘
+                                │ commission()
+                                v
+                    ┌────────────────────────┐
+        ┌──────────>│        ACTIVE          │<──────────┐
+        │           └───────┬────────┬───────┘           │
+        │                   │        │                   │
+        │        wo_start() │        │ flag_defect()     │
+        │                   v        v                   │
+        │      ┌─────────────────┐ ┌────────────────┐    │
+        │      │UNDER_MAINTENANCE│ │ OUT_OF_SERVICE │    │
+        │      └────────┬────────┘ └────────┬───────┘    │
+        │               │                   │            │
+        └───────────────┴─────────┬─────────┴────────────┘
+                                  │
+                                  │ decommission() / retire()
+                                  v
+                    ┌────────────────────────┐
+                    │   RETIRED / DISPOSED   │ (Terminal States)
+                    └────────────────────────┘
+```
+
+### 3.1 Architectural Decision D-058 (Bi-Directional Work Order Synchronization)
+- When a Work Order on an asset transitions to `IN_PROGRESS`, the asset status automatically transitions to `UNDER_MAINTENANCE` (preserving audit history).
+- When the Work Order reaches `COMPLETED` or `CLOSED`, the asset automatically returns to `ACTIVE`.
+- Invariant: Automatic work order synchronization never overwrites an asset explicitly placed in `OUT_OF_SERVICE`, `RETIRED`, or `DISPOSED`.
+
+---
+
+## 4. Security & RBAC Enforcement
+
+| Permission Code | Description | Role Assignments |
+| :--- | :--- | :--- |
+| `asset.view` | View asset details, documents, meter readings, and status history | All internal staff roles, Client (scoped) |
+| `asset.create` | Register new assets and upload initial documentation | Organization Owner, Asset Manager |
+| `asset.update` | Edit asset metadata, attach manuals, and log meter readings | Organization Owner, Asset Manager, Supervisor |
+| `asset.transition`| Execute controlled lifecycle status transitions | Organization Owner, Asset Manager |
+| `asset.delete` | Soft decommission / retire an asset | Organization Owner only |
+
+---
+
+## 5. User Interface & Workflow Views
+
+- **`/app/assets/` (`AssetListView`):** Search, status filtering, category facets, site scoping, and CSV export.
+- **`/app/assets/new/` (`AssetCreateView`):** Registration wizard with category dynamic attribute rendering.
+- **`/app/assets/<pk>/` (`AssetDetailView`):**
+  - *Overview Tab:* General specifications, dates, site/zone location, active work order alert banners.
+  - *Documents Tab:* Uploaded manuals, warranties, and technical schematics.
+  - *Meters Tab:* Cumulative usage gauges, historical reading graphs, and manual reading log modal.
+  - *History Tab:* Full timeline of lifecycle state transitions with actor and reason notes.
+  - *Hierarchy Tab:* Embedded component tree (M03 integration).
+  - *Labels Tab:* Physical QR & Barcode generation, SVG/PNG preview, and label printing (M12 integration).
+
+---
+
+## 6. Verification & Quality Assurance Traceability
+
+- **Automated Pytest Coverage:** `tests/test_assets.py`, `tests/unit_spec/test_part1_org_ast_mtr_pm.py` (`TC-AST-001` through `TC-AST-006`, `TC-MTR-001` through `TC-MTR-004`).
+- **REST API Test Specifications:** See `docs/testing/M02_API_TEST_REPORT.md` (15/15 Automated Endpoint Tests Passed).
+- **Formal Sign-Off Certification:** See `docs/SITE_ASSET_QR_FINAL_ACCEPTANCE_SIGNOFF_REPORT.md`.

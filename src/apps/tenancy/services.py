@@ -6,7 +6,7 @@ import uuid
 import zoneinfo
 
 from django.contrib.auth import get_user_model
-from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -22,11 +22,11 @@ _ORG_FIELDS = ["name", "legal_name", "timezone", "country", "contact_email", "co
 
 
 def _check_email(email: str) -> str:
-    email = (email or "").strip().lower()
+    from apps.ui.forms import validate_strict_email
     try:
-        validate_email(email)
-    except Exception as exc:
-        raise ValidationFailed("Enter a valid email address.", details={"email": email}) from exc
+        email = validate_strict_email(email)
+    except ValidationError as exc:
+        raise ValidationFailed(str(exc.message if hasattr(exc, "message") else exc), details={"email": email}) from exc
     return email
 
 
@@ -42,7 +42,7 @@ def _check_timezone(tz: str):
 
 @transaction.atomic
 def create_organization(*, name, owner_email, owner_name, actor=None, slug=None, timezone_name="UTC",
-                        country="", contact_email="", request=None, owner_password="FieldOps@2026!") -> tuple[Organization, Membership]:
+                        country="", contact_email="", request=None, owner_password=None) -> tuple[Organization, Membership]:
     """Enterprise onboarding: creates the org, seeds system roles, invites the initial Owner."""
     if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
         raise PermissionDenied("Only administrators can create organizations.")
@@ -236,7 +236,8 @@ def permanently_delete_organization(org: Organization, *, actor, reason: str = "
     )
 
     tenant_tables = [
-        'workspace_travellog', 'workspace_worknote',
+        'dashboards_reportsnapshot',
+        'workspace_travellog', 'workspace_worknote', 'workspace_technicianprofile', 'workspace_shift',
         'workorders_workordersignoff', 'workorders_closureapproval',
         'workorders_workorderevidence', 'workorders_workordermaterial',
         'workorders_workorderlabor', 'workorders_workorderassignment',
@@ -249,7 +250,8 @@ def permanently_delete_organization(org: Organization, *, actor, reason: str = "
         'identification_assetidentifier', 'contracts_coveredasset',
         'contracts_coverageexclusion', 'contracts_coveragecheck',
         'contracts_coverageagreement', 'contracts_serviceprovider',
-        'incidents_servicerequesthistory', 'incidents_downtime', 'incidents_servicerequest',
+        'incidents_servicerequestcomment', 'incidents_servicerequesthistory',
+        'incidents_downtime', 'incidents_servicerequest',
         'inventory_partreservation', 'inventory_stockmovement', 'inventory_workorderpart',
         'inventory_stockbalance', 'inventory_part', 'inventory_warehouse',
         'checklists_inspectionresponse', 'checklists_finding', 'checklists_inspection',
@@ -260,20 +262,28 @@ def permanently_delete_organization(org: Organization, *, actor, reason: str = "
         'assets_asset', 'assets_assetcategory', 'files_attachment',
         'sites_calendarholiday', 'sites_zone', 'sites_sitecontact',
         'sites_operatingcalendar', 'sites_site',
-        'rbac_membershiprole', 'rbac_role',
-        'core_documentsequence', 'audit_auditlog',
+        'rbac_rolepermission', 'rbac_membershiprole', 'rbac_role',
+        'core_integrationevent', 'core_documentsequence', 'audit_auditlog',
         'tenancy_membership',
         'tenancy_organization'
     ]
 
     with transaction.atomic():
         with connection.cursor() as cur:
+            existing_tables = set(connection.introspection.table_names(cur))
             if connection.vendor == 'postgresql':
                 cur.execute("SET session_replication_role = 'replica';")
             try:
                 for tbl in tenant_tables:
+                    if tbl not in existing_tables:
+                        continue
                     if tbl == 'tenancy_organization':
                         cur.execute(f"DELETE FROM {tbl} WHERE id = %s", [org_id])
+                    elif tbl == 'rbac_rolepermission':
+                        cur.execute(
+                            f"DELETE FROM {tbl} WHERE role_id IN (SELECT id FROM rbac_role WHERE organization_id = %s)",
+                            [org_id]
+                        )
                     elif tbl == 'rbac_membershiprole':
                         cur.execute(
                             f"DELETE FROM {tbl} WHERE membership_id IN (SELECT id FROM tenancy_membership WHERE organization_id = %s)",
@@ -350,7 +360,7 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     created_user = False
     if user is None:
         if not full_name:
-            full_name = email.split("@")[0].replace(".", " ").title()
+            raise ValidationFailed("Full name is required.", code="name_required")
         user = User.objects.create_user(email=email, password=password, full_name=full_name)
         created_user = True
     elif password and not user.has_usable_password():
@@ -375,28 +385,33 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
                         "new_account": created_user}, request=request)
 
     try:
-        from apps.portal.models import PortalAccount, PortalAssetGrant
-        from apps.ui.utils import is_client_membership
-        if is_client_membership(membership) or any(getattr(r, "system_key", None) == "client_requester" for r in roles):
-            portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
-                organization=org,
-                membership=membership,
-                defaults={
-                    "company_name": full_name or org.name,
-                    "is_enabled": True,
-                },
-            )
-            from apps.assets.models import Asset
-            assets_qs = Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"])
-            site_ids = [s.pk for _, s in assignments if s is not None]
-            if site_ids:
-                assets_qs = assets_qs.filter(site_id__in=site_ids)
-            for asset in assets_qs:
-                PortalAssetGrant.objects.unscoped().get_or_create(
+        with transaction.atomic():
+            from apps.portal.models import PortalAccount, PortalAssetGrant
+            from apps.ui.utils import is_client_membership
+            if is_client_membership(membership) or any(getattr(r, "system_key", None) == "client_requester" for r in roles):
+                portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
                     organization=org,
-                    portal_account=portal_acc,
-                    asset=asset,
+                    membership=membership,
+                    defaults={
+                        "company_name": full_name or org.name,
+                        "is_enabled": True,
+                        "auto_grant_assets": True,
+                    },
                 )
+                if not portal_acc.auto_grant_assets:
+                    portal_acc.auto_grant_assets = True
+                    portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
+                from apps.assets.models import Asset
+                assets_qs = Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"])
+                site_ids = [s.pk for _, s in assignments if s is not None]
+                if site_ids:
+                    assets_qs = assets_qs.filter(site_id__in=site_ids)
+                for asset in assets_qs:
+                    PortalAssetGrant.objects.unscoped().get_or_create(
+                        organization=org,
+                        portal_account=portal_acc,
+                        asset=asset,
+                    )
     except Exception:
         pass
 
@@ -475,28 +490,33 @@ def update_member(membership: Membership, *, actor, full_name=None, job_title=No
             raise ValidationFailed("Assign at least one valid role.", code="invalid_roles")
         rbac.set_membership_assignments(membership, resolved, actor=actor, request=request)
         try:
-            from apps.portal.models import PortalAccount, PortalAssetGrant
-            from apps.ui.utils import is_client_membership
-            if is_client_membership(membership):
-                portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
-                    organization=membership.organization,
-                    membership=membership,
-                    defaults={
-                        "company_name": membership.user.full_name or membership.organization.name,
-                        "is_enabled": True,
-                    },
-                )
-                from apps.assets.models import Asset
-                assets_qs = Asset.objects.for_organization(membership.organization).exclude(status__in=["RETIRED", "DISPOSED"])
-                site_ids = [s.pk for _, s in resolved if s is not None]
-                if site_ids:
-                    assets_qs = assets_qs.filter(site_id__in=site_ids)
-                for asset in assets_qs:
-                    PortalAssetGrant.objects.unscoped().get_or_create(
+            with transaction.atomic():
+                from apps.portal.models import PortalAccount, PortalAssetGrant
+                from apps.ui.utils import is_client_membership
+                if is_client_membership(membership):
+                    portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
                         organization=membership.organization,
-                        portal_account=portal_acc,
-                        asset=asset,
+                        membership=membership,
+                        defaults={
+                            "company_name": membership.user.full_name or membership.organization.name,
+                            "is_enabled": True,
+                            "auto_grant_assets": True,
+                        },
                     )
+                    if not portal_acc.auto_grant_assets:
+                        portal_acc.auto_grant_assets = True
+                        portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
+                    from apps.assets.models import Asset
+                    assets_qs = Asset.objects.for_organization(membership.organization).exclude(status__in=["RETIRED", "DISPOSED"])
+                    site_ids = [s.pk for _, s in resolved if s is not None]
+                    if site_ids:
+                        assets_qs = assets_qs.filter(site_id__in=site_ids)
+                    for asset in assets_qs:
+                        PortalAssetGrant.objects.unscoped().get_or_create(
+                            organization=membership.organization,
+                            portal_account=portal_acc,
+                            asset=asset,
+                        )
         except Exception:
             pass
     after = {"full_name": user.full_name, "job_title": membership.job_title}

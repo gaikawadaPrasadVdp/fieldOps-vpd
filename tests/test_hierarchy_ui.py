@@ -174,7 +174,7 @@ def test_login_screen_ui_structure(client):
     assert "FieldOps Nexus" in html
     assert 'name="username"' in html
     assert 'name="password"' in html
-    assert "btn-primary" in html
+    assert "fx-login-submit-btn" in html
 
 
 def test_asset_detail_hierarchy_tab_anchors(client, owner_a, hierarchy_fixture):

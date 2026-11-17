@@ -48,7 +48,7 @@
     </a>
   {% endif %}
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
   (function() {
     function tickSLACountdowns() {
       var badges = document.querySelectorAll('.sla-countdown-badge');

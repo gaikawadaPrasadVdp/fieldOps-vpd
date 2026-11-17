@@ -8,6 +8,7 @@ urlpatterns = [
     path("sites/new/", views.SiteCreateView.as_view(), name="create"),
     path("sites/<uuid:pk>/", views.SiteDetailView.as_view(), name="detail"),
     path("sites/<uuid:pk>/edit/", views.SiteEditView.as_view(), name="edit"),
+    path("sites/<uuid:pk>/deactivate/", views.SiteDeactivateView.as_view(), name="deactivate"),
     path("sites/<uuid:pk>/locations/new/", views.ZoneCreateView.as_view(), name="zone_create"),
     path("locations/<uuid:pk>/edit/", views.ZoneEditView.as_view(), name="zone_edit"),
     path("locations/<uuid:pk>/status/", views.ZoneStatusView.as_view(), name="zone_status"),

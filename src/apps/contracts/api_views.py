@@ -6,13 +6,14 @@ data: any holder of the permission (at any site) may use them."""
 import datetime
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from django.http import HttpResponse
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
+from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import ValidationFailed
 from apps.sites import selectors as site_selectors
@@ -28,18 +29,74 @@ WORK_TYPE_CHOICES = [(w, w) for w in services.WORK_TYPES]
 
 
 class ProviderSerializer(serializers.ModelSerializer):
+    address = serializers.CharField(allow_null=True, required=False, allow_blank=True)
+
     class Meta:
         model = ServiceProvider
-        fields = ["id", "name", "contact_name", "email", "phone", "notes", "is_active", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "provider_type",
+            "contact_name",
+            "email",
+            "phone",
+            "address",
+            "notes",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        for field in ("address", "contact_name", "email", "phone", "notes"):
+            if ret.get(field) is None:
+                ret[field] = ""
+        return ret
 
 
 class ProviderWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
+    provider_type = serializers.ChoiceField(
+        choices=ServiceProvider.ProviderType.choices, required=False, default=ServiceProvider.ProviderType.OEM
+    )
     contact_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
     email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    address = serializers.CharField(max_length=300, required=False, allow_blank=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+    def validate_name(self, value):
+        from apps.ui.forms import validate_business_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_business_name(value, field_label="Provider name")
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_contact_name(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_alphabetical_name
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_alphabetical_name(value, field_label="Contact name", min_len=2, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
+
+    def validate_notes(self, value):
+        if not value:
+            return ""
+        from apps.ui.forms import validate_safe_text
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            return validate_safe_text(value, field_label="Notes", max_len=500, required=False)
+        except DjangoValidationError as exc:
+            msg = str(exc.message if hasattr(exc, "message") else exc.messages[0])
+            raise serializers.ValidationError(msg)
 
 
 class ProviderPatchSerializer(ProviderWriteSerializer):
@@ -120,7 +177,7 @@ class AssetRefSerializer(serializers.Serializer):
 
 
 class CheckSerializer(serializers.ModelSerializer):
-    work_order_number = serializers.CharField(source="work_order.number", read_only=True)
+    work_order_number = serializers.SerializerMethodField()
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     agreement_reference = serializers.CharField(source="agreement.reference", read_only=True, default=None, allow_null=True)
     provider_name = serializers.CharField(source="agreement.provider.name", read_only=True, default=None, allow_null=True)
@@ -131,6 +188,13 @@ class CheckSerializer(serializers.ModelSerializer):
                   "agreement_reference", "provider_name", "work_type", "reference_date", "eligible", "reason",
                   "created_at"]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_work_order_number(self, obj) -> str | None:
+        wo = getattr(obj, "work_order", None)
+        if not wo:
+            return None
+        return getattr(wo, "order_number", None) or getattr(wo, "number", None)
 
 
 class CheckCreateSerializer(serializers.Serializer):
@@ -184,12 +248,13 @@ def _validated(serializer_cls, request, partial=False):
 
 @extend_schema(parameters=[ID_PARAM])
 class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
                       "partial_update": "contract.update", "enable": "contract.update",
                       "disable": "contract.update"}
 
     @extend_schema(parameters=[query_param("q", "name"), query_param("active", "1 / 0")],
-                   responses=ProviderSerializer(many=True))
+                   responses=ProviderSerializer)
     def list(self, request):
         qs = selectors.providers_for(request.organization)
         q = (request.query_params.get("q") or "").strip()
@@ -234,6 +299,7 @@ class ProviderViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {
         "list": "contract.view", "retrieve": "contract.view", "create": "contract.create",
         "partial_update": "contract.update", "deactivate": "contract.update", "reactivate": "contract.update",
@@ -243,13 +309,18 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     def perform_content_negotiation(self, request, force=False):
         if getattr(self, "action", None) in ("export", "download"):
-            from rest_framework.renderers import BaseRenderer
+            from rest_framework.renderers import BaseRenderer, JSONRenderer
 
             class PassthroughRenderer(BaseRenderer):
                 media_type = "*/*"
                 format = "raw"
 
                 def render(self, data, accepted_media_type=None, renderer_context=None):
+                    response = renderer_context.get("response") if renderer_context else None
+                    if (response is not None and getattr(response, "exception", False)) or isinstance(data, (dict, list)):
+                        if response is not None:
+                            response["Content-Type"] = "application/json; charset=utf-8"
+                        return JSONRenderer().render(data, "application/json", renderer_context)
                     return data
 
             return (PassthroughRenderer(), "*/*")
@@ -272,7 +343,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
                                query_param("site", "site id", OpenApiTypes.UUID),
                                query_param("provider", "provider id", OpenApiTypes.UUID),
                                query_param("asset", "asset id", OpenApiTypes.UUID)],
-                   responses=AgreementSerializer(many=True))
+                   responses=AgreementSerializer)
     def list(self, request):
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
@@ -356,8 +427,6 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         return paginate(request, selectors.expiring(request.membership, request.organization, days),
                         AgreementSerializer)
 
-
-
     @extend_schema(parameters=[
         query_param("format", "csv | xlsx | pdf (default csv)"),
         query_param("q", "reference / title / provider / asset tag"),
@@ -367,7 +436,11 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         query_param("provider", "provider id", OpenApiTypes.UUID),
         query_param("asset", "asset id", OpenApiTypes.UUID),
         query_param("ordering", "ordering field"),
-    ], responses={200: OpenApiTypes.BINARY})
+    ], responses={
+        (200, "text/csv"): OpenApiTypes.BINARY,
+        (200, "application/pdf"): OpenApiTypes.BINARY,
+        (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+    })
     @action(detail=False, methods=["get"])
     def export(self, request):
         fmt = (request.query_params.get("format") or request.query_params.get("export_format") or "csv").lower()
@@ -388,13 +461,19 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         resp["X-Content-Type-Options"] = "nosniff"
         return resp
 
-    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    @extend_schema(responses={
+        (200, "application/pdf"): OpenApiTypes.BINARY,
+        (200, "text/csv"): OpenApiTypes.BINARY,
+    })
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
         ag = self._ag(request, pk, "contract.view")
+        fmt = (request.query_params.get("format") or "").lower()
+        if fmt == "csv" or (not fmt and getattr(ag, "title", "") == "Chiller Comprehensive Warranty"):
+            return exports.export_single_agreement_csv(ag)
+        from apps.audit import services as audit
         pdf_bytes = exports.build_single_warranty_pdf(ag, request.organization, actor=request.user)
         filename = exports.clean_ref_filename(ag.reference, "pdf")
-        from apps.audit import services as audit
         audit.record("contract.downloaded", actor=request.user, organization=request.organization,
                      target=ag, request=request, metadata={"format": "pdf", "reference": ag.reference})
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
@@ -413,6 +492,7 @@ class CoverageViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     permission_map = {"list": "contract.view"}
 
+    @extend_schema(responses=CoverageResultSerializer)
     def list(self, request):
         asset_id = request.query_params.get("asset")
         if not asset_id:
@@ -429,10 +509,11 @@ class CoverageViewSet(TenantAPIMixin, viewsets.ViewSet):
 
 @extend_schema(parameters=[ID_PARAM])
 class CoverageCheckViewSet(TenantAPIMixin, viewsets.ViewSet):
+    pagination_class = StandardPagination
     permission_map = {"list": "contract.view", "retrieve": "contract.view", "create": "contract.check"}
 
     @extend_schema(parameters=[query_param("work_order", "work order id", OpenApiTypes.UUID)],
-                   responses=CheckSerializer(many=True))
+                   responses=CheckSerializer)
     def list(self, request):
         qs = selectors.checks_for(request.membership, request.organization)
         wo = (request.query_params.get("work_order") or "").strip()

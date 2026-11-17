@@ -52,6 +52,7 @@ def test_stock_10_issue_2_return_1_then_issue_10_is_rejected(inv_):
     wo = wo_in_progress(p)
     stock(p["wh"], p["part"], 10, p["stores"])
     line = line_for(p, wo, qty="12")
+    inv.reserve(line, p["wh"], 2, actor=p["stores"].user)
     inv.issue(line, p["wh"], 2, actor=p["stores"].user)
     assert bal(p["wh"], p["part"]).on_hand == 8
     inv.return_stock(line, 1, actor=p["stores"].user)
@@ -64,7 +65,7 @@ def test_stock_10_issue_2_return_1_then_issue_10_is_rejected(inv_):
     assert StockMovement.objects.count() == movements_before  # and no phantom movement
     types = list(StockMovement.objects.filter(part=p["part"]).order_by("created_at").values_list(
         "movement_type", "on_hand_delta"))
-    assert types == [("RECEIPT", 10), ("ISSUE", -2), ("RETURN", 1)]
+    assert types == [("RECEIPT", 10), ("RESERVE", 0), ("ISSUE", -2), ("RETURN", 1)]
     assert_ledger_consistent(p["org"])
 
 
@@ -224,6 +225,7 @@ def test_reserved_stock_cannot_be_issued_to_someone_else_or_adjusted_or_transfer
         inv.adjust(p["wh"], p["part"], -5, reason="shrinkage", actor=p["stores"].user)
     with pytest.raises(Conflict):
         inv.transfer(p["wh"], p["wh2"], p["part"], 3, actor=p["stores"].user)
+    inv.reserve(l2, p["wh"], 2, actor=p["stores"].user)
     inv.issue(l2, p["wh"], 2, actor=p["stores"].user)
     assert_ledger_consistent(p["org"])
 
@@ -235,9 +237,13 @@ def test_issue_without_stock_and_beyond_requirement(inv_):
     p = inv_
     line = line_for(p, wo_in_progress(p), qty="3")
     with pytest.raises(Conflict) as exc:
-        inv.issue(line, p["wh"], 1, actor=p["stores"].user)  # no balance row at all
+        inv.reserve(line, p["wh"], 1, actor=p["stores"].user)  # no balance row at all
     assert exc.value.code == "insufficient_available"
+    with pytest.raises(Conflict) as exc:
+        inv.issue(line, p["wh"], 1, actor=p["stores"].user)
+    assert exc.value.code == "reservation_required"
     stock(p["wh"], p["part"], 10, p["stores"])
+    inv.reserve(line, p["wh"], 1, actor=p["stores"].user)
     with pytest.raises(Conflict) as exc:
         inv.issue(line, p["wh"], 4, actor=p["stores"].user)
     assert exc.value.code == "exceeds_requirement"
@@ -256,6 +262,7 @@ def test_wrong_site_and_wrong_warehouse_are_rejected(inv_):
     with pytest.raises(ValidationFailed) as exc:
         inv.issue(line, p["whs2"], 1, actor=p["stores"].user)  # warehouse of another site
     assert exc.value.code == "wrong_site"
+    inv.reserve(line, p["wh"], 1, actor=p["stores"].user)
     inv.issue(line, p["wh"], 1, actor=p["stores"].user)
     with pytest.raises(Conflict) as exc:
         inv.issue(line, p["wh2"], 1, actor=p["stores"].user)  # line is committed to MAIN
@@ -289,6 +296,7 @@ def test_consume_writes_the_m06_material_row_and_respects_ownership(inv_):
     line = line_for(p, wo, qty="5")
     with pytest.raises(Conflict):
         inv.consume(line, 1, actor=p["tech"].user, membership=p["tech"])  # nothing issued yet
+    inv.reserve(line, p["wh"], 5, actor=p["stores"].user)
     inv.issue(line, p["wh"], 5, actor=p["stores"].user)
     with pytest.raises(PermissionDenied):
         inv.consume(line, 1, actor=p["tech2"].user, membership=p["tech2"])  # not the assignee
@@ -329,6 +337,7 @@ def test_issue_state_gates(inv_):
     assert exc.value.code == "work_order_state"
     t0 = timezone.now() + timedelta(days=1)
     step(draft, "plan", p, "planner", planned_start=t0, planned_end=t0 + timedelta(hours=1))
+    inv.reserve(line, p["wh"], 1, actor=p["stores"].user)
     inv.issue(line, p["wh"], 1, actor=p["stores"].user)  # PLANNED: ok
     with pytest.raises(Conflict):
         inv.consume(line, 1, actor=p["tech"].user, membership=p["tech"])  # not started: nothing to consume yet
@@ -421,6 +430,7 @@ def test_closure_is_blocked_by_outstanding_parts_then_reconciles_the_lines(inv_)
     stock(p["wh"], p["part"], 10, p["stores"])
     wo = wo_in_progress(p)
     line = line_for(p, wo, qty="4")
+    inv.reserve(line, p["wh"], 4, actor=p["stores"].user)
     inv.issue(line, p["wh"], 4, actor=p["stores"].user)
     inv.consume(line, 3, actor=p["tech"].user, membership=p["tech"])
     wo = _ready_for_review(p, wo)
@@ -444,6 +454,7 @@ def test_closing_releases_reservations_and_cancels_never_issued_lines(inv_):
     stock(p["wh"], p["part"], 10, p["stores"])
     wo = wo_in_progress(p)
     l_issued = line_for(p, wo, qty="2")
+    inv.reserve(l_issued, p["wh"], 2, actor=p["stores"].user)
     inv.issue(l_issued, p["wh"], 2, actor=p["stores"].user)
     inv.consume(l_issued, 2, actor=p["tech"].user, membership=p["tech"])
     l_held = line_for(p, wo, part=p["part2"], qty="3")
@@ -498,6 +509,7 @@ def test_cancel_line_rules(inv_):
     # a cancelled line can be requested again
     line = inv.request_part(wo, p["part"], 1, actor=p["tech"].user, membership=p["tech"])
     assert line.status == "REQUESTED" and line.quantity_requested == 1
+    inv.reserve(line, p["wh"], 1, actor=p["stores"].user)
     inv.issue(line, p["wh"], 1, actor=p["stores"].user)
     with pytest.raises(InvalidTransition):
         inv.cancel_line(line, actor=p["stores"].user, membership=p["stores"])  # issued: return / reconcile instead

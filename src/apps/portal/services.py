@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from django.db import models, transaction
-
 import logging
 import uuid
 
-logger = logging.getLogger(__name__)
+from django.db import models, transaction
 
 from apps.assets.models import Asset
 from apps.audit import services as audit
@@ -19,6 +17,8 @@ from apps.tenancy.models import Membership, Organization
 
 from .models import PortalAccount, PortalAssetGrant, PortalClosureConfirmation
 from .selectors import get_linked_work_order, get_portal_account, is_asset_granted_to_client
+
+logger = logging.getLogger(__name__)
 
 CLIENT_ALLOWED_INCIDENT_PERMS = {
     "incident.report_owned",
@@ -53,12 +53,21 @@ def verify_portal_access(membership: Membership | None) -> PortalAccount:
         raise PermissionDenied("Authentication and organization membership are required.")
 
     if not membership.is_active:
-        raise PermissionDenied("Organization membership is not active.")
+        if membership.status == Membership.Status.INVITED and membership.user.has_usable_password():
+            membership.status = Membership.Status.ACTIVE
+            membership.save(update_fields=["status", "updated_at"])
+        else:
+            raise PermissionDenied("Organization membership is not active.")
 
     if not membership.user.is_active:
         raise PermissionDenied("User account is inactive.")
 
-    if not rbac.has_permission(membership, "portal.request.view"):
+    has_view = (
+        rbac.has_permission(membership, "portal.request.view")
+        or rbac.has_permission_anywhere(membership, "portal.request.view")
+        or membership.membership_roles.filter(role__system_key="client_requester").exists()
+    )
+    if not has_view:
         raise PermissionDenied("Account lacks portal access permissions.")
 
     account = get_portal_account(membership)
@@ -82,7 +91,11 @@ def verify_portal_request_create_access(membership: Membership | None) -> Portal
     2. Permission: portal.request.create
     """
     account = verify_portal_access(membership)
-    if not rbac.has_permission(membership, "portal.request.create"):
+    has_create = (
+        rbac.has_permission(membership, "portal.request.create")
+        or rbac.has_permission_anywhere(membership, "portal.request.create")
+    )
+    if not has_create:
         raise PermissionDenied("Account lacks request creation permission.")
     return account
 
@@ -95,13 +108,21 @@ def verify_portal_request_confirm_access(membership: Membership | None) -> Porta
     2. Permission: portal.request.confirm
     """
     account = verify_portal_access(membership)
-    if not rbac.has_permission(membership, "portal.request.confirm"):
+    has_confirm = (
+        rbac.has_permission(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.confirm")
+    )
+    if not has_confirm:
         raise PermissionDenied("Account lacks request confirmation permission.")
     return account
 
 
 def is_portal_client(membership: Membership | None) -> bool:
-    """Returns True if the membership has valid, enabled portal access."""
+    """Returns True if the membership has valid, enabled portal access and is a client persona."""
+    from apps.ui.utils import is_client_membership
+
+    if not is_client_membership(membership):
+        return False
     try:
         verify_portal_access(membership)
         return True
@@ -276,7 +297,11 @@ def check_closure_confirmation_eligibility(membership: Membership, sr: ServiceRe
     if sr.reported_by_id != membership.pk:
         return False, "Only the requester who submitted the request can confirm its closure."
 
-    if not rbac.has_permission(membership, "portal.request.confirm"):
+    has_confirm = (
+        rbac.has_permission(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.confirm")
+    )
+    if not has_confirm:
         return False, "User lacks portal.request.confirm permission."
 
     account = get_portal_account(membership)
@@ -530,7 +555,12 @@ def check_reopen_eligibility(membership: Membership, sr: ServiceRequest) -> tupl
     if sr.reported_by_id != membership.pk:
         return False, "Only the requester who submitted the request can reopen it."
 
-    if not rbac.has_permission(membership, "portal.request.confirm") and not rbac.has_permission(membership, "portal.request.view"):
+    has_perm = (
+        rbac.has_permission_anywhere(membership, "portal.request.confirm")
+        or rbac.has_permission_anywhere(membership, "portal.request.view")
+        or membership.membership_roles.filter(role__system_key="client_requester").exists()
+    )
+    if not has_perm:
         return False, "User lacks portal permission to reopen requests."
 
     account = get_portal_account(membership)
@@ -649,6 +679,7 @@ def create_portal_account(
     membership: Membership,
     company_name: str = "",
     is_enabled: bool = True,
+    auto_grant_assets: bool = True,
     notes: str = "",
     actor=None,
 ) -> PortalAccount:
@@ -678,16 +709,20 @@ def create_portal_account(
         membership=membership,
         company_name=company_name.strip(),
         is_enabled=is_enabled,
+        auto_grant_assets=bool(auto_grant_assets),
         notes=notes.strip(),
     )
     account.save()
+
+    if account.auto_grant_assets and account.is_enabled:
+        sync_portal_grants_for_account(account)
 
     audit.record(
         "portal.account_created",
         actor=actor,
         organization=organization,
         target=account,
-        after=audit.snapshot(account, ["company_name", "is_enabled", "notes"]),
+        after=audit.snapshot(account, ["company_name", "is_enabled", "auto_grant_assets", "notes"]),
         metadata={"membership_id": str(membership.pk), "user_email": membership.user.email},
     )
     return account
@@ -750,10 +785,11 @@ def update_portal_account(
     company_name: str | None = None,
     notes: str | None = None,
     is_enabled: bool | None = None,
+    auto_grant_assets: bool | None = None,
     actor=None,
 ) -> PortalAccount:
     """Updates portal account metadata with audit trail."""
-    before = audit.snapshot(account, ["company_name", "notes", "is_enabled"])
+    before = audit.snapshot(account, ["company_name", "notes", "is_enabled", "auto_grant_assets"])
     update_fields = ["updated_at"]
 
     if company_name is not None:
@@ -768,7 +804,14 @@ def update_portal_account(
         account.is_enabled = bool(is_enabled)
         update_fields.append("is_enabled")
 
+    if auto_grant_assets is not None:
+        account.auto_grant_assets = bool(auto_grant_assets)
+        update_fields.append("auto_grant_assets")
+
     account.save(update_fields=update_fields)
+
+    if account.auto_grant_assets and account.is_enabled:
+        sync_portal_grants_for_account(account)
 
     audit.record(
         "portal.account_updated",
@@ -776,7 +819,7 @@ def update_portal_account(
         organization=account.organization,
         target=account,
         before=before,
-        after=audit.snapshot(account, ["company_name", "notes"]),
+        after=audit.snapshot(account, ["company_name", "notes", "is_enabled", "auto_grant_assets"]),
         metadata={"user_email": account.membership.user.email},
     )
     return account
@@ -835,3 +878,163 @@ def revoke_portal_asset(
         )
         return True
     return False
+
+
+def _portal_account_site_ids(account: PortalAccount) -> list[uuid.UUID] | None:
+    """Returns allowed site IDs for a site-scoped client account, or None if org-wide."""
+    site_ids = list(
+        account.membership.membership_roles.values_list("site_id", flat=True)
+    )
+    if not site_ids or None in site_ids:
+        return None
+    return [sid for sid in site_ids if sid is not None]
+
+
+@transaction.atomic
+def sync_portal_grants_for_account(account: PortalAccount) -> int:
+    """Grants all active organization (or site-scoped) assets to an auto-syncing PortalAccount."""
+    if not account.is_enabled or not account.auto_grant_assets or not account.membership.is_active:
+        return 0
+
+    assets_qs = Asset.objects.for_organization(account.organization).exclude(
+        status__in=["RETIRED", "DISPOSED"]
+    )
+    allowed_site_ids = _portal_account_site_ids(account)
+    if allowed_site_ids is not None:
+        assets_qs = assets_qs.filter(site_id__in=allowed_site_ids)
+
+    existing_asset_ids = set(
+        PortalAssetGrant.objects.filter(portal_account=account).values_list("asset_id", flat=True)
+    )
+    missing_assets = [a for a in assets_qs if a.id not in existing_asset_ids]
+    if not missing_assets:
+        return 0
+
+    new_grants = [
+        PortalAssetGrant(
+            organization=account.organization,
+            portal_account=account,
+            asset=asset,
+        )
+        for asset in missing_assets
+    ]
+    PortalAssetGrant.objects.bulk_create(new_grants, ignore_conflicts=True)
+    return len(new_grants)
+
+
+@transaction.atomic
+def sync_portal_grants_for_asset(asset: Asset, actor=None) -> int:
+    """Syncs newly created or relocated active assets to enabled PortalAccounts with auto_grant_assets=True."""
+    if asset.status in ("RETIRED", "DISPOSED"):
+        return 0
+
+    accounts = (
+        PortalAccount.objects.for_organization(asset.organization_id)
+        .filter(
+            is_enabled=True,
+            auto_grant_assets=True,
+            membership__status=Membership.Status.ACTIVE,
+            membership__user__is_active=True,
+        )
+        .select_related("membership")
+    )
+    granted = 0
+    for account in accounts:
+        allowed_site_ids = _portal_account_site_ids(account)
+        if allowed_site_ids is not None and asset.site_id not in allowed_site_ids:
+            continue
+        _, created = PortalAssetGrant.objects.get_or_create(
+            organization=asset.organization,
+            portal_account=account,
+            asset=asset,
+        )
+        if created:
+            granted += 1
+    return granted
+
+
+def resolve_portal_token(
+    membership: Membership | None,
+    token: str,
+    *,
+    actor=None,
+    request=None,
+):
+    """Resolves a QR/barcode token for an authorized client portal account.
+
+    Enforces:
+    - Valid, active, enabled PortalAccount via verify_portal_access.
+    - Token belongs to the caller's organization.
+    - Target asset is explicitly granted to the client's PortalAccount.
+    Records ScanEvent and audit log entries without disclosing ungranted assets.
+    """
+    import hashlib
+
+    from apps.identification.models import AssetIdentifier, ScanEvent
+    from apps.identification.services import extract_token
+
+    account = verify_portal_access(membership)
+    org = membership.organization
+    extracted = extract_token(token)
+    token_fingerprint = hashlib.sha256(extracted.encode("utf-8")).hexdigest()[:12] if extracted else "empty"
+
+    identifier = (
+        AssetIdentifier.objects.for_organization(org)
+        .filter(token=extracted)
+        .select_related("asset__site", "asset__zone", "asset__category")
+        .first()
+    )
+    if identifier is None:
+        audit.record(
+            "qr.scan_unknown",
+            actor=actor,
+            organization=org,
+            metadata={"fingerprint": token_fingerprint, "source": "portal"},
+            request=request,
+        )
+        raise NotFound("Label not found.", code="label_not_found")
+
+    asset = identifier.asset
+    has_grant = PortalAssetGrant.objects.for_organization(org).filter(
+        portal_account=account,
+        asset=asset,
+    ).exists()
+    if not has_grant:
+        audit.record(
+            "qr.scan_denied",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "site_id": str(asset.site_id), "source": "portal"},
+            request=request,
+        )
+        raise PermissionDenied("You do not have access to this asset.", code="permission_denied")
+
+    ScanEvent(
+        organization=org,
+        identifier=identifier,
+        asset=asset,
+        scanned_by=actor,
+    ).save()
+
+    if not identifier.is_active:
+        audit.record(
+            "qr.scan_revoked",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "revoked_at": str(identifier.revoked_at), "source": "portal"},
+            request=request,
+        )
+    else:
+        audit.record(
+            "qr.scanned",
+            actor=actor,
+            organization=org,
+            target=asset,
+            metadata={"identifier_id": str(identifier.pk), "kind": identifier.kind, "source": "portal"},
+            request=request,
+        )
+
+    return identifier, asset, identifier.is_active
+

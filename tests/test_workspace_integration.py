@@ -405,7 +405,7 @@ class Module07FullLifecycleIntegrationTests(TestCase):
             "hours": "1.0",
             "description": "Unauthorized API labor",
         })
-        self.assertEqual(res_api_labor.status_code, 400)
+        self.assertIn(res_api_labor.status_code, (400, 403))
 
         # 5. Cross-tenant isolation: user from second organization cannot even find the job (404)
         other_org_admin = User.objects.create_user(

@@ -316,3 +316,33 @@ def test_cross_tenant_inventory_isolation(inv_, org_b, make_member):
     # Tenant B cannot find Tenant A's part via scoped selector
     with pytest.raises(NotFound):
         selectors.get_part(org_b, part_a.pk)
+
+
+def test_site_scoped_stores_manager_can_access_parts_catalog(inv_, client):
+    """
+    Regression test: A stores manager assigned with a specific site scope
+    must still have permission to view the spare parts catalog at /app/inventory/parts/.
+    Previously, inventory.part.view lacked site_scoped=True, causing a 403 Forbidden error.
+    """
+    from apps.rbac.models import Role, MembershipRole
+    from apps.tenancy import selectors as tenancy_selectors
+
+    org = inv_["org"]
+    site = inv_["site"]
+    stores_m = inv_["stores"]
+    user = stores_m.user
+
+    # Assign stores_manager role scoped specifically to site
+    role = Role.objects.unscoped().get(organization=org, system_key="stores_manager")
+    MembershipRole.objects.filter(membership=stores_m).delete()
+    MembershipRole.objects.create(membership=stores_m, role=role, site=site)
+
+    client.force_login(user)
+    session = client.session
+    session[tenancy_selectors.SESSION_KEY] = str(org.id)
+    session.save()
+
+    resp = client.get("/app/inventory/parts/")
+    assert resp.status_code == 200
+    assert inv_["part"].part_number.encode() in resp.content
+

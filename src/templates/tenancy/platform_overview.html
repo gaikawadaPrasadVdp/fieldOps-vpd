@@ -1,0 +1,135 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Platform Governance Overview · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span class="badge bg-dark text-warning border border-warning px-2 py-1 small">System Administration &amp; Governance</span>
+      <span class="text-secondary small">FieldOps Nexus Multi-Tenant Engine</span>
+    </div>
+    <h1 class="h3 fw-bold text-dark mb-1">Platform Overview</h1>
+    <div class="text-secondary small">
+      Welcome back, <strong>{{ request.user.display_name|default:request.user.email }}</strong>. Multi-tenant administration, organization lifecycle, and platform-wide security audit ledger.
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'platform_admin:organization_create' %}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+      {% icon 'plus' 14 %} New Organization
+    </a>
+    <a href="{% url 'platform_admin:organizations' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+      {% icon 'building' 14 %} Manage Organizations
+    </a>
+    <a href="{% url 'platform_admin:audit' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+      {% icon 'shield' 14 %} Platform Audit Trail
+    </a>
+  </div>
+</div>
+
+<!-- Primary Platform KPI Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-3">
+    {% include "components/_kpi_card.html" with title="Total Organizations" value=total_orgs subtitle="Registered tenant organizations" tone="primary" icon="building" %}
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    {% include "components/_kpi_card.html" with title="Active Organizations" value=active_orgs subtitle="Operational tenants" tone="success" icon="check-circle" %}
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    {% include "components/_kpi_card.html" with title="Inactive / Suspended" value=suspended_orgs subtitle="Suspended or pending deletion" tone="warning" icon="clock" %}
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    {% include "components/_kpi_card.html" with title="Organization Owners" value=total_owners subtitle="Registered organization owners" tone="gold" icon="shield" %}
+  </div>
+</div>
+
+<!-- Platform Governance Navigation & Recent Security Activity -->
+<div class="row g-4">
+  <!-- Recent Platform Audit Activity Column -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm bg-white overflow-hidden mb-4" style="border-radius:10px;">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          {% icon 'clock' 16 %}
+          <span class="fw-bold text-dark">Recent Platform Governance Activity</span>
+        </div>
+        <a class="small text-decoration-none fw-semibold" style="color:var(--fx-gold);" href="{% url 'platform_admin:audit' %}">
+          Full Platform Audit Trail &rarr;
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_activity %}
+        <div class="table-responsive">
+          <table class="table align-middle table-hover mb-0 small">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-3">Action</th>
+                <th>Actor</th>
+                <th>Organization</th>
+                <th class="text-end pe-3">Occurred</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in recent_activity %}
+              <tr>
+                <td class="ps-3 font-monospace fw-semibold text-primary">{{ entry.action }}</td>
+                <td>{{ entry.actor_email|default:"system (automated)" }}</td>
+                <td>
+                  {% if entry.organization %}
+                    <span class="fw-semibold text-dark">{{ entry.organization.name }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-end pe-3 text-secondary">{{ entry.occurred_at|date:"M j, H:i" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted small">
+          No platform security or organization events recorded yet.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Operational Shortcuts Column -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm bg-white p-3 mb-4" style="border-radius:10px;">
+      <h6 class="fw-bold text-dark mb-3">Platform Governance Shortcuts</h6>
+      <div class="d-flex flex-column gap-2">
+        <a href="{% url 'platform_admin:organization_create' %}" class="btn btn-outline-primary btn-sm text-start d-flex justify-content-between align-items-center py-2 px-3">
+          <span>{% icon 'plus' 14 %} Create Organization &amp; Owner</span>
+          <span>&rarr;</span>
+        </a>
+        <a href="{% url 'platform_admin:organizations' %}" class="btn btn-outline-secondary btn-sm text-start d-flex justify-content-between align-items-center py-2 px-3">
+          <span>{% icon 'building' 14 %} All Organizations</span>
+          <span>&rarr;</span>
+        </a>
+        <a href="{% url 'platform_admin:audit' %}" class="btn btn-outline-secondary btn-sm text-start d-flex justify-content-between align-items-center py-2 px-3">
+          <span>{% icon 'shield' 14 %} Platform Audit Ledger</span>
+          <span>&rarr;</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Governance Status Card -->
+    <div class="card border-0 shadow-sm bg-white p-3" style="border-radius:10px;">
+      <h6 class="fw-bold text-dark mb-2">Governance Boundary</h6>
+      <div class="small text-secondary mb-3">
+        Platform Super Administrators manage multi-tenant lifecycle, organization provisioning, and owner accounts. Tenant-internal operational data is strictly quarantined per Rule D-008.
+      </div>
+      <div class="d-flex flex-column gap-1 small text-secondary">
+        <div><strong>Role Identity:</strong> Platform Super Administrator</div>
+        <div><strong>Tenant Isolation:</strong> Enforced</div>
+        <div><strong>Audit Logging:</strong> Append-Only Trigger</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

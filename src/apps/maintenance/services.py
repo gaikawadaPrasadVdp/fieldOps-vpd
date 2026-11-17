@@ -264,8 +264,9 @@ def _validate_schedule(plan: MaintenancePlan, data: dict) -> dict:
     if kind == Trigger.TIME:
         if data.get("frequency") not in MaintenanceSchedule.Frequency.values:
             raise ValidationFailed("Choose a frequency.", code="invalid_frequency")
+        count_val = data.get("interval_count") if data.get("interval_count") is not None else data.get("interval")
         try:
-            count = int(data.get("interval_count"))
+            count = int(count_val)
         except (TypeError, ValueError) as exc:
             raise ValidationFailed("The interval must be a whole number.", code="invalid_interval") from exc
         if not 1 <= count <= 1000:
@@ -304,18 +305,55 @@ def _validate_schedule(plan: MaintenancePlan, data: dict) -> dict:
     return out
 
 
+def _is_duplicate_schedule_error(exc: IntegrityError) -> bool:
+    diag = getattr(getattr(exc, "__cause__", None), "diag", None)
+    constraint = (getattr(diag, "constraint_name", None) or "").lower()
+    if constraint in ("uniq_time_schedule_per_plan", "uniq_meter_schedule_per_plan"):
+        return True
+    msg = str(exc).lower()
+    if "uniq_time_schedule_per_plan" in msg or "uniq_meter_schedule_per_plan" in msg:
+        return True
+    if "unique constraint failed" in msg and (
+        ("plan_id" in msg and "frequency" in msg and "interval_count" in msg)
+        or ("plan_id" in msg and "meter_id" in msg and "interval_value" in msg)
+    ):
+        return True
+    return False
+
+
 @transaction.atomic
 def create_schedule(plan: MaintenancePlan, *, actor, request=None, **data) -> MaintenanceSchedule:
     plan = MaintenancePlan.objects.select_for_update(of=("self",)).select_related("asset", "site").get(pk=plan.pk)
     _check_asset(plan.organization, plan.asset)
     fields = _validate_schedule(plan, data)
     sch = MaintenanceSchedule(organization=plan.organization, plan=plan, **fields)
+
+    # Pre-check duplicate schedule before database insertion to avoid misinterpreting constraint errors
+    if sch.trigger_type == Trigger.TIME:
+        dup = MaintenanceSchedule.objects.filter(
+            plan=plan,
+            trigger_type=Trigger.TIME,
+            frequency=sch.frequency,
+            interval_count=sch.interval_count,
+        ).exists()
+    else:
+        dup = MaintenanceSchedule.objects.filter(
+            plan=plan,
+            trigger_type=Trigger.METER,
+            meter=sch.meter,
+            interval_value=sch.interval_value,
+        ).exists()
+    if dup:
+        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule")
+
     try:
         with transaction.atomic():
             _resync(sch, timezone.now())
             sch.save()
     except IntegrityError as exc:
-        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        if _is_duplicate_schedule_error(exc):
+            raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        raise
     audit.record("maintenance.schedule_created", actor=actor, organization=plan.organization, target=sch,
                  after={**audit.snapshot(sch, SCHEDULE_FIELDS), "plan": plan.name}, request=request)
     return sch
@@ -344,7 +382,9 @@ def update_schedule(sch: MaintenanceSchedule, *, actor, request=None, **data) ->
                 resolution = _resync(sch, timezone.now())
             sch.save()
     except IntegrityError as exc:
-        raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        if _is_duplicate_schedule_error(exc):
+            raise Conflict("The plan already has an identical schedule.", code="duplicate_schedule") from exc
+        raise
     after = audit.snapshot(sch, SCHEDULE_FIELDS)
     if after != before or resolution:
         audit.record("maintenance.schedule_updated", actor=actor, organization=sch.organization, target=sch,
@@ -473,8 +513,7 @@ def generate_cycle(schedule: MaintenanceSchedule, *, actor=None, now: datetime |
     if due is None and manual:
         if MaintenanceCycle.objects.for_organization(sch.organization).filter(schedule=sch).exclude(
                 work_order__status__in=("CLOSED", "CANCELLED")).exists():
-            raise Conflict("The previous cycle's work order is still open: finish it before generating the next "
-                           "occurrence early.", code="previous_cycle_open")
+            raise Conflict("The previous cycle's work order is still open: finish it before generating the next occurrence early.", code="previous_cycle_open")
         if sch.trigger_type == Trigger.TIME:
             due = rec.Due(sch.next_sequence, 0, due_date=sch.next_due_date)
         else:
