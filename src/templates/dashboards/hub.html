@@ -98,6 +98,7 @@
     {% include "dashboards/_kpi_card.html" with title="New Requests" value=kpis.new_requests_in_window unit="reported" hint="New incident calls in window" %}
     {% include "dashboards/_kpi_card.html" with title="SLA Breaches" value=kpis.sla_breaches unit="breaches" hint="Target SLA commitment breaches" %}
   {% elif section == "inventory" %}
+    {% include "dashboards/_kpi_card.html" with title="Pending Requests" value=kpis.pending_parts_requests unit="requests" hint="Technician part requests awaiting fulfillment" %}
     {% include "dashboards/_kpi_card.html" with title="Stocked SKU Lines" value=kpis.total_stock_lines unit="lines" hint="Total managed parts inventory items" %}
     {% include "dashboards/_kpi_card.html" with title="Low Stock Alerts" value=kpis.low_stock_alerts unit="items" hint="Items below reorder point" %}
     {% include "dashboards/_kpi_card.html" with title="Net Parts Consumed" value=kpis.net_parts_consumed unit="ledger" hint="Issues minus returns to work orders" %}
@@ -311,4 +312,71 @@
     </div>
   {% endif %}
 </div>
+
+{% if section == "inventory" %}
+<!-- Pending Parts Requests Queue for Stores & Inventory Dashboard -->
+<div class="card border-0 shadow-sm mt-4 bg-white overflow-hidden" style="border-radius:10px;">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between p-3 border-bottom">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-warning-subtle text-warning-emphasis p-2 rounded-circle">{% icon 'package' 16 %}</span>
+      <h6 class="mb-0 fw-bold text-dark">Pending Parts Requests Queue</h6>
+      <span class="badge bg-warning text-dark">{{ trace_data.pending_parts_requests|length }} Awaiting Fulfillment</span>
+    </div>
+    <a class="small text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);" href="{% url 'inventory:requests' %}">
+      Open Full Queue &rarr;
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table fx-table align-middle mb-0">
+      <thead class="table-light small text-secondary">
+        <tr>
+          <th>Part Number &amp; SKU</th>
+          <th>Work Order &amp; Site</th>
+          <th class="text-center">Requested Qty</th>
+          <th>Requested By</th>
+          <th>Status</th>
+          <th class="text-end pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in trace_data.pending_parts_requests %}
+        <tr>
+          <td>
+            <div class="fw-bold font-monospace text-dark">
+              <a href="{% url 'inventory:part' req.part.pk %}" class="text-decoration-none">{{ req.part.part_number }}</a>
+            </div>
+            <div class="small text-secondary">{{ req.part.name }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark small">
+              <a href="{% url 'workorders:detail' req.work_order.pk %}" class="text-decoration-none">{{ req.work_order.order_number }}</a>
+            </div>
+            <div class="text-secondary small">{% icon 'pin' 12 %} {{ req.work_order.site.name }}</div>
+          </td>
+          <td class="text-center fw-bold">{{ req.quantity_requested|floatformat:0 }} {{ req.part.unit|default:"units" }}</td>
+          <td class="small">
+            {% if req.requested_by %}<div class="text-dark fw-medium">{{ req.requested_by.email }}</div>{% else %}<span class="text-secondary">Field Technician</span>{% endif %}
+            <div class="text-muted small">{{ req.created_at|date:"M d, H:i" }}</div>
+          </td>
+          <td>
+            <span class="badge bg-warning text-dark border border-warning-subtle fw-semibold">Pending Fulfillment</span>
+          </td>
+          <td class="text-end pe-3">
+            <a href="{% url 'inventory:wo_parts' req.work_order.pk %}" class="btn btn-sm btn-primary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm">
+              Fulfill &rarr;
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-4 text-body-secondary">
+            No incoming or pending parts requests. All technician orders are fulfilled.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

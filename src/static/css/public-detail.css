@@ -131,7 +131,7 @@
   position: relative;
   background-color: var(--fx-det-navy) !important;
   color: #FFFFFF !important;
-  padding-top: 5rem;
+  padding-top: 2rem;
   padding-bottom: 6rem;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -139,7 +139,7 @@
 
 @media (min-width: 992px) {
   .fx-detail-hero {
-    padding-top: 6.5rem;
+    padding-top: 2.25rem;
     padding-bottom: 7rem;
   }
 }
@@ -554,7 +554,7 @@
 
 @media (max-width: 991px) {
   .fx-detail-hero {
-    padding-top: 4.25rem;
+    padding-top: 2rem;
     padding-bottom: 4.75rem;
   }
   .fx-detail-desc {
@@ -570,7 +570,7 @@
 
 @media (max-width: 768px) {
   .fx-detail-hero {
-    padding-top: 3.5rem;
+    padding-top: 1.75rem;
     padding-bottom: 4rem;
   }
   .fx-detail-title {
@@ -621,7 +621,7 @@
 
 @media (max-width: 320px) {
   .fx-detail-hero {
-    padding-top: 2.75rem;
+    padding-top: 1.5rem;
     padding-bottom: 3.25rem;
   }
   .fx-detail-title {

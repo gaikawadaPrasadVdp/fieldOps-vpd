@@ -47,7 +47,21 @@ def database_from_url(url: str) -> dict:
 SECRET_KEY = env("DJANGO_SECRET_KEY", required=True)
 DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+for _host in (".onrender.com", "fieldops.onrender.com", "fieldops-qry5.onrender.com", "fieldops-vpd-nb4u.onrender.com"):
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+for _origin in (
+    "https://*.onrender.com",
+    "https://fieldops.onrender.com",
+    "https://fieldops-qry5.onrender.com",
+    "https://fieldops-vpd-nb4u.onrender.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+):
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 SITE_BASE_URL = env("SITE_BASE_URL", "http://localhost:8000")
 
 INSTALLED_APPS = [
@@ -92,6 +106,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "apps.core.middleware.AuthPrefixRewriteMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
     "apps.core.csp.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -337,7 +352,7 @@ FILE_UPLOAD_PERMISSIONS = 0o640
 # --- DRF / OpenAPI ----------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.auth.FieldOpsJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],

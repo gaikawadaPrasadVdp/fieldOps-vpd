@@ -15,6 +15,19 @@ from . import logging as flogging
 _VALID_ID = re.compile(r"^[A-Za-z0-9\-_.]{8,64}$")
 
 
+class AuthPrefixRewriteMiddleware:
+    """Transparently rewrites /auth/... to /api/v1/auth/... for clients calling without api/v1 prefix."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path_info or request.path or ""
+        if path.startswith("/auth/"):
+            request.path_info = "/api/v1" + path
+        return self.get_response(request)
+
+
 class RequestIdMiddleware:
     """Assigns/propagates X-Request-ID and emits one structured access-log line per request."""
 
@@ -238,6 +251,8 @@ class SessionIdleTimeoutMiddleware:
                     last_ts = None
                 if last_ts is not None and (now_ts - last_ts) > idle_limit:
                     auth_logout(request)
+                    from django.middleware.csrf import rotate_token
+                    rotate_token(request)
                     if self._wants_json(request):
                         return JsonResponse(
                             {

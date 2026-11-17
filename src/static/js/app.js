@@ -358,6 +358,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // Hierarchy Relationship Form Invariants (PRD M03 / 2-level hierarchy)
+  function initHierarchyRelationshipGuards() {
+    var forms = document.querySelectorAll("form[action*='component_edit'], form[action*='component_add'], #asset-form");
+    forms.forEach(function (form) {
+      var relSelect = form.querySelector("select[name='relationship_type']");
+      var childSelect = form.querySelector("select[name='child']");
+
+      // For component_edit forms: relationship_type is locked for equipment with existing parent component relationship
+      if (form.action.indexOf("component_edit") !== -1 && relSelect) {
+        relSelect.disabled = true;
+        relSelect.setAttribute("disabled", "disabled");
+      }
+
+      // For component_add forms: if child select is disabled or has no options, lock relationship_type
+      if (childSelect && relSelect) {
+        if (childSelect.disabled || childSelect.options.length <= 1) {
+          relSelect.disabled = true;
+          relSelect.setAttribute("disabled", "disabled");
+        }
+      }
+    });
+  }
+
+  initHierarchyRelationshipGuards();
+  document.body.addEventListener("htmx:afterSettle", initHierarchyRelationshipGuards);
+  document.body.addEventListener("htmx:afterSwap", initHierarchyRelationshipGuards);
+
   // Global Toast auto-dismiss handler
   function initAutoDismiss() {
     var alerts = document.querySelectorAll(".fx-toast-message:not([data-dismiss-queued]), [data-auto-dismiss]:not([data-dismiss-queued])");
@@ -1920,6 +1947,82 @@ document.addEventListener("click", function (e) {
     });
   }
 
+  function initLaborForm(root) {
+    var form = (root && root.id === "onSiteLaborForm")
+      ? root
+      : (root ? root.querySelector("#onSiteLaborForm") : null);
+    if (!form || form.dataset.laborValidationInitialized === "true") return;
+    form.dataset.laborValidationInitialized = "true";
+
+    var descInput = form.querySelector("#id_labor_description") || form.querySelector('[name="description"]');
+    var descError = form.querySelector("#labor-description-error");
+
+    if (descInput) {
+      descInput.addEventListener("keydown", function (e) {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key && e.key.length === 1 && /\d/.test(e.key)) {
+          e.preventDefault();
+          if (descError) {
+            descInput.classList.add("is-invalid");
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+        }
+      });
+
+      descInput.addEventListener("input", function () {
+        if (/\d/.test(this.value)) {
+          this.value = this.value.replace(/[0-9]/g, "");
+          if (descError) {
+            this.classList.add("is-invalid");
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+        } else {
+          var val = this.value.trim();
+          if (val && !/[A-Za-z]/.test(val)) {
+            this.classList.add("is-invalid");
+            if (descError) {
+              descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+              descError.classList.remove("d-none");
+              descError.classList.add("d-block");
+              descError.style.display = "block";
+            }
+          } else if (val) {
+            this.classList.remove("is-invalid");
+            if (descError) {
+              descError.textContent = "";
+              descError.classList.remove("d-block");
+              descError.classList.add("d-none");
+              descError.style.display = "none";
+            }
+          }
+        }
+      });
+    }
+
+    form.addEventListener("submit", function (e) {
+      if (descInput) {
+        var raw = descInput.value || "";
+        if (/\d/.test(raw) || !/[A-Za-z]/.test(raw.trim())) {
+          e.preventDefault();
+          e.stopPropagation();
+          descInput.classList.add("is-invalid");
+          if (descError) {
+            descError.textContent = "Work Description must contain only alphabetical characters and cannot contain numbers.";
+            descError.classList.remove("d-none");
+            descError.classList.add("d-block");
+            descError.style.display = "block";
+          }
+          descInput.focus();
+        }
+      }
+    });
+  }
+
   // Hook into lifecycle events
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
@@ -1927,12 +2030,14 @@ document.addEventListener("click", function (e) {
       initAssetForm(document);
       initMemberInviteForm(document);
       initDocumentUploadForm(document);
+      initLaborForm(document);
     });
   } else {
     initSiteForm(document);
     initAssetForm(document);
     initMemberInviteForm(document);
     initDocumentUploadForm(document);
+    initLaborForm(document);
   }
 
   // Hook into HTMX swaps
@@ -1942,6 +2047,7 @@ document.addEventListener("click", function (e) {
       initAssetForm(evt.detail.target);
       initMemberInviteForm(evt.detail.target);
       initDocumentUploadForm(evt.detail.target);
+      initLaborForm(evt.detail.target);
     }
   });
 
@@ -2442,3 +2548,94 @@ document.addEventListener("click", function (e) {
     idleIntervalId = setInterval(checkIdleExpiration, pollMs);
   }
 })();
+
+/* ==========================================================================
+   Universal CSP-Compliant Event Delegations
+   Replaces all inline onchange, onsubmit, and onclick event handler attributes
+   ========================================================================== */
+(function () {
+  // 1. Auto-submit dropdowns: <select data-auto-submit="change">
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-auto-submit='change']");
+    if (sel && sel.form) {
+      if (typeof sel.form.requestSubmit === "function") {
+        sel.form.requestSubmit();
+      } else {
+        sel.form.submit();
+      }
+    }
+  });
+
+  // 2. Form submission confirmations: <form data-confirm="Are you sure?">
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("form[data-confirm]");
+    if (!form || form.dataset.confirmed === "1") return;
+    var msg = form.getAttribute("data-confirm");
+    if (!window.confirm(msg)) {
+      ev.preventDefault();
+      return false;
+    }
+  });
+
+  // 3. Button/Link click confirmations: <button data-confirm-click="Are you sure?">
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-confirm-click]");
+    if (!btn) return;
+    var msg = btn.getAttribute("data-confirm-click");
+    if (!window.confirm(msg)) {
+      ev.preventDefault();
+      return false;
+    }
+  });
+
+  // 4. Form submission prompt: <form data-prompt="Reason:" data-prompt-default="Def" data-prompt-target="reason">
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("form[data-prompt]");
+    if (!form) return;
+    var msg = form.getAttribute("data-prompt");
+    var defaultVal = form.getAttribute("data-prompt-default") || "";
+    var targetName = form.getAttribute("data-prompt-target") || "reason";
+    var res = window.prompt(msg, defaultVal);
+    if (res === null) {
+      ev.preventDefault();
+      return false;
+    }
+    var input = form.elements[targetName];
+    if (input) {
+      input.value = res;
+    }
+  });
+
+  // 5. Audit Evidence Package Generator Form
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest("#evidence-form");
+    if (!form) return;
+    ev.preventDefault();
+    var idInput = form.querySelector("#wo-evidence-id");
+    var val = idInput ? idInput.value.trim() : "";
+    if (val) {
+      window.location.href = "/app/audit/evidence/work-order/" + encodeURIComponent(val) + "/";
+    }
+  });
+
+  // 6. RBAC Role Preset and Bulk Permission Toggles
+  document.addEventListener("change", function (ev) {
+    var select = ev.target.closest("[data-action='apply-role-preset']");
+    if (!select) return;
+    var memberId = select.getAttribute("data-member-id");
+    if (typeof window.applyRolePreset === "function") {
+      window.applyRolePreset(memberId, select);
+    }
+  });
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-action='toggle-all-perms']");
+    if (!btn) return;
+    var memberId = btn.getAttribute("data-member-id");
+    var check = btn.getAttribute("data-check") === "true";
+    if (typeof window.toggleAllPerms === "function") {
+      window.toggleAllPerms(memberId, check);
+    }
+  });
+})();
+

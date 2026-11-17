@@ -13,16 +13,29 @@
     <h1>SLA tracking</h1>
     <div class="text-body-secondary">Response and resolution timers of requests and work orders. Times are wall-clock; a timer pauses only for states the profile lists.</div>
   </div>
-  <div class="d-flex gap-2 align-items-center">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
     <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'ui:home' %}" data-action="go-back" data-fallback="{% url 'ui:home' %}">
       {% icon 'arrow-left' 14 %} Back to Overview
     </a>
+    {% if can_manage %}
+    <a class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" href="{% url 'sla:profiles' %}" id="btn-sla-profiles" title="Manage SLA Profiles">
+      <i class="bi bi-sliders me-1"></i>SLA Profiles
+    </a>
+    <a class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1" href="{% url 'sla:profile_new' %}" id="btn-new-profile" title="Configure New SLA Profile">
+      <i class="bi bi-plus-lg me-1"></i>New Profile
+    </a>
+    {% endif %}
+    {% if summary.breaches_open %}
+    <a class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" href="{% url 'sla:breaches' %}?status=OPEN" id="btn-review-breaches" title="Review and acknowledge open breaches">
+      <i class="bi bi-exclamation-triangle me-1"></i>Review Breaches ({{ summary.breaches_open }})
+    </a>
+    {% endif %}
     {% if can_process %}
     <form method="post" action="{% url 'sla:process' %}" class="m-0" id="run-check-form">
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
-      <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="run-check" type="submit">
-        <span id="run-check-icon">{% icon 'refresh-cw' 16 %}</span>
+      <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" id="run-check" type="submit">
+        <span id="run-check-icon">{% icon 'refresh-cw' 14 %}</span>
         <span id="run-check-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
         <span id="run-check-text">Run Check Now</span>
       </button>
@@ -43,7 +56,9 @@
       {% include "components/_kpi_card.html" with title="Paused" value=summary.paused|default:0 tone="warning" icon="pause" %}
     </div>
     <div class="col-12 col-sm-6 col-lg-3">
-      {% include "components/_kpi_card.html" with title="Open Breaches" value=summary.breaches_open|default:0 tone="danger" icon="alert-circle" %}
+      <a href="{% url 'sla:breaches' %}?status=OPEN" class="text-decoration-none d-block" title="View open breaches to acknowledge">
+        {% include "components/_kpi_card.html" with title="Open Breaches" value=summary.breaches_open|default:0 tone="danger" icon="alert-circle" %}
+      </a>
     </div>
     <div class="col-12 col-sm-6 col-lg-3">
       {% if summary.resolution.compliance_percent is None %}
@@ -121,7 +136,12 @@
             <td class="text-nowrap"><span class="fw-medium text-body">{{ t.site.code }}</span></td>
             <td>{% status_badge t.priority %}</td>
             <td class="small">
-              <span class="fw-medium">{{ t.profile.name }}</span>{% if t.use_business_hours %} <span class="badge bg-light text-primary border" title="Operating business hours">{% icon 'clock' 12 %} Biz Hrs</span>{% endif %}
+              {% if can_manage %}
+                <a href="{% url 'sla:profile' t.profile.pk %}" class="fw-semibold text-decoration-none text-primary" title="View SLA Profile configuration">{{ t.profile.name }}</a>
+              {% else %}
+                <span class="fw-medium">{{ t.profile.name }}</span>
+              {% endif %}
+              {% if t.use_business_hours %} <span class="badge bg-light text-primary border" title="Operating business hours">{% icon 'clock' 12 %} Biz Hrs</span>{% endif %}
               <div class="text-body-secondary">{{ t.selection_reason|default:"Organization policy" }}</div>
             </td>
             <td>{% status_badge t.response_state %}<div class="small text-body-secondary">due {{ t.response_due_at|date:"d M H:i" }}</div></td>
@@ -129,7 +149,23 @@
             <td>{% status_badge t.status %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="7">{% include "components/_empty_state.html" with title="No SLA trackings" text="Trackings start when an Incident / Breakdown or Work Order matches an active SLA Profile." %}</td></tr>
+          <tr><td colspan="7">
+            <div class="p-4 text-center">
+              <div class="mb-2 text-secondary fs-3"><i class="bi bi-clock-history"></i></div>
+              <div class="fw-semibold mb-1">No SLA Trackings Active</div>
+              <div class="text-body-secondary small mb-3">Trackings begin automatically when an Incident or Work Order matches an active SLA Profile.</div>
+              {% if can_manage %}
+              <div class="d-flex justify-content-center gap-2">
+                <a href="{% url 'sla:profile_new' %}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-plus-lg me-1"></i>Configure SLA Profile
+                </a>
+                <a href="{% url 'sla:profiles' %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-sliders me-1"></i>Manage Profiles
+                </a>
+              </div>
+              {% endif %}
+            </div>
+          </td></tr>
           {% endfor %}
         </tbody>
       </table>

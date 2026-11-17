@@ -104,14 +104,14 @@
               {% endif %}
               {% if org.is_scheduled_for_deletion %}
                 <form method="post" action="{% url 'platform_admin:organization_cancel_deletion' org.pk %}" class="d-inline"
-                      onsubmit="return confirm('Cancel the scheduled deletion for \'{{ org.name|escapejs }}\'? The organization will remain active.');">
+                      data-confirm="Cancel the scheduled deletion for '{{ org.name|escapejs }}'? The organization will remain active.">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-sm btn-outline-success" title="Cancel scheduled deletion">
                     Cancel Deletion
                   </button>
                 </form>
                 <form method="post" action="{% url 'platform_admin:organization_delete_now' org.pk %}" class="d-inline"
-                      onsubmit="return confirm('Permanently delete organization \'{{ org.name|escapejs }}\' right now? This will immediately remove all data and cannot be undone.');">
+                      data-confirm="Permanently delete organization '{{ org.name|escapejs }}' right now? This will immediately remove all data and cannot be undone.">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-sm btn-danger" title="Permanently delete organization immediately">
                     <i class="bi bi-trash3 me-1"></i> Delete Now
@@ -120,7 +120,7 @@
               {% else %}
                 {% if org.status == "ACTIVE" %}
                   <form method="post" action="{% url 'platform_admin:organization_toggle_status' org.pk %}" class="d-inline"
-                        onsubmit="var r = prompt('Reason for deactivating \'{{ org.name|escapejs }}\':', 'Deactivated by platform administrator'); if (r === null) return false; this.reason.value = r; return true;">
+                        data-prompt="Reason for deactivating '{{ org.name|escapejs }}':" data-prompt-default="Deactivated by platform administrator" data-prompt-target="reason">
                     {% csrf_token %}
                     <input type="hidden" name="reason" value="">
                     <button type="submit" class="btn btn-sm btn-outline-warning text-dark" title="Deactivate organization">
@@ -129,7 +129,7 @@
                   </form>
                 {% else %}
                   <form method="post" action="{% url 'platform_admin:organization_toggle_status' org.pk %}" class="d-inline"
-                        onsubmit="return confirm('Re-activate organization \'{{ org.name|escapejs }}\'? Users will regain access.');">
+                        data-confirm="Re-activate organization '{{ org.name|escapejs }}'? Users will regain access.">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-outline-success" title="Activate organization">
                       Activate

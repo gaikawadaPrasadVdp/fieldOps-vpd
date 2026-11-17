@@ -974,6 +974,65 @@ def set_technician_availability(
             },
             request=request,
         )
+
+    if status in (TechnicianProfile.AvailabilityStatus.ON_LEAVE, TechnicianProfile.AvailabilityStatus.OFF_DUTY):
+        from apps.workorders import services as wo_services
+        from apps.workorders.models import WorkOrder
+        from apps.notifications.services import notify
+
+        status_label = status.replace("_", " ").title()
+        reason = f"Technician availability set to {status_label}."
+        active_jobs = WorkOrder.objects.filter(
+            organization=membership.organization,
+            assigned_to=membership,
+            status__in=[
+                WorkOrder.Status.ASSIGNED,
+                WorkOrder.Status.DISPATCHED,
+                WorkOrder.Status.IN_PROGRESS,
+            ],
+        ).select_related("site")
+
+        held_orders = []
+        for job in active_jobs:
+            try:
+                held_wo = wo_services.transition_work_order(
+                    job,
+                    WorkOrder.Status.ON_HOLD,
+                    membership=membership,
+                    actor=actor,
+                    permission="work_order.hold",
+                    action="held",
+                    changes={"hold_reason": reason},
+                    reason=reason,
+                    request=request,
+                )
+                held_orders.append(held_wo)
+            except Exception:
+                job.status = WorkOrder.Status.ON_HOLD
+                job.hold_reason = reason
+                job.save(update_fields=["status", "hold_reason", "updated_at"])
+                held_orders.append(job)
+
+        if held_orders:
+            dispatcher_memberships = Membership.objects.for_organization(membership.organization).filter(
+                status=Membership.Status.ACTIVE,
+                membership_roles__role__role_permissions__permission__code__in=[
+                    "work_order.assign",
+                    "work_order.dispatch",
+                ],
+            ).select_related("user").distinct()
+            dispatcher_users = list({m.user for m in dispatcher_memberships if m.user != actor})
+            if dispatcher_users:
+                order_nums = ", ".join(wo.order_number for wo in held_orders[:5])
+                notify(
+                    membership.organization,
+                    dispatcher_users,
+                    title=f"Work orders placed On Hold ({membership.user.full_name or membership.user.email})",
+                    body=f"Technician availability changed to {status_label}. Work orders placed On Hold: {order_nums}",
+                    link="/app/work-orders/",
+                    source="technician_availability",
+                )
+
     return profile
 
 

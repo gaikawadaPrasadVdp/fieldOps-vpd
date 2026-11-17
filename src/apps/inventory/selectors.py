@@ -260,21 +260,39 @@ def lines_for_work_order(org, wo):
 
 
 def get_line(membership, org, pk) -> WorkOrderPart:
-    """A part line is visible when its work order is (M06 visibility: site scope or assignment)."""
+    """A part line is visible when its work order is (M06 visibility: site scope or assignment) or within inventory scope."""
     from apps.workorders.selectors import work_orders_for
+
+    if rbac.has_permission_anywhere(membership, "inventory.view"):
+        scope = rbac.site_scope(membership, "inventory.view")
+        qs = WorkOrderPart.objects.for_organization(org).select_related(
+            "part", "warehouse", "work_order__site", "requested_by"
+        )
+        if not scope.all_sites:
+            qs = qs.filter(work_order__site_id__in=scope.site_ids)
+        return scoped_get(qs, pk, "Part line")
 
     visible = work_orders_for(membership, org).values("pk")
     qs = WorkOrderPart.objects.for_organization(org).filter(work_order__in=visible).select_related(
-        "part", "warehouse", "work_order__site")
+        "part", "warehouse", "work_order__site", "requested_by")
     return scoped_get(qs, pk, "Part line")
 
 
 def lines_visible(membership, org):
     from apps.workorders.selectors import work_orders_for
 
+    if rbac.has_permission_anywhere(membership, "inventory.view"):
+        scope = rbac.site_scope(membership, "inventory.view")
+        qs = WorkOrderPart.objects.for_organization(org).select_related(
+            "part", "warehouse", "work_order", "work_order__site", "requested_by"
+        )
+        if not scope.all_sites:
+            qs = qs.filter(work_order__site_id__in=scope.site_ids)
+        return qs
+
     visible = work_orders_for(membership, org).values("pk")
     return WorkOrderPart.objects.for_organization(org).filter(work_order__in=visible).select_related(
-        "part", "warehouse", "work_order")
+        "part", "warehouse", "work_order", "work_order__site", "requested_by")
 
 
 def usable_warehouses(membership, org, site_id, code: str):

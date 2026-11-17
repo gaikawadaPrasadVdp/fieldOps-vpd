@@ -397,14 +397,14 @@ def home(request):
     from apps.checklists.models import ChecklistTemplate, Inspection
     from apps.contracts.models import CoverageAgreement
     from apps.incidents.models import ServiceRequest
-    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse
+    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse, WorkOrderPart
     from apps.portal.models import PortalAccount
     from apps.rbac.models import MembershipRole
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
     if getattr(request.user, "is_platform_admin", False) or getattr(request.user, "is_superuser", False):
-        return redirect("platform_admin:organizations")
+        return redirect("platform_admin:overview")
 
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
@@ -859,19 +859,32 @@ def home(request):
         low_stock = StockBalance.objects.for_organization(org).filter(min_level__isnull=False, on_hand__lte=F("min_level")).count()
         warehouses = Warehouse.objects.for_organization(org).count()
         reservations = PartReservation.objects.for_organization(org).filter(status="ACTIVE").count()
+        
+        pending_requests_qs = (
+            WorkOrderPart.objects.for_organization(org)
+            .filter(status=WorkOrderPart.Status.REQUESTED)
+            .select_related("part", "work_order", "work_order__site", "requested_by")
+            .order_by("-created_at")
+        )
+        pending_requests_count = pending_requests_qs.count()
+        stores_pending_requests = list(pending_requests_qs[:20])
+
         kpi_cards = [
+            {"title": "Pending Requests", "value": pending_requests_count, "subtitle": "Awaiting store issue / fulfillment", "tone": "warning", "icon": "package"},
             {"title": "Cataloged Parts", "value": total_parts, "subtitle": "Active spare part SKU catalog", "tone": "accent", "icon": "box"},
             {"title": "Low Stock Alerts", "value": low_stock, "subtitle": "Items below reorder point", "tone": "danger", "icon": "alert-triangle"},
             {"title": "Storage Warehouses", "value": warehouses, "subtitle": "Active storage locations", "tone": "gold", "icon": "building"},
-            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "warning", "icon": "clipboard"},
+            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "accent", "icon": "clipboard"},
         ]
         shortcuts = [
+            {"label": "Pending Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Warehouse Stock", "url": reverse("inventory:stock"), "icon": "grid"},
             {"label": "Stock Reservations", "url": reverse("inventory:reservations"), "icon": "list-check"},
             {"label": "Stock Movements", "url": reverse("inventory:movements"), "icon": "clipboard"},
         ]
         header_actions = [
+            {"label": "Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Stock Ledger", "url": reverse("inventory:stock"), "icon": "grid"},
         ]
@@ -1023,6 +1036,7 @@ def home(request):
     is_tech = persona_key in ("technician", "field_technician")
     is_dispatcher = persona_key == "service_dispatcher"
     is_planner = persona_key == "maintenance_planner"
+    is_stores = persona_key in ("stores_manager", "stores_inventory")
     return render(request, "ui/home.html", {
         "persona": persona,
         "recent_page_obj": locals().get("recent_page_obj"),
@@ -1042,6 +1056,9 @@ def home(request):
         "is_technician": is_tech,
         "is_dispatcher": is_dispatcher,
         "is_planner": is_planner,
+        "is_stores_manager": is_stores,
+        "stores_pending_requests": locals().get("stores_pending_requests", []),
+        "stores_pending_count": locals().get("pending_requests_count", 0),
         "dispatcher_requests": locals().get("dispatcher_requests", []),
         "dispatcher_work_orders": locals().get("dispatcher_work_orders", []),
         "planner_show_schedules": locals().get("planner_show_schedules", False),
@@ -1093,6 +1110,18 @@ def search(request):
         if rbac.has_permission(m, "role.view"):
             for r in Role.objects.for_organization(org).filter(name__icontains=q)[:5]:
                 results.append({"kind": "Role", "label": r.name, "sub": r.description, "url": f"/app/roles/{r.pk}/"})
+        if rbac.has_permission_anywhere(m, "work_order.view"):
+            from apps.workorders.models import WorkOrder
+            for wo in WorkOrder.objects.filter(organization=org).filter(
+                Q(order_number__icontains=q)
+            )[:5]:
+                results.append({"kind": "Work Order", "label": wo.order_number, "sub": str(wo.site or "Work Order"), "url": f"/app/work-orders/{wo.pk}/"})
+        if rbac.has_permission_anywhere(m, "asset.view"):
+            from apps.assets.models import Asset
+            for a in Asset.objects.filter(organization=org).filter(
+                Q(asset_tag__icontains=q) | Q(name__icontains=q)
+            )[:5]:
+                results.append({"kind": "Asset", "label": a.asset_tag or a.name, "sub": a.name, "url": f"/app/assets/{a.pk}/"})
     return render(request, "ui/_search_results.html", {"results": results, "q": q})
 
 

@@ -645,6 +645,11 @@ class LaborForm(BootstrapFormMixin, forms.Form):
         self.work_order = work_order
         super().__init__(*args, **kwargs)
 
+    def clean_description(self):
+        desc = self.cleaned_data.get("description")
+        from apps.ui.forms import validate_alphabetical_description
+        return validate_alphabetical_description(desc, field_label="Work Description")
+
     def clean(self):
         cleaned_data = super().clean()
         started_at = cleaned_data.get("started_at")

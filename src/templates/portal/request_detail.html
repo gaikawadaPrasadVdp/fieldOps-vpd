@@ -3,16 +3,21 @@
 
 {% block title %}{{ sr.number }} · Service Request Tracking · FieldOps Nexus{% endblock %}
 
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-3 d-print-none d-flex align-items-center gap-2">
+  <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to My Requests" aria-label="Back">
+    &larr; Back
+  </a>
+  <ol class="breadcrumb mb-0 small">
+    <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Portal</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'portal:requests_list' %}">My Requests</a></li>
+    <li class="breadcrumb-item active font-monospace fw-semibold" aria-current="page">{{ sr.number }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-0">
-  <!-- Breadcrumb Navigation -->
-  <nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb small">
-      <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}" class="text-decoration-none">Client Portal</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'portal:requests_list' %}" class="text-decoration-none">My Requests</a></li>
-      <li class="breadcrumb-item active font-monospace fw-semibold" aria-current="page">{{ sr.number }}</li>
-    </ol>
-  </nav>
 
   <!-- Page Header -->
   <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
@@ -209,7 +214,7 @@
           </div>
         </div>
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <button type="submit" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm" onclick="return confirm('Are you sure you want to confirm satisfactory completion of this service request?');">
+          <button type="submit" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm" data-confirm-click="Are you sure you want to confirm satisfactory completion of this service request?">
             {% icon 'check-circle' 16 %} Confirm Completion
           </button>
           {% if eligible_for_reopen %}
@@ -234,7 +239,7 @@
               <label for="reopen_reason" class="form-label small fw-semibold">Reason for Reopening <span class="text-danger">*</span></label>
               <textarea name="reason" id="reopen_reason" class="form-control form-control-sm" rows="3" required minlength="3" maxlength="500" placeholder="Describe the ongoing issue or why rework is required (mandatory, min 3 characters)..."></textarea>
             </div>
-            <button type="submit" class="btn btn-warning text-dark shadow-sm d-inline-flex align-items-center gap-2" onclick="return confirm('Are you sure you want to reopen this request for rework?');">
+            <button type="submit" class="btn btn-warning text-dark shadow-sm d-inline-flex align-items-center gap-2" data-confirm-click="Are you sure you want to reopen this request for rework?">
               {% icon 'alert-circle' 16 %} Submit Reopen Request
             </button>
           </form>

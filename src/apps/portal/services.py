@@ -903,16 +903,23 @@ def sync_portal_grants_for_account(account: PortalAccount) -> int:
     if allowed_site_ids is not None:
         assets_qs = assets_qs.filter(site_id__in=allowed_site_ids)
 
-    granted = 0
-    for asset in assets_qs:
-        _, created = PortalAssetGrant.objects.get_or_create(
+    existing_asset_ids = set(
+        PortalAssetGrant.objects.filter(portal_account=account).values_list("asset_id", flat=True)
+    )
+    missing_assets = [a for a in assets_qs if a.id not in existing_asset_ids]
+    if not missing_assets:
+        return 0
+
+    new_grants = [
+        PortalAssetGrant(
             organization=account.organization,
             portal_account=account,
             asset=asset,
         )
-        if created:
-            granted += 1
-    return granted
+        for asset in missing_assets
+    ]
+    PortalAssetGrant.objects.bulk_create(new_grants, ignore_conflicts=True)
+    return len(new_grants)
 
 
 @transaction.atomic

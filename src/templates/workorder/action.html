@@ -9,10 +9,6 @@
 
 {% block content %}
 
-<nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span
-    class="text-secondary">/</span> <a href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a> <span
-    class="text-secondary">/ {{ operation }}</span></nav>
-
 <div class="wo-form-card">
 
   <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>

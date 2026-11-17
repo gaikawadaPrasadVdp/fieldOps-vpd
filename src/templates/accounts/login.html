@@ -82,7 +82,7 @@
       {% endif %}
 
       <!-- Login Form -->
-      <form method="post" action="{% url 'accounts:login' %}" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
+      <form method="post" action="{% url 'accounts:login' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
         <!-- Email Address -->
         <div class="fx-login-group">
           <label for="id_username" class="fx-login-label">
@@ -149,7 +149,7 @@
 
         </div>
 
-        <input type="hidden" name="next" value="{% if next and next != '/' %}{{ next }}{% else %}/app/{% endif %}">
+        <input type="hidden" name="next" value="{% if next and next != '/' %}{{ next }}{% elif request.GET.next and request.GET.next != '/' %}{{ request.GET.next }}{% else %}/app/{% endif %}">
 
         <!-- Sign In Button -->
         <button type="submit" class="fx-login-submit-btn">

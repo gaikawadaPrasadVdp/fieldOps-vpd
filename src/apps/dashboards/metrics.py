@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from apps.assets.models import Asset
 from apps.incidents.models import Downtime, ServiceRequest
-from apps.inventory.models import StockBalance, StockMovement
+from apps.inventory.models import StockBalance, StockMovement, WorkOrderPart
 from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole, Role
 from apps.sites.models import Site
@@ -813,7 +813,7 @@ def get_service_dashboard(organization: Organization, sites: list[Site], start_d
 
 
 def get_inventory_dashboard(organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime) -> dict[str, Any]:
-    """Consolidates Inventory Section metrics (Parts consumption, low stock count)."""
+    """Consolidates Inventory Section metrics (Parts consumption, low stock count, pending requests)."""
     site_ids = [s.pk for s in sites]
     balances = StockBalance.objects.filter(
         organization=organization,
@@ -828,12 +828,19 @@ def get_inventory_dashboard(organization: Organization, sites: list[Site], start
         except Exception:
             continue
 
+    pending_requests_count = WorkOrderPart.objects.filter(
+        organization=organization,
+        work_order__site_id__in=site_ids,
+        status=WorkOrderPart.Status.REQUESTED,
+    ).count()
+
     parts_res = compute_parts_consumption(organization, sites, start_dt, end_dt)
 
     return {
         "section": "inventory",
         "date_range": {"from": start_dt.date().isoformat(), "to": end_dt.date().isoformat()},
         "kpis": {
+            "pending_parts_requests": pending_requests_count,
             "total_stock_lines": total_lines,
             "low_stock_alerts": low_stock_count,
             "net_parts_consumed": parts_res["value"],
