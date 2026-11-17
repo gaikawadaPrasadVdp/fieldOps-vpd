@@ -24,7 +24,7 @@ class RoleTemplate:
 TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate("owner", "Organization Owner", "Full control of the organization and all modules.", ("*",), is_owner=True),
     RoleTemplate(
-        "admin", "Super Admin", "System configuration, users, roles, sites, policies, and audit visibility.",
+        "admin", "Owner/Superadmin", "System configuration, users, roles, sites, policies, and audit visibility.",
         ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view", "report.create", "qr.*",
          "*.view", "incident.triage", "incident.approve", "work_order.create"),
         excludes=("portal.request.*",),

@@ -492,10 +492,11 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
         raise ValidationFailed("System roles cannot be stripped of permissions.", code="system_role")
     if role.is_system and name != role.name:
         aliases_map = {
+            "admin": {"Super Admin", "Owner/Super Admin", "Owner / Super Admin", "Owner/Superadmin"},
             "technician": {"Technician", "Field Technician", "Lead Field Technician"},
             "stores_manager": {"Stores Manager", "Stores / Inventory", "Stores", "Stores / Inventory Manager"},
             "auditor": {"Auditor", "Auditor / Report Consumer", "Auditor / Compliance", "Compliance", "Compliance & Audit Officer"},
-            "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner"},
+            "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner", "Owner/Super Admin", "Owner / Super Admin", "Owner/Superadmin"},
             "supervisor": {"Supervisor", "Maintenance Supervisor"},
             "service_manager": {"Service Manager", "Service & SLA Manager"},
             "service_dispatcher": {"Service Dispatcher"},

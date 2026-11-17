@@ -136,7 +136,7 @@ class OrganizationForm(BootstrapFormMixin, forms.Form):
 
 
 WORKFLOW_ROLES: tuple[tuple[str, str], ...] = (
-    ("admin", "Super Admin"),
+    ("admin", "Owner/Superadmin"),
     ("asset_manager", "Asset Manager"),
     ("maintenance_planner", "Maintenance Planner"),
     ("service_dispatcher", "Service Dispatcher"),
@@ -153,6 +153,12 @@ WORKFLOW_ROLE_ORDER = {key: idx for idx, (key, _) in enumerate(WORKFLOW_ROLES)}
 
 class _WorkflowRoleMultipleChoiceField(forms.ModelMultipleChoiceField):
     def label_from_instance(self, obj):
+        key = (getattr(obj, "system_key", "") or "").strip().lower()
+        name = (getattr(obj, "name", "") or "").strip().lower()
+        if key in ("admin", "super_admin", "superadmin") or name in (
+            "super admin", "superadmin", "owner/superadmin", "owner/super admin", "owner / super admin"
+        ):
+            return "Owner/Superadmin"
         return WORKFLOW_ROLE_LABELS.get(obj.system_key, obj.name)
 
 
@@ -160,6 +166,12 @@ def _role_field(org, membership=None):
     from django.db.models import Case, IntegerField, When
 
     from apps.rbac import services as rbac
+
+    if org and getattr(org, "pk", None):
+        try:
+            Role.objects.filter(organization=org, system_key="admin").update(name="Owner/Superadmin")
+        except Exception:
+            pass
 
     order_whens = [When(system_key=key, then=idx) for key, idx in WORKFLOW_ROLE_ORDER.items()]
     qs = (
@@ -191,26 +203,55 @@ def _role_field(org, membership=None):
     )
 
 
-def _site_field(org, membership=None, *, required=False):
+def _site_field(org, membership=None, *, required=True):
     from apps.rbac import services as rbac
     from apps.sites.models import Site
 
     qs = Site.objects.for_organization(org).order_by("code")
+    has_sites = False
+    try:
+        has_sites = qs.exists()
+    except Exception:
+        pass
+
     if membership is not None:
         if not rbac.has_role_assignment_permission(membership):
             return forms.ModelMultipleChoiceField(
                 queryset=Site.objects.none(), required=True,
                 widget=forms.CheckboxSelectMultiple, label="Limit to sites",
+                error_messages={"required": "Please select at least one site."},
             )
         scope = rbac.authorized_sites_for_actor(membership)
         if not scope.all_sites:
             qs = qs.filter(pk__in=scope.site_ids)
             required = True
+    help_text = (
+        "Select at least one site to assign to the user."
+        if has_sites
+        else "No sites created yet. At least one site must be created before adding users."
+    )
     return forms.ModelMultipleChoiceField(
         queryset=qs, required=required,
         widget=forms.CheckboxSelectMultiple, label="Limit to sites",
-        help_text="Leave empty for organization-wide access. Selected sites limit the chosen roles to those sites.",
+        help_text=help_text,
+        error_messages={"required": "Please select at least one site."},
     )
+
+
+def _is_real_org(org):
+    import uuid
+    if not org:
+        return False
+    pk = getattr(org, "pk", None)
+    if isinstance(pk, uuid.UUID):
+        return True
+    if isinstance(pk, str):
+        try:
+            uuid.UUID(pk)
+            return True
+        except (ValueError, AttributeError):
+            return False
+    return False
 
 
 class InviteForm(BootstrapFormMixin, forms.Form):
@@ -258,7 +299,14 @@ class InviteForm(BootstrapFormMixin, forms.Form):
         self.org = org
         self.membership = membership
         self.fields["roles"] = _role_field(org, membership=membership)
-        self.fields["sites"] = _site_field(org, membership=membership)
+        self.fields["sites"] = _site_field(org, membership=membership, required=True)
+        self.has_sites = False
+        if org and getattr(org, "pk", None):
+            try:
+                from apps.sites.models import Site
+                self.has_sites = Site.objects.for_organization(org).exists()
+            except Exception:
+                pass
 
     def clean_email(self):
         from apps.ui.forms import validate_strict_email
@@ -298,6 +346,24 @@ class InviteForm(BootstrapFormMixin, forms.Form):
             raise forms.ValidationError("Please select at least one role.")
         return roles
 
+    def clean_sites(self):
+        sites = self.cleaned_data.get("sites")
+        if not sites:
+            raise forms.ValidationError("Please select at least one site.")
+        return sites
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.org and _is_real_org(self.org):
+            from apps.sites.models import Site
+            if not Site.objects.for_organization(self.org).exists():
+                msg = "At least one site must be created before users can be created. Please create a site first."
+                self.add_error("sites", msg)
+                raise forms.ValidationError(msg)
+        if "sites" not in self.errors and not cleaned_data.get("sites"):
+            self.add_error("sites", "Please select at least one site.")
+        return cleaned_data
+
 
 class MemberEditForm(forms.Form):
     full_name = forms.CharField(
@@ -316,8 +382,19 @@ class MemberEditForm(forms.Form):
         return validate_alphabetical_name(self.cleaned_data.get("full_name"), field_label="Full name")
 
 
+class _RoleModelChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        key = (getattr(obj, "system_key", "") or "").strip().lower()
+        name = (getattr(obj, "name", "") or "").strip().lower()
+        if key in ("admin", "super_admin", "superadmin") or name in (
+            "super admin", "superadmin", "owner/superadmin", "owner/super admin", "owner / super admin"
+        ):
+            return "Owner/Superadmin"
+        return WORKFLOW_ROLE_LABELS.get(obj.system_key, obj.name)
+
+
 class RoleAssignmentForm(BootstrapFormMixin, forms.Form):
-    role = forms.ModelChoiceField(queryset=Role.objects.none())
+    role = _RoleModelChoiceField(queryset=Role.objects.none())
     site = forms.ModelChoiceField(queryset=None, required=False, empty_label="All sites (organization-wide)")
 
     def __init__(self, *args, org, membership=None, **kwargs):
