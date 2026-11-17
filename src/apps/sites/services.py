@@ -399,7 +399,11 @@ def delete_calendar(cal: OperatingCalendar, *, actor, request=None):
     snap, site, pk = audit.snapshot(cal, CALENDAR_FIELDS), cal.site, cal.pk
     org = cal.organization
     cal.holidays.all().delete()
-    cal.delete()
+    from django.db.models.deletion import ProtectedError
+    try:
+        cal.delete()
+    except ProtectedError as exc:
+        raise Conflict("Cannot delete calendar because it is referenced by an SLA profile or another object.", code="calendar_in_use") from exc
     audit.record("calendar.deleted", actor=actor, organization=org, target_repr=f"Calendar {snap['name']} ({pk})",
                  before=snap, metadata={"site": site.code}, request=request)
 
@@ -515,6 +519,8 @@ def create_shift(
 
     if is_overnight is None:
         is_overnight = end_time <= start_time
+    elif not is_overnight and end_time <= start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
     if days_of_week is None:
         days_of_week = [0, 1, 2, 3, 4]
 
@@ -551,6 +557,8 @@ def update_shift(shift: Shift, *, actor=None, request=None, **changes) -> Shift:
             setattr(shift, k, v)
     if "is_overnight" not in changes and ("start_time" in changes or "end_time" in changes):
         shift.is_overnight = shift.end_time <= shift.start_time
+    elif not shift.is_overnight and shift.end_time <= shift.start_time:
+        raise ValidationFailed("Shift end time must be after start time unless is_overnight is true.", code="invalid_shift_times")
     _save(shift, "A shift with this code already exists for the site.", "duplicate_shift")
     after = audit.snapshot(shift, SHIFT_FIELDS)
     if before != after:

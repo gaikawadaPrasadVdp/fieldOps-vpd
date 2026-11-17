@@ -422,7 +422,7 @@
                 <div class="d-flex align-items-center gap-2">
                   <span class="text-body-secondary small" title="{{ c.created_at }}">{{ c.created_at|date:"d M Y H:i" }}</span>
                   {% if c.author_id == request.user.id or request.membership.membership_roles.all %}
-                    <form method="post" action="{% url 'incidents:comment_delete' sr.pk c.pk %}" class="d-inline m-0" onsubmit="return confirm('Delete this comment?');">
+                    <form method="post" action="{% url 'incidents:comment_delete' sr.pk c.pk %}" class="d-inline m-0" data-confirm="Delete this comment?">
                       {% csrf_token %}
                       <button type="submit" class="btn btn-link btn-sm text-danger p-0 border-0" title="Delete message" aria-label="Delete message">
                         {% icon 'trash-2' 13 %}

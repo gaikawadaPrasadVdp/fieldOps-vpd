@@ -397,8 +397,8 @@
       <p class="small text-body-secondary mb-3">
         Compiles the complete audit-ready evidentiary archive for any work order: lifecycle timeline, checklist answers &amp; findings, labor/material logs, SLA tracking, attached files, and SHA-256 checksum manifest.
       </p>
-      <form id="evidence-form" onsubmit="event.preventDefault(); var id=document.getElementById('wo-evidence-id').value.trim(); if(id){ window.location.href='/app/audit/evidence/work-order/' + encodeURIComponent(id) + '/'; }" class="d-flex gap-2">
-        <input type="text" id="wo-evidence-id" list="wo-evidence-list" class="form-control form-control-sm" placeholder="Work Order # or UUID (e.g. WO-0001)" required aria-label="Work Order Number or UUID" autocomplete="off">
+      <form id="evidence-form" class="d-flex gap-2">
+        <input type="text" id="wo-evidence-id" list="wo-evidence-list" class="form-control form-control-sm" placeholder="Work Order # or UUID (e.g. WO-000001)" required aria-label="Work Order Number or UUID" autocomplete="off">
         <datalist id="wo-evidence-list">
           {% for wo in recent_work_orders %}
             <option value="{{ wo.order_number }}">{{ wo.order_number }} · {{ wo.title }}</option>

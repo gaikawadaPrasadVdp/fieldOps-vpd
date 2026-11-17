@@ -1,0 +1,176 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Part Requests Queue · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'inventory:stock' %}">Inventory</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Part Requests</li>
+      </ol>
+    </nav>
+    <h1 class="d-flex align-items-center gap-2">
+      {% icon 'package' 28 %}
+      Part Requests Queue
+    </h1>
+    <div class="text-body-secondary">
+      Technician part requests submitted from field work orders awaiting warehouse stock fulfillment, reservation, and issue.
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventory:parts' %}">
+      {% icon 'box' 16 %} Spare Parts
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'inventory:reservations' %}">
+      {% icon 'list-check' 16 %} Reservations
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'inventory:stock' %}">
+      {% icon 'grid' 16 %} Stock balances
+    </a>
+  </div>
+</div>
+
+{% include "components/_section_tabs.html" with section="Inventory" %}
+
+<div class="row g-3 mb-4 mt-1">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Pending Fulfillment" value=pending_count tone="warning" icon="clock" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Active Holds / Reserved" value=reserved_count tone="success" icon="check" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Part Requests" value=total_count tone="primary" icon="package" %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-12 col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light border-end-0">
+          {% icon 'search' 14 %}
+        </span>
+        <input
+          class="form-control form-control-sm border-start-0 bg-light"
+          type="search"
+          name="q"
+          value="{{ q }}"
+          placeholder="Search by part number, part name, work order #, site..."
+          aria-label="Search part requests"
+        >
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <select class="form-select form-select-sm" name="status" aria-label="Status filter">
+        <option value="PENDING" {% if status_filter == "PENDING" %}selected{% endif %}>Pending Fulfillment</option>
+        <option value="RESERVED" {% if status_filter == "RESERVED" %}selected{% endif %}>Reserved</option>
+        <option value="ISSUED" {% if status_filter == "ISSUED" %}selected{% endif %}>Issued</option>
+        <option value="ALL" {% if status_filter == "ALL" %}selected{% endif %}>All Statuses</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-sm btn-primary">
+        {% icon 'filter' 14 %} Filter
+      </button>
+      {% if q or status_filter != "PENDING" %}
+        <a href="{% url 'inventory:requests' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="fx-card">
+  <div class="table-responsive">
+    <table class="table fx-table align-middle mb-0" id="requests-table">
+      <thead>
+        <tr>
+          <th>Work Order &amp; Site</th>
+          <th>Part Number &amp; Name</th>
+          <th class="text-center">Requested Qty</th>
+          <th class="text-center">Issued / Reserved</th>
+          <th>Requested By</th>
+          <th class="text-center">Status</th>
+          <th class="text-end pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in page %}
+          <tr>
+            <td>
+              <a href="{% url 'workorders:detail' r.work_order_id %}" class="fw-semibold text-decoration-none text-primary">
+                {{ r.work_order.order_number }}
+              </a>
+              <div class="small text-dark text-truncate fw-medium" style="max-width: 220px;">
+                {{ r.work_order.title }}
+              </div>
+              <div class="small text-secondary">
+                {% icon 'pin' 12 %} {{ r.work_order.site.name }}
+              </div>
+            </td>
+            <td>
+              <div class="fw-bold font-monospace text-dark">
+                <a href="{% url 'inventory:part' r.part_id %}" class="text-decoration-none">
+                  {{ r.part.part_number }}
+                </a>
+              </div>
+              <div class="small text-body-secondary text-truncate" style="max-width: 240px;">
+                {{ r.part.name }}
+              </div>
+              {% if r.notes %}
+                <div class="small text-muted fst-italic text-truncate" style="max-width: 240px;">
+                  Notes: {{ r.notes }}
+                </div>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="fw-bold font-monospace text-dark fs-6">{{ r.quantity_requested|floatformat:"-3" }}</span>
+              <span class="text-muted small ms-1">{{ r.part.unit }}</span>
+            </td>
+            <td class="text-center small">
+              <div>Issued: <strong class="text-dark">{{ r.quantity_issued|floatformat:"-3" }}</strong></div>
+              {% if r.reservation %}
+                <div class="text-success small">Reserved: {{ r.reservation.quantity|floatformat:"-3" }} ({{ r.reservation.warehouse.code }})</div>
+              {% endif %}
+            </td>
+            <td class="small">
+              {% if r.requested_by %}
+                <div class="text-dark fw-medium">{{ r.requested_by.email }}</div>
+              {% else %}
+                <span class="text-secondary">Field Technician</span>
+              {% endif %}
+              <div class="text-muted small">{{ r.created_at|date:"M d, Y H:i" }}</div>
+            </td>
+            <td class="text-center">
+              {% if r.status == "REQUESTED" %}
+                <span class="badge bg-warning text-dark border border-warning-subtle fw-semibold px-2 py-1">
+                  Pending Fulfillment
+                </span>
+              {% else %}
+                {% status_badge r.status %}
+              {% endif %}
+            </td>
+            <td class="text-end pe-3">
+              <a href="{% url 'inventory:wo_parts' r.work_order_id %}" class="btn btn-sm btn-primary py-1 px-3 shadow-sm d-inline-flex align-items-center gap-1">
+                Fulfill &rarr;
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-body-secondary">
+              {% if q or status_filter != "PENDING" %}
+                {% include "components/_empty_state.html" with title="No matching part requests" text="No requests match your current filter criteria." %}
+              {% else %}
+                {% include "components/_empty_state.html" with title="No pending parts requests" text="All requested parts have been fulfilled or no open technician requests exist." %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

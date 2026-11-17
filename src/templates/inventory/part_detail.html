@@ -11,7 +11,7 @@
       </ol>
     </nav>
     <h1>{{ part.name }} {% if part.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
-    <div class="text-body-secondary"><span class="fw-medium text-dark">{{ part.part_number }}</span> · Stock Unit: <span class="badge bg-light text-secondary border">{{ part.unit }}</span></div>
+    <div class="text-body-secondary"><span class="fw-medium text-dark">{{ part.part_number }}</span> · Stock Unit: <span class="badge bg-light text-secondary border">{% if can_view_stock and totals %}{{ totals.on_hand|floatformat:"-3"|default:"0" }} {% endif %}{{ part.unit }}</span></div>
   </div>
   {% if can_manage %}
     <div class="d-flex gap-2 align-items-center">

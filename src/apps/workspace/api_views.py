@@ -16,37 +16,36 @@ from apps.tenancy.api import TenantAPIMixin
 from apps.workorders.models import WorkOrder
 from apps.workorders.serializers import LaborSerializer, WorkOrderSerializer
 
-logger = logging.getLogger(__name__)
-
 from . import selectors, services
 from .serializers import (
-    CompleteJobSerializer,
+    AssetMeterSummarySerializer,
     DailyCapacitySerializer,
+    JobAssetVerifySerializer,
+    JobCompleteWithSignoffSerializer,
     JobEvidenceSerializer,
     JobEvidenceUploadSerializer,
     JobLaborWriteSerializer,
     JobMaterialSerializer,
     JobMaterialWriteSerializer,
     JobMeterReadingWriteSerializer,
-    AssetMeterSummarySerializer,
     JobPartConsumeSerializer,
-    JobPartReturnSerializer,
     JobPartLineSerializer,
-    JobCompleteWithSignoffSerializer,
+    JobPartReturnSerializer,
+    JobReportDefectSerializer,
     PauseJobSerializer,
+    ShiftSerializer,
+    ShiftWriteSerializer,
     TechnicianJobSummarySerializer,
+    TechnicianProfileSerializer,
+    TechnicianProfileWriteSerializer,
     TravelLogSerializer,
     TravelLogWriteSerializer,
     WorkNoteSerializer,
-    ShiftSerializer,
-    ShiftWriteSerializer,
-    TechnicianProfileSerializer,
-    TechnicianProfileWriteSerializer,
     WorkNoteWriteSerializer,
     WorkOrderSignoffSerializer,
-    JobAssetVerifySerializer,
-    JobReportDefectSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_job(request, pk: str) -> WorkOrder:
@@ -122,7 +121,19 @@ class JobStartAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.start"}
 
-    @extend_schema(summary="Start job execution")
+    @extend_schema(
+        request=None,
+        summary="Start job execution",
+        responses={
+            200: inline_serializer(
+                name="JobStartResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "work_order": WorkOrderSerializer(),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         try:
@@ -141,7 +152,19 @@ class JobPauseAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.hold"}
 
-    @extend_schema(request=PauseJobSerializer, summary="Pause job execution (put on hold)")
+    @extend_schema(
+        request=PauseJobSerializer,
+        summary="Pause job execution (put on hold)",
+        responses={
+            200: inline_serializer(
+                name="JobPauseResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "work_order": WorkOrderSerializer(),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = PauseJobSerializer(data=request.data)
@@ -164,7 +187,19 @@ class JobResumeAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.start"}
 
-    @extend_schema(summary="Resume job execution")
+    @extend_schema(
+        request=None,
+        summary="Resume job execution",
+        responses={
+            200: inline_serializer(
+                name="JobResumeResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "work_order": WorkOrderSerializer(),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         try:
@@ -183,7 +218,19 @@ class JobTravelLogAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.record"}
 
-    @extend_schema(request=TravelLogWriteSerializer, summary="Log technician travel")
+    @extend_schema(
+        request=TravelLogWriteSerializer,
+        summary="Log technician travel",
+        responses={
+            201: inline_serializer(
+                name="JobTravelLogResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "travel_log": TravelLogSerializer(),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = TravelLogWriteSerializer(data=request.data)
@@ -329,6 +376,7 @@ class JobWorkNoteAPIView(TenantAPIMixin, APIView):
                 membership=request.membership,
                 actor=request.user,
                 request=request,
+                is_internal=serializer.validated_data.get("is_internal", False),
             )
         except DomainError as exc:
             return _workspace_error_response(exc)
@@ -347,7 +395,20 @@ class JobLaborAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.record"}
 
-    @extend_schema(request=JobLaborWriteSerializer, summary="Record job labor time")
+    @extend_schema(
+        request=JobLaborWriteSerializer,
+        summary="Record job labor time",
+        responses={
+            201: inline_serializer(
+                name="JobLaborResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "labor_id": serializers.CharField(),
+                    "hours": serializers.CharField(),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         serializer = JobLaborWriteSerializer(data=request.data)
@@ -558,7 +619,20 @@ class JobCompleteAPIView(TenantAPIMixin, APIView):
         }
         return Response(data, status=status.HTTP_200_OK)
 
-    @extend_schema(request=JobCompleteWithSignoffSerializer, summary="Complete job with customer digital signature")
+    @extend_schema(
+        request=JobCompleteWithSignoffSerializer,
+        summary="Complete job with customer digital signature",
+        responses={
+            200: inline_serializer(
+                name="JobCompleteResponse",
+                fields={
+                    "status": serializers.CharField(),
+                    "order_number": serializers.CharField(),
+                    "signoff": WorkOrderSignoffSerializer(allow_null=True, required=False),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
 
@@ -677,7 +751,22 @@ class JobAssetVerifyAPIView(TenantAPIMixin, APIView):
 
     permission_map = {"post": "work_order.view_assigned"}
 
-    @extend_schema(request=JobAssetVerifySerializer, summary="Verify physical asset tag or QR scan against job asset")
+    @extend_schema(
+        request=JobAssetVerifySerializer,
+        summary="Verify physical asset tag or QR scan against job asset",
+        responses={
+            200: inline_serializer(
+                name="JobAssetVerifyResponse",
+                fields={
+                    "verified": serializers.BooleanField(),
+                    "matched": serializers.BooleanField(),
+                    "asset": serializers.DictField(required=False),
+                    "message": serializers.CharField(required=False),
+                    "error": serializers.CharField(required=False),
+                },
+            )
+        },
+    )
     def post(self, request, pk: str):
         wo = _resolve_job(request, pk)
         services.assert_can_execute_job(wo, request.membership)
@@ -903,6 +992,7 @@ class ShiftDetailAPIView(TenantAPIMixin, APIView):
         updated = services.update_shift(shift, actor=request.user, request=request, **serializer.validated_data)
         return Response(ShiftSerializer(updated).data)
 
+    @extend_schema(summary="Delete shift", responses={204: None})
     def delete(self, request, pk):
         shift = self._get_shift(request, pk)
         shift.is_active = False
@@ -912,6 +1002,7 @@ class ShiftDetailAPIView(TenantAPIMixin, APIView):
 
 def _resolve_technician_membership(organization, pk):
     from apps.tenancy.models import Membership
+
     from .models import TechnicianProfile
 
     try:
@@ -996,6 +1087,11 @@ class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
             membership = _resolve_technician_membership(request.organization, pk)
         else:
             membership = request.membership
+            from django.core.exceptions import PermissionDenied
+
+            from apps.ui.utils import is_technician_membership
+            if not is_technician_membership(membership):
+                raise PermissionDenied("Only technicians can set availability.")
 
         new_status = request.data.get("availability_status") or request.data.get("status")
         if not new_status:

@@ -1,4 +1,5 @@
 from datetime import timedelta
+
 from django.apps import apps
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import DomainError, NotFound
+from apps.core.exceptions import NotFound
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 
@@ -111,10 +112,10 @@ class ServiceRequestWriteSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
 
     def validate_title(self, value):
-        from apps.ui.forms import validate_alphabetical_description
+        from apps.ui.forms import validate_incident_title
         from django.core.exceptions import ValidationError as DjangoValidationError
         try:
-            return validate_alphabetical_description(value, field_label="Title")
+            return validate_incident_title(value, field_label="Title")
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.message)
     description = serializers.CharField(required=False, allow_blank=True)
@@ -161,10 +162,10 @@ class ServiceRequestPatchSerializer(serializers.Serializer):
 
     def validate_title(self, value):
         if value:
-            from apps.ui.forms import validate_alphabetical_description
+            from apps.ui.forms import validate_incident_title
             from django.core.exceptions import ValidationError as DjangoValidationError
             try:
-                return validate_alphabetical_description(value, field_label="Title")
+                return validate_incident_title(value, field_label="Title")
             except DjangoValidationError as exc:
                 raise serializers.ValidationError(exc.message)
         return value
@@ -262,7 +263,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "downtime:put": "incident.downtime.manage",
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
-        "comments": "incident.view_assigned", "delete_comment": "incident.view_assigned",
+        "comments:get": "incident.view_assigned", "comments:post": "incident.view_assigned", "delete_comment": "incident.update",
     }
 
     def _qs(self, request, scope="incident.view"):
@@ -347,7 +348,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
             asset = Asset.objects.for_organization(request.organization).filter(
                 pk=asset_id, owner=request.membership).first()
             if asset is None:
-                return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+                raise NotFound("Asset not found.")
             require_permission(request.membership, "incident.report_owned", asset.site_id)
         else:
             asset = asset_selectors.get_asset(request.membership, request.organization, asset_id, "asset.view")
@@ -374,18 +375,15 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         sr = scoped_get(self._qs(request, "incident.create"), pk, "Request")
         require_permission(request.membership, "incident.create", sr.site_id)
         d = _validated(LinkDuplicateSerializer, request)
-        try:
-            new_sr = services.link_duplicate_request(
-                sr,
-                reporter=request.membership,
-                actor=request.user,
-                title=d.get("title", ""),
-                description=d.get("description", ""),
-                notes=d.get("notes", ""),
-                request=request,
-            )
-        except DomainError as exc:
-            return Response({"error": exc.message, "code": exc.code}, status=exc.status_code)
+        new_sr = services.link_duplicate_request(
+            sr,
+            reporter=request.membership,
+            actor=request.user,
+            title=d.get("title", ""),
+            description=d.get("description", ""),
+            notes=d.get("notes", ""),
+            request=request,
+        )
         return Response(ServiceRequestSerializer(self._obj(request, new_sr.pk)).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=ServiceRequestWriteSerializer, responses={201: ServiceRequestSerializer, 409: OpenApiTypes.OBJECT})
@@ -398,7 +396,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
             asset = Asset.objects.for_organization(request.organization).filter(
                 pk=asset_id, owner=request.membership).exclude(status__in=("RETIRED", "DISPOSED")).first()
             if asset is None:
-                return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+                raise NotFound("Asset not found.")
             require_permission(request.membership, "incident.report_owned", asset.site_id)
         else:
             asset = asset_selectors.get_asset(request.membership, request.organization, asset_id, "asset.view")
@@ -508,35 +506,24 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         from apps.ui.utils import is_client_membership
         if is_client_membership(m):
             is_internal = False
-        try:
-            comment = services.add_comment(
-                sr,
-                body=body,
-                actor=request.user,
-                membership=m,
-                is_internal=is_internal,
-                request=request,
-            )
-            return Response(ServiceRequestCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
-        except DomainError as exc:
-            return Response(
-                {"detail": exc.message, "code": getattr(exc, "code", "domain_error")},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        comment = services.add_comment(
+            sr,
+            body=body,
+            actor=request.user,
+            membership=m,
+            is_internal=is_internal,
+            request=request,
+        )
+        return Response(ServiceRequestCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path=r"comments/(?P<comment_id>[0-9a-f-]+)")
     def delete_comment(self, request, pk=None, comment_id=None):
-        sr = self._obj(request, pk)
-        try:
-            services.delete_comment(
-                request.organization,
-                comment_id,
-                actor=request.user,
-                membership=request.membership,
-                request=request,
-            )
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except DomainError as exc:
-            code = getattr(exc, "code", "error")
-            status_code = status.HTTP_403_FORBIDDEN if "permission" in code else status.HTTP_400_BAD_REQUEST
-            return Response({"detail": exc.message, "code": code}, status=status_code)
+        self._obj(request, pk)
+        services.delete_comment(
+            request.organization,
+            comment_id,
+            actor=request.user,
+            membership=request.membership,
+            request=request,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

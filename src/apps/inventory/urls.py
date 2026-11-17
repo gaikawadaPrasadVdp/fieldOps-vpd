@@ -22,6 +22,7 @@ urlpatterns = [
     path("inventory/stock/<uuid:pk>/adjust/", views.StockAdjustView.as_view(), name="stock_adjust"),
     path("inventory/stock/<uuid:pk>/scrap/", views.StockScrapView.as_view(), name="stock_scrap"),
     path("inventory/stock/<uuid:pk>/levels/", views.StockLevelsView.as_view(), name="stock_levels"),
+    path("inventory/requests/", views.PartRequestListView.as_view(), name="requests"),
     path("inventory/reservations/", views.ReservationListView.as_view(), name="reservations"),
     path("inventory/movements/", views.MovementListView.as_view(), name="movements"),
     path("work-orders/<uuid:pk>/parts/", views.WorkOrderPartsView.as_view(), name="wo_parts"),

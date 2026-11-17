@@ -14,7 +14,7 @@
       <option value="">All types</option>
       {% for v, l in types %}<option value="{{ v }}" {% if filters.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
     </select>
-    <select class="form-select form-select-sm" style="max-width:200px" name="ordering" aria-label="Sort order" onchange="this.form.submit()">
+    <select class="form-select form-select-sm" style="max-width:200px" name="ordering" aria-label="Sort order" data-auto-submit="change">
       <option value="-created_at" {% if filters.ordering == "-created_at" or filters.ordering == "-when" or not filters.ordering %}selected{% endif %}>Newest First</option>
       <option value="created_at" {% if filters.ordering == "created_at" or filters.ordering == "when" %}selected{% endif %}>Oldest First</option>
       <option value="part" {% if filters.ordering == "part" or filters.ordering == "part_number" %}selected{% endif %}>Part Number (A–Z)</option>

@@ -193,6 +193,7 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
     drawer_summary = get_drawer_summary(wo, membership=membership)
 
     all_parts = part_lines_for(wo)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
@@ -227,6 +228,8 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
         "labor_entries": list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at")),
         "materials": list(wo.material_entries.order_by("item_name")),
         "part_lines": all_parts,
+        "pending_part_requests": pending_part_requests,
+        "has_pending_part_requests": bool(pending_part_requests),
         "consumable_parts": consumable_parts,
         "has_consumable_parts": bool(consumable_parts),
         "consumed_parts": consumed_parts,
@@ -265,6 +268,7 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     total_labor_hours = sum((entry.hours for entry in labor_entries), Decimal("0.00"))
 
     all_parts = part_lines_for(wo)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
@@ -287,6 +291,9 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     if not wo.checklist_required:
         checklist_is_ready = True
 
+    from apps.inventory import services as inventory_services
+    part_request_blockers = inventory_services.completion_part_blockers(wo)
+
     # Overall completion blockers
     blockers = []
     if wo.status != WorkOrder.Status.IN_PROGRESS and wo.status != WorkOrder.Status.COMPLETED:
@@ -298,6 +305,8 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
             blockers.append("All mandatory checklists must be completed and validated.")
     if evidence_required and not has_evidence:
         blockers.append("At least one photo or file evidence attachment is required before completion.")
+    if part_request_blockers:
+        blockers.extend(part_request_blockers)
 
     can_complete = (len(blockers) == 0) and (wo.status == WorkOrder.Status.IN_PROGRESS)
     signoff = getattr(wo, "customer_signoff", None)
@@ -310,6 +319,8 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
         "total_labor_hours": total_labor_hours,
         "materials": list(wo.material_entries.order_by("item_name")),
         "part_lines": all_parts,
+        "pending_part_requests": pending_part_requests,
+        "has_pending_part_requests": bool(pending_part_requests),
         "consumable_parts": consumable_parts,
         "consumed_parts": consumed_parts,
         "returned_parts": returned_parts,

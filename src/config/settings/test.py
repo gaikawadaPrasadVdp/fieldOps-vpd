@@ -22,13 +22,20 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 MEDIA_ROOT = BASE_DIR.parent / ".pytest_media"  # noqa: F405
-ALLOWED_HOSTS = ["testserver", "localhost"]
+ALLOWED_HOSTS = [
+    "testserver",
+    "localhost",
+    ".onrender.com",
+    "fieldops.onrender.com",
+    "fieldops-qry5.onrender.com",
+    "fieldops-vpd-nb4u.onrender.com",
+]
 AXES_ENABLED = True
 RATE_LIMITING_ENABLED = True
 REST_FRAMEWORK = {  # noqa: F405
     **REST_FRAMEWORK,  # noqa: F405
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {"anon": "10000/min", "user": "10000/min", "login": "10000/min"},
+    "DEFAULT_THROTTLE_RATES": {"anon": "10000/min", "user": "10000/min", "login": "10000/min", "token_resolve": "10000/min"},
 }
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405

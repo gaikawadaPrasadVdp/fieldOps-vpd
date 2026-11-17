@@ -56,7 +56,27 @@ def exception_handler(exc, context):
     if isinstance(exc, drf.ValidationError):
         code, message, details = "validation_failed", "Validation failed.", {"fields": response.data}
     elif isinstance(exc, drf.NotAuthenticated | drf.AuthenticationFailed):
-        code, message, details = "not_authenticated", _clean_msg(exc.detail), {}
+        exc_code = None
+        if isinstance(exc.detail, dict):
+          exc_code = exc.detail.get("code")
+        if not exc_code:
+          exc_code = getattr(exc.detail, "code", None)
+        if exc_code == "token_not_valid":
+          code = "token_not_valid"
+          msg_str = "Token is invalid or expired."
+          if isinstance(exc.detail, dict) and "messages" in exc.detail:
+            msgs = exc.detail["messages"]
+            if isinstance(msgs, list) and msgs:
+              m0 = msgs[0]
+              if isinstance(m0, dict) and "message" in m0:
+                msg_str = str(m0["message"])
+          message, details = msg_str, {}
+        else:
+          code, message, details = (
+              "not_authenticated",
+              _clean_msg(exc.detail),
+              {},
+          )
     elif isinstance(exc, drf.PermissionDenied):
         code = getattr(exc.detail, "code", None) or getattr(exc, "default_code", "permission_denied")
         message, details = _clean_msg(exc.detail), {}

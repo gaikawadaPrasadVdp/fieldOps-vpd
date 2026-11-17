@@ -199,3 +199,14 @@ def test_cross_tenant_isolation_enforcement(as_user, org_a, org_b, owner_a):
     resp = client.get("/api/v1/members/")
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "not_a_member"
+
+
+def test_system_role_cannot_be_stripped_of_permissions_api(as_user, org_a, owner_a):
+    """DEF-025 / ORG-F-009: PUT on a system role with empty permissions must be rejected with 400."""
+    client = as_user(owner_a, org_a)
+    role = Role.objects.unscoped().filter(organization=org_a, is_owner=False).exclude(system_key="").first()
+    assert role is not None
+    resp = client.put(f"/api/v1/roles/{role.pk}/", {"name": role.name, "description": "desc", "permissions": []}, format="json")
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "system_role"
+

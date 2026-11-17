@@ -21,6 +21,7 @@ from apps.files import services as file_services
 from apps.rbac import services as rbac
 from apps.tenancy.models import Membership
 from apps.ui.mixins import TenantPermissionMixin
+from apps.ui.utils import TECHNICIAN_ROLE_KEYS, is_technician_membership
 
 from . import services
 from .assignment_rules import available_technicians, schedule_warnings
@@ -189,16 +190,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
             order.allowed_actions = services.allowed_actions(order, request.membership)
             order.is_overdue = bool(order.due_at and order.due_at < timezone.now()
                                     and order.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
-        is_technician = bool(
-            request.membership
-            and (
-                request.membership.membership_roles.filter(role__system_key="technician").exists()
-                or (
-                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
-                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
-                )
-            )
-        )
+        is_technician = is_technician_membership(request.membership)
         return render(request, self.template_name, {
             "page_obj": page_obj, "work_orders": page_obj.object_list, "status_cards": status_cards,
             "can_assign": rbac.has_permission_anywhere(request.membership, "work_order.assign"),
@@ -271,7 +263,7 @@ class ScheduleBoardView(TenantPermissionMixin, View):
         day = selected_date.isoformat()
         technician = request.GET.get("technician", "")
         valid_technicians = {str(pk) for pk in Membership.objects.for_organization(request.organization)
-                             .filter(membership_roles__role__system_key="technician").values_list("pk", flat=True)}
+                             .filter(membership_roles__role__system_key__in=TECHNICIAN_ROLE_KEYS).values_list("pk", flat=True)}
         if technician not in valid_technicians:
             technician = ""
         site_id = request.GET.get("site", "")
@@ -518,16 +510,7 @@ class ScheduleBoardView(TenantPermissionMixin, View):
                    "assigned_orders": [order for order in orders if order.assigned_to_id and
                        order.status in (WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED,
                                         WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD)],
-                                       "can_view_mine": bool(
-                        request.membership
-                        and (
-                            request.membership.membership_roles.filter(role__system_key="technician").exists()
-                            or (
-                                not rbac.has_permission_anywhere(request.membership, "work_order.view")
-                                and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
-                            )
-                        )
-                    ),
+                   "can_view_mine": is_technician_membership(request.membership),
                    "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create"),
                    "status_choices": [(code, label) for code, label in WorkOrder.Status.choices if code in board_statuses],
                    "priority_choices": WorkOrder.Priority.choices,
@@ -961,7 +944,7 @@ def _work_order_tab_context(wo, membership, tab):
     elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
         context["materials"] = wo.material_entries.all()
-        context["part_lines"] = wo.part_lines.select_related("part", "warehouse").all()
+        context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "work_order").all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
@@ -1179,8 +1162,18 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                     "CRITICAL": WorkOrder.Priority.CRITICAL,
                 }.get(getattr(wo.source_request, "severity", ""), "")
 
+            initial_start = wo.planned_start
+            if not initial_start and wo.source_request:
+                inc_dt = wo.source_request.occurred_at or wo.source_request.created_at
+                if inc_dt:
+                    now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+                    inc_local = timezone.localtime(inc_dt).replace(second=0, microsecond=0)
+                    initial_start = inc_local if inc_local.date() == now_local.date() else max(inc_local, now_local)
+            if not initial_start:
+                initial_start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+
             kwargs = {"work_order": wo, "initial": {"work_type": initial_work_type, "priority": initial_priority,
-                                   "planned_start": wo.planned_start or timezone.localtime(timezone.now()).replace(second=0, microsecond=0),
+                                   "planned_start": initial_start,
                                    "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
@@ -1201,8 +1194,11 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         evidence_count = wo.evidence_links.count()
         evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
         checklist_summary = get_checklist_summary(wo)
+        from apps.inventory import services as inventory_services
+        pending_part_blockers = inventory_services.completion_part_blockers(wo)
         return {"evidence_count": evidence_count, "evidence_required": evidence_required,
                 "checklist_summary": checklist_summary,
+                "pending_part_blockers": pending_part_blockers,
                 "provisional_checklist_enabled": getattr(settings, "WORKORDER_PROVISIONAL_CHECKLIST_ENABLED", False),
                 "return_to_complete": self.operation == "evidence" and request.GET.get("return_to") == "complete"}
 

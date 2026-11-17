@@ -44,6 +44,23 @@ def validate_alphabetical_description(value: str | None, field_label: str = "Des
     return val
 
 
+def validate_incident_title(value: str | None, field_label: str = "Title") -> str:
+    """Validates that a title field contains alphabetical text and allows ordinary equipment numbers (e.g. Pump 2 failure)."""
+    if not value:
+        return ""
+    val = value.strip()
+    if not val:
+        return ""
+    if any(character.isdigit() for character in val) and not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain alphabetical text.")
+    allowed_punctuation = set(".,;:!?'\"’“”()[]/\\-–—_&%#@+*~`\r\n\t")
+    if any(not (character.isalnum() or character.isspace() or character in allowed_punctuation) for character in val):
+        raise ValidationError(f"{field_label} can contain letters, numbers, spaces, and standard punctuation only.")
+    return val
+
+
 _NAME_ALPHABETICAL_RE = re.compile(r"^[A-Za-z\s'-]+$")
 
 
@@ -64,8 +81,29 @@ def validate_alphabetical_name(value: str | None, field_label: str = "Name", min
 
 
 _HTML_TAG_RE = re.compile(r"<[^>]*>|[<>]|javascript:|onerror=|onload=", re.IGNORECASE)
-_REPEATED_CHARS_RE = re.compile(r"(.)\1{4,}|\S{35,}")
+_REPEATED_CHARS_RE = re.compile(r"(.)\1{9,}")
 _BUSINESS_NAME_RE = re.compile(r"^[A-Za-z0-9\s.,'&\-/()#]+$")
+
+
+def validate_title(value: str | None, field_label: str = "Title", min_len: int = 2, max_len: int = 200) -> str:
+    """Validates that a title contains alphabetical text, allows digits (e.g. 'Pump 2 failure'), and rejects HTML/scripts."""
+    if not value or not str(value).strip():
+        raise ValidationError(f"{field_label} is required.")
+    val = str(value).strip()
+    if len(val) < min_len:
+        raise ValidationError(f"{field_label} must be at least {min_len} characters.")
+    if len(val) > max_len:
+        raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
+    if _HTML_TAG_RE.search(val):
+        raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
+    if any(character.isdigit() for character in val) and not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
+    if not any(character.isalpha() for character in val):
+        raise ValidationError(f"{field_label} must contain alphabetical text.")
+    allowed_punctuation = set(".,;:!?'\"’“”()[]/\\-–—_&%#@\r\n\t")
+    if any(not (character.isalnum() or character.isspace() or character in allowed_punctuation) for character in val):
+        raise ValidationError(f"{field_label} can contain letters, numbers, spaces, and standard punctuation only.")
+    return val
 
 
 def validate_business_name(value: str | None, field_label: str = "Name", min_len: int = 2, max_len: int = 150) -> str:
@@ -79,8 +117,6 @@ def validate_business_name(value: str | None, field_label: str = "Name", min_len
         raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
     if _HTML_TAG_RE.search(val):
         raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
-    if _REPEATED_CHARS_RE.search(val):
-        raise ValidationError(f"{field_label} contains invalid repetitive character patterns.")
     if not any(c.isalnum() for c in val):
         raise ValidationError(f"{field_label} must contain letters or numbers.")
     if not _BUSINESS_NAME_RE.match(val):

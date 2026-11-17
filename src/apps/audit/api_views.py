@@ -21,7 +21,7 @@ FILTER_PARAMS = [
     query_param("site", "site id", OpenApiTypes.UUID),
     query_param("category", "security | state | assignment | approvals | closures | inventory | sla | evidence | "
                             "coverage | client | exports"),
-    query_param("module", "workorders | assets | incidents | checklists | inventory | contracts | sla | portal | security | audit"),
+    query_param("module", "workorders | assets | incidents | checklists | inventory | contracts | sla | portal | security | audit | sites | organization | tenancy | maintenance | pm | users | roles"),
     query_param("outcome", "failed | success"),
     query_param("sort", "-occurred_at | occurred_at | action | -action | actor_email | -actor_email"),
     query_param("asset", "history of one asset and its work orders / requests", OpenApiTypes.UUID),

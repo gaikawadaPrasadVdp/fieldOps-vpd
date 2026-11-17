@@ -46,7 +46,7 @@
       <input type="search" name="q" value="{{ q }}" class="form-control border-start-0" placeholder="Search by name, email, or title...">
     </div>
     
-    <select name="role" class="form-select form-select-sm" style="max-width: 220px;" onchange="this.form.submit()">
+    <select name="role" class="form-select form-select-sm" style="max-width: 220px;" data-auto-submit="change">
       <option value="">All Roles</option>
       {% for r in roles %}
         <option value="{{ r.pk }}" {% if role_filter == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
@@ -179,7 +179,7 @@
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 rounded bg-body-tertiary border mb-3">
               <div class="d-flex align-items-center gap-2">
                 <label for="rolePresetSelect-{{ m.pk }}" class="form-label small fw-bold mb-0 text-nowrap">Apply Role Preset:</label>
-                <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 230px; padding-right: 2.25rem;" onchange="applyRolePreset('{{ m.pk }}', this)">
+                <select id="rolePresetSelect-{{ m.pk }}" class="form-select form-select-sm" style="min-width: 230px; padding-right: 2.25rem;" data-action="apply-role-preset" data-member-id="{{ m.pk }}">
                   <option value="">-- Select Role Preset --</option>
                   {% for rp in role_presets %}
                     <option value="{{ rp.pk }}" data-codes="{{ rp.codes_csv }}" {% if rp.pk in m.active_role_ids_str %}selected{% endif %}>{{ rp.name }}</option>
@@ -200,8 +200,8 @@
               </div>
 
               <div class="d-flex align-items-center gap-2 ms-auto">
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', true)">Select All</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms('{{ m.pk }}', false)">Clear All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="toggle-all-perms" data-member-id="{{ m.pk }}" data-check="true">Select All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="toggle-all-perms" data-member-id="{{ m.pk }}" data-check="false">Clear All</button>
               </div>
             </div>
 
@@ -247,7 +247,7 @@
 {% endif %}
 
 <script nonce="{{ csp_nonce }}">
-function applyRolePreset(memberId, selectEl) {
+window.applyRolePreset = function(memberId, selectEl) {
   const selectedOption = selectEl.options[selectEl.selectedIndex];
   const codesCsv = selectedOption.getAttribute('data-codes');
   if (!codesCsv && codesCsv !== '') return;
@@ -258,15 +258,15 @@ function applyRolePreset(memberId, selectEl) {
   checkboxes.forEach(cb => {
     cb.checked = codes.has(cb.value);
   });
-}
+};
 
-function toggleAllPerms(memberId, check) {
+window.toggleAllPerms = function(memberId, check) {
   const container = document.getElementById('perm-grid-' + memberId);
   if (!container) return;
   const checkboxes = container.querySelectorAll('input[type="checkbox"][name="permissions"]');
   checkboxes.forEach(cb => {
     cb.checked = check;
   });
-}
+};
 </script>
 {% endblock %}

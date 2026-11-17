@@ -38,7 +38,7 @@
               <strong>{{ line.part.part_number }}</strong>
               <div class="small text-body-secondary">{{ line.part.name }}</div>
             </td>
-            <td>{% status_badge line.status %}</td>
+            <td>{% status_badge line.display_status %}</td>
             <td>{{ line.quantity_requested|floatformat:"-3" }} {{ line.part.unit }}</td>
             <td>{{ line.quantity_issued|floatformat:"-3" }}</td>
             <td>{{ line.quantity_consumed|floatformat:"-3" }}</td>

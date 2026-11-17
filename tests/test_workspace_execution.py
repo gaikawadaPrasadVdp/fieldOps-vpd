@@ -365,12 +365,24 @@ class WorkspaceExecutionTests(TestCase):
         self.assertIn(b"Active Execution", res.content)
         self.assertIn(b"Upcoming / Assigned", res.content)
 
-        # Job detail view
+        # Job detail view (in progress: labor form visible)
         res_detail = client.get(f"/app/workspace/jobs/{wo.pk}/")
         self.assertEqual(res_detail.status_code, 200)
         self.assertIn(b"Route Guidance", res_detail.content)
         self.assertIn(b"Technician Work Notes", res_detail.content)
         self.assertIn(b"Travel Logging", res_detail.content)
+        self.assertIn(b"onSiteLaborForm", res_detail.content)
+        self.assertIn(b"Record Labor Time", res_detail.content)
+
+        # Job detail view (completed: read-only message shown instead of forms)
+        from apps.workorders.models import WorkOrder
+        WorkOrder.objects.filter(pk=wo.pk).update(status=WorkOrder.Status.COMPLETED)
+        res_completed = client.get(f"/app/workspace/jobs/{wo.pk}/")
+        self.assertEqual(res_completed.status_code, 200)
+        self.assertNotIn(b"id=\"onSiteLaborForm\"", res_completed.content)
+        self.assertNotIn(b"Record Labor Time", res_completed.content)
+        self.assertIn(b"Additional labor hours cannot be logged", res_completed.content)
+        self.assertIn(b"Travel cannot be logged after completion", res_completed.content)
 
     def test_api_my_jobs_and_notes(self):
         wo = self._create_dispatched_order()

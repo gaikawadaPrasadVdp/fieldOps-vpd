@@ -11,11 +11,11 @@ from apps.rbac import services as rbac
 from apps.rbac.models import Role
 from apps.tenancy import selectors
 from apps.tenancy.models import Membership
+
 from .forms import ClientOnboardingForm, DashboardFilterForm
 from .pagination import paginate_dashboard_queryset
+from .public_catalog import DETAIL_PAGES, get_catalog_item
 from .utils import is_client_membership
-from .public_catalog import get_catalog_item, DETAIL_PAGES
-
 
 PRD_MODULES = [
     {"id": "FON-M01", "slug": "organization-management", "name": "Organization & Location Master", "category": "Master Data", "app": "apps.sites", "desc": "Multi-site facility hierarchy: Organization, Site, Building, Floor, Zone, and Room mappings."},
@@ -392,15 +392,14 @@ def home(request):
     """Org dashboard. Dynamically renders role-tailored metrics, shortcuts, and activity (PRD §3.2)."""
     from django.db.models import F
     from django.urls import reverse
-    from apps.assets.models import Asset, AssetCategory, AssetComponent, AssetMeter
+
+    from apps.assets.models import Asset, AssetComponent, AssetMeter
     from apps.checklists.models import ChecklistTemplate, Inspection
     from apps.contracts.models import CoverageAgreement
     from apps.incidents.models import ServiceRequest
-    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse
-    from apps.maintenance.models import MaintenancePlan
+    from apps.inventory.models import Part, PartReservation, StockBalance, StockMovement, Warehouse, WorkOrderPart
     from apps.portal.models import PortalAccount
     from apps.rbac.models import MembershipRole
-    from apps.sites.models import Site
     from apps.sla.models import SLABreach
     from apps.workorders.models import WorkOrder
 
@@ -418,7 +417,7 @@ def home(request):
     perms = rbac.membership_permissions(request.membership)
     client_allowed = {
         "incident.report_owned", "incident.view_owned", "incident.view_assigned",
-        "incident.attach", "incident.confirm"
+        "incident.attach", "incident.confirm", "qr.scan"
     }
     if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):
         return redirect("portal:dashboard")
@@ -485,11 +484,11 @@ def home(request):
     current_in_progress_job = None
     assigned_work_orders = []
 
-    from apps.workorders import selectors as wo_selectors
     from apps.assets import selectors as asset_selectors
-    from apps.sites import selectors as site_selectors
     from apps.incidents import selectors as incident_selectors
     from apps.maintenance import selectors as maintenance_selectors
+    from apps.sites import selectors as site_selectors
+    from apps.workorders import selectors as wo_selectors
 
     TERMINAL_WO_STATUSES = [WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED]
 
@@ -673,23 +672,22 @@ def home(request):
         open_reqs_qs = disp_reqs.exclude(status__in=["CLOSED", "REJECTED", "CANCELLED"])
         open_wos_qs = disp_wos.exclude(status__in=TERMINAL_WO_STATUSES)
 
-        kpi_cards = []
-        if can_inc:
-            kpi_cards.append({
+        kpi_cards = [
+            {
                 "title": "Open Incidents",
-                "value": open_reqs_qs.count(),
+                "value": open_reqs_qs.count() if can_inc else 0,
                 "subtitle": "Unresolved field incidents",
-                "tone": "danger" if open_reqs_qs.count() > 0 else "accent",
+                "tone": "danger" if (can_inc and open_reqs_qs.count() > 0) else "accent",
                 "icon": "bell",
-            })
-        if can_site:
-            kpi_cards.append({
+            },
+            {
                 "title": "Facility Sites",
                 "value": stats.get("total_sites", 0),
                 "subtitle": "Active physical plant sites",
                 "tone": "gold",
                 "icon": "building",
-            })
+            },
+        ]
         if can_wo:
             dispatch_queue_count = open_wos_qs.filter(status__in=["DRAFT", "PLANNED", "ASSIGNED"]).count()
             active_dispatched = disp_wos.filter(status__in=["DISPATCHED", "IN_PROGRESS", "ON_HOLD"]).count()
@@ -861,19 +859,32 @@ def home(request):
         low_stock = StockBalance.objects.for_organization(org).filter(min_level__isnull=False, on_hand__lte=F("min_level")).count()
         warehouses = Warehouse.objects.for_organization(org).count()
         reservations = PartReservation.objects.for_organization(org).filter(status="ACTIVE").count()
+        
+        pending_requests_qs = (
+            WorkOrderPart.objects.for_organization(org)
+            .filter(status=WorkOrderPart.Status.REQUESTED)
+            .select_related("part", "work_order", "work_order__site", "requested_by")
+            .order_by("-created_at")
+        )
+        pending_requests_count = pending_requests_qs.count()
+        stores_pending_requests = list(pending_requests_qs[:20])
+
         kpi_cards = [
+            {"title": "Pending Requests", "value": pending_requests_count, "subtitle": "Awaiting store issue / fulfillment", "tone": "warning", "icon": "package"},
             {"title": "Cataloged Parts", "value": total_parts, "subtitle": "Active spare part SKU catalog", "tone": "accent", "icon": "box"},
             {"title": "Low Stock Alerts", "value": low_stock, "subtitle": "Items below reorder point", "tone": "danger", "icon": "alert-triangle"},
             {"title": "Storage Warehouses", "value": warehouses, "subtitle": "Active storage locations", "tone": "gold", "icon": "building"},
-            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "warning", "icon": "clipboard"},
+            {"title": "Active Reservations", "value": reservations, "subtitle": "Parts allocated to orders", "tone": "accent", "icon": "clipboard"},
         ]
         shortcuts = [
+            {"label": "Pending Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Spare Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Warehouse Stock", "url": reverse("inventory:stock"), "icon": "grid"},
             {"label": "Stock Reservations", "url": reverse("inventory:reservations"), "icon": "list-check"},
             {"label": "Stock Movements", "url": reverse("inventory:movements"), "icon": "clipboard"},
         ]
         header_actions = [
+            {"label": "Requests Queue", "url": reverse("inventory:requests"), "icon": "package"},
             {"label": "Parts Catalog", "url": reverse("inventory:parts"), "icon": "box"},
             {"label": "Stock Ledger", "url": reverse("inventory:stock"), "icon": "grid"},
         ]
@@ -1025,6 +1036,7 @@ def home(request):
     is_tech = persona_key in ("technician", "field_technician")
     is_dispatcher = persona_key == "service_dispatcher"
     is_planner = persona_key == "maintenance_planner"
+    is_stores = persona_key in ("stores_manager", "stores_inventory")
     return render(request, "ui/home.html", {
         "persona": persona,
         "recent_page_obj": locals().get("recent_page_obj"),
@@ -1044,6 +1056,9 @@ def home(request):
         "is_technician": is_tech,
         "is_dispatcher": is_dispatcher,
         "is_planner": is_planner,
+        "is_stores_manager": is_stores,
+        "stores_pending_requests": locals().get("stores_pending_requests", []),
+        "stores_pending_count": locals().get("pending_requests_count", 0),
         "dispatcher_requests": locals().get("dispatcher_requests", []),
         "dispatcher_work_orders": locals().get("dispatcher_work_orders", []),
         "planner_show_schedules": locals().get("planner_show_schedules", False),
@@ -1120,28 +1135,6 @@ def bad_request(request, exception=None):
         return HttpResponse("Bad request.", status=400)
 
 
-def bad_request(request, exception=None):
-    if request.path.startswith("/api/"):
-        from django.http import JsonResponse
-        req_id = getattr(request, "request_id", "-")
-        return JsonResponse(
-            {
-                "success": False,
-                "error": {
-                    "code": "bad_request",
-                    "message": str(exception) if exception else "Bad request.",
-                    "details": {},
-                },
-                "meta": {"request_id": req_id},
-            },
-            status=400,
-        )
-    try:
-        return render(request, "errors/400.html", status=400)
-    except Exception:
-        return HttpResponse("Bad request.", status=400)
-
-
 def _api_error_json(request, code: str, message: str, status: int):
     from django.http import JsonResponse
 
@@ -1172,8 +1165,8 @@ def not_found(request, exception=None):
 
 
 def server_error(request):
-    import sys
     import logging
+    import sys
     logger = logging.getLogger("django.request")
     exc_type, exc_value, exc_tb = sys.exc_info()
     if exc_value:

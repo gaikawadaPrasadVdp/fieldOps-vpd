@@ -25,8 +25,16 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate("owner", "Organization Owner", "Full control of the organization and all modules.", ("*",), is_owner=True),
     RoleTemplate(
         "admin", "Super Admin", "System configuration, users, roles, sites, policies, and audit visibility.",
-        ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view", "qr.*",
+        ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view", "report.create", "qr.*",
          "*.view", "incident.triage", "incident.approve", "work_order.create"),
+        excludes=("portal.request.*",),
+    ),
+    RoleTemplate(
+        "operations_manager", "Operations Manager", "Oversees maintenance and field operations.",
+        ("*.view", "incident.*", "work_order.view", "work_order.assign",
+         "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
+         "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
+         "report.*", "qr.scan"),
         excludes=("portal.request.*",),
     ),
     RoleTemplate(
@@ -45,7 +53,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination, and escalation.",
-        ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve",
+        ("asset.view", "site.view", "zone.view", "calendar.view", "incident.view", "incident.triage", "incident.approve", "incident.attach",
          "work_order.view", "work_order.create", "work_order.assign", "work_order.dispatch", "work_order.plan",
          "work_order.update", "work_order.attach", "checklist.view", "inspection.view", "inventory.view",
          "inventory.part.view", "sla.view", "report.view", "qr.scan"),
@@ -77,26 +85,17 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "client_requester", "Client / Requester", "Raise service request and view restricted status/closure confirmation.",
         ("portal.request.create", "portal.request.view", "portal.request.confirm", "incident.report_owned",
-         "incident.view_assigned", "incident.view_owned", "incident.attach", "incident.confirm"),
+         "incident.view_assigned", "incident.view_owned", "incident.attach", "incident.confirm", "qr.scan"),
     ),
     RoleTemplate(
         "auditor", "Auditor / Compliance", "Read-only asset and service history, audit logs, and compliance evidence.",
-        ("*.view", "audit.view", "audit.export", "report.*"),
+        ("*.view", "audit.view", "audit.export", "report.view"),
         excludes=("portal.request.*",),
     ),
 )
 
 # Legacy role templates kept for backward-compatibility with existing seedings (not seeded in new orgs)
-LEGACY_TEMPLATES: tuple[RoleTemplate, ...] = (
-    RoleTemplate(
-        "operations_manager", "Operations Manager (Legacy)", "Oversees maintenance and field operations.",
-        ("*.view", "incident.*", "work_order.view", "work_order.assign",
-         "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
-         "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
-         "report.*"),
-        excludes=("portal.request.*",),
-    ),
-)
+LEGACY_TEMPLATES: tuple[RoleTemplate, ...] = ()
 
 # Registry dictionary mapping both primary PRD keys and modern aliases
 BY_KEY = {t.key: t for t in TEMPLATES + LEGACY_TEMPLATES}

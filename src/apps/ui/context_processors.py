@@ -5,7 +5,6 @@ from apps.rbac import services as rbac
 from apps.rbac.models import MembershipRole
 from apps.tenancy import selectors
 
-from . import navigation
 from .utils import is_client_membership
 
 
@@ -89,9 +88,9 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Scan QR / Barcode", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
         ]
         sections["Commercial & Contracts"] = [
-            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "file-text", "match_prefix": "/app/contracts"},
-            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "alert-triangle", "match_prefix": "/app/contracts/expiry"},
-            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "briefcase", "match_prefix": "/app/contracts/providers"},
+            {"label": "Warranties & Contracts", "url": _safe_reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring Coverage", "url": _safe_reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+            {"label": "Service Providers", "url": _safe_reverse("contracts:providers"), "icon": "building", "match_prefix": "/app/contracts/providers"},
         ]
         sections["Commercial"] = sections["Commercial & Contracts"]
         sections["Service Level Agreements"] = [
@@ -105,7 +104,7 @@ def _build_tenant_nav(membership, is_owner):
             {"label": "Organization Settings", "url": _safe_reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
             {"label": "Users & Invitations", "url": _safe_reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
             {"label": "Roles & Permissions", "url": _safe_reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
-            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"},
+            {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "wrench", "match_prefix": "/app/workspace/technicians"},
             {"label": "Portal Accounts", "url": _safe_reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
         ]
 
@@ -282,7 +281,7 @@ def _build_tenant_nav(membership, is_owner):
         asset_items = []
         if rbac.has_permission_anywhere(membership, "asset.view"):
             asset_items.append({"label": "Asset Register", "url": _safe_reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"})
-        if rbac.has_permission_anywhere(membership, "qr.scan"):
+        if rbac.has_permission_anywhere(membership, "qr.scan") or rbac.has_permission_anywhere(membership, "identification.scan") or rbac.has_permission_anywhere(membership, "asset.scan"):
             asset_items.append({"label": "Scan QR", "url": _safe_reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"})
         if asset_items:
             sections["Assets"] = asset_items
@@ -350,7 +349,7 @@ def _build_tenant_nav(membership, is_owner):
             sections.setdefault("Operations", []).append(
                 {"label": "Technicians & Shifts", "url": _safe_reverse("workspace:technician_list"), "icon": "people", "match_prefix": "/app/workspace/technicians"}
             )
-        
+
 
         # Service Level Agreements
         if rbac.has_permission_anywhere(membership, "sla.view"):
@@ -426,10 +425,13 @@ def _build_breadcrumbs(request):
         ("/app/assets/hierarchy", "Hierarchy", "assets:hierarchy"),
         ("/app/assets", "Assets", "assets:list"),
         ("/app/sites", "Sites & Locations", "sites:list"),
-        ("/app/inventory/parts", "Parts Inventory", "inventory:parts_list"),
-        ("/app/inventory/stock", "Stock Overview", "inventory:stock_list"),
-        ("/app/inventory/transactions", "Transactions", "inventory:transactions_list"),
-        ("/app/inventory/warehouses", "Warehouses", "inventory:warehouses_list"),
+        ("/app/inventory/parts", "Parts Inventory", "inventory:parts"),
+        ("/app/inventory/stock", "Stock Overview", "inventory:stock"),
+        ("/app/inventory/requests", "Part Requests", "inventory:requests"),
+        ("/app/inventory/reservations", "Reservations", "inventory:reservations"),
+        ("/app/inventory/movements", "Transactions", "inventory:movements"),
+        ("/app/inventory/warehouses", "Warehouses", "inventory:warehouses"),
+        ("/app/inventory", "Inventory", "inventory:parts"),
         ("/app/contracts/agreements", "Warranties & Contracts", "contracts:agreements"),
         ("/app/contracts/expiry", "Expiring Coverage", "contracts:expiry"),
         ("/app/contracts/providers", "Providers", "contracts:providers"),
@@ -444,12 +446,21 @@ def _build_breadcrumbs(request):
         ("/app/workspace/shifts", "Shifts", "workspace:shift_list"),
         ("/app/workspace/my-jobs", "My Jobs", "workspace:my_jobs"),
         ("/app/workspace/profile", "My Profile", "workspace:my_profile"),
+        ("/app/workspace", "Technician Workspace", "workspace:my_jobs"),
         ("/app/organization", "Organization", "tenancy:organization"),
         ("/app/users", "Users Directory", "tenancy:members"),
         ("/app/roles", "Roles & Permissions", "rbac:roles"),
         ("/app/notifications", "Notifications", "notifications:list"),
         ("/app/checklists", "Checklists & Inspections", "checklists:list"),
         ("/app/pm", "Preventive Maintenance", "pm:plan_list"),
+        ("/app/portal/requests/new", "New Request", "portal:request_create"),
+        ("/app/portal/requests", "My Requests", "portal:requests_list"),
+        ("/app/portal/scan", "Scan QR", "portal:scan"),
+        ("/app/portal", "Client Portal", "portal:dashboard"),
+        ("/platform/organizations/create", "New Organization", "platform_admin:organization_create"),
+        ("/platform/organizations", "Organizations", "platform_admin:organizations"),
+        ("/platform/audit", "Platform Audit Trail", "platform_admin:audit"),
+        ("/platform/overview", "Platform Overview", "platform_admin:overview"),
     ]
 
     matched_mod = None
@@ -460,7 +471,7 @@ def _build_breadcrumbs(request):
 
     if matched_mod:
         prefix, label, viewname = matched_mod
-        url = _safe_reverse(viewname)
+        url = _safe_reverse(viewname) or (prefix + "/")
         if path == prefix:
             crumbs.append({"label": label, "url": None})
         else:
@@ -500,17 +511,23 @@ def _build_breadcrumbs(request):
                     seg_label = "Timeline"
                 elif seg in ("reports",):
                     seg_label = "Reports"
+                elif seg in ("requests",):
+                    seg_label = "Requests"
+                elif seg in ("reservations",):
+                    seg_label = "Reservations"
+                elif seg in ("edit",):
+                    seg_label = "Edit"
                 else:
                     seg_label = seg.replace("-", " ").replace("_", " ").title()
 
-                sub_path = prefix + "/" + "/".join(remainder[:i+1])
+                sub_path = prefix + "/" + "/".join(remainder[:i+1]) + "/"
                 crumbs.append({"label": seg_label, "url": None if is_last else sub_path})
     else:
         segments = [s for s in path.replace("/app/", "").split("/") if s]
         for i, seg in enumerate(segments):
             is_last = (i == len(segments) - 1)
             seg_label = "Detail" if len(seg) >= 32 else seg.replace("-", " ").replace("_", " ").title()
-            sub_path = "/app/" + "/".join(segments[:i+1])
+            sub_path = "/app/" + "/".join(segments[:i+1]) + "/"
             crumbs.append({"label": seg_label, "url": None if is_last else sub_path})
 
     back_url = None
@@ -528,9 +545,8 @@ def shell(request):
     if user is None or not user.is_authenticated:
         return {}
 
-    from django.conf import settings
     idle_timeout_seconds = getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)
-    idle_timeout_ms = int(idle_timeout_seconds) * 1000
+    idle_timeout_ms = max(60, int(idle_timeout_seconds)) * 1000
 
     req_path = request.path
     membership = getattr(request, "membership", None)
@@ -556,6 +572,7 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     if membership is None:
@@ -568,6 +585,7 @@ def shell(request):
             "is_client": False,
             "shell_breadcrumbs": crumbs,
             "shell_back_url": back_url,
+            "session_idle_timeout_ms": idle_timeout_ms,
         }
 
     # 2. Client / Requester Navigation (M13)
@@ -577,9 +595,8 @@ def shell(request):
             {"label": "Client Portal", "url": _safe_reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
             {"label": "My Requests", "url": _safe_reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
             {"label": "New Request", "url": _safe_reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+            {"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]},
         ]
-        if rbac.has_permission_anywhere(membership, "qr.scan"):
-            portal_items.append({"label": "Scan QR", "url": _safe_reverse("portal:scan"), "icon": "qr", "match_prefix": "/app/portal/scan", "match_prefixes": ["/app/portal/scan", "/app/portal/s/"]})
         sections = {"Portal": portal_items}
         sections = _filter_valid_nav_items(sections)
         _resolve_active(sections, req_path)
@@ -598,6 +615,7 @@ def shell(request):
         # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
     import copy
     import uuid
+
     from django.core.cache import cache
 
     is_owner = rbac.is_owner(membership)

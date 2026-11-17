@@ -42,6 +42,7 @@
 </style>
 
 {% include "components/_page_header.html" %}
+{% include "sla/_tabs.html" %}
 
 <div class="w-100 mx-auto compact-form" style="max-width: 1040px;">
   <div class="fx-card mb-3 shadow-sm">
@@ -160,6 +161,163 @@
 
         <div class="d-none">{% if form.work_type %}{{ form.work_type }}{% endif %}</div>
 
+        <!-- Section 3: Priority Targets -->
+        <div class="form-section-title d-flex align-items-center justify-content-between mt-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-stopwatch text-primary"></i>
+            <span>3. Priority Targets (Response &amp; Resolution Deadlines)</span>
+          </div>
+          <span class="badge bg-primary-subtle text-primary" style="font-size: 0.72rem;">Required for Profile Activation</span>
+        </div>
+
+        <div class="card border rounded-3 p-3 bg-light-subtle mb-3">
+          <div class="text-body-secondary small mb-2" style="font-size: 0.76rem;">
+            Define the target response and resolution durations for contractual SLA compliance. Durations can be entered as minutes or hours (e.g. <code>15m</code>, <code>15 minutes</code>, <code>2h</code>, <code>4 hours</code>).
+          </div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_priority">
+                Priority Level<span class="text-danger ms-1">*</span>
+              </label>
+              <select name="priority" id="id_priority" class="form-select form-select-sm">
+                <option value="CRITICAL" {% if target_formset.0.priority.value == "CRITICAL" or not target_formset.0.priority.value %}selected{% endif %}>Critical</option>
+                <option value="URGENT" id="opt_priority_urgent" {% if target_formset.0.priority.value == "URGENT" %}selected{% endif %}>Urgent</option>
+                <option value="HIGH" {% if target_formset.0.priority.value == "HIGH" %}selected{% endif %}>High</option>
+                <option value="MEDIUM" {% if target_formset.0.priority.value == "MEDIUM" %}selected{% endif %}>Medium</option>
+                <option value="LOW" {% if target_formset.0.priority.value == "LOW" %}selected{% endif %}>Low</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_response_target">
+                Response Target<span class="text-danger ms-1">*</span>
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="text" name="response_target" id="id_response_target" class="form-control"
+                       placeholder="e.g. 15m or 15 minutes"
+                       value="{{ target_formset.0.response_minutes.value|default:'15 minutes' }}">
+                <span class="input-group-text bg-white text-body-secondary small">Resp</span>
+              </div>
+              <div class="form-text text-body-secondary" style="font-size: 0.72rem;">Triage / dispatch limit</div>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_resolution_target">
+                Resolution Target<span class="text-danger ms-1">*</span>
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="text" name="resolution_target" id="id_resolution_target" class="form-control"
+                       placeholder="e.g. 2h or 4 hours"
+                       value="{{ target_formset.0.resolution_minutes.value|default:'4 hours' }}">
+                <span class="input-group-text bg-white text-body-secondary small">Resol</span>
+              </div>
+              <div class="form-text text-body-secondary" style="font-size: 0.72rem;">Full completion limit</div>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_warning_alert">
+                Warning Alert (%)
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="text" name="warning_alert" id="id_warning_alert" class="form-control"
+                       placeholder="80"
+                       value="{{ target_formset.0.warning_percent.value|default:'80' }}">
+                <span class="input-group-text bg-white text-body-secondary small">%</span>
+              </div>
+              <div class="form-text text-body-secondary" style="font-size: 0.72rem;">Early alert threshold</div>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top flex-wrap">
+            <span class="small text-body-secondary" style="font-size: 0.75rem;">Quick Presets:</span>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-target-preset" style="font-size: 0.72rem;" data-preset-prio="CRITICAL" data-preset-resp="15 minutes" data-preset-resol="2 hours" data-preset-warn="80">
+              Standard Critical (15m / 2h)
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-target-preset" style="font-size: 0.72rem;" data-preset-prio="URGENT" data-preset-resp="30 minutes" data-preset-resol="4 hours" data-preset-warn="80">
+              Urgent (30m / 4h)
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-target-preset" style="font-size: 0.72rem;" data-preset-prio="HIGH" data-preset-resp="1 hour" data-preset-resol="8 hours" data-preset-warn="80">
+              High (1h / 8h)
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-target-preset" style="font-size: 0.72rem;" data-preset-prio="MEDIUM" data-preset-resp="2 hours" data-preset-resol="24 hours" data-preset-warn="80">
+              Medium (2h / 24h)
+            </button>
+            <div id="target_live_preview" class="ms-auto small fw-medium text-primary" style="font-size: 0.75rem;"></div>
+          </div>
+        </div>
+
+        <!-- Section 4: Automated Escalation & Notification Rules -->
+        <div class="form-section-title d-flex align-items-center justify-content-between mt-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bell text-primary"></i>
+            <span>4. Automated Escalation &amp; Notification Rules</span>
+          </div>
+          <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">Multi-tier Lifecycle</span>
+        </div>
+
+        <div class="card border rounded-3 p-3 bg-light-subtle mb-3">
+          <div class="text-body-secondary small mb-2" style="font-size: 0.76rem;">
+            Standard 3-tier escalation rules are automatically seeded when saved. You can also customize the primary escalation trigger below:
+          </div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_rule_target_kind">Monitor Target</label>
+              <select name="rule_target_kind" id="id_rule_target_kind" class="form-select form-select-sm">
+                <option value="RESOLUTION" selected>Resolution Target</option>
+                <option value="RESPONSE">Response Target</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small" for="id_rule_trigger">Trigger Condition</label>
+              <select name="rule_trigger" id="id_rule_trigger" class="form-select form-select-sm">
+                <option value="WARNING">Warning Alert (at warning %)</option>
+                <option value="BREACH" selected>SLA Breach (on missed deadline)</option>
+                <option value="ESCALATION">Escalation (after delay post-breach)</option>
+              </select>
+            </div>
+
+            <div class="col-md-2" id="rule_after_mins_wrapper" style="display: none;">
+              <label class="form-label fw-semibold small" for="id_rule_after_minutes">Delay (mins)</label>
+              <input type="number" name="rule_after_minutes" id="id_rule_after_minutes" class="form-control form-control-sm" placeholder="e.g. 30" min="1" value="30">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label fw-semibold small" for="id_rule_level">Alert Tier</label>
+              <select name="rule_level" id="id_rule_level" class="form-select form-select-sm">
+                <option value="1">Level 1 (Supervisor)</option>
+                <option value="2" selected>Level 2 (Manager)</option>
+                <option value="3">Level 3 (Executive)</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label fw-semibold small" for="id_rule_notify_role">Notify Role</label>
+              <select name="rule_notify_role" id="id_rule_notify_role" class="form-select form-select-sm">
+                <option value="">Choose role...</option>
+                {% for r in roles %}
+                  <option value="{{ r.pk }}" {% if "manager" in r.name|lower or "supervisor" in r.name|lower %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top flex-wrap">
+            <div class="form-check m-0">
+              <input type="checkbox" name="rule_notify_assignee" id="id_rule_notify_assignee" class="form-check-input" checked>
+              <label class="form-check-label small" for="id_rule_notify_assignee">
+                Also notify current ticket / work order assignee
+              </label>
+            </div>
+            <span class="text-body-secondary small" style="font-size: 0.74rem;">
+              <i class="bi bi-info-circle me-1"></i>Additional escalation tiers can also be managed from the Profile Detail page.
+            </span>
+          </div>
+        </div>
+
         <!-- Footer Action Bar -->
         <div class="border-top pt-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div>
@@ -217,10 +375,81 @@
       ["INSTALLATION", "Installation"]
     ];
 
+    var prioSelect = document.getElementById("id_priority");
+    var optUrgent = document.getElementById("opt_priority_urgent");
+    var respTargetInput = document.getElementById("id_response_target");
+    var resolTargetInput = document.getElementById("id_resolution_target");
+    var warnAlertInput = document.getElementById("id_warning_alert");
+    var targetPreview = document.getElementById("target_live_preview");
+    var ruleTriggerSelect = document.getElementById("id_rule_trigger");
+    var ruleAfterMinsWrap = document.getElementById("rule_after_mins_wrapper");
+
+    function parseDurationMins(txt) {
+      if (!txt) return null;
+      var s = String(txt).trim().toLowerCase();
+      if (/^\d+(\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+      var total = 0, matched = false;
+      var h = s.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+      if (h) { total += parseFloat(h[1]) * 60; matched = true; }
+      var m = s.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/);
+      if (m) { total += parseFloat(m[1]); matched = true; }
+      return matched ? Math.round(total) : null;
+    }
+
+    function updateTargetPreview() {
+      if (!targetPreview) return;
+      var rm = parseDurationMins(respTargetInput ? respTargetInput.value : "");
+      var rsm = parseDurationMins(resolTargetInput ? resolTargetInput.value : "");
+      var w = warnAlertInput ? parseInt(warnAlertInput.value.replace("%", "").trim(), 10) : 80;
+      if (isNaN(w) || w <= 0) w = 80;
+
+      if (rm && rsm) {
+        var warnMins = Math.round(rsm * (w / 100));
+        targetPreview.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Resp: <strong>' + rm + 'm</strong> &middot; Resol: <strong>' + (rsm >= 60 ? (rsm/60).toFixed(1).replace(".0","") + 'h (' + rsm + 'm)' : rsm + 'm') + '</strong> &middot; Warning at <strong>' + w + '% (' + warnMins + 'm)</strong>';
+      } else {
+        targetPreview.textContent = "";
+      }
+    }
+
+    if (respTargetInput) respTargetInput.addEventListener("input", updateTargetPreview);
+    if (resolTargetInput) resolTargetInput.addEventListener("input", updateTargetPreview);
+    if (warnAlertInput) warnAlertInput.addEventListener("input", updateTargetPreview);
+
+    document.querySelectorAll(".btn-target-preset").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        if (prioSelect) prioSelect.value = btn.getAttribute("data-preset-prio");
+        if (respTargetInput) respTargetInput.value = btn.getAttribute("data-preset-resp");
+        if (resolTargetInput) resolTargetInput.value = btn.getAttribute("data-preset-resol");
+        if (warnAlertInput) warnAlertInput.value = btn.getAttribute("data-preset-warn");
+        updateTargetPreview();
+      });
+    });
+
+    function toggleRuleDelay() {
+      if (!ruleTriggerSelect || !ruleAfterMinsWrap) return;
+      if (ruleTriggerSelect.value === "ESCALATION") {
+        ruleAfterMinsWrap.style.display = "";
+      } else {
+        ruleAfterMinsWrap.style.display = "none";
+      }
+    }
+
+    if (ruleTriggerSelect) {
+      ruleTriggerSelect.addEventListener("change", toggleRuleDelay);
+      toggleRuleDelay();
+    }
+
     function updateForm() {
       if (!appliesTo) return;
       var val = (appliesTo.value || "").toUpperCase();
       var isWorkOrder = val.indexOf("WORK") !== -1;
+
+      if (optUrgent) {
+        optUrgent.style.display = isWorkOrder ? "" : "none";
+        if (!isWorkOrder && prioSelect && prioSelect.value === "URGENT") {
+          prioSelect.value = "CRITICAL";
+        }
+      }
 
       if (woTypeGroup) {
         woTypeGroup.style.display = isWorkOrder ? "" : "none";
@@ -249,6 +478,7 @@
       }
 
       toggleCalendarField();
+      updateTargetPreview();
     }
 
     var siteSelect = document.getElementById("id_site");

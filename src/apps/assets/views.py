@@ -371,7 +371,7 @@ class AssetCreateView(AssetBase):
                 "title": "Register asset", "form": form, "submit": "Register asset",
                 "action_url": request.path,
             })
-        return self._page(request, form, parent, NewChildForm() if parent else None)
+        return self._page(request, form, parent, NewChildForm(parent=parent) if parent else None)
 
     def post(self, request):
         try:
@@ -384,7 +384,7 @@ class AssetCreateView(AssetBase):
             return redirect("/app/assets/")
         form = AssetForm(request.POST, sites=self._sites(request), org=request.organization,
                          category=_category_for(request, request.POST))
-        rel_form = NewChildForm(request.POST) if parent else None
+        rel_form = NewChildForm(request.POST, parent=parent) if parent else None
         if form.is_valid() and (rel_form is None or rel_form.is_valid()):
             d = dict(form.cleaned_data)
             refs = {k: d.pop(k) for k in ("site", "zone", "category", "owner")}
@@ -614,10 +614,11 @@ class AssetDetailView(AssetBase):
             base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage",
                                            site=asset.site)
             parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
+            child_ids = AssetComponent.objects.filter(organization=request.organization).values_list("child_id", flat=True)
             if not is_child:
                 candidates = base.filter(parent_link__isnull=True).exclude(
                     pk__in=exclude_ids
-                ).exclude(id__in=parent_ids)
+                ).exclude(id__in=parent_ids).exclude(id__in=child_ids)
                 ctx["add_form"] = ComponentAddForm(candidates=candidates, initial={"relationship_type": "COMPONENT", "quantity": 1})
             else:
                 link = asset.parent_link
@@ -826,7 +827,8 @@ class ComponentAddView(AssetBase):
         asset = _asset(request, pk, "asset.hierarchy.manage")
         base = selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage", site=asset.site)
         parent_ids = AssetComponent.objects.filter(organization=request.organization).values_list("parent_id", flat=True)
-        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids)
+        child_ids = AssetComponent.objects.filter(organization=request.organization).values_list("child_id", flat=True)
+        candidates = base.filter(parent_link__isnull=True).exclude(id__in=parent_ids).exclude(id__in=child_ids).exclude(pk=asset.pk)
         form = ComponentAddForm(request.POST, candidates=candidates)
         try:
             if not form.is_valid():
@@ -856,7 +858,13 @@ class ComponentEditView(AssetBase):
 
     def post(self, request, pk):
         link = _link(request, pk)
-        form = ComponentEditForm(request.POST)
+        initial = {
+            "relationship_type": link.relationship_type,
+            "quantity": link.quantity,
+            "part_number": link.part_number,
+            "notes": link.notes,
+        }
+        form = ComponentEditForm(request.POST, initial=initial)
         try:
             if not form.is_valid():
                 raise DomainError("Check the relationship type and quantity.")

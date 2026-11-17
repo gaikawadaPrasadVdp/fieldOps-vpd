@@ -46,8 +46,22 @@ def database_from_url(url: str) -> dict:
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", required=True)
 DEBUG = env_bool("DJANGO_DEBUG", False)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+for _host in (".onrender.com", "fieldops.onrender.com", "fieldops-qry5.onrender.com", "fieldops-vpd-nb4u.onrender.com"):
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+for _origin in (
+    "https://*.onrender.com",
+    "https://fieldops.onrender.com",
+    "https://fieldops-qry5.onrender.com",
+    "https://fieldops-vpd-nb4u.onrender.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+):
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 SITE_BASE_URL = env("SITE_BASE_URL", "http://localhost:8000")
 
 INSTALLED_APPS = [
@@ -149,16 +163,15 @@ AUTH_PASSWORD_VALIDATORS = [
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3  # invitation / activation links valid for 3 days
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "ui:home"
-LOGOUT_REDIRECT_URL = "ui:root"
+LOGOUT_REDIRECT_URL = "accounts:login"
 
-# --- Rate limiting / throttling toggles (Default: False = turned off) --------------------------
-# Set RATE_LIMITING_ENABLED=True (or AXES_ENABLED=True) in environment variables to re-enable.
-RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", False)
+# --- Rate limiting / throttling toggles (Default: True = enabled for security & brute-force protection)
+RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", True)
 
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
 # Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.
 TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "0"))
-AXES_ENABLED = env_bool("AXES_ENABLED", RATE_LIMITING_ENABLED)
+AXES_ENABLED = env_bool("AXES_ENABLED", True)
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",
@@ -170,6 +183,10 @@ AXES_USERNAME_CALLABLE = "apps.core.net.axes_username"  # lower-cased/stripped
 AXES_CLIENT_IP_CALLABLE = "apps.core.net.client_ip"
 AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
 AXES_RESET_ON_SUCCESS = True
+# DEF-004 fix: ensure lockout returns HTTP 429 (Too Many Requests) consistently
+AXES_HTTP_RESPONSE_CODE = 429
+# Do not reset failure counter on a lockout response — prevents counter clearing after the first lockout
+AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 
 # --- Sessions / cookies / security ------------------------------------------------------------
 SESSION_COOKIE_HTTPONLY = True
@@ -243,6 +260,10 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_TIME_LIMIT = 60 * 10
 CELERY_TIMEZONE = "UTC"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "apps.core.tasks.process_integration_events": {"queue": "integrations"},
+}
 CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
@@ -349,6 +370,7 @@ REST_FRAMEWORK = {
         "anon": "30/min" if RATE_LIMITING_ENABLED else "100000/min",
         "user": "600/min" if RATE_LIMITING_ENABLED else "100000/min",
         "login": "10/min",
+        "token_resolve": "60/min",
     },
 }
 SIMPLE_JWT = {

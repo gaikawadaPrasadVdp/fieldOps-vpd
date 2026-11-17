@@ -95,7 +95,7 @@ class SiteCreateView(SiteBase):
             "timezone": request.organization.timezone,
             "country": "",
         }
-        form = SiteForm(initial=initial)
+        form = SiteForm(initial=initial, org=request.organization)
         if request.headers.get("HX-Request"):
             return render(request, "sites/_site_modal.html", {
                 "title": "New site", "form": form, "submit": "Create site",
@@ -106,7 +106,7 @@ class SiteCreateView(SiteBase):
                          submit="Create site")
 
     def post(self, request):
-        form = SiteForm(request.POST)
+        form = SiteForm(request.POST, org=request.organization)
         if form.is_valid():
             try:
                 site = services.create_site(request.organization, actor=request.user, request=request,
@@ -116,11 +116,27 @@ class SiteCreateView(SiteBase):
                     form.add_error("code", exc.message)
                 else:
                     form.add_error(None, exc.message)
+            except Exception as exc:
+                form.add_error(None, str(exc))
             else:
                 messages.success(request, f"Site {site.code} created.")
                 if request.headers.get("HX-Request"):
                     return htmx_success({"closeSiteModal": True, "siteSaved": True})
                 return redirect("sites:detail", pk=site.pk)
+
+
+class SiteDeactivateView(SiteBase):
+    required_permission = "site.deactivate"
+
+    def post(self, request, pk):
+        site = self.site(request, pk, "site.deactivate")
+        reason = (request.POST.get("reason") or "").strip() or "Deactivated via operations"
+        try:
+            services.deactivate_site(site, reason=reason, actor=request.user, request=request)
+            messages.success(request, f"Site {site.code} deactivated.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+        return redirect("sites:detail", pk=site.pk)
         if request.headers.get("HX-Request"):
             return render(request, "sites/_site_modal.html", {
                 "title": "New site", "form": form, "submit": "Create site",
@@ -136,7 +152,7 @@ class SiteEditView(SiteBase):
     def get(self, request, pk):
         site = self.site(request, pk, "site.update")
         initial = {f: getattr(site, f) for f in services.SITE_FIELDS}
-        form = SiteForm(initial=initial)
+        form = SiteForm(initial=initial, org=request.organization, instance_id=site.pk)
         if request.headers.get("HX-Request"):
             return render(request, "sites/_site_modal.html", {
                 "title": f"Edit {site.code}", "site": site, "form": form, "submit": "Save changes",
@@ -146,7 +162,7 @@ class SiteEditView(SiteBase):
 
     def post(self, request, pk):
         site = self.site(request, pk, "site.update")
-        form = SiteForm(request.POST)
+        form = SiteForm(request.POST, org=request.organization, instance_id=site.pk)
         if form.is_valid():
             try:
                 services.update_site(site, actor=request.user, request=request, **form.cleaned_data)
@@ -155,6 +171,8 @@ class SiteEditView(SiteBase):
                     form.add_error("code", exc.message)
                 else:
                     form.add_error(None, exc.message)
+            except Exception as exc:
+                form.add_error(None, str(exc))
             else:
                 messages.success(request, "Site saved.")
                 if request.headers.get("HX-Request"):
@@ -214,7 +232,8 @@ class SiteDetailView(SiteBase):
         site = self.site(request, pk, needed)
         try:
             if action == "deactivate":
-                services.deactivate_site(site, reason=request.POST.get("reason", ""), actor=request.user,
+                reason = (request.POST.get("reason") or "").strip() or "Deactivated via operations"
+                services.deactivate_site(site, reason=reason, actor=request.user,
                                          request=request)
                 messages.success(request, f"Site {site.code} deactivated.")
             else:

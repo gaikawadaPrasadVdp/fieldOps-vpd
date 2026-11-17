@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django import forms
@@ -254,8 +255,25 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
             })
             self.fields["estimated_hours"].widget.attrs.setdefault("step", "0.01")
             self.fields["estimated_hours"].widget.attrs.setdefault("min", "0.01")
+            now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+            incident_dt = None
+            if self.work_order and self.work_order.source_request:
+                incident_dt = self.work_order.source_request.occurred_at or self.work_order.source_request.created_at
             if not self.initial.get("planned_start"):
-                self.initial["planned_start"] = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+                if incident_dt:
+                    inc_local = timezone.localtime(incident_dt).replace(second=0, microsecond=0)
+                    self.initial["planned_start"] = inc_local if inc_local.date() == now_local.date() else max(inc_local, now_local)
+                else:
+                    self.initial["planned_start"] = now_local
+            min_dt = incident_dt if incident_dt else timezone.now()
+            min_str = timezone.localtime(min_dt).strftime("%Y-%m-%dT%H:%M")
+            self.fields["planned_start"].widget.attrs.setdefault("min", min_str)
+            self.fields["planned_end"].widget.attrs.setdefault("min", min_str)
+            self.fields["due_at"].widget.attrs.setdefault("min", min_str)
+            if incident_dt:
+                self.fields["planned_start"].widget.attrs["data-incident-datetime"] = min_str
+                self.fields["planned_start"].widget.attrs["data-incident-date"] = timezone.localtime(incident_dt).strftime("%Y-%m-%d")
+            self.fields["planned_start"].widget.attrs["data-today"] = timezone.localdate().strftime("%Y-%m-%d")
         if "component" in self.fields:
             self.fields["component"].label_from_instance = lambda link: f"{link.parent.asset_tag} → {link.child.asset_tag} · {link.child.name}"
     def clean(self):
@@ -266,6 +284,40 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
         if component and asset and component.parent_id != asset.pk:
             self.add_error("component", "Invalid component for the selected asset.")
         start, end, due = cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at")
+        if start:
+            today = timezone.localdate()
+            start_local = timezone.localtime(start) if timezone.is_aware(start) else start
+            start_date = start_local.date()
+
+            source_req = getattr(self.work_order, "source_request", None) if self.work_order else None
+            is_incident = (
+                self.work_order
+                and (
+                    self.work_order.source_type == WorkOrder.SourceType.INCIDENT
+                    or (source_req and getattr(source_req, "kind", "") == "INCIDENT")
+                )
+            )
+
+            if is_incident and source_req:
+                inc_dt = source_req.occurred_at or source_req.created_at
+                if inc_dt:
+                    inc_local = timezone.localtime(inc_dt) if timezone.is_aware(inc_dt) else inc_dt
+                    inc_date = inc_local.date()
+                    p_start = start
+                    i_dt = inc_dt
+                    if timezone.is_aware(p_start) and timezone.is_naive(i_dt):
+                        i_dt = timezone.make_aware(i_dt)
+                    elif timezone.is_naive(p_start) and timezone.is_aware(i_dt):
+                        p_start = timezone.make_aware(p_start)
+                    if p_start < i_dt - timedelta(minutes=1):
+                        self.add_error("planned_start", "Planned start cannot be earlier than the incident logged date.")
+                    elif start_date < inc_date:
+                        self.add_error("planned_start", "Planned start cannot be earlier than the incident logged date.")
+                    elif start_date != inc_date and start_date != today:
+                        self.add_error("planned_start", "Planned start date must be today or the incident logged date.")
+            elif self.work_order and start_date < today:
+                self.add_error("planned_start", "Planned start date cannot be in the past.")
+
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be after planned start.")
         if due and end and due < end:
@@ -344,11 +396,29 @@ class PlanForm(BootstrapFormMixin, forms.Form):
             if work_order.source_request_id:
                 self.fields["priority"].help_text = "Defaulted from linked source record; can be adjusted manually."
 
+            now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+            incident_dt = None
+            if work_order.source_request:
+                incident_dt = work_order.source_request.occurred_at or work_order.source_request.created_at
+
             if not self.initial.get("planned_start"):
-                self.initial["planned_start"] = (
-                    work_order.planned_start
-                    or timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
-                )
+                if work_order.planned_start:
+                    self.initial["planned_start"] = work_order.planned_start
+                elif incident_dt:
+                    inc_local = timezone.localtime(incident_dt).replace(second=0, microsecond=0)
+                    self.initial["planned_start"] = inc_local if inc_local.date() == now_local.date() else max(inc_local, now_local)
+                else:
+                    self.initial["planned_start"] = now_local
+
+            min_dt = incident_dt if incident_dt else timezone.now()
+            min_str = timezone.localtime(min_dt).strftime("%Y-%m-%dT%H:%M")
+            self.fields["planned_start"].widget.attrs.setdefault("min", min_str)
+            self.fields["planned_end"].widget.attrs.setdefault("min", min_str)
+            self.fields["due_at"].widget.attrs.setdefault("min", min_str)
+            if incident_dt:
+                self.fields["planned_start"].widget.attrs["data-incident-datetime"] = min_str
+                self.fields["planned_start"].widget.attrs["data-incident-date"] = timezone.localtime(incident_dt).strftime("%Y-%m-%d")
+            self.fields["planned_start"].widget.attrs["data-today"] = timezone.localdate().strftime("%Y-%m-%d")
 
     def clean(self):
         cleaned = super().clean()
@@ -356,6 +426,41 @@ class PlanForm(BootstrapFormMixin, forms.Form):
             cleaned["priority"] = self.work_order.priority
             self.errors.pop("priority", None)
         start, end, due = (cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at"))
+
+        if start:
+            today = timezone.localdate()
+            start_local = timezone.localtime(start) if timezone.is_aware(start) else start
+            start_date = start_local.date()
+
+            source_req = getattr(self.work_order, "source_request", None) if self.work_order else None
+            is_incident = (
+                self.work_order
+                and (
+                    self.work_order.source_type == WorkOrder.SourceType.INCIDENT
+                    or (source_req and getattr(source_req, "kind", "") == "INCIDENT")
+                )
+            )
+
+            if is_incident and source_req:
+                inc_dt = source_req.occurred_at or source_req.created_at
+                if inc_dt:
+                    inc_local = timezone.localtime(inc_dt) if timezone.is_aware(inc_dt) else inc_dt
+                    inc_date = inc_local.date()
+                    p_start = start
+                    i_dt = inc_dt
+                    if timezone.is_aware(p_start) and timezone.is_naive(i_dt):
+                        i_dt = timezone.make_aware(i_dt)
+                    elif timezone.is_naive(p_start) and timezone.is_aware(i_dt):
+                        p_start = timezone.make_aware(p_start)
+                    if p_start < i_dt - timedelta(minutes=1):
+                        self.add_error("planned_start", "Planned start cannot be earlier than the incident logged date.")
+                    elif start_date < inc_date:
+                        self.add_error("planned_start", "Planned start cannot be earlier than the incident logged date.")
+                    elif start_date != inc_date and start_date != today:
+                        self.add_error("planned_start", "Planned start date must be today or the incident logged date.")
+            elif self.work_order and start_date < today:
+                self.add_error("planned_start", "Planned start date cannot be in the past.")
+
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be later than planned start.")
         if due and end and due < end:
@@ -539,6 +644,11 @@ class LaborForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, work_order=None, **kwargs):
         self.work_order = work_order
         super().__init__(*args, **kwargs)
+
+    def clean_description(self):
+        desc = self.cleaned_data.get("description")
+        from apps.ui.forms import validate_alphabetical_description
+        return validate_alphabetical_description(desc, field_label="Work Description")
 
     def clean(self):
         cleaned_data = super().clean()

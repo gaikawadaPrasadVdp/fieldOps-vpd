@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
+from django.core.exceptions import ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Sum
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -15,13 +16,14 @@ from apps.ui.forms import validate_alphabetical_description
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff
 
-from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 from . import selectors
+from .models import Shift, TechnicianProfile, TravelLog, WorkNote
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
+
     from apps.accounts.models import User
-    from apps.tenancy.models import Membership
+    from apps.tenancy.models import Membership, Organization
 
 
 def assert_can_execute_job(work_order: WorkOrder, membership: Membership) -> None:
@@ -108,7 +110,7 @@ def log_travel(
     request: HttpRequest | None = None,
 ) -> TravelLog:
     """Log technician travel time and route details.
-    
+
     If record_labor_entry is True and work order is active, authoritatively persists
     a labor entry in M06 WorkOrderLabor so total job hours stay unified.
     """
@@ -199,6 +201,7 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
     can_complete = "complete" in action_ops
 
     all_parts = selectors.part_lines_for(work_order)
+    pending_part_requests = [ln for ln in all_parts if ln.status == "REQUESTED"]
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
     meters = selectors.meters_for(work_order)
@@ -219,6 +222,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
         "total_travel_hours": total_travel_hours,
         "labor_entries": labor_entries,
         "total_labor_hours": total_labor_hours,
+        "pending_part_requests": pending_part_requests,
+        "pending_part_requests_count": len(pending_part_requests),
         "consumable_parts": consumable_parts,
         "consumable_parts_count": len(consumable_parts),
         "returned_parts": returned_parts,
@@ -238,6 +243,7 @@ def record_work_note(
     membership: Membership,
     actor: User,
     request: HttpRequest | None = None,
+    is_internal: bool = False,
 ) -> WorkNote:
     """Appends an execution note for the technician work order."""
     assert_can_execute_job(work_order, membership)
@@ -255,6 +261,7 @@ def record_work_note(
         work_order=work_order,
         author=membership,
         body=note_clean,
+        is_internal=bool(is_internal),
     )
     audit.record(
         action="workspace.work_note_added",
@@ -315,7 +322,9 @@ def complete_job_with_signoff(
 ) -> tuple[WorkOrder, WorkOrderSignoff]:
     """Complete a work order and persist customer digital signature & final photo evidence."""
     import base64
+
     from django.core.files.base import ContentFile
+
     from apps.files import services as files_services
 
     assert_can_execute_job(work_order, membership)
@@ -713,7 +722,6 @@ def report_auxiliary_defect(
     """
     assert_can_execute_job(work_order, membership)
 
-    from apps.assets.models import Asset
     from apps.incidents import services as incident_services
 
     target_asset = asset
@@ -748,14 +756,23 @@ def report_auxiliary_defect(
         request=request,
     )
 
-    # Cross-link note onto work order execution journal
-    record_work_note(
-        work_order,
-        note=f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}.",
-        membership=membership,
-        actor=actor,
-        request=request,
-    )
+    # DEF-002 fix: Cross-link note onto work order execution journal.
+    # Use direct WorkNote.objects.create to avoid record_work_note's status guard
+    # (defect reporting is allowed regardless of exact WO status).
+    try:
+        _note_body = f"Reported auxiliary defect {sr.number} ({sr.get_kind_display()} · {sr.get_severity_display()}): {sr.title} on asset {target_asset.asset_tag}."
+        WorkNote.objects.create(
+            organization=work_order.organization,
+            work_order=work_order,
+            author=membership,
+            body=_note_body,
+        )
+    except Exception:
+        import logging as _logging
+        _logging.getLogger("apps.workspace").warning(
+            "Could not create cross-link worknote for defect %s on WO %s",
+            sr.number, work_order.order_number, exc_info=True,
+        )
 
     audit.record(
         action="workspace.auxiliary_defect_reported",
@@ -957,6 +974,65 @@ def set_technician_availability(
             },
             request=request,
         )
+
+    if status in (TechnicianProfile.AvailabilityStatus.ON_LEAVE, TechnicianProfile.AvailabilityStatus.OFF_DUTY):
+        from apps.workorders import services as wo_services
+        from apps.workorders.models import WorkOrder
+        from apps.notifications.services import notify
+
+        status_label = status.replace("_", " ").title()
+        reason = f"Technician availability set to {status_label}."
+        active_jobs = WorkOrder.objects.filter(
+            organization=membership.organization,
+            assigned_to=membership,
+            status__in=[
+                WorkOrder.Status.ASSIGNED,
+                WorkOrder.Status.DISPATCHED,
+                WorkOrder.Status.IN_PROGRESS,
+            ],
+        ).select_related("site")
+
+        held_orders = []
+        for job in active_jobs:
+            try:
+                held_wo = wo_services.transition_work_order(
+                    job,
+                    WorkOrder.Status.ON_HOLD,
+                    membership=membership,
+                    actor=actor,
+                    permission="work_order.hold",
+                    action="held",
+                    changes={"hold_reason": reason},
+                    reason=reason,
+                    request=request,
+                )
+                held_orders.append(held_wo)
+            except Exception:
+                job.status = WorkOrder.Status.ON_HOLD
+                job.hold_reason = reason
+                job.save(update_fields=["status", "hold_reason", "updated_at"])
+                held_orders.append(job)
+
+        if held_orders:
+            dispatcher_memberships = Membership.objects.for_organization(membership.organization).filter(
+                status=Membership.Status.ACTIVE,
+                membership_roles__role__role_permissions__permission__code__in=[
+                    "work_order.assign",
+                    "work_order.dispatch",
+                ],
+            ).select_related("user").distinct()
+            dispatcher_users = list({m.user for m in dispatcher_memberships if m.user != actor})
+            if dispatcher_users:
+                order_nums = ", ".join(wo.order_number for wo in held_orders[:5])
+                notify(
+                    membership.organization,
+                    dispatcher_users,
+                    title=f"Work orders placed On Hold ({membership.user.full_name or membership.user.email})",
+                    body=f"Technician availability changed to {status_label}. Work orders placed On Hold: {order_nums}",
+                    link="/app/work-orders/",
+                    source="technician_availability",
+                )
+
     return profile
 
 

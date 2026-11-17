@@ -306,7 +306,7 @@ class InspectionListView(_View):
                 "total": all_inspections.count(),
                 "in_progress": all_inspections.filter(status="IN_PROGRESS").count(),
                 "completed": all_inspections.filter(status="COMPLETED").count(),
-                "open_findings": Finding.objects.filter(organization=org, status="OPEN").count(),
+                "open_findings": selectors.findings_for(m, org).filter(status="OPEN").count(),
             },
             "sites": site_selectors.sites_for(m, org, site_perm).order_by("code")})
 
@@ -498,11 +498,53 @@ class InspectionAddFindingView(_View):
 
 class InspectionCompleteView(_View):
     required_permission = "inspection.execute"
-    http_method_names = ["post"]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get(self, request, pk):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        if insp.status == "COMPLETED":
+            messages.info(request, "This inspection is already completed.")
+            return redirect("checklists:inspection", pk=insp.pk)
+
+        org = request.organization
+        items = list(selectors.items_for(org, insp.template))
+        responses = selectors.responses_for(org, insp)
+        findings_by_item = {f.item_id: f for f in insp.findings.select_related("created_by")}
+
+        evidence = {}
+        for att in services.evidence_for_inspection(insp):
+            evidence.setdefault(att.object_id, []).append(att)
+
+        rows = [{
+            "item": it,
+            "response": responses.get(it.pk),
+            "finding": findings_by_item.get(it.pk),
+            "evidence": evidence.get(str(responses[it.pk].pk), []) if it.pk in responses else []
+        } for it in items]
+
+        answered_count = len([r for r in rows if r["response"] is not None])
+        progress_pct = int(answered_count / len(rows) * 100) if rows else 100
+        exception_count = sum(1 for r in rows if r["response"] and r["response"].is_exception)
+        issues = services.completion_issues(insp)
+
+        return render(request, "checklists/complete.html", {
+            "insp": insp,
+            "rows": rows,
+            "answered_count": answered_count,
+            "progress_pct": progress_pct,
+            "exception_count": exception_count,
+            "issues": issues,
+            "wo": insp.work_order,
+        })
 
     def post(self, request, pk):
         insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
         need(request, "inspection.execute", insp.site_id)
+        if insp.status == "COMPLETED":
+            messages.info(request, "This inspection is already completed.")
+            return redirect("checklists:inspection", pk=insp.pk)
+
         summary = request.POST.get("summary", "").strip()
         if summary:
             if any(character.isdigit() for character in summary):

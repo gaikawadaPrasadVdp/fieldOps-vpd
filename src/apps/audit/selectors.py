@@ -173,13 +173,20 @@ def search(qs, params, *, org=None, strict=True):
             "workorders": Q(action__startswith="work_order."),
             "assets": Q(action__startswith="asset."),
             "incidents": Q(action__startswith="incident.") | Q(action__startswith="request."),
-            "checklists": Q(action__startswith="inspection.") | Q(action__startswith="template.") | Q(action__startswith="finding."),
-            "inventory": Q(action__startswith="stock.") | Q(action__startswith="part.") | Q(action__startswith="warehouse."),
+            "checklists": Q(action__startswith="inspection.") | Q(action__startswith="template.") | Q(action__startswith="finding.") | Q(action__startswith="checklist."),
+            "inventory": Q(action__startswith="stock.") | Q(action__startswith="part.") | Q(action__startswith="warehouse.") | Q(action__startswith="part_line."),
             "contracts": Q(action__startswith="contract.") | Q(action__startswith="coverage."),
             "sla": Q(action__startswith="sla."),
             "portal": Q(action__startswith="portal."),
             "security": CATEGORIES["security"][2],
             "audit": Q(action__startswith="audit.") | Q(action__startswith="file."),
+            "sites": Q(action__startswith="site.") | Q(action__startswith="zone.") | Q(action__startswith="calendar.") | Q(action__startswith="shift."),
+            "organization": Q(action__startswith="organization.") | Q(action__startswith="membership."),
+            "tenancy": Q(action__startswith="organization.") | Q(action__startswith="membership."),
+            "maintenance": Q(action__startswith="maintenance."),
+            "pm": Q(action__startswith="maintenance."),
+            "users": Q(action__startswith="user.") | Q(action__startswith="auth."),
+            "roles": Q(action__startswith="role."),
         }
         if module in MODULE_MAP:
             qs = qs.filter(MODULE_MAP[module])
@@ -298,6 +305,8 @@ def get_audit_dashboard_metrics(membership, org):
         ("Contracts & Warranty", Q(action__startswith="contract.") | Q(action__startswith="coverage.")),
         ("SLA Management", Q(action__startswith="sla.")),
         ("Client Portal", Q(action__startswith="portal.")),
+        ("Sites & Locations", Q(action__startswith="site.") | Q(action__startswith="zone.") | Q(action__startswith="calendar.") | Q(action__startswith="shift.")),
+        ("Organization & Members", Q(action__startswith="organization.") | Q(action__startswith="membership.")),
         ("Security & Access", security_q),
         ("Audit & Exports", Q(action__startswith="audit.") | Q(action__startswith="file.")),
     ]

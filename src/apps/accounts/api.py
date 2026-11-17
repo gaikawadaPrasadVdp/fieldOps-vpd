@@ -47,7 +47,8 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
     def allow_request(self, request, view):
         from django.conf import settings
 
-        if not getattr(settings, "RATE_LIMITING_ENABLED", False):
+        # Login throttle is always enforced (10/min) as per security requirement
+        if self.scope != "login" and not getattr(settings, "RATE_LIMITING_ENABLED", False):
             return True
         for backend in (self._shared_cache(), _FALLBACK_THROTTLE_CACHE):
             if backend is None:
@@ -82,6 +83,14 @@ class TokenObtain(LoginThrottleMixin, TokenObtainPairView):
     permission_classes: list = []
     serializer_class = BoundedTokenObtainPairSerializer
 
+    def initial(self, request, *args, **kwargs):
+        if request.method == "POST":
+            ct = request.content_type
+            if ct and ct not in ("application/json", "application/x-www-form-urlencoded", "multipart/form-data"):
+                from rest_framework.exceptions import UnsupportedMediaType
+                raise UnsupportedMediaType(ct)
+        super().initial(request, *args, **kwargs)
+
 
 class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
     authentication_classes: list = []
@@ -89,7 +98,7 @@ class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
 
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(required=False, allow_blank=True, help_text="Optional refresh token to blacklist")
+    refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")
 
 
 class LogoutView(APIView):
@@ -99,17 +108,26 @@ class LogoutView(APIView):
         summary="User logout",
         request=LogoutSerializer,
         responses={200: inline_serializer("LogoutResponse", fields={"message": serializers.CharField()})},
-        description="Logs out the current session and blacklists the refresh token if provided.",
+        description="Logs out the current session and blacklists the refresh token.",
     )
     def post(self, request):
-        refresh_token = request.data.get("refresh") if isinstance(request.data, dict) else None
-        if refresh_token:
-            try:
-                from rest_framework_simplejwt.tokens import RefreshToken
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            except Exception:
-                pass
+        serializer = LogoutSerializer(data=request.data if isinstance(request.data, dict) else {})
+        serializer.is_valid(raise_exception=True)
+        refresh_token = serializer.validated_data["refresh"]
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError as exc:
+            return Response(
+                {"error": {"code": "invalid_token", "message": str(exc), "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            return Response(
+                {"error": {"code": "invalid_token", "message": "Invalid token.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
 
 

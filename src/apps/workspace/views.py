@@ -4,6 +4,7 @@ from apps.rbac import services as rbac
 
 from decimal import Decimal
 from django.contrib import messages
+from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -335,6 +336,13 @@ class JobLaborView(TenantPermissionMixin, View):
             except ValueError:
                 work_date = None
 
+        if description and any(char.isdigit() for char in description):
+            messages.error(request, "Work Description must contain only alphabetical characters and cannot contain numbers.")
+            if request.headers.get("HX-Request"):
+                summary = services.get_drawer_summary(wo, membership=request.membership)
+                return render(request, "workspace/_drawer.html", summary)
+            return redirect("workspace:job_detail", pk=wo.pk)
+
         try:
             services.record_job_labor(
                 wo,
@@ -630,8 +638,11 @@ class TechnicianListView(TenantPermissionMixin, View):
         # Find all members with technician role in this org
         members = Membership.objects.filter(
             organization=request.organization,
-            status=Membership.Status.ACTIVE,
-            membership_roles__role__system_key__in=["technician", "field_technician"],
+            status__in=[Membership.Status.ACTIVE, Membership.Status.INVITED],
+        ).filter(
+            Q(membership_roles__role__system_key__in=["technician", "field_technician"])
+            | Q(membership_roles__role__name__icontains="technician")
+            | Q(membership_roles__role__role_permissions__permission__code="work_order.start")
         ).select_related("user", "technician_profile__shift", "technician_profile__primary_site").distinct()
 
         # Build display data

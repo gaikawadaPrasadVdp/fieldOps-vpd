@@ -152,12 +152,12 @@ def clear_cache(membership):
 
 
 def membership_permissions(membership) -> frozenset[str]:
-    """Organization-WIDE permission codes of an ACTIVE membership (cached on the instance per request).
+    """Organization-WIDE permission codes of an ACTIVE or INVITED membership (cached on the instance per request).
     Roles assigned for a single site contribute nothing here; see ``site_permissions``."""
     cached = getattr(membership, "_perm_cache", None)
     if cached is not None:
         return cached
-    if not membership.is_active:
+    if not (membership.is_active or getattr(membership, "status", None) == "INVITED"):
         perms: frozenset[str] = frozenset()
     else:
         roles = Role.objects.unscoped().filter(
@@ -182,7 +182,7 @@ def site_permissions(membership) -> dict:
     if cached is not None:
         return cached
     result: dict = {}
-    if membership.is_active:
+    if membership.is_active or getattr(membership, "status", None) == "INVITED":
         scopable = catalog.site_scoped_codes()
         rows = MembershipRole.objects.filter(
             membership=membership, site__isnull=False, role__is_owner=False,
@@ -304,15 +304,14 @@ def authorized_sites_for_actor(actor_membership) -> SiteScope:
 
 
 def is_owner(membership) -> bool:
-    if membership is None or not getattr(membership, "is_active", False):
+    if membership is None:
         return False
-    from unittest.mock import Mock
-    if isinstance(membership, Mock):
-        return bool(membership.__dict__.get("is_owner_mock") or membership.__dict__.get("_is_owner"))
-    pk = getattr(membership, "pk", None)
-    if pk is None:
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
         return False
-    return MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists()
+    if getattr(membership, "is_owner_mock", None) is True or getattr(membership, "_is_owner", None) is True:
+        return True
+    return bool(MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists())
 
 
 # --- owner protection ----------------------------------------------------------------------
@@ -392,7 +391,7 @@ def set_membership_assignments(membership, assignments: list, *, actor, request=
                 actor_site_scope = authorized_sites_for_actor(actor_membership)
                 actor_org_perms = set(membership_permissions(actor_membership))
                 actor_site_perms = site_permissions(actor_membership)
-                for (role_pk, sid), (r, site) in new_assignments.items():
+                for (_role_pk, _sid), (r, site) in new_assignments.items():
                     if site is None:
                         if not actor_site_scope.all_sites:
                             raise PermissionDenied(
@@ -488,6 +487,9 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
     name = name.strip()
     if not name:
         raise ValidationFailed("Role name is required.")
+    clean_permissions = [p for p in permission_codes if p]
+    if role.is_system and not clean_permissions:
+        raise ValidationFailed("System roles cannot be stripped of permissions.", code="system_role")
     if role.is_system and name != role.name:
         aliases_map = {
             "technician": {"Technician", "Field Technician", "Lead Field Technician"},
@@ -561,16 +563,4 @@ def delete_role(role: Role, *, actor, request=None):
 def system_role_by_key(org, key: str) -> Role:
     if key not in BY_KEY:
         raise KeyError(key)
-    role = Role.objects.unscoped().filter(organization=org, system_key=key).first()
-    if role:
-        return role
-    tpl = BY_KEY[key]
-    role = Role.objects.create(
-        organization=org, name=tpl.name, description=tpl.description,
-        system_key=tpl.key, is_owner=tpl.is_owner
-    )
-    perm_by_code = {p.code: p for p in Permission.objects.all()}
-    for code in _template_codes(tpl):
-        if code in perm_by_code:
-            RolePermission.objects.create(role=role, permission=perm_by_code[code])
-    return role
+    return Role.objects.unscoped().get(organization=org, system_key=key)

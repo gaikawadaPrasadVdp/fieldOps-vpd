@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.apiutils import query_param
-from apps.core.exceptions import PermissionDenied, ValidationFailed
+from apps.core.exceptions import NotFound, PermissionDenied, ValidationFailed
 from apps.dashboards import metrics
 from apps.rbac import services as rbac
 from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
@@ -75,7 +75,7 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
         valid_sections = set(self.SECTION_DATA_PERMISSIONS.keys())
         if normalized_section not in valid_sections:
             valid_list = ", ".join(sorted(valid_sections | {"my-work"}))
-            raise ValidationFailed(
+            raise NotFound(
                 f"Unknown dashboard section '{section}'. Valid sections are: {valid_list}."
             )
 
@@ -151,7 +151,7 @@ from . import services
 
 
 class SnapshotListAPIView(TenantAPIMixin, APIView):
-    permission_map = {"get": "report.view", "post": "report.view"}
+    permission_map = {"get": "report.view", "post": "report.create"}
 
     @extend_schema(
         summary="List dashboard report snapshots",

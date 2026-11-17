@@ -345,9 +345,15 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
         return self._detail(request, pk)
 
     @extend_schema(request=CompleteSerializer, responses=InspectionDetailSerializer)
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "post"])
     def complete(self, request, pk=None):
         insp = self._obj(request, pk, "inspection.execute")
+        if request.method == "GET":
+            issues = services.completion_issues(insp) if insp.status == "IN_PROGRESS" else []
+            data = InspectionDetailSerializer(insp).data
+            data["completion_issues"] = issues
+            data["can_complete"] = len(issues) == 0 and insp.status == "IN_PROGRESS"
+            return Response(data)
         d = _validated(CompleteSerializer, request)
         services.complete_inspection(insp, membership=request.membership, actor=request.user,
                                      summary=d.get("summary", ""), request=request)
@@ -398,10 +404,9 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
-        from apps.portal.services import is_portal_client
-        if is_portal_client(request.membership):
+        from apps.ui.utils import is_client_membership
+        if is_client_membership(request.membership):
             raise PermissionDenied("Portal clients cannot access inspection requirements.")
-
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
         if not wo_param:

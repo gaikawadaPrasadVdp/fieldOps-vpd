@@ -597,10 +597,11 @@ class SlaFullWorkflowLifecycleTests(TestCase):
         self.owner_mem = Membership.objects.create(organization=self.org, user=self.owner, status=Membership.Status.ACTIVE)
         MembershipRole.objects.create(membership=self.owner_mem, role=self.roles["owner"])
 
-        # 2. Dispatcher / Operations Manager / Supervisor
+        # 2. Dispatcher / Service Manager / Supervisor
         self.dispatcher = User.objects.create_user(email="dispatcher@apex.test", password="Password123!", full_name="Apex Dispatcher")
         self.dispatcher_mem = Membership.objects.create(organization=self.org, user=self.dispatcher, status=Membership.Status.ACTIVE)
-        MembershipRole.objects.create(membership=self.dispatcher_mem, role=self.roles["operations_manager"])
+        MembershipRole.objects.create(membership=self.dispatcher_mem, role=self.roles["service_dispatcher"])
+        MembershipRole.objects.create(membership=self.dispatcher_mem, role=self.roles["service_manager"])
         MembershipRole.objects.create(membership=self.dispatcher_mem, role=self.roles["maintenance_planner"])
         MembershipRole.objects.create(membership=self.dispatcher_mem, role=self.roles["supervisor"])
 
@@ -661,7 +662,7 @@ class SlaFullWorkflowLifecycleTests(TestCase):
             self.wo_profile,
             target_kind="RESOLUTION",
             trigger="WARNING",
-            notify_role=self.roles["operations_manager"],
+            notify_role=self.roles.get("service_manager") or self.roles.get("supervisor"),
             notify_assignee=True,
             actor=self.owner,
         )
@@ -669,7 +670,7 @@ class SlaFullWorkflowLifecycleTests(TestCase):
             self.wo_profile,
             target_kind="RESOLUTION",
             trigger="BREACH",
-            notify_role=self.roles["operations_manager"],
+            notify_role=self.roles.get("service_manager") or self.roles.get("supervisor"),
             notify_assignee=True,
             actor=self.owner,
         )
