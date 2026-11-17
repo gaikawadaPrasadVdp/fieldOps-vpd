@@ -1110,6 +1110,18 @@ def search(request):
         if rbac.has_permission(m, "role.view"):
             for r in Role.objects.for_organization(org).filter(name__icontains=q)[:5]:
                 results.append({"kind": "Role", "label": r.name, "sub": r.description, "url": f"/app/roles/{r.pk}/"})
+        if rbac.has_permission_anywhere(m, "work_order.view"):
+            from apps.workorders.models import WorkOrder
+            for wo in WorkOrder.objects.filter(organization=org).filter(
+                Q(order_number__icontains=q)
+            )[:5]:
+                results.append({"kind": "Work Order", "label": wo.order_number, "sub": str(wo.site or "Work Order"), "url": f"/app/work-orders/{wo.pk}/"})
+        if rbac.has_permission_anywhere(m, "asset.view"):
+            from apps.assets.models import Asset
+            for a in Asset.objects.filter(organization=org).filter(
+                Q(asset_tag__icontains=q) | Q(name__icontains=q)
+            )[:5]:
+                results.append({"kind": "Asset", "label": a.asset_tag or a.name, "sub": a.name, "url": f"/app/assets/{a.pk}/"})
     return render(request, "ui/_search_results.html", {"results": results, "q": q})
 
 
