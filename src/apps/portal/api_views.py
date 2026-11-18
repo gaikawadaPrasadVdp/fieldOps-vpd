@@ -12,7 +12,7 @@ from apps.assets.models import Asset
 from apps.core.apiutils import paginate
 from apps.core.exceptions import Conflict, DomainError, NotFound, ValidationFailed
 from apps.incidents.models import ServiceRequest
-from apps.tenancy.api import TenantAPIMixin
+from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
 from apps.tenancy.models import Membership
 
 from . import selectors, services
@@ -56,7 +56,7 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
 
     permission_map = {
         "list": "portal.manage",
-        "retrieve": "portal.manage",
+        "retrieve": ("portal.manage", "portal.request.view", MEMBER_ONLY),
         "create": "portal.manage",
         "update": "portal.manage",
         "partial_update": "portal.manage",
@@ -70,6 +70,30 @@ class PortalAccountViewSet(TenantAPIMixin, viewsets.ModelViewSet):
         if org is None:
             return PortalAccount.objects.none()
         return selectors.accounts_for_organization(org)
+
+    def get_object(self):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+        if str(lookup_val).lower() == "me" and getattr(self.request, "membership", None):
+            account = PortalAccount.objects.filter(membership=self.request.membership).first()
+            if account:
+                self.check_object_permissions(self.request, account)
+                return account
+
+        queryset = self.filter_queryset(self.get_queryset())
+        import uuid
+        from django.db.models import Q
+        try:
+            val_uuid = uuid.UUID(str(lookup_val))
+            obj = queryset.filter(
+                Q(pk=val_uuid) | Q(membership_id=val_uuid) | Q(membership__user_id=val_uuid)
+            ).first()
+            if obj is not None:
+                self.check_object_permissions(self.request, obj)
+                return obj
+        except (ValueError, TypeError):
+            pass
+        return super().get_object()
 
     def create(self, request, *args, **kwargs):
         write_serializer = PortalAccountCreateSerializer(data=request.data)

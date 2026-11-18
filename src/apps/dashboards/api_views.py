@@ -75,7 +75,7 @@ class DashboardSectionAPIView(TenantAPIMixin, APIView):
         valid_sections = set(self.SECTION_DATA_PERMISSIONS.keys())
         if normalized_section not in valid_sections:
             valid_list = ", ".join(sorted(valid_sections | {"my-work"}))
-            raise ValidationFailed(
+            raise NotFound(
                 f"Unknown dashboard section '{section}'. Valid sections are: {valid_list}."
             )
 

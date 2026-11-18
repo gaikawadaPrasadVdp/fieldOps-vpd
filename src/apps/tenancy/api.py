@@ -127,12 +127,29 @@ class HasOrgPermission(permissions.BasePermission):
 class PlatformAPIMixin:
     """Platform (Super Admin) API: PLATFORM tenant mode, platform admins only. No tenant data permissions."""
 
+    def initial(self, request, *args, **kwargs):
+        """Check HTTP method before permission classes — returns 405 before 403."""
+        method = request.method.lower()
+        if method != "options":
+            if getattr(self, "action_map", None):
+                if method not in self.action_map:
+                    raise DRFMethodNotAllowed(request.method)
+            else:
+                allowed = {m.lower() for m in self.allowed_methods}
+                if method not in allowed:
+                    raise DRFMethodNotAllowed(request.method)
+        super().initial(request, *args, **kwargs)
+
     def get_permissions(self):
         return [permissions.IsAuthenticated(), IsPlatformAdmin()]
 
     def perform_authentication(self, request):
         super().perform_authentication(request)
-        if request.user.is_authenticated and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser):
+        if request.user.is_authenticated and (
+            getattr(request.user, "is_platform_admin", False)
+            or request.user.is_superuser
+            or getattr(request.user, "is_staff", False)
+        ):
             tenant.set_current(tenant.PLATFORM)
 
 
@@ -143,5 +160,9 @@ class IsPlatformAdmin(permissions.BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (getattr(request.user, "is_platform_admin", False) or request.user.is_superuser)
+            and (
+                getattr(request.user, "is_platform_admin", False)
+                or request.user.is_superuser
+                or getattr(request.user, "is_staff", False)
+            )
         )
