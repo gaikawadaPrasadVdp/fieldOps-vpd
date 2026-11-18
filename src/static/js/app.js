@@ -2464,8 +2464,8 @@ document.addEventListener("click", function (e) {
     !idlePath.startsWith("/accounts/logout")
   ) {
     var IDLE_ACTIVITY_KEY = "nexus_last_activity_at";
-    var rawIdleMs = parseInt(layoutEl.getAttribute("data-idle-timeout-ms") || "1800000", 10);
-    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 1800000;
+    var rawIdleMs = parseInt(layoutEl.getAttribute("data-idle-timeout-ms") || "300000", 10);
+    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 300000;
     var lastActivityAt = Date.now();
     var lastSyncedAt = 0;
     var idleLogoutTriggered = false;
@@ -2532,7 +2532,7 @@ document.addEventListener("click", function (e) {
         } catch (e) {}
         broadcastLogout();
         clearClientCookies();
-        window.location.replace("/accounts/login/?logged_out=1&next=" + nextParam);
+        window.location.replace("/accounts/login/?logged_out=1&timeout=1&next=" + nextParam);
       });
     }
 

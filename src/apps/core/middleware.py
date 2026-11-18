@@ -240,7 +240,7 @@ class SessionIdleTimeoutMiddleware:
     def __call__(self, request):
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated and not self._is_exempt(request.path):
-            idle_limit = max(1, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)))
+            idle_limit = max(1, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 300)))
             now_ts = int(time.time())
             last_raw = request.session.get(self.SESSION_ACTIVITY_KEY)
             last_ts = None
