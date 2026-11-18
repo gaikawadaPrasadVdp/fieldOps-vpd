@@ -26,6 +26,7 @@ CLIENT_ALLOWED_INCIDENT_PERMS = {
     "incident.view_assigned",
     "incident.attach",
     "incident.confirm",
+    "qr.scan",
 }
 
 
@@ -693,7 +694,7 @@ def create_portal_account(
     perms = rbac.membership_permissions(membership)
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
     if non_client_perms:
         raise ValidationFailed("Portal accounts may only be provisioned for client-only memberships.", code="not_client_only")
@@ -734,7 +735,7 @@ def enable_portal_account(account: PortalAccount, actor=None) -> PortalAccount:
     perms = rbac.membership_permissions(account.membership)
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
     if non_client_perms:
         raise Conflict("Only client-only members can have enabled portal accounts.", code="not_client_only")

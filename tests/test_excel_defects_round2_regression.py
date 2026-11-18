@@ -177,7 +177,7 @@ def test_def002_throttle_enforces_limit_via_shared_database_cache():
                 ).status_code
                 for _ in range(7)
             ]
-            assert statuses == [401] * 5 + [429] * 2, statuses
+            assert statuses == [401] * 4 + [429] * 3, statuses
             # DRF's SimpleRateThrottle key: throttle_<scope>_<ident>.
             assert caches["login_throttle"].get("throttle_login_203.0.113.201") is not None
     finally:

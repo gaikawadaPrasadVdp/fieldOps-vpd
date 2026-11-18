@@ -92,11 +92,12 @@ def test_owner_cannot_deactivate_self_via_ui(client, owner_a, org_a):
     assert m.status == "ACTIVE"
 
 
-def test_resend_invitation_sends_email(client, owner_a, org_a, django_capture_on_commit_callbacks):
+def test_resend_invitation_sends_email(client, owner_a, org_a, site_a1, django_capture_on_commit_callbacks):
     client.force_login(owner_a)
     with django_capture_on_commit_callbacks(execute=True):
         client.post("/app/users/invite/", {"email": "pending@alpha.test", "full_name": "Pen Ding",
-                                           "roles": [_role(org_a, "technician").pk]})
+                                           "roles": [_role(org_a, "technician").pk],
+                                           "sites": [site_a1.pk]})
     m = Membership.objects.unscoped().get(organization=org_a, user__email="pending@alpha.test")
     assert len(mail.outbox) == 1
     with django_capture_on_commit_callbacks(execute=True):

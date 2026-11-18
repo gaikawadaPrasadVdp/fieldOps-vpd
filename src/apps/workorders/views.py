@@ -379,7 +379,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         result = get_checklist_status(wo)
         summary = get_checklist_summary(wo)
         if not result.is_valid:
-            raise Conflict(result.message or "Checklist is incomplete or not valid.", code="checklist_incomplete", details=summary)
+            return Response(summary, status=status.HTTP_409_CONFLICT)
         return Response(summary, status=status.HTTP_200_OK)
 
     @extend_schema(

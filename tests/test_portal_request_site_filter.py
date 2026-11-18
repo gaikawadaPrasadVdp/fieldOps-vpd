@@ -189,6 +189,7 @@ def test_portal_form_new_organization_scenario_populates_all_active_sites(make_p
     from apps.tenancy.models import Organization
     from apps.sites.models import Site
     new_org = Organization.objects.create(name="Fresh Client Org", slug="fresh-client-org")
+    rbac.seed_system_roles(new_org)
     site_1 = Site.objects.create(organization=new_org, code="FRESH-01", name="Fresh Site 1", status=Site.Status.ACTIVE)
     site_2 = Site.objects.create(organization=new_org, code="FRESH-02", name="Fresh Site 2", status=Site.Status.ACTIVE)
     site_inactive = Site.objects.create(organization=new_org, code="INACT-01", name="Inactive Site", status=Site.Status.INACTIVE)

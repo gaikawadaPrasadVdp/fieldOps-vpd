@@ -1090,7 +1090,8 @@ class TechnicianAvailabilityAPIView(TenantAPIMixin, APIView):
             from django.core.exceptions import PermissionDenied
 
             from apps.ui.utils import is_technician_membership
-            if not is_technician_membership(membership):
+            from apps.rbac import services as rbac
+            if not (is_technician_membership(membership) or rbac.has_permission_anywhere(membership, "work_order.record")):
                 raise PermissionDenied("Only technicians can set availability.")
 
         new_status = request.data.get("availability_status") or request.data.get("status")

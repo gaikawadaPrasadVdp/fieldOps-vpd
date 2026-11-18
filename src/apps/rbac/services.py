@@ -352,6 +352,24 @@ def is_stores_manager(membership) -> bool:
     )
 
 
+def is_supervisor(membership) -> bool:
+    """Checks whether the membership is assigned the Supervisor role."""
+    if membership is None:
+        return False
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
+        return False
+    if is_owner(membership):
+        return False
+    return (
+        MembershipRole.objects.filter(membership=membership, role__system_key="supervisor").exists()
+        or MembershipRole.objects.filter(
+            membership=membership,
+            role__name__in={"Supervisor", "Field Supervisor", "Operations Supervisor"},
+        ).exists()
+    )
+
+
 # --- owner protection ----------------------------------------------------------------------
 
 

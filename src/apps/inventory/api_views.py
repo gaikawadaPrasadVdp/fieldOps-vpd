@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
+from apps.rbac import services as rbac
 from apps.sites import selectors as site_selectors
 from apps.tenancy.api import TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
@@ -497,10 +498,10 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {
         "list": ("inventory.view", "work_order.view", "work_order.view_assigned"),
         "retrieve": ("inventory.view", "work_order.view", "work_order.view_assigned"),
-        "create": "inventory.request",
+        "create": ("inventory.request", "inventory.view"),
         "reserve": "inventory.reserve", "release": "inventory.reserve", "issue": "inventory.issue",
         "consume": "inventory.consume", "return_stock": "inventory.return", "reconcile": "inventory.reconcile",
-        "cancel": "inventory.request", "movements": "inventory.view",
+        "cancel": ("inventory.reconcile", "inventory.request"), "movements": "inventory.view",
     }
 
     def _line(self, request, pk, code=None) -> WorkOrderPart:
@@ -539,8 +540,10 @@ class WorkOrderPartViewSet(TenantAPIMixin, viewsets.ViewSet):
     def create(self, request):
         d = _validated(PartLineCreateSerializer, request)
         wo = wo_selectors.get_work_order(request.membership, request.organization, d["work_order"])
-        require_permission(request.membership, "inventory.request", wo.site_id)
         part = selectors.get_part(request.organization, d["part"])
+        require_permission(request.membership, "inventory.request", wo.site_id)
+        if rbac.is_stores_manager(request.membership) or rbac.is_supervisor(request.membership):
+            raise DomainPermissionDenied("Stores managers and supervisors cannot request parts.", code="permission_denied")
         line = services.request_part(wo, part, d["quantity"], actor=request.user, membership=request.membership,
                                      notes=d.get("notes", ""), request=request)
         out = self._out(request, line)

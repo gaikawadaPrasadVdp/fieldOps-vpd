@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.audit import services as audit
 from apps.core.exceptions import PermissionDenied, ValidationFailed
 from apps.rbac import services as rbac
+from apps.tenancy.models import Membership
 from apps.ui.forms import validate_alphabetical_description
 from apps.workorders import services as wo_services
 from apps.workorders.models import WorkOrder, WorkOrderSignoff

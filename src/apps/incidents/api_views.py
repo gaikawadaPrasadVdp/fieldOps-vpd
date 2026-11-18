@@ -264,7 +264,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
         "comments:get": "incident.view_assigned",
-        "comments:post": ("incident.update", "incident.attach", "incident.create", "incident.report_owned"),
+        "comments:post": ("incident.attach", "incident.update", "incident.triage", "incident.create"),
         "delete_comment": "incident.update",
     }
 

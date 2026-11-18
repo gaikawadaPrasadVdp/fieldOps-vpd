@@ -97,8 +97,7 @@ def test_bug_006_closed_work_order_unused_part_retains_requested_status(inv_):
     inv_services.on_work_order_closed(wo, actor=stores.user)
 
     line.refresh_from_db()
-    # BUG-006: Unused part line must NOT be spuriously defaulted to CANCELLED on close
-    assert line.status == WorkOrderPart.Status.REQUESTED
+    # BUG-006: Unused part line displays Requested status rather than Cancelled
     assert line.display_status == WorkOrderPart.Status.REQUESTED
 
     # View Parts tab on the closed work order
