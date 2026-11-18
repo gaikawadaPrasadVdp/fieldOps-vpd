@@ -502,7 +502,8 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
             qs = selectors.comments_for(m, org, sr)
             return Response(ServiceRequestCommentSerializer(qs, many=True).data)
 
-        # POST: create comment
+        # POST: create comment (requires write permission; read-only Auditor cannot post comments)
+        require_permission(m, ("incident.update", "incident.attach", "incident.create", "incident.report_owned"), sr.site_id)
         body = request.data.get("body", "")
         is_internal = bool(request.data.get("is_internal", False))
         from apps.ui.utils import is_client_membership

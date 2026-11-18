@@ -136,7 +136,7 @@ api_v1 = [
          name="platform-organizations-list"),
     re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/?$", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
          name="platform-organizations-detail"),
-    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/status/?$", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
+    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/(?:set_status|status)/?$", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
          name="platform-organizations-status"),
     re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/users/?$", PlatformOrganizationViewSet.as_view({"post": "create_user"}),
          name="platform-organizations-users"),

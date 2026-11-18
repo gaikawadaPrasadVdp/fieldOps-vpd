@@ -86,6 +86,12 @@ class CoverageAgreement(TenantOwnedModel):
         indexes = [models.Index(fields=["organization", "site"]),
                    models.Index(fields=["organization", "is_active", "end_date"])]
 
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError({"end_date": "End date cannot be before start date."})
+
     def __str__(self):
         return f"{self.reference} · {self.title}"
 

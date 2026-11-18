@@ -39,9 +39,11 @@ class Site(TenantOwnedModel):
 
     def clean(self):
         super().clean()
-        if self.name is not None and not str(self.name).strip():
-            from django.core.exceptions import ValidationError
-            raise ValidationError({"name": "This field cannot be blank."})
+        if self.name is not None:
+            self.name = self.name.strip()
+            if not self.name:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({"name": "This field cannot be blank."})
 
     @property
     def is_active(self):
