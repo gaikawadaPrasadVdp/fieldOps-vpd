@@ -27,6 +27,8 @@
   <body
     class="{% block body_class %}{% endblock %}"
     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+    data-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}"
+    data-idle-timeout-ms="{{ session_idle_timeout_ms|default:300000 }}"
   >
     <div id="global-loading-indicator" class="fx-global-loader"></div>
     {% block body %}{% endblock %}
@@ -46,7 +48,7 @@
     </dialog>
     <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'lib/htmx.min.js' %}"></script>
-    <script src="{% static 'js/app.js' %}?v=4.9"></script>
+    <script src="{% static 'js/app.js' %}?v=5.0"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>
