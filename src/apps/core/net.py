@@ -36,11 +36,17 @@ def axes_username(request, credentials=None) -> str | None:
     variants cannot dodge the failure counter."""
     value = None
     if credentials and isinstance(credentials, dict):
-        value = credentials.get("username") or credentials.get("email")
+        if isinstance(credentials.get("body"), dict):
+            value = credentials["body"].get("username") or credentials["body"].get("email")
+        if not value:
+            value = credentials.get("username") or credentials.get("email")
     if value is None and request:
         data = getattr(request, "data", None) or getattr(request, "POST", None)
         if data and hasattr(data, "get"):
-            value = data.get("username") or data.get("email")
+            if isinstance(data.get("body"), dict):
+                value = data["body"].get("username") or data["body"].get("email")
+            if not value:
+                value = data.get("username") or data.get("email")
         if value is None:
             # For JSON API requests (like /api/v1/auth/token/) where DRF hasn't yet parsed request.data
             try:
@@ -51,7 +57,10 @@ def axes_username(request, credentials=None) -> str | None:
                     import json
                     payload = json.loads(body.decode("utf-8", errors="replace"))
                     if isinstance(payload, dict):
-                        value = payload.get("username") or payload.get("email")
+                        if isinstance(payload.get("body"), dict):
+                            value = payload["body"].get("username") or payload["body"].get("email")
+                        if not value:
+                            value = payload.get("username") or payload.get("email")
             except Exception:
                 pass
     return value.strip().lower()[:254] if isinstance(value, str) and value.strip() else None

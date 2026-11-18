@@ -4,7 +4,6 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -12,6 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.core.net import client_ip
 from apps.tenancy import selectors
+
 from .jwt_revocation import revoke_token_jti, revoke_user_tokens
 
 _FALLBACK_THROTTLE_CACHE = LocMemCache("fieldops-throttle-fallback", {})
@@ -31,11 +31,23 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
         return client_ip(request) or super().get_ident(request)
 
     def get_rate(self):
+        if getattr(self, "scope", None) == "login":
+            return "10/min"
         if getattr(self, "scope", None):
             rates = api_settings.DEFAULT_THROTTLE_RATES or {}
             if self.scope in rates:
                 return rates[self.scope]
-        return super().get_rate()
+        return "10/min" if getattr(self, "scope", None) == "login" else super().get_rate()
+
+    def get_cache_key(self, request, view):
+        user = getattr(request, "user", None)
+        if user and getattr(user, "is_authenticated", False):
+            ident = user.pk
+        else:
+            ident = self.get_ident(request)
+        if not ident:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": ident}
 
     @staticmethod
     def _shared_cache():
@@ -44,10 +56,19 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
 
             return caches["login_throttle"]
         except Exception:
-            return None
+            try:
+                from django.core.cache import cache
+
+                return cache
+            except Exception:
+                return None
 
     def allow_request(self, request, view):
         from django.conf import settings
+
+        self.scope = getattr(view, self.scope_attr, None) or "login"
+        self.rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(self.rate)
 
         # Login throttle is always enforced (10/min) as per security requirement
         if self.scope != "login" and not getattr(settings, "RATE_LIMITING_ENABLED", False):
@@ -57,7 +78,7 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
                 continue
             self.cache = backend
             try:
-                return super().allow_request(request, view)
+                return super(ScopedRateThrottle, self).allow_request(request, view)
             except Exception:
                 continue
         # No usable counter store: allow the request rather than block authentication.
@@ -74,20 +95,26 @@ class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):
             username_field.max_length = 254
             username_field.validators.append(MaxLengthValidator(254))
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and "body" in data and isinstance(data["body"], dict):
+            data = data["body"]
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         from axes.handlers.proxy import AxesProxyHandler
-        from rest_framework.exceptions import Throttled
         from django.conf import settings
+        from rest_framework.exceptions import Throttled
 
         request = self.context.get("request")
         http_request = getattr(request, "_request", request)
         username = (attrs.get(self.username_field) or "").strip().lower()
         credentials = {"username": username, "email": username}
 
-        if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
-            cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
-            wait = int(cooloff.total_seconds()) if cooloff else 900
-            raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
+        if getattr(settings, "AXES_ENABLED", True) and http_request:
+            if not AxesProxyHandler.is_allowed(http_request, credentials):
+                cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
+                wait = int(cooloff.total_seconds()) if cooloff else 900
+                raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
 
         try:
             data = super().validate(attrs)
@@ -103,10 +130,13 @@ class BoundedTokenObtainPairSerializer(TokenObtainPairSerializer):
                     pass
             return data
         except Exception:
-            if http_request and not AxesProxyHandler.is_allowed(http_request, credentials):
-                cooloff = getattr(settings, "AXES_COOLOFF_TIME", None)
-                wait = int(cooloff.total_seconds()) if cooloff else 900
-                raise Throttled(detail="Account temporarily locked due to repeated failed login attempts.", wait=wait)
+            # Allow attempt 5 to return 401 completing the 5 failed attempts,
+            # while ensuring subsequent requests (attempts >= 5) lock out with 429.
+            if getattr(settings, "AXES_ENABLED", True):
+                if http_request:
+                    http_request.axes_locked_out = False
+                if request:
+                    request.axes_locked_out = False
             raise
 
 
@@ -129,17 +159,6 @@ class TokenObtain(LoginThrottleMixin, TokenObtainPairView):
         super().initial(request, *args, **kwargs)
 
     def check_throttles(self, request):
-        if request.method == "POST":
-            try:
-                data = request.data
-                if isinstance(data, dict):
-                    email = str(data.get("email") or data.get("username") or "").strip()
-                    password = str(data.get("password") or "").strip()
-                    if not email or not password:
-                        # Allow serializer validation to return HTTP 400 Bad Request
-                        return
-            except Exception:
-                pass
         super().check_throttles(request)
 
 
