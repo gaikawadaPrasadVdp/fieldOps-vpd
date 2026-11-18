@@ -559,6 +559,28 @@ def request_part(wo, part: Part, quantity, *, actor, membership, notes: str = ""
     audit.record(action, actor=actor, organization=wo.organization, target=line,
                  after={"work_order": wo.number, "part": part.part_number,
                         "quantity_requested": line.quantity_requested}, request=request)
+
+    # Notify Store Managers of the technician's part request
+    try:
+        from apps.notifications import services as notifications
+        from apps.rbac.models import MembershipRole
+        store_user_ids = list(MembershipRole.objects.filter(
+            membership__organization=wo.organization,
+            membership__status="ACTIVE",
+            role__system_key__in=["stores_manager", "stores_inventory"],
+        ).values_list("membership__user_id", flat=True).distinct())
+        if store_user_ids:
+            notifications.notify(
+                wo.organization,
+                store_user_ids,
+                title=f"Part Requested: {part.part_number}",
+                body=f"Technician requested {q} {part.unit or 'unit(s)'} of {part.name} for work order {wo.order_number}.",
+                link=f"/app/work-orders/{wo.pk}/parts/",
+                source="inventory.part_requested",
+            )
+    except Exception:
+        pass
+
     return line
 
 
@@ -802,8 +824,9 @@ def _wind_down(wo, *, actor, request, reconcile_done: bool):
             line.status = RECONCILED
             audit_action = "part_line.reconciled"
         elif line.quantity_issued == 0 and line.quantity_consumed == 0:
-            line.status = REQUESTED
-            audit_action = "part_line.reconciled"
+            line._user_cancelled = True
+            line.status = "CANCELLED"
+            audit_action = "part_line.cancelled"
         elif line.outstanding == 0:
             line.status = RECONCILED
             audit_action = "part_line.reconciled"
