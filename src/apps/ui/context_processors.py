@@ -575,7 +575,7 @@ def shell(request):
     if user is None or not user.is_authenticated:
         return {}
 
-    idle_timeout_seconds = getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)
+    idle_timeout_seconds = getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 300)
     idle_timeout_ms = max(60, int(idle_timeout_seconds)) * 1000
 
     req_path = request.path
