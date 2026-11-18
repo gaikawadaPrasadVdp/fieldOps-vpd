@@ -126,15 +126,8 @@ class EvidencePackageView(TenantPermissionMixin, View):
         try:
             pkg = evidence.build(request.membership, request.organization, target_pk, actor=request.user, request=request)
         except NotFound as exc:
-            # Gracefully fallback to organization audit trail ZIP if specific WO not found, so a download always succeeds!
-            exp = exports.build("zip", selectors.visible_logs(request.membership, request.organization),
-                                request.organization, actor=request.user)
-            resp = HttpResponse(exp.body, content_type=exp.content_type)
-            resp["Content-Disposition"] = f'attachment; filename="{exp.filename}"'
-            resp["Content-Length"] = str(len(exp.body))
-            resp["Cache-Control"] = "private, no-store"
-            resp["X-Content-Type-Options"] = "nosniff"
-            return resp
+            messages.error(request, f"Work order '{target_pk}' was not found. Please verify the Work Order Number or UUID.")
+            return redirect("audit:list")
         except PermissionDenied:
             messages.error(request, "You do not have permission to export evidence for this site.")
             return redirect("audit:list")

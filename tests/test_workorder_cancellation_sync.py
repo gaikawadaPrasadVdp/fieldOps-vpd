@@ -205,8 +205,8 @@ def test_cancel_work_order_with_outstanding_issued_parts_is_refused(org_a, site_
         wo,
         part=part,
         quantity=Decimal("2"),
-        actor=stores.user,
-        membership=stores,
+        actor=planner.user,
+        membership=planner,
     )
     inventory_services.reserve(
         line,

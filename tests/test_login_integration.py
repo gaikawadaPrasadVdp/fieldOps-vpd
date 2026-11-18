@@ -64,7 +64,7 @@ def test_command_created_super_admin_logs_in_via_browser_flow(monkeypatch):
     assert r.status_code == 302 and r["Location"] == "/app/"
     assert "_auth_user_id" in c.session and c.session["_auth_user_id"] == str(user.pk)  # session created
     final = c.get("/app/", follow=True)
-    assert final.redirect_chain[-1][0] == "/platform/overview/" and final.status_code == 200
+    assert final.redirect_chain[-1][0] == "/platform/organizations/" and final.status_code == 200
     assert c.get("/platform/organizations/").status_code == 200  # still authenticated after navigation
     assert c.get("/platform/audit/").status_code == 200
 

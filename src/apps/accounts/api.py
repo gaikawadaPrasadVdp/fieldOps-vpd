@@ -1,7 +1,7 @@
 from django.core.cache.backends.locmem import LocMemCache
 from django.core.validators import MaxLengthValidator
 from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework import serializers, status
+from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
@@ -168,11 +168,12 @@ class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
 
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(required=False, allow_blank=True, default="", help_text="Refresh token to blacklist")
+    refresh = serializers.CharField(required=True, allow_blank=False, help_text="Refresh token to blacklist")
 
 
 class LogoutView(APIView):
     """Logs out the user, discarding or blacklisting credentials."""
+    permission_classes = [permissions.AllowAny]
 
     @extend_schema(
         summary="User logout",
@@ -193,17 +194,15 @@ class LogoutView(APIView):
                 user_id = token.payload.get("user_id")
                 token.blacklist()
             except TokenError as exc:
-                if not getattr(request.user, "is_authenticated", False):
-                    return Response(
-                        {"error": {"code": "invalid_token", "message": str(exc), "details": {}}},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                return Response(
+                    {"error": {"code": "invalid_token", "message": str(exc), "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             except Exception:
-                if not getattr(request.user, "is_authenticated", False):
-                    return Response(
-                        {"error": {"code": "invalid_token", "message": "Invalid token.", "details": {}}},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                return Response(
+                    {"error": {"code": "invalid_token", "message": "Invalid token.", "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Revoke access token JTI if present in request.auth
         if hasattr(request, "auth") and isinstance(request.auth, dict):

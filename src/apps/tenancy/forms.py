@@ -503,11 +503,14 @@ class PlatformOrganizationCreateForm(BootstrapFormMixin, forms.Form):
         max_length=60,
         required=True,
         label="URL Slug",
+        error_messages={
+            "required": "URL Slug is required.",
+        },
         widget=forms.TextInput(attrs={
             "placeholder": "e.g. apex-industrial",
             "required": "required",
         }),
-        help_text="Unique URL identifier. Leave blank to generate automatically from name."
+        help_text="Unique URL identifier for the organization (lowercase letters, numbers, and hyphens)."
     )
     owner_name = forms.CharField(
         max_length=150,

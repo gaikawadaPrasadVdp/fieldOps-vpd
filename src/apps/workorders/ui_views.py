@@ -880,7 +880,7 @@ def _work_order_tab_context(wo, membership, tab):
                                rbac.has_permission(membership, "work_order.attach", wo.site)),
        "can_request_parts": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
                              rbac.has_permission(membership, "inventory.request", wo.site) and
-                             not rbac.is_stores_manager(membership)),
+                             not rbac.is_stores_manager(membership) and not rbac.is_supervisor(membership)),
        "can_manage_parts": (
            rbac.has_permission(membership, "inventory.request", wo.site)
            or rbac.has_permission(membership, "inventory.issue", wo.site)

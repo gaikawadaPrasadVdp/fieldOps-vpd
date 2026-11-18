@@ -43,8 +43,8 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
     )
     site = forms.ModelChoiceField(
         queryset=Site.objects.none(),
-        required=False,
-        empty_label="All Sites / Locations",
+        required=True,
+        empty_label="Please select a site / location",
         label="Site / Location",
         help_text="Select facility site or location.",
         error_messages={
@@ -187,9 +187,6 @@ class PortalServiceRequestForm(BootstrapFormMixin, forms.Form):
         cleaned_data = super().clean()
         site = cleaned_data.get("site")
         asset = cleaned_data.get("asset")
-        if not site and asset:
-            site = asset.site
-            cleaned_data["site"] = site
         if not site and "site" not in self._errors:
             self.add_error("site", "Please select a site / location.")
         if site and asset and asset.site_id != site.pk:
