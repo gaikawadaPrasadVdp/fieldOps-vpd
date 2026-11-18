@@ -105,6 +105,11 @@ class TransitionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=[t.action for t in ASSET_STATUS.transitions])
     reason = serializers.CharField(max_length=500)
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and "body" in data and isinstance(data["body"], dict):
+            data = data["body"]
+        return super().to_internal_value(data)
+
 
 class StatusHistorySerializer(serializers.Serializer):
     id = serializers.UUIDField()
@@ -268,7 +273,10 @@ def tree_node(n: dict) -> dict:
 
 
 def _validated(serializer_cls, request, partial=False):
-    ser = serializer_cls(data=request.data, partial=partial)
+    data = request.data
+    if isinstance(data, dict) and "body" in data and isinstance(data["body"], dict) and "action" not in data:
+        data = data["body"]
+    ser = serializer_cls(data=data, partial=partial)
     ser.is_valid(raise_exception=True)
     return ser.validated_data
 
