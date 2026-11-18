@@ -23,19 +23,19 @@
           <h6 class="dropdown-header">Export Filtered Warranties</h6>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="csv"
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="csv" onclick="handleWarrantyExport(event, 'csv')"
             href="{% url 'contracts:agreement_export' %}?format=csv{% if request.GET %}&amp;{{ request.GET.urlencode }}{% endif %}">
             {% icon 'file-text' 16 %} CSV Spreadsheet (.csv)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="xlsx"
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="xlsx" onclick="handleWarrantyExport(event, 'xlsx')"
             href="{% url 'contracts:agreement_export' %}?format=xlsx{% if request.GET %}&amp;{{ request.GET.urlencode }}{% endif %}">
             {% icon 'clipboard' 16 %} Excel Workbook (.xlsx)
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="pdf"
+          <a class="dropdown-item d-flex align-items-center gap-2 warranty-export-link" data-format="pdf" onclick="handleWarrantyExport(event, 'pdf')"
             href="{% url 'contracts:agreement_export' %}?format=pdf{% if request.GET %}&amp;{{ request.GET.urlencode }}{% endif %}">
             {% icon 'file' 16 %} PDF Summary Report (.pdf)
           </a>

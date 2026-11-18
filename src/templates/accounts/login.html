@@ -82,7 +82,7 @@
       {% endif %}
 
       <!-- Login Form -->
-      <form method="post" action="{% url 'accounts:login' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
+      <form method="post" action="{% url 'accounts:login' %}" novalidate id="fx-login-form" data-no-validation="true">{% csrf_token %}
         <!-- Email Address -->
         <div class="fx-login-group">
           <label for="id_username" class="fx-login-label">

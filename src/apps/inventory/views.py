@@ -567,6 +567,7 @@ class WorkOrderPartsView(TenantPermissionMixin, View):
             ln.ops = line_ops(m, wo, ln)
         can_request = (rbac.has_permission(m, "inventory.request", wo.site_id)
                        and not rbac.is_stores_manager(m)
+                       and not rbac.is_supervisor(m)
                        and services.can_request(wo, m)
                        and wo.status in ("DRAFT", "PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"))
         can_view_stock = rbac.has_permission(m, "inventory.view", wo.site_id)
@@ -582,15 +583,15 @@ class WorkOrderPartsView(TenantPermissionMixin, View):
 
 
 class PartRequestView(TenantPermissionMixin, View):
-    required_permission = "inventory.request"
+    required_permission = ("inventory.request", "inventory.view")
     http_method_names = ["post"]
 
     def post(self, request, pk):
         m, org = request.membership, request.organization
         wo = _wo(request, pk)
         need(request, "inventory.request", wo.site_id)
-        if rbac.is_stores_manager(m):
-            raise PermissionDenied("Stores / Inventory managers cannot request parts.")
+        if rbac.is_stores_manager(m) or rbac.is_supervisor(m):
+            raise PermissionDenied("Stores managers and supervisors cannot request parts.")
         form = RequestPartForm(request.POST, parts=selectors.parts_for(org).order_by("part_number"))
         if not form.is_valid():
             error_msgs = [str(err) for errs in form.errors.values() for err in errs]

@@ -87,22 +87,28 @@ def test_anonymous_redirected_to_login(client, url):
     assert r.status_code == 302 and "/accounts/login/" in r["Location"]
 
 
-def test_invite_form_persists_and_audits(client, owner_a, org_a):
+def test_invite_form_persists_and_audits(client, owner_a, org_a, site_a1):
     client.force_login(owner_a)
     rid = Role.objects.unscoped().get(organization=org_a, system_key="technician").pk
-    r = client.post("/app/users/invite/", {"email": "new.tech@alpha.test", "full_name": "New Tech", "roles": [rid]})
+    r = client.post("/app/users/invite/", {
+        "email": "new.tech@alpha.test",
+        "full_name": "New Tech",
+        "roles": [rid],
+        "sites": [site_a1.pk],
+    })
     assert r.status_code == 302
     m = Membership.objects.unscoped().get(organization=org_a, user__email="new.tech@alpha.test")
     assert m.status == "INVITED"
 
 
-def test_user_creation_with_password_creates_active_member(client, owner_a, org_a):
+def test_user_creation_with_password_creates_active_member(client, owner_a, org_a, site_a1):
     client.force_login(owner_a)
     rid = Role.objects.unscoped().get(organization=org_a, system_key="technician").pk
     r = client.post("/app/users/invite/", {
         "email": "direct.tech@alpha.test",
         "full_name": "Direct Tech",
         "roles": [rid],
+        "sites": [site_a1.pk],
         "password": "FieldOps@2026!",
     })
     assert r.status_code == 302
@@ -408,7 +414,7 @@ def test_client_user_creation_creates_portal_account_and_grants(client, org_a, o
         "full_name": "New Requester",
         "password": "FieldOps@2026!",
         "roles": [str(client_role.pk)],
-        "sites": [],
+        "sites": [str(site_a1.pk)],
     }
     from django.urls import reverse
     r = client.post(reverse("tenancy:member_invite"), data=post_data, follow=True)

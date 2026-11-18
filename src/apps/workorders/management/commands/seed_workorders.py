@@ -81,7 +81,7 @@ class Command(BaseCommand):
 
             site = sites[index % len(sites)]
             start = now.replace(minute=0, second=0, microsecond=0) + timedelta(
-                days=(index // 3) - 3, hours=8 + (index % 3) * 3)
+                days=(index // 3) + 1, hours=8 + (index % 3) * 3)
             end = start + timedelta(hours=2)
             due_at = end + timedelta(hours=1)
             asset = self._asset(organization, site, sample["asset_reference"], serial, owner.user)

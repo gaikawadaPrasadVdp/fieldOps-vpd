@@ -514,15 +514,15 @@ def _gate(wo, states: tuple, what: str):
 
 
 def can_request(wo, membership) -> bool:
-    """Who may put a part requirement on a work order: its assignee, dispatchers / reviewers, and supervisors.
-    Stores / Inventory managers are responsible for stock management, reservations, and issuance, not requesting parts.
+    """Who may put a part requirement on a work order: its assignee, dispatchers / planners.
+    Stores managers and supervisors do not request parts.
     """
-    if rbac.is_stores_manager(membership):
+    if rbac.is_stores_manager(membership) or rbac.is_supervisor(membership):
         return False
     return (wo.assigned_to_id == membership.pk
             or rbac.is_owner(membership)
             or any(rbac.has_permission(membership, c, wo.site_id)
-                   for c in ("work_order.dispatch", "work_order.review", "work_order.plan", "work_order.update")))
+                   for c in ("work_order.dispatch", "work_order.plan", "work_order.update")))
 
 
 @transaction.atomic

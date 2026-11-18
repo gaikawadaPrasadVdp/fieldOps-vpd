@@ -219,7 +219,7 @@ def test_full_flow_through_ui_pages_and_workspace(ui):
     assert StockMovement.objects.filter(movement_type__in=["ISSUE", "RESERVE", "RETURN"]).count() == 0
     # 2. stores reserve and issue from the WO parts page (DEF-015: Issue appears after Reserve)
     page = stores.get(f"/app/work-orders/{wo.pk}/parts/").content.decode()
-    assert "Reserve" in page and "Request a part" in page
+    assert "Reserve" in page
     assert "Reserve stock" in page or 'btn-outline-primary">Reserve<' in page
     assert stores.post(f"/app/inventory/part-lines/{line.pk}/reserve/", {"warehouse": str(ui["wh"].pk),
                                                                           "quantity": "3"}).status_code == 302

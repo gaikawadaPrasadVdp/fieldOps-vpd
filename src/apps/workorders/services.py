@@ -28,10 +28,10 @@ from .models import (
 TRANSITIONS = {
     WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
     WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.ON_HOLD},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
-    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
 }
@@ -167,8 +167,8 @@ def _snapshot(wo):
 def _validate_schedule_window(start, end, due_at, estimated_hours):
     if start and end and end <= start:
         raise ValidationFailed("Planned end must be later than planned start.", code="invalid_schedule")
-    if due_at and end and due_at <= end:
-        raise ValidationFailed("Due date must be later than planned end.", code="due_not_after_end")
+    if due_at and end and due_at < end:
+        raise ValidationFailed("Due date must be on or after planned end.", code="due_not_after_end")
     if due_at and start and due_at <= start:
         raise ValidationFailed("Due date must be later than planned start.", code="due_not_after_start")
     if estimated_hours is not None and Decimal(estimated_hours) <= 0:

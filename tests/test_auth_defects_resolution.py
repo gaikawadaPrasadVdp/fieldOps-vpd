@@ -45,7 +45,7 @@ def test_auth_010_whitespace_credentials_returns_400():
 
 @pytest.mark.django_db
 def test_auth_050_brute_force_lockout_after_5_failures():
-    """AUTH-050: 7 consecutive failed logins must lockout (HTTP 429) after 5 failures."""
+    """AUTH-050: 7 consecutive failed logins must lockout (HTTP 429); lockout triggers ON the 5th failure, not after it."""
     api = APIClient()
     target_email = "nonexistent_brute_force_test@nexus.local"
     statuses = []
@@ -58,10 +58,10 @@ def test_auth_050_brute_force_lockout_after_5_failures():
         )
         statuses.append(resp.status_code)
 
-    # First 5 should fail with 401 Unauthorized
-    assert statuses[:5] == [401, 401, 401, 401, 401], f"Expected first 5 to be 401, got {statuses}"
-    # Attempts 6 and 7 must be locked out with HTTP 429
-    assert statuses[5:] == [429, 429], f"Expected attempts 6 and 7 to be 429 lockout, got {statuses}"
+    # First 4 should fail with 401 Unauthorized
+    assert statuses[:4] == [401, 401, 401, 401], f"Expected first 4 to be 401, got {statuses}"
+    # Attempts 5, 6, and 7 must be locked out with HTTP 429 (lockout triggers ON the 5th failure)
+    assert statuses[4:] == [429, 429, 429], f"Expected attempts 5-7 to be 429 lockout, got {statuses}"
 
 
 @pytest.mark.django_db
@@ -110,3 +110,51 @@ def test_auth_074_access_token_revoked_after_logout():
 
     reuse_resp_root = api.get("/auth/me/")
     assert reuse_resp_root.status_code == 401, f"Expected 401 revoked after logout, got {reuse_resp_root.status_code}: {reuse_resp_root.content}"
+
+
+@pytest.mark.django_db
+def test_auth_071_logout_with_invalid_token_returns_400():
+    """AUTH-071: Logout with invalid token (refresh='not.a.jwt') must return HTTP 400."""
+    api = APIClient()
+    for path in ("/auth/logout/", "/api/v1/auth/logout/"):
+        resp = api.post(path, {"refresh": "not.a.jwt"}, format="json")
+        assert resp.status_code == 400, f"Expected 400 for {path}, got {resp.status_code}: {resp.content}"
+
+
+@pytest.mark.django_db
+def test_auth_072_logout_without_refresh_field_returns_400():
+    """AUTH-072: Logout without refresh field (empty body) must return HTTP 400."""
+    api = APIClient()
+    for path in ("/auth/logout/", "/api/v1/auth/logout/"):
+        resp = api.post(path, {}, format="json")
+        assert resp.status_code == 400, f"Expected 400 for {path}, got {resp.status_code}: {resp.content}"
+
+
+@pytest.mark.django_db
+def test_cmt_004_read_only_auditor_cannot_add_comment(make_org, make_member, make_site, make_asset, as_user):
+    """CMT-004: Read-only auditor attempting POST /service-requests/{id}/comments/ must receive HTTP 403."""
+    import uuid
+    from apps.incidents import services as inc_services
+    suffix = uuid.uuid4().hex[:6]
+    org = make_org(f"CMT Org {suffix}", f"owner-{suffix}@cmt.test")
+    site = make_site(org, f"S-{suffix}", f"Site {suffix}")
+    asset = make_asset(org, site, f"A-{suffix}")
+    auditor = make_member(org, f"auditor-{suffix}@cmt.test", "auditor")
+    tech = make_member(org, f"tech-{suffix}@cmt.test", "technician")
+    sr = inc_services.create_request(
+        org,
+        asset=asset,
+        title="Auditor comment test",
+        severity="LOW",
+        service_impact="NONE",
+        reporter=tech,
+        actor=tech.user,
+    )
+    c_reader = as_user(auditor.user, org)
+    for path in (f"/api/v1/service-requests/{sr.pk}/comments/", f"/api/v1/requests/{sr.pk}/comments/"):
+        resp = c_reader.post(path, {"body": "auditor comment"}, format="json")
+        assert resp.status_code == 403, f"Expected 403 for {path}, got {resp.status_code}: {resp.content}"
+
+
+
+

@@ -75,6 +75,9 @@ def available_technicians(work_order):
         Q(membership_roles__role__system_key__in=["technician", "field_technician"])
         | Q(membership_roles__role__name__icontains="technician")
         | Q(membership_roles__role__role_permissions__permission__code="work_order.start")
+    ).exclude(
+        Q(membership_roles__role__is_owner=True)
+        | Q(membership_roles__role__system_key__in=["owner", "admin"])
     ).select_related("user").distinct()
 
     site = getattr(work_order, "site", None)
@@ -142,11 +145,15 @@ def validate_assignment(work_order, technician):
         raise ValidationFailed("Technician must belong to this organization.", code="invalid_technician")
     if technician.status not in (Membership.Status.ACTIVE, Membership.Status.INVITED) or not technician.user.is_active:
         raise ValidationFailed("Technician is inactive.", code="technician_inactive")
-    if not technician.membership_roles.filter(
+    has_tech_role = technician.membership_roles.filter(
         Q(role__system_key__in=["technician", "field_technician"])
         | Q(role__name__icontains="technician")
         | Q(role__role_permissions__permission__code="work_order.start")
-    ).exists():
+    ).exclude(
+        Q(role__is_owner=True)
+        | Q(role__system_key__in=["owner", "admin"])
+    ).exists()
+    if not has_tech_role:
         raise ValidationFailed("The assigned member must have the Technician role.", code="technician_role_required")
     if not (
         rbac.has_permission(technician, "work_order.start", work_order.site)
