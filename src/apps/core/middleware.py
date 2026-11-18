@@ -25,6 +25,7 @@ class AuthPrefixRewriteMiddleware:
         path = request.path_info or request.path or ""
         if path.startswith("/auth/"):
             request.path_info = "/api/v1" + path
+            request.path = "/api/v1" + path
         return self.get_response(request)
 
 

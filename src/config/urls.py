@@ -181,6 +181,7 @@ class AdminLandingRedirectView(View):
         return redirect("ui:home")
 
 urlpatterns = [
+    re_path(r"^auth/", include("apps.accounts.api_urls")),
     path("admin/", AdminLandingRedirectView.as_view(), name="admin_landing"),
     path("admin", RedirectView.as_view(url="/admin/", permanent=False)),
     path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
