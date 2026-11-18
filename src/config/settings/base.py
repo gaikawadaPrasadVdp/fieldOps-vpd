@@ -171,8 +171,9 @@ RATE_LIMITING_ENABLED = env_bool("RATE_LIMITING_ENABLED", True)
 
 # --- Login throttling (django-axes) -- see docs/DECISIONS.md D-023 and docs/INCIDENT_2026-10-03_LOGIN.md
 # Number of reverse proxies in front of Django that append to X-Forwarded-For (Nginx locally = 1). 0 = ignore header.
-TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "0"))
+TRUSTED_PROXY_COUNT = int(env("TRUSTED_PROXY_COUNT", "1" if env("RENDER", "") else "0"))
 AXES_ENABLED = env_bool("AXES_ENABLED", True)
+AXES_HANDLER = "axes.handlers.database.AxesDatabaseHandler"
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # ONE combined key (username AND ip). A flat list like ["username","ip_address"] would mean "lock on EITHER",

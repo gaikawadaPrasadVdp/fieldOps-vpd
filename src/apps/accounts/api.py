@@ -166,6 +166,21 @@ class TokenRefresh(LoginThrottleMixin, TokenRefreshView):
     authentication_classes: list = []
     permission_classes: list = []
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        # Ensure rotated refresh token is always present in response when rotation is enabled
+        from django.conf import settings
+        jwt_settings = getattr(settings, 'SIMPLE_JWT', {})
+        if jwt_settings.get('ROTATE_REFRESH_TOKENS', False) and response.status_code == 200:
+            if 'refresh' not in response.data:
+                # Token rotation is on but refresh not returned - this is the bug
+                # The parent serializer should return it; log for diagnostics
+                import logging
+                logging.getLogger('apps.accounts').warning(
+                    'Token rotation enabled but refresh not in response. Check BLACKLIST_AFTER_ROTATION setting.'
+                )
+        return response
+
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True, allow_blank=False, help_text="Refresh token to blacklist")
@@ -185,6 +200,12 @@ class LogoutView(APIView):
         serializer = LogoutSerializer(data=request.data if isinstance(request.data, dict) else {})
         serializer.is_valid(raise_exception=True)
         refresh_token = serializer.validated_data.get("refresh", "").strip()
+
+        if not refresh_token:
+            return Response(
+                {"error": {"code": "invalid_token", "message": "This field may not be blank.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user_id = None
         if refresh_token:

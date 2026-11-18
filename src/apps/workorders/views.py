@@ -87,13 +87,17 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         m = self.request.membership
         if not m:
             return WorkOrder.objects.none()
-        qs = WorkOrder.objects.for_organization(m.organization).select_related("site", "assigned_to__user", "created_by")
+        qs = WorkOrder.objects.for_organization(m.organization).select_related(
+            "site", "assigned_to__user", "created_by", "asset", "component"
+        ).prefetch_related("closure_approvals")
         if not rbac.has_permission_anywhere(m, "work_order.view"):
             qs = qs.filter(assigned_to=m)
-        site_ids = [site.pk for site in Site.objects.for_organization(m.organization)
-                    if rbac.has_permission(m, "work_order.view", site) or
-                    rbac.has_permission(m, "work_order.view_assigned", site)]
-        return qs.filter(site_id__in=site_ids)
+        scope = rbac.site_scope(m, "work_order.view")
+        if not scope.all_sites:
+            scope_assigned = rbac.site_scope(m, "work_order.view_assigned")
+            permitted_site_ids = scope.site_ids | scope_assigned.site_ids
+            qs = qs.filter(site_id__in=permitted_site_ids)
+        return qs
 
     def get_serializer_class(self):
         if self.action == "create":
