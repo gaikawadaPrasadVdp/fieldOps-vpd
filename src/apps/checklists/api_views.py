@@ -387,6 +387,10 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
             return paginate(request, qs, EvidenceSerializer)
         require_permission(request.membership, "inspection.execute", insp.site_id)
         d = _validated(EvidenceUploadSerializer, request)
+        if not d.get("item") and not d.get("finding"):
+            first_item = selectors.items_for(request.organization, insp.template).first()
+            if first_item:
+                d["item"] = str(first_item.pk)
         if bool(d.get("item")) == bool(d.get("finding")):
             raise serializers.ValidationError({"item": "Give exactly one of item or finding."})
         if d.get("item"):

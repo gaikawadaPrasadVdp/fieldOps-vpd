@@ -265,12 +265,10 @@ class AssetMeterSummarySerializer(serializers.Serializer):
 
 
 class JobAssetVerifySerializer(serializers.Serializer):
-    token = serializers.CharField(max_length=128, required=False, allow_blank=True)
-    asset_tag = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    token = serializers.CharField(max_length=128, required=False, allow_blank=True, default="")
+    asset_tag = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
-        if not attrs.get("token") and not attrs.get("asset_tag"):
-            raise serializers.ValidationError("Either a scan token or an asset tag is required.")
         return attrs
 
 

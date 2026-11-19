@@ -25,6 +25,7 @@ from .serializers import (
     ClosureCommentSerializer,
     CreateWorkOrderSerializer,
     WorkOrderCompleteSerializer,
+    WorkOrderTransitionSerializer,
     EvidenceSerializer,
     ExpectedVersionSerializer,
     LaborInputSerializer,
@@ -315,6 +316,12 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             "return_for_rework": self.return_for_rework,
             "cancel": self.cancel,
         }
+        if not act:
+            allowed = services.allowed_actions(wo, request.membership)
+            if allowed:
+                act = allowed[0].get("operation")
+            else:
+                return Response(WorkOrderSerializer(wo).data)
         handler = handler_map.get(act)
         if not handler:
             raise ValidationFailed(f"Unsupported transition action: {act}")
