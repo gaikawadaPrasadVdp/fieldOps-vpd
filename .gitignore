@@ -27,3 +27,4 @@ qa/artifacts/
 *.xlsx
 *.xls
 LICENSE
+sync_repo.py

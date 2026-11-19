@@ -459,3 +459,18 @@ class MaterialInputSerializer(serializers.Serializer):
 
 class EvidenceSerializer(serializers.Serializer):
     attachment_id = serializers.UUIDField()
+
+
+class WorkOrderTransitionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(
+        choices=[
+            "complete", "start", "hold", "resume", "plan", "assign", "reassign",
+            "dispatch", "submit_for_review", "close", "return_for_rework", "cancel",
+        ],
+        help_text="Transition action to execute on the work order.",
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, default="", help_text="Reason for hold, rework, or cancellation.")
+    notes = serializers.CharField(required=False, allow_blank=True, default="", help_text="Notes for transition.")
+    summary = serializers.CharField(required=False, allow_blank=True, default="", help_text="Resolution summary on completion.")
+    expected_version = serializers.IntegerField(required=False, allow_null=True, help_text="Optimistic locking version.")
+

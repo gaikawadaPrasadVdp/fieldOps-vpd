@@ -385,15 +385,17 @@ def compute_pm_compliance(organization: Organization, sites: list[Site], start_d
     late = 0
     missed = 0
 
-    for wo in pm_orders:
-        if wo.status in (WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.SUPERVISOR_REVIEW):
-            effective_end = wo.completed_at or wo.closed_at or wo.updated_at
-            if effective_end and wo.due_at and effective_end <= wo.due_at:
+    for status_val, due_at, completed_at, closed_at, updated_at in pm_orders.values_list(
+        "status", "due_at", "completed_at", "closed_at", "updated_at"
+    ):
+        if status_val in (WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED, WorkOrder.Status.SUPERVISOR_REVIEW):
+            effective_end = completed_at or closed_at or updated_at
+            if effective_end and due_at and effective_end <= due_at:
                 on_time += 1
             else:
                 late += 1
         else:
-            if wo.due_at and now > wo.due_at:
+            if due_at and now > due_at:
                 missed += 1
 
     total_due = on_time + late + missed
@@ -480,6 +482,8 @@ def compute_sla_compliance(
     organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime
 ) -> dict[str, Any]:
     """Calculates comprehensive SLA compliance rates and statistics across the date window."""
+    from collections import defaultdict
+
     site_ids = [s.pk for s in sites]
     trackings = SLATracking.objects.filter(
         organization=organization,
@@ -488,8 +492,10 @@ def compute_sla_compliance(
         started_at__lte=end_dt,
     )
 
-    def _calc_bucket(qs, field: str):
-        counts = {r[field]: r["n"] for r in qs.values(field).annotate(n=Count("id"))}
+    resp_rows = list(trackings.values("site_id", "priority", "response_state").annotate(n=Count("id")))
+    reso_rows = list(trackings.values("site_id", "priority", "resolution_state").annotate(n=Count("id")))
+
+    def _bucket_from_dict(counts):
         met = counts.get("MET", 0)
         late = counts.get("MET_LATE", 0)
         breached = counts.get("BREACHED", 0)
@@ -507,45 +513,74 @@ def compute_sla_compliance(
             "compliance_percent": pct,
         }
 
-    resp_b = _calc_bucket(trackings, "response_state")
-    reso_b = _calc_bucket(trackings, "resolution_state")
+    resp_global = defaultdict(int)
+    for r in resp_rows:
+        resp_global[r["response_state"]] += r["n"]
+    reso_global = defaultdict(int)
+    for r in reso_rows:
+        reso_global[r["resolution_state"]] += r["n"]
+
+    resp_b = _bucket_from_dict(resp_global)
+    reso_b = _bucket_from_dict(reso_global)
 
     total_met = resp_b["met"] + reso_b["met"]
     total_finished = resp_b["finished"] + reso_b["finished"]
     overall_pct = round(100.0 * total_met / total_finished, 1) if total_finished else None
 
+    resp_by_prio = defaultdict(lambda: defaultdict(int))
+    prio_counts = defaultdict(int)
+    for r in resp_rows:
+        resp_by_prio[r["priority"]][r["response_state"]] += r["n"]
+        prio_counts[r["priority"]] += r["n"]
+
+    reso_by_prio = defaultdict(lambda: defaultdict(int))
+    for r in reso_rows:
+        reso_by_prio[r["priority"]][r["resolution_state"]] += r["n"]
+
     priority_compliance = {}
     for prio in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "URGENT"):
-        p_qs = trackings.filter(priority=prio)
-        if p_qs.exists():
-            p_resp = _calc_bucket(p_qs, "response_state")
-            p_reso = _calc_bucket(p_qs, "resolution_state")
+        if prio in prio_counts:
+            p_resp = _bucket_from_dict(resp_by_prio[prio])
+            p_reso = _bucket_from_dict(reso_by_prio[prio])
             p_fin = p_resp["finished"] + p_reso["finished"]
             p_met = p_resp["met"] + p_reso["met"]
             priority_compliance[prio] = {
                 "compliance_percent": round(100.0 * p_met / p_fin, 1) if p_fin else None,
                 "response_compliance": p_resp["compliance_percent"],
                 "resolution_compliance": p_reso["compliance_percent"],
-                "total_trackings": p_qs.count(),
+                "total_trackings": prio_counts[prio],
             }
+
+    resp_by_site = defaultdict(lambda: defaultdict(int))
+    site_total_counts = defaultdict(int)
+    for r in resp_rows:
+        s_id = str(r["site_id"])
+        resp_by_site[s_id][r["response_state"]] += r["n"]
+        site_total_counts[s_id] += r["n"]
+
+    reso_by_site = defaultdict(lambda: defaultdict(int))
+    for r in reso_rows:
+        s_id = str(r["site_id"])
+        reso_by_site[s_id][r["resolution_state"]] += r["n"]
 
     site_compliance = {}
     for s in sites:
-        s_qs = trackings.filter(site=s)
-        if s_qs.exists():
-            s_resp = _calc_bucket(s_qs, "response_state")
-            s_reso = _calc_bucket(s_qs, "resolution_state")
+        s_id = str(s.pk)
+        if s_id in site_total_counts:
+            s_resp = _bucket_from_dict(resp_by_site[s_id])
+            s_reso = _bucket_from_dict(reso_by_site[s_id])
             s_fin = s_resp["finished"] + s_reso["finished"]
             s_met = s_resp["met"] + s_reso["met"]
-            site_compliance[str(s.pk)] = {
+            site_compliance[s_id] = {
                 "site_name": s.name,
                 "site_code": s.code,
                 "compliance_percent": round(100.0 * s_met / s_fin, 1) if s_fin else None,
                 "response_compliance": s_resp["compliance_percent"],
                 "resolution_compliance": s_reso["compliance_percent"],
-                "total_trackings": s_qs.count(),
+                "total_trackings": site_total_counts[s_id],
             }
 
+    total_trackings = sum(r["n"] for r in resp_rows)
     return {
         "overall_compliance": overall_pct,
         "response_compliance": resp_b["compliance_percent"],
@@ -554,7 +589,7 @@ def compute_sla_compliance(
         "resolution_bucket": reso_b,
         "priority_compliance": priority_compliance,
         "site_compliance": site_compliance,
-        "total_trackings": trackings.count(),
+        "total_trackings": total_trackings,
     }
 
 
