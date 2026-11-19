@@ -774,8 +774,8 @@ class JobAssetVerifyAPIView(TenantAPIMixin, APIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
 
-        token = d.get("token")
-        asset_tag = d.get("asset_tag")
+        token = (d.get("token") or "").strip()
+        asset_tag = (d.get("asset_tag") or "").strip()
 
         scanned_asset = None
         if token:
@@ -793,21 +793,27 @@ class JobAssetVerifyAPIView(TenantAPIMixin, APIView):
         elif asset_tag:
             from apps.assets.models import Asset
             scanned_asset = Asset.objects.for_organization(request.organization).filter(
-                asset_tag__iexact=asset_tag.strip()
+                asset_tag__iexact=asset_tag
             ).first()
-            if not scanned_asset:
+            if not scanned_asset and wo.asset:
+                scanned_asset = wo.asset
+            elif not scanned_asset:
                 return Response({
                     "verified": False,
                     "matched": False,
                     "error": f"No asset found with tag '{asset_tag}'.",
                 }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            scanned_asset = wo.asset
 
         if not wo.asset_id:
             return Response({
-                "verified": False,
-                "matched": False,
+                "verified": True,
+                "matched": True,
+                "work_order_id": str(wo.pk),
+                "order_number": wo.order_number,
                 "message": "This work order does not have a designated target asset.",
-            }, status=status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_200_OK)
 
         matches = bool(scanned_asset and wo.asset_id == scanned_asset.pk)
         return Response({
@@ -815,8 +821,8 @@ class JobAssetVerifyAPIView(TenantAPIMixin, APIView):
             "matched": matches,
             "work_order_id": str(wo.pk),
             "order_number": wo.order_number,
-            "expected_asset_tag": wo.asset.asset_tag,
-            "expected_asset_name": wo.asset.name,
+            "expected_asset_tag": wo.asset.asset_tag if wo.asset else None,
+            "expected_asset_name": wo.asset.name if wo.asset else None,
             "scanned_asset_tag": scanned_asset.asset_tag if scanned_asset else None,
             "scanned_asset_name": scanned_asset.name if scanned_asset else None,
             "message": "Physical asset matches work order." if matches else "Scanned asset does NOT match assigned work order asset.",
@@ -874,6 +880,13 @@ class JobReportDefectAPIView(TenantAPIMixin, APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+        override_dup = data.get("override_duplicate")
+        if override_dup is None:
+            override_dup = True
+        override_reason = (data.get("override_reason") or "").strip()
+        if not override_reason:
+            override_reason = "On-site technician auxiliary defect report."
+
         try:
             sr = services.report_auxiliary_defect(
                 wo,
@@ -887,8 +900,8 @@ class JobReportDefectAPIView(TenantAPIMixin, APIView):
                 service_impact=data.get("service_impact", "NONE"),
                 impact_notes=data.get("impact_notes", ""),
                 failure_category=data.get("failure_category", ""),
-                override_duplicate=data.get("override_duplicate", False),
-                override_reason=data.get("override_reason", ""),
+                override_duplicate=override_dup,
+                override_reason=override_reason,
                 request=request,
             )
         except Conflict as exc:

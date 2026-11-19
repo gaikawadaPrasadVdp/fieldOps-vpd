@@ -135,6 +135,8 @@ def is_client_membership(membership) -> bool:
             "incident.view_assigned",
             "incident.attach",
             "incident.confirm",
+            "qr.scan",
+            "user.self",
         }
         if isinstance(perms, set | list | tuple) and perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):
             return True
