@@ -292,7 +292,7 @@ class SiteForm(BootstrapFormMixin, forms.Form):
         phone = (self.cleaned_data.get("contact_phone") or "").strip()
         if phone:
             if any(c.isalpha() for c in phone):
-                raise forms.ValidationError("Phone number cannot contain letters.")
+                raise forms.ValidationError("Enter a valid phone number. Phone number cannot contain letters.")
             digits = [c for c in phone if c.isdigit()]
             if len(digits) < 7:
                 raise forms.ValidationError("Phone number must contain at least 7 digits.")

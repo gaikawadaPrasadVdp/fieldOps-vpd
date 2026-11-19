@@ -53,7 +53,7 @@ SNAPSHOT = [
     "failure_category", "assigned_team", "occurred_at",
 ]
 _EDITABLE = {
-    "asset", "kind", "title", "description", "severity", "service_impact", "impact_notes",
+    "title", "description", "severity", "service_impact", "impact_notes",
     "failure_category", "assigned_team", "occurred_at", "downtime_started_at",
 }
 _SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "CRITICAL"}

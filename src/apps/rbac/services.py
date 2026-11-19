@@ -11,6 +11,7 @@ import dataclasses
 from fnmatch import fnmatchcase
 
 from django.db import transaction
+from django.db.models import ProtectedError
 
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, PermissionDenied, ValidationFailed
@@ -612,7 +613,10 @@ def delete_role(role: Role, *, actor, request=None):
     snap = {"name": role.name}
     org = role.organization
     pk = role.pk
-    role.delete()
+    try:
+        role.delete()
+    except ProtectedError as exc:
+        raise Conflict("Role is in use and cannot be deleted.", code="role_in_use") from exc
     audit.record("role.deleted", actor=actor, organization=org, target_repr=f"Role {snap['name']} ({pk})",
                  before=snap, request=request)
 

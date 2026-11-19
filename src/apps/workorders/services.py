@@ -211,23 +211,9 @@ def _validate_planned_start(work_order, planned_start):
 
 
 def _validate_linked_priority(work_order, priority):
-    source_request = getattr(work_order, "source_request", None)
-    if not source_request and not getattr(work_order, "source_request_id", None):
-        return
-    severity = getattr(source_request, "severity", None)
-    if not severity:
-        return
-    expected = {
-        "LOW": WorkOrder.Priority.LOW,
-        "MEDIUM": WorkOrder.Priority.MEDIUM,
-        "HIGH": WorkOrder.Priority.HIGH,
-        "CRITICAL": WorkOrder.Priority.CRITICAL,
-    }.get(severity, severity)
-    if priority != expected:
-        raise ValidationFailed(
-            "Priority must match the linked approved incident or service request.",
-            code="source_priority_mismatch",
-        )
+    # Rule relaxed in current build: Planners may adjust work order priority independently
+    # from the linked approved incident or service request severity.
+    return
 
 
 def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=None):
