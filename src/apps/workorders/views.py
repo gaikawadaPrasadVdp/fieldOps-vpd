@@ -74,7 +74,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
                     "plan": "work_order.plan", "assign": "work_order.assign",
                     "dispatch": "work_order.dispatch", "submit_for_review": "work_order.complete",
                     "close": "work_order.close", "return_for_rework": "work_order.review"}.get(sub, "work_order.update")
-        if (action in ("retrieve", "events", "checklist_status", "validate_checklist", "closure") or (action == "materials" and self.request.method == "GET")):
+        if (action in ("retrieve", "events", "checklist_status", "closure") or (action == "materials" and self.request.method == "GET")):
             m = getattr(self.request, "membership", None)
             if m and rbac.has_permission_anywhere(m, "work_order.view"):
                 return "work_order.view"
@@ -284,6 +284,25 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
+    @extend_schema(
+        request=inline_serializer(
+            "WorkOrderTransitionRequest",
+            fields={
+                "action": serializers.ChoiceField(
+                    choices=[
+                        "complete", "start", "hold", "resume", "plan",
+                        "assign", "reassign", "dispatch", "submit_for_review",
+                        "close", "return_for_rework",
+                    ]
+                ),
+                "reason": serializers.CharField(required=False, allow_blank=True),
+                "comment": serializers.CharField(required=False, allow_blank=True),
+                "expected_version": serializers.IntegerField(required=False, allow_null=True),
+            },
+        ),
+        responses={200: WorkOrderSerializer},
+        description="Execute a work order state transition.",
+    )
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
         wo = self.get_object()

@@ -360,7 +360,8 @@ def _invite(org, *, email, full_name, roles, invited_by, request=None, system=Fa
     created_user = False
     if user is None:
         if not full_name:
-            raise ValidationFailed("Full name is required.", code="name_required")
+            derived = email.split("@")[0].replace(".", " ").replace("_", " ").strip().title()
+            full_name = derived or "Member"
         user = User.objects.create_user(email=email, password=password, full_name=full_name)
         created_user = True
     elif password and not user.has_usable_password():
