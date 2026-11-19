@@ -1,5 +1,15 @@
 // FieldOps Nexus UI behaviour. Business rules live on the server; this file only enhances.
 (function () {
+  // Image fallback (CSP-safe replacement for inline onerror on [data-img-fallback]):
+  // hide a broken image and reveal the sibling placeholder after its <picture>.
+  document.addEventListener("error", function (ev) {
+    var img = ev.target;
+    if (!img || img.tagName !== "IMG" || !img.hasAttribute("data-img-fallback")) return;
+    img.style.display = "none";
+    var ph = img.parentElement && img.parentElement.nextElementSibling;
+    if (ph) ph.style.display = "inline-block";
+  }, true);
+
   // Confirmation dialogs: <button data-confirm="Message" data-confirm-title="Title">
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("[data-confirm]");
@@ -41,7 +51,12 @@
 document.addEventListener("click", function (e) {
   var nav = e.target.closest("[data-fx-toggle-nav]");
   if (nav) { var l = document.getElementById("fx-layout"); if (l) l.classList.toggle("fx-nav-open"); return; }
-  if (e.target.closest("[data-fx-print]")) window.print();
+  if (e.target.closest("[data-fx-print]")) { window.print(); return; }
+  var drill = e.target.closest("[data-drilldown-url]");
+  if (drill && drill.getAttribute("data-drilldown-url")) {
+    window.location.href = drill.getAttribute("data-drilldown-url");
+    return;
+  }
 });
 
 // Close mobile navigation drawer on Escape key
