@@ -7,7 +7,7 @@
        {% elif modal_target %}
        data-bs-toggle="modal" data-bs-target="{{ modal_target }}" role="button" tabindex="0"
        {% elif drilldown_url %}
-       onclick="window.location.href='{{ drilldown_url }}'" role="button" tabindex="0"
+       data-drilldown-url="{{ drilldown_url }}" role="button" tabindex="0"
        {% endif %}>
     <div>
       <div class="d-flex justify-content-between align-items-start mb-2">

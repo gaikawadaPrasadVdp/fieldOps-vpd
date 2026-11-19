@@ -9,8 +9,7 @@
         <span class="fx-brand-mark" aria-hidden="true">
           <picture>
             <source srcset="{% static 'images/logo-icon.webp' %}" type="image/webp">
-            <img src="{% static 'images/logo-icon.png' %}" alt="" class="fx-brand-img"
-                 onerror="this.style.display='none'; if(this.parentElement && this.parentElement.nextElementSibling) this.parentElement.nextElementSibling.style.display='inline-block';">
+            <img src="{% static 'images/logo-icon.png' %}" alt="" class="fx-brand-img" data-img-fallback>
           </picture>
           <span class="fx-brand-fallback" style="display:none;">FN</span>
         </span> FieldOps Nexus

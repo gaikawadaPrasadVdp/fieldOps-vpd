@@ -75,7 +75,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
                     "hold": "work_order.hold", "resume": "work_order.start",
                     "plan": "work_order.plan", "assign": "work_order.assign",
                     "dispatch": "work_order.dispatch", "submit_for_review": "work_order.complete",
-                    "close": "work_order.close", "return_for_rework": "work_order.review"}.get(sub, "work_order.update")
+                    "close": "work_order.close", "return_for_rework": "work_order.review",
+                    "cancel": "work_order.cancel"}.get(sub, "work_order.update")
         if (action in ("retrieve", "events", "checklist_status", "closure") or (action == "materials" and self.request.method == "GET")):
             m = getattr(self.request, "membership", None)
             if m and rbac.has_permission_anywhere(m, "work_order.view"):
@@ -286,6 +287,11 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
+    @extend_schema(request=WorkOrderReasonSerializer, responses={200: WorkOrderSerializer})
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        return self._action(pk, services.cancel_work_order, WorkOrderReasonSerializer)
+
     @extend_schema(
         request=inline_serializer(
             "WorkOrderTransitionRequest",
@@ -294,7 +300,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
                     choices=[
                         "complete", "start", "hold", "resume", "plan",
                         "assign", "reassign", "dispatch", "submit_for_review",
-                        "close", "return_for_rework",
+                        "close", "return_for_rework", "cancel",
                     ]
                 ),
                 "reason": serializers.CharField(required=False, allow_blank=True),
