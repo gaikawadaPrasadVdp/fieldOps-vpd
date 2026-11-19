@@ -42,17 +42,7 @@
         {% endif %}
       </div>
       {% if shell_breadcrumbs %}
-      <nav aria-label="Breadcrumb navigation" class="fx-topbar-breadcrumbs d-none d-md-flex align-items-center overflow-hidden">
-        <ol class="breadcrumb mb-0 small text-truncate">
-          {% for crumb in shell_breadcrumbs %}
-            {% if forloop.last or not crumb.url %}
-              <li class="breadcrumb-item active text-truncate" aria-current="page" title="{{ crumb.label }}">{{ crumb.label }}</li>
-            {% else %}
-              <li class="breadcrumb-item text-truncate"><a href="{{ crumb.url }}" class="text-decoration-none" title="{{ crumb.label }}">{{ crumb.label }}</a></li>
-            {% endif %}
-          {% endfor %}
-        </ol>
-      </nav>
+
       {% endif %}
       {% if shell_org and not is_client %}
       <form class="fx-search ms-auto ms-md-2" role="search" autocomplete="off">

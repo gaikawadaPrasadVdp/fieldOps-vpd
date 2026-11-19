@@ -28,10 +28,10 @@ from .models import (
 TRANSITIONS = {
     WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
     WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.ON_HOLD},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD},
-    WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW},
-    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
+    WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
+    WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
 }
@@ -1013,9 +1013,8 @@ def resume_work_order(wo, *, membership, actor, expected_version=None, request=N
 def _check_completion(wo, notes):
     if len((notes or "").strip()) < 10:
         raise ValidationFailed("Resolution notes must contain at least 10 characters.", code="resolution_notes_required")
-    if getattr(wo, "checklist_required", False):
-        from .checklist_adapter import validate_for_completion
-        validate_for_completion(wo)
+    from .checklist_adapter import validate_for_completion
+    validate_for_completion(wo)
     if not wo.labor_entries.exists():
         raise Conflict("Record at least one labor entry before completing this work order.", code="labor_required")
     from apps.inventory import services as inventory_services
@@ -1026,7 +1025,7 @@ def _check_completion(wo, notes):
             code="pending_part_requests",
             details={"blockers": part_request_blockers},
         )
-    evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and getattr(wo, "evidence_required", False)
+    evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
     if evidence_required and not wo.completion_evidence.exists():
         raise Conflict("Attach completion evidence before completing this work order.", code="evidence_required")
 
@@ -1045,16 +1044,6 @@ def complete_work_order(wo, *, membership, actor, resolution_notes, expected_ver
     if not can_act:
         raise PermissionDenied("Only the assigned technician may complete this work order.")
     resolution_notes = (resolution_notes or "").strip() or "Work completed successfully per specification."
-    if not wo.labor_entries.exists() and (wo.assigned_to or membership):
-        WorkOrderLabor.objects.create(
-            organization=wo.organization,
-            work_order=wo,
-            technician=wo.assigned_to or membership,
-            work_date=timezone.localdate(),
-            hours=Decimal("1.00"),
-            labor_type="REGULAR",
-            notes="Standard completion labor.",
-        )
     _check_completion(wo, resolution_notes)
     changes = {"resolution_notes": resolution_notes, "completed_at": timezone.now()}
     wo = transition_work_order(wo, WorkOrder.Status.COMPLETED, membership=membership, actor=actor,
@@ -1081,26 +1070,15 @@ def submit_for_review(wo, *, membership, actor, expected_version=None, request=N
     if not can_act:
         raise PermissionDenied("Only the assigned technician or an authorized supervisor may submit this work order for review.")
 
-    if wo.status == WorkOrder.Status.IN_PROGRESS:
-        if not wo.resolution_notes:
-            wo.resolution_notes = "Work completed and submitted for supervisor review."
-        if not wo.completed_at:
-            wo.completed_at = timezone.now()
-        wo.save(update_fields=["resolution_notes", "completed_at", "updated_at"])
-
-    _transition(wo, WorkOrder.Status.SUPERVISOR_REVIEW)
-
-    if not wo.labor_entries.exists() and (wo.assigned_to or membership):
-        WorkOrderLabor.objects.create(
-            organization=wo.organization,
-            work_order=wo,
-            technician=wo.assigned_to or membership,
-            work_date=timezone.localdate(),
-            hours=Decimal("1.00"),
-            labor_type="REGULAR",
-            notes="Standard resolution labor.",
-        )
     resolution_notes = (wo.resolution_notes or "").strip() or "Work completed and submitted for supervisor review."
+    # Canonical path: an IN_PROGRESS order is completed first (which enforces real labor, notes,
+    # checklist and evidence), then moved to supervisor review. No fabricated labor is inserted.
+    if wo.status == WorkOrder.Status.IN_PROGRESS:
+        _check_completion(wo, resolution_notes)
+        wo = transition_work_order(wo, WorkOrder.Status.COMPLETED, membership=membership, actor=actor,
+            permission="work_order.complete" if can_complete else "work_order.review",
+            action="completed", changes={"resolution_notes": resolution_notes, "completed_at": timezone.now()},
+            request=request)
     _check_completion(wo, resolution_notes)
     return transition_work_order(wo, WorkOrder.Status.SUPERVISOR_REVIEW, membership=membership, actor=actor,
         permission="work_order.review" if can_review else "work_order.complete",
@@ -1365,7 +1343,7 @@ def closure_blockers(wo):
         blockers.extend(checklist_services.checklist_blockers(wo))
     from apps.inventory import services as inventory_services
     blockers.extend(inventory_services.part_blockers(wo))
-    if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and getattr(wo, "evidence_required", False) and not wo.completion_evidence.exists():
+    if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and not wo.completion_evidence.exists():
         blockers.append("Attach completion evidence before completing this work order.")
     return blockers
 

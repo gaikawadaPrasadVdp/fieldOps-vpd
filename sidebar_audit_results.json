@@ -1,0 +1,673 @@
+{
+  "owner": {
+    "name": "Super Admin / Organization Owner",
+    "sections_count": 9,
+    "total_items": 32,
+    "sections": {
+      "Overview": [
+        "Operations Overview",
+        "Analytics Hub",
+        "KPI Snapshots"
+      ],
+      "Operations": [
+        "Incidents & Requests",
+        "Incident Dashboard",
+        "Work Orders",
+        "Checklists",
+        "Inspections",
+        "Technician Workspace"
+      ],
+      "Maintenance Planning": [
+        "Maintenance Plans",
+        "Due & Upcoming",
+        "PM History"
+      ],
+      "Inventory & Stores": [
+        "Parts Catalog",
+        "Stock Balances",
+        "Warehouses",
+        "Reservations",
+        "Stock Movements"
+      ],
+      "Assets & Locations": [
+        "Sites & Locations",
+        "Asset Registry",
+        "Asset Hierarchy",
+        "Scan QR / Barcode"
+      ],
+      "Commercial & Contracts": [
+        "Warranties & Contracts",
+        "Expiring Coverage",
+        "Service Providers"
+      ],
+      "Service Level Agreements": [
+        "SLA & Escalation"
+      ],
+      "Compliance & Governance": [
+        "Audit Trail",
+        "Compliance Reports"
+      ],
+      "Administration": [
+        "Organization Settings",
+        "Users & Invitations",
+        "Roles & Permissions",
+        "Technicians & Shifts",
+        "Portal Accounts"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/",
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ],
+      "Operations": [
+        "/app/incidents/",
+        "/app/incidents/dashboard/",
+        "/app/work-orders/",
+        "/app/checklists/",
+        "/app/inspections/",
+        "/app/workspace/"
+      ],
+      "Maintenance Planning": [
+        "/app/maintenance/plans/",
+        "/app/maintenance/due/",
+        "/app/maintenance/history/"
+      ],
+      "Inventory & Stores": [
+        "/app/inventory/parts/",
+        "/app/inventory/stock/",
+        "/app/inventory/warehouses/",
+        "/app/inventory/reservations/",
+        "/app/inventory/movements/"
+      ],
+      "Assets & Locations": [
+        "/app/sites/",
+        "/app/assets/",
+        "/app/assets/hierarchy/",
+        "/app/scan/"
+      ],
+      "Commercial & Contracts": [
+        "/app/contracts/agreements/",
+        "/app/contracts/expiry/",
+        "/app/contracts/providers/"
+      ],
+      "Service Level Agreements": [
+        "/app/sla/trackings/"
+      ],
+      "Compliance & Governance": [
+        "/app/audit/",
+        "/app/audit/reports/"
+      ],
+      "Administration": [
+        "/app/organization/",
+        "/app/users/",
+        "/app/roles/",
+        "/app/workspace/technicians/",
+        "/app/portal/accounts/"
+      ]
+    }
+  },
+  "admin": {
+    "name": "Admin",
+    "sections_count": 9,
+    "total_items": 32,
+    "sections": {
+      "Overview": [
+        "Operations Overview",
+        "Analytics Hub",
+        "KPI Snapshots"
+      ],
+      "Operations": [
+        "Incidents & Requests",
+        "Incident Dashboard",
+        "Work Orders",
+        "Checklists",
+        "Inspections",
+        "Technician Workspace"
+      ],
+      "Maintenance Planning": [
+        "Maintenance Plans",
+        "Due & Upcoming",
+        "PM History"
+      ],
+      "Inventory & Stores": [
+        "Parts Catalog",
+        "Stock Balances",
+        "Warehouses",
+        "Reservations",
+        "Stock Movements"
+      ],
+      "Assets & Locations": [
+        "Sites & Locations",
+        "Asset Registry",
+        "Asset Hierarchy",
+        "Scan QR / Barcode"
+      ],
+      "Commercial & Contracts": [
+        "Warranties & Contracts",
+        "Expiring Coverage",
+        "Service Providers"
+      ],
+      "Service Level Agreements": [
+        "SLA & Escalation"
+      ],
+      "Compliance & Governance": [
+        "Audit Trail",
+        "Compliance Reports"
+      ],
+      "Administration": [
+        "Organization Settings",
+        "Users & Invitations",
+        "Roles & Permissions",
+        "Technicians & Shifts",
+        "Portal Accounts"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/",
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ],
+      "Operations": [
+        "/app/incidents/",
+        "/app/incidents/dashboard/",
+        "/app/work-orders/",
+        "/app/checklists/",
+        "/app/inspections/",
+        "/app/workspace/"
+      ],
+      "Maintenance Planning": [
+        "/app/maintenance/plans/",
+        "/app/maintenance/due/",
+        "/app/maintenance/history/"
+      ],
+      "Inventory & Stores": [
+        "/app/inventory/parts/",
+        "/app/inventory/stock/",
+        "/app/inventory/warehouses/",
+        "/app/inventory/reservations/",
+        "/app/inventory/movements/"
+      ],
+      "Assets & Locations": [
+        "/app/sites/",
+        "/app/assets/",
+        "/app/assets/hierarchy/",
+        "/app/scan/"
+      ],
+      "Commercial & Contracts": [
+        "/app/contracts/agreements/",
+        "/app/contracts/expiry/",
+        "/app/contracts/providers/"
+      ],
+      "Service Level Agreements": [
+        "/app/sla/trackings/"
+      ],
+      "Compliance & Governance": [
+        "/app/audit/",
+        "/app/audit/reports/"
+      ],
+      "Administration": [
+        "/app/organization/",
+        "/app/users/",
+        "/app/roles/",
+        "/app/workspace/technicians/",
+        "/app/portal/accounts/"
+      ]
+    }
+  },
+  "asset_manager": {
+    "name": "Asset Manager",
+    "sections_count": 5,
+    "total_items": 12,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Service": [
+        "Service Requests",
+        "Work Orders"
+      ],
+      "Asset Lifecycle": [
+        "Sites & Locations",
+        "Assets",
+        "Hierarchy",
+        "Scan Label"
+      ],
+      "Commercial": [
+        "Warranties & contracts",
+        "Expiring coverage",
+        "Providers"
+      ],
+      "Analytics": [
+        "Analytics Hub",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Service": [
+        "/app/incidents/",
+        "/app/work-orders/"
+      ],
+      "Asset Lifecycle": [
+        "/app/sites/",
+        "/app/assets/",
+        "/app/assets/hierarchy/",
+        "/app/scan/"
+      ],
+      "Commercial": [
+        "/app/contracts/agreements/",
+        "/app/contracts/expiry/",
+        "/app/contracts/providers/"
+      ],
+      "Analytics": [
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "maintenance_planner": {
+    "name": "Maintenance Planner",
+    "sections_count": 5,
+    "total_items": 10,
+    "sections": {
+      "Overview": [
+        "Operational Overview"
+      ],
+      "Maintenance Planning": [
+        "Maintenance Plans",
+        "Due & Upcoming",
+        "PM History"
+      ],
+      "Operations": [
+        "Work Orders",
+        "Checklists",
+        "Inspections"
+      ],
+      "Assets": [
+        "Asset Register",
+        "Scan QR"
+      ],
+      "Analytics": [
+        "Analytics Hub"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Maintenance Planning": [
+        "/app/maintenance/plans/",
+        "/app/maintenance/due/",
+        "/app/maintenance/history/"
+      ],
+      "Operations": [
+        "/app/work-orders/",
+        "/app/checklists/",
+        "/app/inspections/"
+      ],
+      "Assets": [
+        "/app/assets/",
+        "/app/scan/"
+      ],
+      "Analytics": [
+        "/app/dashboards/"
+      ]
+    }
+  },
+  "service_dispatcher": {
+    "name": "Service Dispatcher",
+    "sections_count": 5,
+    "total_items": 9,
+    "sections": {
+      "Overview": [
+        "Operational Overview"
+      ],
+      "Operations": [
+        "Incidents & Requests",
+        "Incident Dashboard",
+        "Work Orders",
+        "Inspections"
+      ],
+      "Assets": [
+        "Asset Register",
+        "Scan QR"
+      ],
+      "Service Level Agreements": [
+        "SLA & Escalation"
+      ],
+      "Analytics": [
+        "Analytics Hub"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Operations": [
+        "/app/incidents/",
+        "/app/incidents/dashboard/",
+        "/app/work-orders/",
+        "/app/inspections/"
+      ],
+      "Assets": [
+        "/app/assets/",
+        "/app/scan/"
+      ],
+      "Service Level Agreements": [
+        "/app/sla/trackings/"
+      ],
+      "Analytics": [
+        "/app/dashboards/"
+      ]
+    }
+  },
+  "technician": {
+    "name": "Field Technician",
+    "sections_count": 2,
+    "total_items": 8,
+    "sections": {
+      "Field Execution": [
+        "My Assigned Jobs",
+        "All Work Orders",
+        "My Work Cockpit",
+        "My Inspections",
+        "My Profile & Shift"
+      ],
+      "Field Tools": [
+        "Scan Asset Label",
+        "Checklist Templates",
+        "Cataloged Parts"
+      ]
+    },
+    "urls": {
+      "Field Execution": [
+        "/app/workspace/",
+        "/app/work-orders/",
+        "/app/dashboards/my-work/",
+        "/app/inspections/",
+        "/app/workspace/profile/"
+      ],
+      "Field Tools": [
+        "/app/scan/",
+        "/app/checklists/",
+        "/app/inventory/parts/"
+      ]
+    }
+  },
+  "supervisor": {
+    "name": "Supervisor",
+    "sections_count": 4,
+    "total_items": 9,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Supervisory Operations": [
+        "Work Orders",
+        "Inspections",
+        "Checklists",
+        "Incidents & Requests",
+        "Incident Dashboard"
+      ],
+      "Service Level Agreements": [
+        "SLA & Escalation"
+      ],
+      "Analytics": [
+        "Analytics Hub",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Supervisory Operations": [
+        "/app/work-orders/",
+        "/app/inspections/",
+        "/app/checklists/",
+        "/app/incidents/",
+        "/app/incidents/dashboard/"
+      ],
+      "Service Level Agreements": [
+        "/app/sla/trackings/"
+      ],
+      "Analytics": [
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "stores_manager": {
+    "name": "Stores / Inventory",
+    "sections_count": 3,
+    "total_items": 8,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Inventory & Warehouses": [
+        "Parts",
+        "Stock",
+        "Warehouses",
+        "Reservations",
+        "Movements"
+      ],
+      "Analytics": [
+        "Analytics Hub",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Inventory & Warehouses": [
+        "/app/inventory/parts/",
+        "/app/inventory/stock/",
+        "/app/inventory/warehouses/",
+        "/app/inventory/reservations/",
+        "/app/inventory/movements/"
+      ],
+      "Analytics": [
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "service_manager": {
+    "name": "Service Manager",
+    "sections_count": 4,
+    "total_items": 10,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Service Assurance": [
+        "Incidents & Requests",
+        "Incident Dashboard",
+        "SLA & Escalation",
+        "Portal Accounts"
+      ],
+      "Commercial": [
+        "Warranties & contracts",
+        "Expiring coverage",
+        "Providers"
+      ],
+      "Analytics": [
+        "Analytics Hub",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Service Assurance": [
+        "/app/incidents/",
+        "/app/incidents/dashboard/",
+        "/app/sla/trackings/",
+        "/app/portal/accounts/"
+      ],
+      "Commercial": [
+        "/app/contracts/agreements/",
+        "/app/contracts/expiry/",
+        "/app/contracts/providers/"
+      ],
+      "Analytics": [
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "auditor": {
+    "name": "Auditor / Compliance",
+    "sections_count": 2,
+    "total_items": 5,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Audit & Compliance": [
+        "Audit Trail",
+        "Compliance reports",
+        "Analytics Hub",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Audit & Compliance": [
+        "/app/audit/",
+        "/app/audit/reports/",
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "operations_manager": {
+    "name": "Legacy Operations Manager",
+    "sections_count": 7,
+    "total_items": 21,
+    "sections": {
+      "Overview": [
+        "Operations Overview"
+      ],
+      "Operations": [
+        "Incidents & Requests",
+        "Incident Dashboard",
+        "Work Orders",
+        "Technicians & Shifts",
+        "Checklists",
+        "Inspections"
+      ],
+      "Maintenance Planning": [
+        "Maintenance plans",
+        "Due & upcoming",
+        "PM history"
+      ],
+      "Inventory & Warehouses": [
+        "Parts",
+        "Stock",
+        "Warehouses",
+        "Reservations",
+        "Movements"
+      ],
+      "Asset Lifecycle": [
+        "Sites & Locations",
+        "Assets",
+        "Hierarchy"
+      ],
+      "Service Level Agreements": [
+        "SLA & Escalation"
+      ],
+      "Analytics": [
+        "Operational Dashboards",
+        "KPI Snapshots"
+      ]
+    },
+    "urls": {
+      "Overview": [
+        "/app/"
+      ],
+      "Operations": [
+        "/app/incidents/",
+        "/app/incidents/dashboard/",
+        "/app/work-orders/",
+        "/app/workspace/technicians/",
+        "/app/checklists/",
+        "/app/inspections/"
+      ],
+      "Maintenance Planning": [
+        "/app/maintenance/plans/",
+        "/app/maintenance/due/",
+        "/app/maintenance/history/"
+      ],
+      "Inventory & Warehouses": [
+        "/app/inventory/parts/",
+        "/app/inventory/stock/",
+        "/app/inventory/warehouses/",
+        "/app/inventory/reservations/",
+        "/app/inventory/movements/"
+      ],
+      "Asset Lifecycle": [
+        "/app/sites/",
+        "/app/assets/",
+        "/app/assets/hierarchy/"
+      ],
+      "Service Level Agreements": [
+        "/app/sla/trackings/"
+      ],
+      "Analytics": [
+        "/app/dashboards/",
+        "/app/dashboards/snapshots/"
+      ]
+    }
+  },
+  "platform_super_admin": {
+    "name": "Platform Super Admin",
+    "sections_count": 1,
+    "total_items": 3,
+    "sections": {
+      "Platform Governance": [
+        "Overview",
+        "Organizations",
+        "Platform Audit Trail"
+      ]
+    },
+    "urls": {
+      "Platform Governance": [
+        "/platform/overview/",
+        "/platform/organizations/",
+        "/platform/audit/"
+      ]
+    }
+  },
+  "client_requester": {
+    "name": "Client / Requester",
+    "sections_count": 1,
+    "total_items": 4,
+    "sections": {
+      "Portal": [
+        "Client Portal",
+        "My Requests",
+        "New Request",
+        "Scan QR"
+      ]
+    },
+    "urls": {
+      "Portal": [
+        "/app/portal/",
+        "/app/portal/requests/",
+        "/app/portal/requests/new/",
+        "/app/portal/scan/"
+      ]
+    }
+  }
+}
