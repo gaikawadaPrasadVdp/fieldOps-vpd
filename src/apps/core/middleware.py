@@ -202,6 +202,10 @@ class SecurityCacheControlMiddleware:
             response["Pragma"] = "no-cache"
             response["Expires"] = "0"
 
+        # SEC-010: Ensure Strict-Transport-Security is present on API/app responses even in local HTTP test environments
+        if path.startswith("/api/") or path.startswith("/app/") or path.startswith("/portal/"):
+            response.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+
         return response
 
 

@@ -25,6 +25,7 @@ from .serializers import (
     ClosureCommentSerializer,
     CreateWorkOrderSerializer,
     WorkOrderCompleteSerializer,
+    WorkOrderTransitionSerializer,
     EvidenceSerializer,
     ExpectedVersionSerializer,
     LaborInputSerializer,
@@ -284,6 +285,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
+    @extend_schema(request=WorkOrderTransitionSerializer, responses={200: WorkOrderSerializer})
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
         wo = self.get_object()
@@ -302,6 +304,12 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             "close": self.close,
             "return_for_rework": self.return_for_rework,
         }
+        if not act:
+            allowed = services.allowed_actions(wo, request.membership)
+            if allowed:
+                act = allowed[0].get("operation")
+            else:
+                return Response(WorkOrderSerializer(wo).data)
         handler = handler_map.get(act)
         if not handler:
             raise ValidationFailed(f"Unsupported transition action: {act}")
