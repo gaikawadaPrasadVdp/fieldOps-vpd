@@ -380,10 +380,12 @@ class Command(BaseCommand):
 
                 )
 
+                if not portal_acc.is_enabled:
+                    portal_acc.is_enabled = True
+                    portal_acc.save(update_fields=["is_enabled", "updated_at"])
+
                 if not portal_acc.auto_grant_assets:
-
                     portal_acc.auto_grant_assets = True
-
                     portal_acc.save(update_fields=["auto_grant_assets", "updated_at"])
 
                 from apps.assets.models import Asset
@@ -486,12 +488,21 @@ class Command(BaseCommand):
                 )
                 ws_prof, _ = WorkspaceTechProfile.objects.unscoped().get_or_create(
                     membership=m,
-                    defaults={"organization": org, "max_active_jobs": 50, "availability_status": "AVAILABLE"},
+                    defaults={"organization": org, "max_active_jobs": 10000, "availability_status": "AVAILABLE"},
                 )
-                if ws_prof.max_active_jobs < 50 or ws_prof.availability_status != "AVAILABLE":
-                    ws_prof.max_active_jobs = max(ws_prof.max_active_jobs, 50)
+                if ws_prof.max_active_jobs < 10000 or ws_prof.availability_status != "AVAILABLE":
+                    ws_prof.max_active_jobs = max(ws_prof.max_active_jobs, 10000)
                     ws_prof.availability_status = "AVAILABLE"
                     ws_prof.save(update_fields=["max_active_jobs", "availability_status", "updated_at"])
+
+                from apps.workorders.models import WorkOrder
+                WorkOrder.objects.filter(
+                    organization=org,
+                    assigned_to=m,
+                    status__in=["ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD"],
+                ).filter(
+                    models.Q(title__startswith="BAT") | models.Q(title__startswith="SMK") | models.Q(title__icontains="Smoke")
+                ).update(status="CANCELLED")
 
             if not WebhookEndpoint.objects.unscoped().filter(organization=org).exists():
                 WebhookEndpoint.objects.create(

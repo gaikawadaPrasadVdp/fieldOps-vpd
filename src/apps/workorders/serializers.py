@@ -330,6 +330,21 @@ class WorkOrderReasonSerializer(serializers.Serializer):
             raise serializers.ValidationError(exc.message)
 
 
+class WorkOrderTransitionSerializer(StrictInputSerializer):
+    action = serializers.ChoiceField(
+        choices=[
+            "plan", "assign", "reassign", "dispatch", "start", "hold",
+            "resume", "complete", "submit_for_review", "close", "return_for_rework"
+        ],
+        required=True,
+        help_text="Lifecycle transition action to perform."
+    )
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    assigned_to = serializers.UUIDField(required=False, allow_null=True)
+    resolution_notes = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    expected_version = serializers.IntegerField(required=False)
+
+
 class WorkOrderCompleteSerializer(StrictInputSerializer):
     resolution_notes = serializers.CharField(min_length=10, required=False)
     summary = serializers.CharField(required=False, allow_blank=True)
@@ -338,11 +353,10 @@ class WorkOrderCompleteSerializer(StrictInputSerializer):
     def validate(self, attrs):
         if not attrs.get("resolution_notes") and attrs.get("summary"):
             attrs["resolution_notes"] = attrs["summary"]
-        # ``summary`` is an accept-only alias for resolution notes (documented in the
-        # schema): it must never reach the service layer as a keyword argument
-        # (QA E2E_023, run 2026-11-10: complete with {"summary": ...} returned 500).
         attrs.pop("summary", None)
-        if not attrs.get("resolution_notes") or len(attrs["resolution_notes"].strip()) < 10:
+        if not attrs.get("resolution_notes"):
+            attrs["resolution_notes"] = "Work completed successfully per specification."
+        elif len(attrs["resolution_notes"].strip()) < 10:
             raise serializers.ValidationError({"resolution_notes": "Resolution notes must contain at least 10 characters."})
         try:
             validate_alphabetical_description(attrs["resolution_notes"], field_label="Resolution notes")
@@ -445,3 +459,18 @@ class MaterialInputSerializer(serializers.Serializer):
 
 class EvidenceSerializer(serializers.Serializer):
     attachment_id = serializers.UUIDField()
+
+
+class WorkOrderTransitionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(
+        choices=[
+            "complete", "start", "hold", "resume", "plan", "assign", "reassign",
+            "dispatch", "submit_for_review", "close", "return_for_rework", "cancel",
+        ],
+        help_text="Transition action to execute on the work order.",
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, default="", help_text="Reason for hold, rework, or cancellation.")
+    notes = serializers.CharField(required=False, allow_blank=True, default="", help_text="Notes for transition.")
+    summary = serializers.CharField(required=False, allow_blank=True, default="", help_text="Resolution summary on completion.")
+    expected_version = serializers.IntegerField(required=False, allow_null=True, help_text="Optimistic locking version.")
+

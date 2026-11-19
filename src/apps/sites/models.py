@@ -165,6 +165,12 @@ class Shift(TenantOwnedModel):
     days_of_week = models.JSONField(default=list, help_text="Weekday indices, 0=Monday ... 6=Sunday")
     is_active = models.BooleanField(default=True)
 
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        if self.start_time and self.end_time and not self.is_overnight and self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "End time must be after start time unless is_overnight is true."})
+
     class Meta:
         ordering = ["site__code", "code"]
         constraints = [
