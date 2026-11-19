@@ -3,6 +3,7 @@ from django import forms
 from apps.ui.forms import (
     BootstrapFormMixin,
     validate_alphabetical_description,
+    validate_title,
 )
 
 from .models import Part, Warehouse
@@ -105,7 +106,7 @@ class PartForm(BootstrapFormMixin, forms.Form):
         name = (self.cleaned_data.get("name") or "").strip()
         if not name:
             raise forms.ValidationError("Name is required.")
-        return validate_alphabetical_description(name, field_label="Name")
+        return validate_title(name, field_label="Name")
 
     def clean_description(self):
         desc = (self.cleaned_data.get("description") or "").strip()
