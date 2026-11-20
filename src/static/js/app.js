@@ -1,5 +1,15 @@
 // FieldOps Nexus UI behaviour. Business rules live on the server; this file only enhances.
 (function () {
+  // Image fallback (CSP-safe replacement for inline onerror on [data-img-fallback]):
+  // hide a broken image and reveal the sibling placeholder after its <picture>.
+  document.addEventListener("error", function (ev) {
+    var img = ev.target;
+    if (!img || img.tagName !== "IMG" || !img.hasAttribute("data-img-fallback")) return;
+    img.style.display = "none";
+    var ph = img.parentElement && img.parentElement.nextElementSibling;
+    if (ph) ph.style.display = "inline-block";
+  }, true);
+
   // Confirmation dialogs: <button data-confirm="Message" data-confirm-title="Title">
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("[data-confirm]");
@@ -41,7 +51,12 @@
 document.addEventListener("click", function (e) {
   var nav = e.target.closest("[data-fx-toggle-nav]");
   if (nav) { var l = document.getElementById("fx-layout"); if (l) l.classList.toggle("fx-nav-open"); return; }
-  if (e.target.closest("[data-fx-print]")) window.print();
+  if (e.target.closest("[data-fx-print]")) { window.print(); return; }
+  var drill = e.target.closest("[data-drilldown-url]");
+  if (drill && drill.getAttribute("data-drilldown-url")) {
+    window.location.href = drill.getAttribute("data-drilldown-url");
+    return;
+  }
 });
 
 // Close mobile navigation drawer on Escape key
@@ -1719,6 +1734,7 @@ document.addEventListener("click", function (e) {
     var nameEl = form.querySelector("input[name='full_name']");
     var pwdEl = form.querySelector("input[name='password']");
     var rolesEls = form.querySelectorAll("input[name='roles']");
+    var sitesEls = form.querySelectorAll("input[name='sites']");
 
     var strictEmailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}$/;
 
@@ -1830,12 +1846,35 @@ document.addEventListener("click", function (e) {
       });
     });
 
+    function validateSites() {
+      if (!sitesEls || sitesEls.length === 0) {
+        if (window.fxToast) {
+          window.fxToast("At least one site must be created before users can be created.", "warning");
+        }
+        return false;
+      }
+      var anyChecked = Array.from(sitesEls).some(function (s) { return s.checked; });
+      if (!anyChecked) {
+        setFieldError(sitesEls[0], "Please select at least one site.");
+        return false;
+      }
+      clearFieldError(sitesEls[0]);
+      return true;
+    }
+
+    sitesEls.forEach(function (s) {
+      s.addEventListener("change", function () {
+        validateSites();
+      });
+    });
+
     form.addEventListener("submit", function (e) {
       var valid = true;
       if (!validateEmail()) valid = false;
       if (!validateFullName()) valid = false;
       if (!validatePassword()) valid = false;
       if (!validateRoles()) valid = false;
+      if (!validateSites()) valid = false;
 
       if (!valid) {
         e.preventDefault();
@@ -2432,16 +2471,27 @@ document.addEventListener("click", function (e) {
   });
 
   // 5. Automatic Client-Side Session Idle Timeout & Auto Sign-Out
-  var layoutEl = document.getElementById("fx-layout");
   var idlePath = window.location.pathname || "";
+  var bodyEl = document.body;
+  var layoutEl = document.getElementById("fx-layout");
+  var isAuth = bodyEl && (
+    bodyEl.getAttribute("data-authenticated") === "true" ||
+    !!layoutEl ||
+    !!document.getElementById("fx-logout-form") ||
+    !!document.querySelector("a[href*='/accounts/logout/']")
+  );
+
   if (
-    layoutEl &&
+    isAuth &&
     !idlePath.startsWith("/accounts/login") &&
     !idlePath.startsWith("/accounts/logout")
   ) {
     var IDLE_ACTIVITY_KEY = "nexus_last_activity_at";
-    var rawIdleMs = parseInt(layoutEl.getAttribute("data-idle-timeout-ms") || "1800000", 10);
-    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 1800000;
+    var rawAttr = (bodyEl && bodyEl.getAttribute("data-idle-timeout-ms")) ||
+                  (layoutEl && layoutEl.getAttribute("data-idle-timeout-ms")) ||
+                  "300000";
+    var rawIdleMs = parseInt(rawAttr, 10);
+    var idleTimeoutMs = (!isNaN(rawIdleMs) && rawIdleMs >= 5000) ? rawIdleMs : 300000;
     var lastActivityAt = Date.now();
     var lastSyncedAt = 0;
     var idleLogoutTriggered = false;
@@ -2492,6 +2542,17 @@ document.addEventListener("click", function (e) {
       }
 
       var nextParam = encodeURIComponent(window.location.pathname + window.location.search);
+      var redirectTarget = "/accounts/login/?logged_out=1&timeout=1&next=" + nextParam;
+
+      var fallbackTimer = setTimeout(function () {
+        try {
+          localStorage.removeItem(IDLE_ACTIVITY_KEY);
+        } catch (e) {}
+        broadcastLogout();
+        clearClientCookies();
+        window.location.replace(redirectTarget);
+      }, 3000);
+
       fetch(logoutUrl, {
         method: "POST",
         credentials: "same-origin",
@@ -2503,18 +2564,20 @@ document.addEventListener("click", function (e) {
         },
         body: bodyParams.toString(),
       }).finally(function () {
+        clearTimeout(fallbackTimer);
         try {
           localStorage.removeItem(IDLE_ACTIVITY_KEY);
         } catch (e) {}
         broadcastLogout();
         clearClientCookies();
-        window.location.replace("/accounts/login/?logged_out=1&next=" + nextParam);
+        window.location.replace(redirectTarget);
       });
     }
 
     function checkIdleExpiration() {
       if (idleLogoutTriggered) return;
-      if ((Date.now() - getEffectiveLastActivity()) >= idleTimeoutMs) {
+      var elapsed = Date.now() - getEffectiveLastActivity();
+      if (elapsed >= idleTimeoutMs) {
         performIdleSignOut();
       }
     }
@@ -2544,7 +2607,7 @@ document.addEventListener("click", function (e) {
     });
     window.addEventListener("focus", checkIdleExpiration);
 
-    var pollMs = Math.min(Math.max(Math.floor(idleTimeoutMs / 4), 1000), 15000);
+    var pollMs = Math.min(Math.max(Math.floor(idleTimeoutMs / 20), 1000), 5000);
     idleIntervalId = setInterval(checkIdleExpiration, pollMs);
   }
 })();

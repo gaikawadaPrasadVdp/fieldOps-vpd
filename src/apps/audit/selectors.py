@@ -252,7 +252,7 @@ def filter_logs(qs, params):
 
 
 def entity_types(qs):
-    return sorted(set(qs.order_by().values_list("target_type", flat=True).distinct()) - {""})
+    return sorted([t for t in set(qs.order_by().values_list("target_type", flat=True).distinct()) if t])
 
 
 def get_audit_dashboard_metrics(membership, org):

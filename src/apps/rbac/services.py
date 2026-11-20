@@ -11,6 +11,7 @@ import dataclasses
 from fnmatch import fnmatchcase
 
 from django.db import transaction
+from django.db.models import ProtectedError
 
 from apps.audit import services as audit
 from apps.core.exceptions import Conflict, PermissionDenied, ValidationFailed
@@ -153,7 +154,7 @@ def clear_cache(membership):
 
 def membership_permissions(membership) -> frozenset[str]:
     """Organization-WIDE permission codes of an ACTIVE or INVITED membership (cached on the instance per request).
-    Roles assigned for a single site contribute nothing here; see ``site_permissions``."""
+    Includes org-level permissions granted through site-scoped role assignments."""
     cached = getattr(membership, "_perm_cache", None)
     if cached is not None:
         return cached
@@ -167,10 +168,22 @@ def membership_permissions(membership) -> frozenset[str]:
         if roles.filter(is_owner=True).exists():
             perms = frozenset(catalog.all_codes())
         else:
-            perms = frozenset(
+            org_perms = set(
                 RolePermission.objects.filter(role__in=roles).values_list("permission__code", flat=True)
             )
-            perms = catalog.expand(perms)
+            # Include organization-level permissions from site-scoped role assignments
+            site_roles = Role.objects.unscoped().filter(
+                organization_id=membership.organization_id,
+                membership_roles__membership=membership,
+                membership_roles__site__isnull=False,
+            )
+            site_scoped_codes = catalog.site_scoped_codes()
+            site_role_org_perms = set(
+                RolePermission.objects.filter(role__in=site_roles)
+                .exclude(permission__code__in=site_scoped_codes)
+                .values_list("permission__code", flat=True)
+            )
+            perms = catalog.expand(org_perms | site_role_org_perms)
     membership._perm_cache = perms
     return perms
 
@@ -201,11 +214,15 @@ def _site_id(site):
     return getattr(site, "pk", site)
 
 
-def has_permission(membership, code: str, site=None) -> bool:
+def has_permission(membership, code: str | tuple | list | set, site=None) -> bool:
     """Is ``code`` granted organization-wide, or (when ``site`` is given) for that site by a site-scoped role?
     Without ``site`` only organization-wide grants count (strict)."""
     if membership is None:
         return False
+    if isinstance(code, (tuple, list, set)):
+        return any(has_permission(membership, c, site=site) for c in code)
+    if code == "__member__":
+        return getattr(membership, "is_active", False)
     if not catalog.is_registered(code):
         raise ValueError(f"Unknown permission code '{code}' (not in catalog).")
     if code in membership_permissions(membership):
@@ -215,9 +232,13 @@ def has_permission(membership, code: str, site=None) -> bool:
     return False
 
 
-def has_permission_anywhere(membership, code: str) -> bool:
+def has_permission_anywhere(membership, code: str | tuple | list | set) -> bool:
     """Granted organization-wide OR for at least one site: the gate for list/detail endpoints, which must then
     restrict data with ``site_scope``."""
+    if isinstance(code, (tuple, list, set)):
+        return any(has_permission_anywhere(membership, c) for c in code)
+    if code == "__member__":
+        return getattr(membership, "is_active", False)
     if has_permission(membership, code):
         return True
     return any(code in perms for perms in site_permissions(membership).values())
@@ -312,6 +333,42 @@ def is_owner(membership) -> bool:
     if getattr(membership, "is_owner_mock", None) is True or getattr(membership, "_is_owner", None) is True:
         return True
     return bool(MembershipRole.objects.filter(membership=membership, role__is_owner=True, site__isnull=True).exists())
+
+
+def is_stores_manager(membership) -> bool:
+    """Checks whether the membership is assigned the Stores / Inventory role."""
+    if membership is None:
+        return False
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
+        return False
+    if is_owner(membership):
+        return False
+    return (
+        MembershipRole.objects.filter(membership=membership, role__system_key="stores_manager").exists()
+        or MembershipRole.objects.filter(
+            membership=membership,
+            role__name__in={"Stores Manager", "Stores / Inventory", "Stores", "Stores / Inventory Manager"},
+        ).exists()
+    )
+
+
+def is_supervisor(membership) -> bool:
+    """Checks whether the membership is assigned the Supervisor role."""
+    if membership is None:
+        return False
+    is_active = getattr(membership, "is_active", True)
+    if is_active is False:
+        return False
+    if is_owner(membership):
+        return False
+    return (
+        MembershipRole.objects.filter(membership=membership, role__system_key="supervisor").exists()
+        or MembershipRole.objects.filter(
+            membership=membership,
+            role__name__in={"Supervisor", "Field Supervisor", "Operations Supervisor"},
+        ).exists()
+    )
 
 
 # --- owner protection ----------------------------------------------------------------------
@@ -492,10 +549,11 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
         raise ValidationFailed("System roles cannot be stripped of permissions.", code="system_role")
     if role.is_system and name != role.name:
         aliases_map = {
+            "admin": {"Super Admin", "Owner/Super Admin", "Owner / Super Admin", "Owner/Superadmin"},
             "technician": {"Technician", "Field Technician", "Lead Field Technician"},
             "stores_manager": {"Stores Manager", "Stores / Inventory", "Stores", "Stores / Inventory Manager"},
             "auditor": {"Auditor", "Auditor / Report Consumer", "Auditor / Compliance", "Compliance", "Compliance & Audit Officer"},
-            "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner"},
+            "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner", "Owner/Super Admin", "Owner / Super Admin", "Owner/Superadmin"},
             "supervisor": {"Supervisor", "Maintenance Supervisor"},
             "service_manager": {"Service Manager", "Service & SLA Manager"},
             "service_dispatcher": {"Service Dispatcher"},
@@ -555,7 +613,10 @@ def delete_role(role: Role, *, actor, request=None):
     snap = {"name": role.name}
     org = role.organization
     pk = role.pk
-    role.delete()
+    try:
+        role.delete()
+    except ProtectedError as exc:
+        raise Conflict("Role is in use and cannot be deleted.", code="role_in_use") from exc
     audit.record("role.deleted", actor=actor, organization=org, target_repr=f"Role {snap['name']} ({pk})",
                  before=snap, request=request)
 

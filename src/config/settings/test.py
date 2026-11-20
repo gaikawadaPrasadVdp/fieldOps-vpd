@@ -5,7 +5,7 @@ import secrets
 os.environ.setdefault("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))  # ephemeral, never persisted
 
 # ENV-001: Test settings use TEST_DATABASE_URL if explicitly provided, else local test PostgreSQL
-_test_db_url = os.environ.get("TEST_DATABASE_URL") or "postgres://fieldops:fieldops@localhost:5432/fieldops"
+_test_db_url = os.environ.get("TEST_DATABASE_URL") or "postgres://fieldops:fieldops@127.0.0.1:5432/fieldops"
 os.environ["DATABASE_URL"] = _test_db_url
 
 from .base import *  # noqa: E402,F401,F403
@@ -35,7 +35,7 @@ RATE_LIMITING_ENABLED = True
 REST_FRAMEWORK = {  # noqa: F405
     **REST_FRAMEWORK,  # noqa: F405
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {"anon": "10000/min", "user": "10000/min", "login": "10000/min", "token_resolve": "10000/min"},
+    "DEFAULT_THROTTLE_RATES": {"anon": "10000/min", "user": "10000/min", "login": "10/min", "token_resolve": "10000/min"},
 }
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405

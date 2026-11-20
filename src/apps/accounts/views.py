@@ -30,6 +30,9 @@ class LoginView(auth_views.LoginView):
                 from django.contrib.auth import logout as auth_logout
                 auth_logout(request)
             rotate_token(request)
+            if request.GET.get("timeout"):
+                from django.contrib import messages
+                messages.info(request, "Your session has expired due to 5 minutes of inactivity. Please sign in again.")
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):

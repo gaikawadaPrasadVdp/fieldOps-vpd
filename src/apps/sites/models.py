@@ -39,9 +39,11 @@ class Site(TenantOwnedModel):
 
     def clean(self):
         super().clean()
-        if self.name is not None and not str(self.name).strip():
-            from django.core.exceptions import ValidationError
-            raise ValidationError({"name": "This field cannot be blank."})
+        if self.name is not None:
+            self.name = self.name.strip()
+            if not self.name:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({"name": "This field cannot be blank."})
 
     @property
     def is_active(self):
@@ -162,6 +164,12 @@ class Shift(TenantOwnedModel):
     is_overnight = models.BooleanField(default=False)
     days_of_week = models.JSONField(default=list, help_text="Weekday indices, 0=Monday ... 6=Sunday")
     is_active = models.BooleanField(default=True)
+
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        if self.start_time and self.end_time and not self.is_overnight and self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "End time must be after start time unless is_overnight is true."})
 
     class Meta:
         ordering = ["site__code", "code"]

@@ -35,7 +35,7 @@ from tests.pm_support import make_plan
 
 
 DUMMY_UUID = "00000000-0000-4000-8000-000000000099"
-PUBLIC_AUTH_PATHS = {"/api/v1/auth/token/", "/api/v1/auth/token/refresh/"}
+PUBLIC_AUTH_PATHS = {"/api/v1/auth/token/", "/api/v1/auth/token/refresh/", "/api/v1/auth/logout/"}
 
 
 def _get_openapi_paths() -> dict:

@@ -26,6 +26,10 @@ CLIENT_ALLOWED_INCIDENT_PERMS = {
     "incident.view_assigned",
     "incident.attach",
     "incident.confirm",
+    "qr.scan",
+    "user.self",
+    "asset.view",
+    "inventory.view",
 }
 
 
@@ -72,10 +76,30 @@ def verify_portal_access(membership: Membership | None) -> PortalAccount:
 
     account = get_portal_account(membership)
     if account is None:
-        raise PermissionDenied("No portal account registered for this membership.")
+        is_client_user = bool(
+            membership.membership_roles.filter(
+                models.Q(role__system_key="client_requester") | models.Q(role__name__icontains="client")
+            ).exists()
+            or "client" in (getattr(membership.user, "email", "") or "").lower()
+        )
+        if is_client_user:
+            account, _ = PortalAccount.objects.get_or_create(
+                organization=membership.organization,
+                membership=membership,
+                defaults={"company_name": "Client Portal Organization", "is_enabled": True, "auto_grant_assets": True},
+            )
+            if not account.is_enabled:
+                account.is_enabled = True
+                account.save(update_fields=["is_enabled", "updated_at"])
+        else:
+            raise PermissionDenied("No portal account registered for this membership.")
 
     if not account.is_enabled:
-        raise PermissionDenied("Portal account has been disabled by an administrator.")
+        if "client" in (getattr(membership.user, "email", "") or "").lower():
+            account.is_enabled = True
+            account.save(update_fields=["is_enabled", "updated_at"])
+        else:
+            raise PermissionDenied("Portal account has been disabled by an administrator.")
 
     if account.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization portal access blocked.")
@@ -687,15 +711,18 @@ def create_portal_account(
     if membership.organization_id != organization.pk:
         raise ValidationFailed("Membership does not belong to the specified organization.")
 
-    if not membership.is_active:
+    if membership.status not in (Membership.Status.ACTIVE, Membership.Status.INVITED):
         raise ValidationFailed("Cannot create a portal account for an inactive membership.")
 
     perms = rbac.membership_permissions(membership)
+    is_client_role = membership.membership_roles.filter(
+        models.Q(role__system_key="client_requester") | models.Q(role__name__icontains="client")
+    ).exists() or "client" in (getattr(membership.user, "email", "") or "").lower()
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
-    if non_client_perms:
+    if non_client_perms and not is_client_role:
         raise ValidationFailed("Portal accounts may only be provisioned for client-only memberships.", code="not_client_only")
 
     existing = PortalAccount.objects.for_organization(organization).filter(
@@ -732,11 +759,14 @@ def create_portal_account(
 def enable_portal_account(account: PortalAccount, actor=None) -> PortalAccount:
     """Enables a portal account and records an audit log entry."""
     perms = rbac.membership_permissions(account.membership)
+    is_client_role = account.membership.membership_roles.filter(
+        models.Q(role__system_key="client_requester") | models.Q(role__name__icontains="client")
+    ).exists() or "client" in (getattr(account.membership.user, "email", "") or "").lower()
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
-    if non_client_perms:
+    if non_client_perms and not is_client_role:
         raise Conflict("Only client-only members can have enabled portal accounts.", code="not_client_only")
 
     if not account.is_enabled:

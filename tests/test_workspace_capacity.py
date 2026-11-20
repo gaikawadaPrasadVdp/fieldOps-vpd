@@ -227,7 +227,7 @@ class WorkspaceDailyCapacityTests(TestCase):
             actor=self.technician.user,
             duration_hours=Decimal("1.50"),
             distance_km=Decimal("35.0"),
-            route_details="Highway 10 to North Site",
+            route_details="Highway Ten to North Site",
             record_labor_entry=True,
             work_date=today,
         )

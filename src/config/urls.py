@@ -136,6 +136,11 @@ api_v1 = [
          name="platform-organizations-list"),
     re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/?$", PlatformOrganizationViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
          name="platform-organizations-detail"),
+    # Split the set_status/status alias into two plain patterns. A single non-capturing
+    # alternation (?:set_status|status) made drf-spectacular emit an empty path segment,
+    # producing the malformed schema path /platform/organizations/{id}// (DEF: platform //).
+    re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/set_status/?$", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
+         name="platform-organizations-set-status"),
     re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/status/?$", PlatformOrganizationViewSet.as_view({"post": "set_status"}),
          name="platform-organizations-status"),
     re_path(r"^platform/organizations/(?P<pk>[0-9a-fA-F-]+)/users/?$", PlatformOrganizationViewSet.as_view({"post": "create_user"}),
@@ -181,6 +186,7 @@ class AdminLandingRedirectView(View):
         return redirect("ui:home")
 
 urlpatterns = [
+    re_path(r"^auth/", include("apps.accounts.api_urls")),
     path("admin/", AdminLandingRedirectView.as_view(), name="admin_landing"),
     path("admin", RedirectView.as_view(url="/admin/", permanent=False)),
     path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
@@ -191,7 +197,7 @@ urlpatterns = [
     path("redoc", RedirectView.as_view(url="/api/v1/redoc/", permanent=False)),
     path("schema/", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
     path("schema", RedirectView.as_view(url="/api/v1/schema/", permanent=False)),
-    re_path(r"^assets/(?P<pk>[0-9a-fA-F-]+)/transition/?$", AssetViewSet.as_view({"post": "transition"}), name="asset_transition_direct"),
+    re_path(r"^assets/(?P<pk>[^/]+)/transition/?$", AssetViewSet.as_view({"post": "transition"}), name="asset_transition_direct"),
     path("assets/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("planner/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),
     path("inventory/dashboard/", RedirectView.as_view(url="/app/", permanent=False)),

@@ -24,7 +24,7 @@ class RoleTemplate:
 TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate("owner", "Organization Owner", "Full control of the organization and all modules.", ("*",), is_owner=True),
     RoleTemplate(
-        "admin", "Super Admin", "System configuration, users, roles, sites, policies, and audit visibility.",
+        "admin", "Owner/Superadmin", "System configuration, users, roles, sites, policies, and audit visibility.",
         ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view", "report.create", "qr.*",
          "*.view", "incident.triage", "incident.approve", "work_order.create"),
         excludes=("portal.request.*",),
@@ -71,12 +71,13 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "work_order.create", "work_order.plan", "work_order.update", "work_order.assign", "work_order.dispatch",
          "work_order.review", "maintenance.view", "work_order.close", "work_order.hold", "work_order.record",
          "work_order.attach", "checklist.*", "inspection.*", "inventory.view", "inventory.part.view",
-         "inventory.request", "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
-        excludes=("inspection.execute", "checklist.execute"),
+         "sla.view", "sla.acknowledge", "report.view", "qr.scan"),
+        excludes=("inspection.execute", "checklist.execute", "inventory.request"),
     ),
     RoleTemplate(
         "stores_manager", "Stores / Inventory", "Part master, stock balance, reservations, issue/return, and reconciliation.",
         ("inventory.*", "asset.view", "work_order.view", "site.view", "report.view", "qr.scan"),
+        excludes=("inventory.request",),
     ),
     RoleTemplate(
         "service_manager", "Service Manager", "SLA policy, breach review, contract/AMC operations, and dashboard monitoring.",

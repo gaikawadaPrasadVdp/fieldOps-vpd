@@ -87,6 +87,14 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f"   [WARN] seed_workorders: {e}"))
 
+            try:
+                call_command("seed_m05_demo")
+                self.stdout.write(self.style.SUCCESS("   [OK] Incidents and service requests seeded."))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"   [WARN] seed_m05_demo: {e}"))
+
+            self._seed_auxiliary_records()
+
         # 3. Generate Fresh JWT Tokens (Resolves Expired Token Blockers TC_AUTH_014 & TC_AUTH_054)
         self.stdout.write("3. Generating fresh JWT test credentials...")
         User = get_user_model()
@@ -105,3 +113,96 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("   No active user found to generate tokens."))
 
         self.stdout.write(self.style.SUCCESS("=== QA Retest Environment Successfully Prepared ==="))
+
+    def _seed_auxiliary_records(self):
+        from apps.tenancy.models import Organization, Membership
+        from apps.portal.models import PortalAccount
+        from apps.maintenance.models import MaintenancePlan, MaintenanceSchedule
+        from apps.assets.models import Asset, AssetComponent
+        from apps.contracts.models import ServiceProvider, CoverageAgreement, CoveredAsset
+        from datetime import date, timedelta
+
+        org = Organization.objects.filter(name="Demo Organization").first() or Organization.objects.first()
+        if not org:
+            return
+
+        # 1. Ensure Portal Account
+        client_mem = Membership.objects.filter(organization=org, user__email__icontains="client").first() or Membership.objects.filter(organization=org).exclude(status=Membership.Status.SUSPENDED).first()
+        if client_mem and not PortalAccount.objects.filter(organization=org, membership=client_mem).exists():
+            PortalAccount.objects.create(
+                organization=org,
+                membership=client_mem,
+                company_name="Apex Client Portal Demo",
+                is_enabled=True,
+                auto_grant_assets=True,
+                notes="Seeded for QA portal test suites.",
+            )
+            self.stdout.write(self.style.SUCCESS("   [OK] Portal account seeded."))
+
+        # 2. Ensure Maintenance Plan & Schedule
+        asset = Asset.objects.filter(organization=org, status=Asset.Status.ACTIVE).first()
+        if asset:
+            plan, _ = MaintenancePlan.objects.get_or_create(
+                organization=org,
+                asset=asset,
+                defaults={
+                    "site": asset.site,
+                    "name": f"PM Plan for {asset.name}",
+                    "description": "Routine preventive maintenance plan.",
+                    "priority": "MEDIUM",
+                    "estimated_hours": 2.0,
+                    "is_active": True,
+                },
+            )
+            if not MaintenanceSchedule.objects.filter(plan=plan).exists():
+                MaintenanceSchedule.objects.create(
+                    organization=org,
+                    plan=plan,
+                    trigger_type=MaintenanceSchedule.Trigger.TIME,
+                    frequency=MaintenanceSchedule.Frequency.MONTHLY,
+                    interval_count=1,
+                    start_date=date.today(),
+                    is_active=True,
+                )
+                self.stdout.write(self.style.SUCCESS("   [OK] Maintenance plan & schedule seeded."))
+
+            # 3. Ensure Asset Component Relationship
+            child = Asset.objects.filter(organization=org, status=Asset.Status.ACTIVE).exclude(pk=asset.pk).first()
+            if child and not AssetComponent.objects.filter(organization=org, parent=asset, child=child).exists():
+                AssetComponent.objects.create(
+                    organization=org,
+                    parent=asset,
+                    child=child,
+                    relationship_type=AssetComponent.Relationship.COMPONENT,
+                    notes="QA component hierarchy seed.",
+                )
+                self.stdout.write(self.style.SUCCESS("   [OK] Asset component relationship seeded."))
+
+            # 4. Ensure Coverage Agreement
+            provider = ServiceProvider.objects.filter(organization=org).first()
+            if not provider:
+                provider = ServiceProvider.objects.create(
+                    organization=org,
+                    name="Apex Service Partner",
+                    contact_email="service@apexpartner.com",
+                    is_active=True,
+                )
+            agreement, _ = CoverageAgreement.objects.get_or_create(
+                organization=org,
+                provider=provider,
+                agreement_number="AGR-QA-1001",
+                defaults={
+                    "name": "Standard SLA Coverage",
+                    "kind": CoverageAgreement.Kind.WARRANTY,
+                    "start_date": date.today() - timedelta(days=30),
+                    "end_date": date.today() + timedelta(days=365),
+                    "status": CoverageAgreement.Status.ACTIVE,
+                },
+            )
+            if not CoveredAsset.objects.filter(agreement=agreement, asset=asset).exists():
+                CoveredAsset.objects.create(
+                    agreement=agreement,
+                    asset=asset,
+                    sla_tier="STANDARD",
+                )
+                self.stdout.write(self.style.SUCCESS("   [OK] Coverage agreement and covered asset seeded."))
