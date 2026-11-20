@@ -161,10 +161,12 @@ def test_def_099_and_def_005_authentication():
     except Exception:
         pass
     cache.clear()
+    from apps.accounts.api import _FALLBACK_THROTTLE_CACHE
+    _FALLBACK_THROTTLE_CACHE.clear()
     AccessAttempt.objects.all().delete()
     email = f"auth-user-{uuid.uuid4().hex[:6]}@example.com"
     user = User.objects.create_user(email=email, password="Password123!")
-    client = APIClient()
+    client = APIClient(REMOTE_ADDR=f"198.51.100.{uuid.uuid4().int % 200 + 10}")
 
     # AUTH-019: Uppercase email -> HTTP 200
     resp_upper = client.post("/api/v1/auth/token/", {"email": email.upper(), "password": "Password123!"}, format="json")
@@ -208,9 +210,11 @@ def test_def_020_logout_token_invalidation():
     except Exception:
         pass
     cache.clear()
+    from apps.accounts.api import _FALLBACK_THROTTLE_CACHE
+    _FALLBACK_THROTTLE_CACHE.clear()
     AccessAttempt.objects.all().delete()
     user = User.objects.create_user(email=f"logout-{uuid.uuid4().hex[:6]}@example.com", password="Password123!")
-    client = APIClient()
+    client = APIClient(REMOTE_ADDR=f"198.51.100.{uuid.uuid4().int % 200 + 10}")
 
     # Obtain valid tokens
     login_resp = client.post("/api/v1/auth/token/", {"email": user.email, "password": "Password123!"}, format="json")

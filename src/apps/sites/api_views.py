@@ -491,14 +491,24 @@ class SiteShiftWriteSerializer(serializers.Serializer):
     def validate(self, attrs):
         start = attrs.get("start_time")
         end = attrs.get("end_time")
-        is_overnight = attrs.get("is_overnight")
-        if start and end and is_overnight is False and end <= start:
+        is_overnight = attrs.get("is_overnight", False) or False
+        if start and end and not is_overnight and end <= start:
             raise serializers.ValidationError({"end_time": ["End time must be after start time unless is_overnight is true."]})
         return attrs
 
 
 class SiteShiftUpdateSerializer(SiteShiftWriteSerializer):
     site = None
+
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+        start = attrs.get("start_time") or getattr(instance, "start_time", None)
+        end = attrs.get("end_time") or getattr(instance, "end_time", None)
+        is_overnight = attrs.get("is_overnight") if "is_overnight" in attrs else getattr(instance, "is_overnight", False)
+        is_overnight = is_overnight or False
+        if start and end and not is_overnight and end <= start:
+            raise serializers.ValidationError({"end_time": ["End time must be after start time unless is_overnight is true."]})
+        return attrs
 
 
 @extend_schema(parameters=[ID_PARAM])

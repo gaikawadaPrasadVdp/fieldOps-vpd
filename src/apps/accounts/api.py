@@ -31,12 +31,13 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
         return client_ip(request) or super().get_ident(request)
 
     def get_rate(self):
-        if getattr(self, "scope", None) == "login":
-            return "10/min"
-        if getattr(self, "scope", None):
-            rates = api_settings.DEFAULT_THROTTLE_RATES or {}
-            if self.scope in rates:
-                return rates[self.scope]
+        from django.conf import settings
+        from rest_framework.settings import api_settings
+
+        rf_settings = getattr(settings, "REST_FRAMEWORK", {})
+        rates = rf_settings.get("DEFAULT_THROTTLE_RATES") or api_settings.DEFAULT_THROTTLE_RATES or {}
+        if getattr(self, "scope", None) and self.scope in rates:
+            return rates[self.scope]
         return "10/min" if getattr(self, "scope", None) == "login" else super().get_rate()
 
     def get_cache_key(self, request, view):
@@ -56,12 +57,7 @@ class ClientIPScopedRateThrottle(ScopedRateThrottle):
 
             return caches["login_throttle"]
         except Exception:
-            try:
-                from django.core.cache import cache
-
-                return cache
-            except Exception:
-                return None
+            return None
 
     def allow_request(self, request, view):
         from django.conf import settings

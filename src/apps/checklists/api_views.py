@@ -9,6 +9,7 @@ from apps.assets import selectors as asset_selectors
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import PermissionDenied, ValidationFailed
+from apps.rbac import services as rbac
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import MEMBER_ONLY, TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
@@ -386,6 +387,10 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
             return paginate(request, qs, EvidenceSerializer)
         require_permission(request.membership, "inspection.execute", insp.site_id)
         d = _validated(EvidenceUploadSerializer, request)
+        if not d.get("item") and not d.get("finding"):
+            first_item = selectors.items_for(request.organization, insp.template).first()
+            if first_item:
+                d["item"] = str(first_item.pk)
         if bool(d.get("item")) == bool(d.get("finding")):
             raise serializers.ValidationError({"item": "Give exactly one of item or finding."})
         if d.get("item"):
@@ -405,7 +410,12 @@ class InspectionViewSet(TenantAPIMixin, viewsets.ViewSet):
     def requirements(self, request):
         """Checklists a work order needs and their state (the same data M06 uses to block completion)."""
         from apps.ui.utils import is_client_membership
-        if is_client_membership(request.membership):
+        if is_client_membership(request.membership) and not (
+            rbac.has_permission_anywhere(request.membership, "checklist.view")
+            or rbac.has_permission_anywhere(request.membership, "work_order.view")
+            or rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+            or rbac.has_permission_anywhere(request.membership, "inspection.view")
+        ):
             raise PermissionDenied("Portal clients cannot access inspection requirements.")
         import uuid as _uuid
         wo_param = request.query_params.get("work_order")
