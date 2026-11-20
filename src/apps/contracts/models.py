@@ -84,7 +84,8 @@ class CoverageAgreement(TenantOwnedModel):
             models.CheckConstraint(condition=models.Q(renewal_alert_days__lte=365), name="agreement_alert_days"),
         ]
         indexes = [models.Index(fields=["organization", "site"]),
-                   models.Index(fields=["organization", "is_active", "end_date"])]
+                   models.Index(fields=["organization", "is_active", "end_date"]),
+                   models.Index(fields=["organization", "-created_at"], name="agreement_org_created_idx")]
 
     def clean(self):
         super().clean()
