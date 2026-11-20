@@ -3,8 +3,6 @@ from django import forms
 from apps.ui.forms import (
     BootstrapFormMixin,
     validate_alphabetical_description,
-    validate_business_name,
-    validate_safe_text,
 )
 
 from .models import Part, Warehouse
@@ -59,23 +57,38 @@ class WholeNumberField(forms.IntegerField):
             raise forms.ValidationError(f"{label_prefix}must contain only numbers.")
 
 
-def _level(label):
+def _level(label, placeholder=None):
+    attrs = {"step": "1", "min": "0"}
+    if placeholder:
+        attrs["placeholder"] = placeholder
     return WholeNumberField(
         required=False,
         min_value=0,
         label=label,
-        widget=forms.NumberInput(attrs={"step": "1", "min": "0"}),
+        widget=forms.NumberInput(attrs=attrs),
     )
 
 
 class PartForm(BootstrapFormMixin, forms.Form):
-    part_number = forms.CharField(max_length=60)
-    name = forms.CharField(max_length=200)
-    description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
-    unit = forms.CharField(max_length=20)
-    min_stock = _level("Minimum stock")
-    max_stock = _level("Maximum stock")
-    reorder_quantity = _level("Reorder quantity")
+    part_number = forms.CharField(
+        max_length=60,
+        widget=forms.TextInput(attrs={"placeholder": "e.g. PN-1001"}),
+    )
+    name = forms.CharField(
+        max_length=200,
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Mechanical Seal"}),
+    )
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Brief description of the spare part..."}),
+    )
+    unit = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={"placeholder": "e.g. 1"}),
+    )
+    min_stock = _level("Minimum stock", placeholder="e.g. 10")
+    max_stock = _level("Maximum stock", placeholder="e.g. 100")
+    reorder_quantity = _level("Reorder quantity", placeholder="e.g. 25")
 
     def clean_part_number(self):
         part_number = (self.cleaned_data.get("part_number") or "").strip()
@@ -104,11 +117,10 @@ class PartForm(BootstrapFormMixin, forms.Form):
         unit = (self.cleaned_data.get("unit") or "").strip()
         if not unit:
             raise forms.ValidationError("Unit is required.")
-        if not any(c.isalnum() for c in unit):
-            raise forms.ValidationError("Unit must contain letters or numbers.")
-        allowed_separators = set("-./#_ ")
-        if any(not (c.isalnum() or c.isspace() or c in allowed_separators) for c in unit):
-            raise forms.ValidationError("Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).")
+        if any(c.isalpha() for c in unit):
+            raise forms.ValidationError("Unit must contain only numbers and cannot contain letters.")
+        if not unit.isdigit():
+            raise forms.ValidationError("Unit must contain only numbers.")
         return unit
 
     def clean_min_stock(self):

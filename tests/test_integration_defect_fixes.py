@@ -3,6 +3,7 @@ import uuid
 from datetime import date
 from unittest.mock import MagicMock, patch
 import pytest
+from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from apps.workspace.serializers import ShiftWriteSerializer
@@ -56,18 +57,21 @@ def test_def_002_coverage_check_with_null_work_type():
 def test_def_003_inspections_requirements_portal_client_denied():
     """DEF-003: Portal clients calling requirements endpoint receive 403 PermissionDenied, not 500 NameError."""
     rf = APIRequestFactory()
-    req = rf.get("/api/v1/inspections/requirements/")
+    django_req = rf.get("/api/v1/inspections/requirements/")
+    
+    req = Request(django_req)
     
     membership = MagicMock()
     membership.is_active = True
+    membership.is_client_mock = True
     req.membership = membership
     req.organization = MagicMock()
     req.user = MagicMock()
-
+    
     view = InspectionViewSet()
     view.request = req
 
-    with patch("apps.portal.services.is_portal_client", return_value=True):
+    with patch("apps.ui.utils.is_client_membership", return_value=True):
         with pytest.raises(PermissionDenied) as exc_info:
             view.requirements(req)
 

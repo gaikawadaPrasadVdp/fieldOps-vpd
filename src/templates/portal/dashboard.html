@@ -4,6 +4,10 @@
 {% block title %}Client Portal · FieldOps Nexus{% endblock %}
 
 {% block content %}
+<style>
+  .portal-request-row { cursor: pointer; transition: background-color 0.15s ease-in-out; }
+  .portal-request-row:hover { background-color: #f8fafc !important; }
+</style>
 <div class="container-fluid px-0">
   <!-- Header Banner -->
   <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
@@ -18,20 +22,13 @@
       <h1 class="h3 fw-bold mb-1">{{ company_name }}</h1>
       <p class="text-body-secondary mb-0">Welcome to your dedicated service and maintenance requester portal.</p>
     </div>
-    <div class="d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center gap-2">
       <a href="{% url 'portal:scan' %}" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm">
         {% icon 'qr' 16 %} Scan QR
       </a>
       <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
         {% icon 'plus-circle' 16 %} Submit Request
       </a>
-      <div class="text-end d-none d-sm-block">
-        <div class="small fw-semibold">{{ request.user.full_name }}</div>
-        <div class="small text-body-secondary">{{ request.user.email }}</div>
-      </div>
-      <div class="fx-avatar rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 42px; height: 42px;">
-        {{ request.user.full_name|slice:":1"|upper }}
-      </div>
     </div>
   </div>
 
@@ -42,8 +39,7 @@
       {% icon 'check-circle' 22 %}
       <div>
         <strong>Service Request Created Successfully!</strong> Reference number: 
-        <span class="font-monospace fw-bold px-2 py-1 bg-white rounded border border-success-subtle text-success">{{ created_ref }}</span>.
-        Your request has been logged in PostgreSQL and queued for operations triage.
+        <span class="font-monospace fw-bold px-2 py-1 bg-white rounded border border-success-subtle text-success">{{ created_ref }}</span>
       </div>
     </div>
     <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-success">
@@ -170,40 +166,42 @@
           <div class="fw-semibold">Your Recent Service Requests</div>
           <div class="d-flex align-items-center gap-2">
             <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-              {% icon 'list-check' 14 %} View All
-            </a>
-            <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
-              {% icon 'plus' 14 %} New Request
+              {% icon 'list-check' 14 %} View All Requests
             </a>
           </div>
         </div>
         {% if recent_requests %}
         <div class="table-responsive">
-          <table class="table fx-table table-hover align-middle mb-0">
+          <table class="table fx-table table-hover align-middle mb-0 w-100">
             <thead class="table-light">
               <tr>
-                <th>Reference</th>
+                <th style="width: 125px;" class="text-nowrap">Reference</th>
                 <th>Title</th>
-                <th>Asset</th>
-                <th>Site</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th class="text-end">Action</th>
+                <th style="width: 200px;">Asset</th>
+                <th style="width: 85px;" class="text-nowrap">Site</th>
+                <th style="width: 95px;" class="text-nowrap">Priority</th>
+                <th style="width: 110px;" class="text-nowrap">Status</th>
+                <th style="width: 125px;" class="text-nowrap">Date</th>
+                <th style="width: 65px;" class="text-end text-nowrap">Action</th>
               </tr>
             </thead>
             <tbody>
               {% for r in recent_requests %}
-              <tr>
-                <td>
+              <tr class="portal-request-row" data-href="{% url 'portal:request_detail' r.pk %}">
+                <td class="text-nowrap">
                   <a href="{% url 'portal:request_detail' r.pk %}" class="font-monospace fw-semibold text-primary text-decoration-none">
                     {{ r.number }}
                   </a>
                 </td>
-                <td class="fw-medium text-truncate" style="max-width: 180px;">{{ r.title }}</td>
-                <td>{{ r.asset.asset_tag }} <span class="text-body-secondary small">({{ r.asset.name }})</span></td>
-                <td><span class="badge bg-light text-dark border">{{ r.site.code }}</span></td>
                 <td>
+                  <div class="fw-medium text-truncate" style="max-width: 200px;" title="{{ r.title }}">{{ r.title }}</div>
+                </td>
+                <td>
+                  <div class="fw-medium text-nowrap">{{ r.asset.asset_tag }}</div>
+                  <div class="small text-body-secondary text-truncate" style="max-width: 180px;" title="{{ r.asset.name }}">{{ r.asset.name }}</div>
+                </td>
+                <td class="text-nowrap"><span class="badge bg-light text-dark border">{{ r.site.code }}</span></td>
+                <td class="text-nowrap">
                   {% if r.severity == "HIGH" or r.severity == "CRITICAL" %}
                   <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ r.severity }}</span>
                   {% elif r.severity == "MEDIUM" %}
@@ -212,9 +210,9 @@
                   <span class="badge bg-secondary-subtle text-secondary">{{ r.severity }}</span>
                   {% endif %}
                 </td>
-                <td>{% status_badge r.status %}</td>
-                <td class="text-body-secondary small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
-                <td class="text-end">
+                <td class="text-nowrap">{% status_badge r.status %}</td>
+                <td class="text-nowrap text-body-secondary small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end text-nowrap">
                   <a href="{% url 'portal:request_detail' r.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2">
                     View
                   </a>
@@ -320,14 +318,7 @@
               {% icon 'check' 14 %} portal.request.confirm
             </span>
           </div>
-          <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'portal:request_create' %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
-              {% icon 'plus-circle' 14 %} Create Service Request Now
-            </a>
-            <a href="{% url 'portal:scan' %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
-              {% icon 'qr' 14 %} Scan Asset QR
-            </a>
-          </div>
+
         </div>
         <div class="col-lg-4 text-center text-lg-end">
           <div class="p-3 rounded bg-light border d-inline-block text-start w-100">
@@ -350,4 +341,18 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.portal-request-row').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, input, select')) return;
+      const href = row.dataset.href;
+      if (href) window.location.href = href;
+    });
+  });
+});
+</script>
 {% endblock %}

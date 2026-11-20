@@ -1,8 +1,6 @@
-from apps.checklists.forms import TemplateForm, ItemForm
-import pytest
+from apps.checklists.forms import ItemForm, TemplateForm
 from apps.inventory.forms import PartForm, RequestPartForm
 from apps.portal.forms import PortalServiceRequestForm
-from django.utils import timezone
 
 
 def test_part_form_name_alphabetical_validation():
@@ -33,7 +31,7 @@ def test_part_form_part_number_validation():
     form_bad_sym = PartForm(data={
         "part_number": "--- ...",
         "name": "Mechanical Seal",
-        "unit": "EA",
+        "unit": "1",
     })
     assert not form_bad_sym.is_valid()
     assert "part_number" in form_bad_sym.errors
@@ -43,7 +41,7 @@ def test_part_form_part_number_validation():
     form_bad_char = PartForm(data={
         "part_number": "SEAL@100",
         "name": "Mechanical Seal",
-        "unit": "EA",
+        "unit": "1",
     })
     assert not form_bad_char.is_valid()
     assert "part_number" in form_bad_char.errors
@@ -53,7 +51,7 @@ def test_part_form_part_number_validation():
         form_valid = PartForm(data={
             "part_number": valid_pn,
             "name": "Mechanical Seal",
-            "unit": "EA",
+            "unit": "1",
         })
         assert form_valid.is_valid(), f"Failed on {valid_pn}: {form_valid.errors}"
 
@@ -93,8 +91,8 @@ def test_part_form_stock_levels_validation():
 
 
 def test_part_form_unit_and_description_validation():
-    # Valid alphanumeric units (e.g. EA, pcs, 1) accepted
-    for valid_unit in ["EA", "pcs", "1", "box-10"]:
+    # Valid numeric units (e.g. 1, 10, 100) accepted
+    for valid_unit in ["1", "10", "100"]:
         form_good_unit = PartForm(data={
             "part_number": "FT-UI-100",
             "name": "Mechanical Seal",
@@ -102,8 +100,8 @@ def test_part_form_unit_and_description_validation():
         })
         assert form_good_unit.is_valid(), f"Failed on {valid_unit}: {form_good_unit.errors}"
 
-    # Symbols without letters/digits or invalid characters in unit rejected
-    for bad_unit in ["---", "EA@"]:
+    # Letters in unit rejected
+    for bad_unit in ["ppfdsbdhg", "EA", "pcs"]:
         form_bad_unit = PartForm(data={
             "part_number": "12345",
             "name": "Mechanical Seal",
@@ -111,6 +109,18 @@ def test_part_form_unit_and_description_validation():
         })
         assert not form_bad_unit.is_valid()
         assert "unit" in form_bad_unit.errors
+        assert "Unit must contain only numbers and cannot contain letters." in str(form_bad_unit.errors["unit"])
+
+    # Symbols and non-numeric units rejected
+    for bad_unit in ["---", "EA@", "box-10", "12.5"]:
+        form_bad_unit = PartForm(data={
+            "part_number": "12345",
+            "name": "Mechanical Seal",
+            "unit": bad_unit,
+        })
+        assert not form_bad_unit.is_valid()
+        assert "unit" in form_bad_unit.errors
+        assert "Unit must contain only numbers" in str(form_bad_unit.errors["unit"])
 
     # Digits in description rejected
     form_bad_desc = PartForm(data={
@@ -121,6 +131,17 @@ def test_part_form_unit_and_description_validation():
     })
     assert not form_bad_desc.is_valid()
     assert "description" in form_bad_desc.errors
+
+
+def test_part_form_placeholders():
+    form = PartForm()
+    assert form.fields["part_number"].widget.attrs.get("placeholder") == "e.g. PN-1001"
+    assert form.fields["name"].widget.attrs.get("placeholder") == "e.g. Mechanical Seal"
+    assert form.fields["description"].widget.attrs.get("placeholder") == "Brief description of the spare part..."
+    assert form.fields["unit"].widget.attrs.get("placeholder") == "e.g. 1"
+    assert form.fields["min_stock"].widget.attrs.get("placeholder") == "e.g. 10"
+    assert form.fields["max_stock"].widget.attrs.get("placeholder") == "e.g. 100"
+    assert form.fields["reorder_quantity"].widget.attrs.get("placeholder") == "e.g. 25"
 
 
 def test_portal_service_request_form_title_validation():

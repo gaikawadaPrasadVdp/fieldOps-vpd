@@ -191,6 +191,8 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
     estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0.01, required=False)
 
     def __init__(self, *args, membership, work_order, **kwargs):
+        self.membership = membership
+        self.work_order = work_order
         initial = {
             "site": work_order.site_id, "title": work_order.title, "description": work_order.description,
             "asset": work_order.asset_id,

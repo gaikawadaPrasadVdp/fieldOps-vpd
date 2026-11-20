@@ -124,6 +124,14 @@ class SiteCreateView(SiteBase):
                     return htmx_success({"closeSiteModal": True, "siteSaved": True})
                 return redirect("sites:detail", pk=site.pk)
 
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_site_modal.html", {
+                "title": "New site", "form": form, "submit": "Create site",
+                "action_url": request.path,
+            }, status=200)
+        return form_page(request, title="New site", form=form, cancel_url="/app/sites/",
+                         crumbs=[("Sites", "/app/sites/"), ("New site", None)], submit="Create site", status=400)
+
 
 class SiteDeactivateView(SiteBase):
     required_permission = "site.deactivate"
@@ -137,13 +145,6 @@ class SiteDeactivateView(SiteBase):
         except DomainError as exc:
             messages.error(request, exc.message)
         return redirect("sites:detail", pk=site.pk)
-        if request.headers.get("HX-Request"):
-            return render(request, "sites/_site_modal.html", {
-                "title": "New site", "form": form, "submit": "Create site",
-                "action_url": request.path,
-            }, status=200)
-        return form_page(request, title="New site", form=form, cancel_url="/app/sites/",
-                         crumbs=[("Sites", "/app/sites/"), ("New site", None)], submit="Create site", status=400)
 
 
 class SiteEditView(SiteBase):

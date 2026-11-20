@@ -20,6 +20,31 @@ def test_non_platform_admin_blocked_from_organizations_ui(client, owner_a):
     assert response.status_code == 403
 
 
+def test_bug001_organization_create_slug_required_and_asterisk(client, platform_admin):
+    """BUG-001: URL Slug label displays required red asterisk (*) and validates required slug."""
+    client.force_login(platform_admin)
+
+    # 1. GET form verifies asterisk on URL Slug
+    get_res = client.get(reverse("platform_admin:organization_create"))
+    assert get_res.status_code == 200
+    html = get_res.content.decode("utf-8")
+    assert 'URL Slug <span class="text-danger">*</span>' in html
+
+    # 2. POST without slug fails with validation error
+    payload = {
+        "name": "Apex",
+        "slug": "",
+        "owner_name": "Apex Owner",
+        "owner_email": "apex_owner@example.com",
+        "timezone": "UTC",
+    }
+    post_res = client.post(reverse("platform_admin:organization_create"), payload)
+    assert post_res.status_code == 200
+    form = post_res.context["form"]
+    assert "slug" in form.errors
+    assert "URL Slug is required." in form.errors["slug"]
+
+
 def test_platform_admin_can_create_organization_ui(client, platform_admin):
     client.force_login(platform_admin)
     # GET form

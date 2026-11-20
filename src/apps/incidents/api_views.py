@@ -263,7 +263,9 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         "downtime:put": "incident.downtime.manage",
         "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
         "check_duplicate": "incident.create", "link_duplicate": "incident.create",
-        "comments:get": "incident.view_assigned", "comments:post": "incident.view_assigned", "delete_comment": "incident.update",
+        "comments:get": "incident.view_assigned",
+        "comments:post": ("incident.attach", "incident.update", "incident.triage", "incident.create"),
+        "delete_comment": "incident.update",
     }
 
     def _qs(self, request, scope="incident.view"):
@@ -500,7 +502,8 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
             qs = selectors.comments_for(m, org, sr)
             return Response(ServiceRequestCommentSerializer(qs, many=True).data)
 
-        # POST: create comment
+        # POST: create comment (requires write permission; read-only Auditor cannot post comments)
+        require_permission(m, ("incident.update", "incident.attach", "incident.create", "incident.report_owned"), sr.site_id)
         body = request.data.get("body", "")
         is_internal = bool(request.data.get("is_internal", False))
         from apps.ui.utils import is_client_membership

@@ -409,13 +409,26 @@ class SnapshotListView(TenantPermissionMixin, View):
     def post(self, request):
         sec = request.POST.get("section") or ReportSnapshot.Section.OPERATIONS
         stype = request.POST.get("snapshot_type") or ReportSnapshot.SnapshotType.DAILY
-        start_str = request.POST.get("period_start")
-        end_str = request.POST.get("period_end")
-        notes = request.POST.get("notes", "")
+        start_str = (request.POST.get("period_start") or "").strip()
+        end_str = (request.POST.get("period_end") or "").strip()
+        notes = (request.POST.get("notes") or "").strip()
+
+        if not start_str or not end_str:
+            messages.error(request, "Period Start and Period End dates are required.")
+            return redirect("dashboards:snapshot_list")
 
         try:
-            start_date = datetime.date.fromisoformat(start_str) if start_str else timezone.localdate() - datetime.timedelta(days=1)
-            end_date = datetime.date.fromisoformat(end_str) if end_str else timezone.localdate() - datetime.timedelta(days=1)
+            start_date = datetime.date.fromisoformat(start_str)
+            end_date = datetime.date.fromisoformat(end_str)
+        except ValueError:
+            messages.error(request, "Invalid date format for Period Start or Period End.")
+            return redirect("dashboards:snapshot_list")
+
+        if start_date > end_date:
+            messages.error(request, "Period Start cannot be after Period End.")
+            return redirect("dashboards:snapshot_list")
+
+        try:
             snap = services.create_report_snapshot(
                 request.organization,
                 snapshot_type=stype,

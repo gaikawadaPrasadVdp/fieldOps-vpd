@@ -2,19 +2,26 @@
 {% load static ui_tags %}
 {% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
-<div class="fx-layout" id="fx-layout" data-idle-timeout-ms="{{ session_idle_timeout_ms|default:1800000 }}">
+<div class="fx-layout" id="fx-layout" data-idle-timeout-ms="{{ session_idle_timeout_ms|default:300000 }}">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
       <a href="{% if is_client %}{% url 'portal:dashboard' %}{% elif request.user.is_platform_admin and not shell_org %}{% url 'platform_admin:organizations' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
-        <span class="fx-brand-mark"><img src="{% static 'images/logo-icon.webp' %}" alt="FieldOps Nexus" class="fx-brand-img"></span> FieldOps Nexus
+        <span class="fx-brand-mark" aria-hidden="true">
+          <picture>
+            <source srcset="{% static 'images/logo-icon.webp' %}" type="image/webp">
+            <img src="{% static 'images/logo-icon.png' %}" alt="" class="fx-brand-img"
+                 onerror="this.style.display='none'; if(this.parentElement && this.parentElement.nextElementSibling) this.parentElement.nextElementSibling.style.display='inline-block';">
+          </picture>
+          <span class="fx-brand-fallback" style="display:none;">FN</span>
+        </span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
     </div>
     <nav class="fx-nav">
       {% for section, items in shell_nav_sections.items %}
-        <div class="fx-nav-section">{{ section }}</div>
+        <div class="fx-nav-section{% for it in items %}{% if it.active %} is-active{% endif %}{% endfor %}">{{ section }}</div>
         {% for item in items %}
-          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
+          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}" {% if item.active %}aria-current="page"{% endif %}>{% icon item.icon %} {{ item.label }}</a>
         {% endfor %}
       {% endfor %}
       {% if shell_org and not is_client %}
@@ -51,7 +58,7 @@
       {% if shell_org and not is_client %}
       <form class="fx-search ms-auto ms-md-2" role="search" autocomplete="off">
         {% icon 'search' 16 %}
-        <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"
+        <input type="search" name="q" placeholder="Search FieldOps Nexus…" aria-label="Search"
                hx-get="{% url 'ui:search' %}" hx-trigger="input changed delay:300ms, search"
                hx-target="#fx-search-results" hx-indicator=".fx-search">
         <div id="fx-search-results" class="fx-search-results"></div>
@@ -82,26 +89,7 @@
       </div>
     </header>
     <main class="fx-content" id="main">
-      {% block breadcrumbs %}
-        {% if shell_breadcrumbs %}
-        <nav aria-label="breadcrumb" class="mb-3 d-print-none d-flex align-items-center gap-2">
-          {% if shell_back_url %}
-          <a href="{{ shell_back_url }}" class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none me-1" title="Go back to previous page" aria-label="Back" data-action="go-back" data-fallback="{{ shell_back_url }}">
-            &larr; Back
-          </a>
-          {% endif %}
-          <ol class="breadcrumb mb-0 small">
-            {% for crumb in shell_breadcrumbs %}
-              {% if forloop.last or not crumb.url %}
-                <li class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</li>
-              {% else %}
-                <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.label }}</a></li>
-              {% endif %}
-            {% endfor %}
-          </ol>
-        </nav>
-        {% endif %}
-      {% endblock %}
+      {% block breadcrumbs %}{% endblock %}
       {% include "components/_messages.html" %}
 
       {% if shell_org and shell_org.is_scheduled_for_deletion %}

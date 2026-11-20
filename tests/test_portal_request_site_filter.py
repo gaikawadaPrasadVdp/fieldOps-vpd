@@ -81,6 +81,7 @@ def test_portal_form_validation_succeeds_with_matching_site(org_a, site_a1, make
 
     data = {
         "title": "HVAC Fan Failure",
+        "description": "HVAC unit fan failure observed during inspection",
         "site": str(site_a1.pk),
         "asset": str(asset_1.pk),
         "severity": "MEDIUM",
@@ -113,22 +114,23 @@ def test_portal_form_validation_fails_with_mismatched_site(org_a, site_a1, site_
     assert "The selected asset does not belong to the chosen site / location." in form.errors["asset"]
 
 
-def test_portal_form_validation_succeeds_without_site(org_a, site_a1, make_asset, make_portal_client):
+def test_portal_form_validation_fails_without_site(org_a, site_a1, make_asset, make_portal_client):
     user, membership, account = make_portal_client(org_a, "client.nosite@acme.test")
     asset_1 = make_asset(org_a, site_a1, "ASSET-NOSITE")
     portal_services.grant_portal_asset(account, asset_1)
 
     data = {
         "title": "General Maintenance Without Site Filter",
+        "description": "General maintenance required for scheduled check",
         "site": "",
         "asset": str(asset_1.pk),
         "severity": "LOW",
         "service_impact": "NONE",
     }
     form = PortalServiceRequestForm(data, organization=org_a, membership=membership)
-    assert form.is_valid(), form.errors
-    assert form.cleaned_data["site"] is None
-    assert form.cleaned_data["asset"] == asset_1
+    assert not form.is_valid()
+    assert "site" in form.errors
+    assert "Please select a site / location." in str(form.errors["site"])
 
 
 def test_portal_request_create_view_submits_with_site(client, org_a, site_a1, make_asset, make_portal_client):
@@ -150,6 +152,7 @@ def test_portal_request_create_view_submits_with_site(client, org_a, site_a1, ma
     # POST submission
     post_data = {
         "title": "Pressure gauge replacement",
+        "description": "Pressure gauge replacement needed immediately",
         "site": str(site_a1.pk),
         "asset": str(asset_1.pk),
         "severity": "HIGH",
@@ -160,3 +163,59 @@ def test_portal_request_create_view_submits_with_site(client, org_a, site_a1, ma
     form_errors = res_post.context["form"].errors if res_post.context else None
     assert res_post.status_code == 302, f"POST failed with errors: {form_errors}"
     assert "/app/portal/?created=" in res_post.url
+
+
+def test_portal_form_includes_newly_added_site_without_assets(org_a, site_a1, make_asset, make_portal_client):
+    from apps.sites.models import Site
+    user, membership, account = make_portal_client(org_a, "client.newsite@acme.test")
+    asset_1 = make_asset(org_a, site_a1, "ASSET-S1-01")
+    portal_services.grant_portal_asset(account, asset_1)
+
+    # Newly added site with 0 assets
+    new_site = Site.objects.create(
+        organization=org_a,
+        code="NEW-FAC-01",
+        name="Newly Added Facility",
+        status=Site.Status.ACTIVE,
+    )
+
+    form = PortalServiceRequestForm(organization=org_a, membership=membership)
+    site_choices = list(form.fields["site"].queryset)
+    assert site_a1 in site_choices
+    assert new_site in site_choices
+
+
+def test_portal_form_new_organization_scenario_populates_all_active_sites(make_portal_client):
+    from apps.tenancy.models import Organization
+    from apps.sites.models import Site
+    new_org = Organization.objects.create(name="Fresh Client Org", slug="fresh-client-org")
+    rbac.seed_system_roles(new_org)
+    site_1 = Site.objects.create(organization=new_org, code="FRESH-01", name="Fresh Site 1", status=Site.Status.ACTIVE)
+    site_2 = Site.objects.create(organization=new_org, code="FRESH-02", name="Fresh Site 2", status=Site.Status.ACTIVE)
+    site_inactive = Site.objects.create(organization=new_org, code="INACT-01", name="Inactive Site", status=Site.Status.INACTIVE)
+
+    user, membership, account = make_portal_client(new_org, "client.fresh@fresh.test")
+
+    form = PortalServiceRequestForm(organization=new_org, membership=membership)
+    site_choices = list(form.fields["site"].queryset)
+    assert site_1 in site_choices
+    assert site_2 in site_choices
+    assert site_inactive not in site_choices
+
+
+def test_portal_dashboard_success_banner_renders_only_up_to_token(client, org_a, site_a1, make_asset, make_portal_client):
+    user, membership, account = make_portal_client(org_a, "client.banner@acme.test")
+    client.force_login(user)
+    session = client.session
+    session["active_org_id"] = str(org_a.id)
+    session.save()
+
+    res = client.get("/app/portal/?created=SR-000099")
+    assert res.status_code == 200
+    html = res.content.decode("utf-8")
+    assert "SR-000099" in html
+    assert "Service Request Created Successfully!" in html
+    assert "Reference number:" in html
+    assert "PostgreSQL" not in html
+    assert "queued for operations triage" not in html
+

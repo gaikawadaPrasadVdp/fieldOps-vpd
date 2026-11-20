@@ -26,6 +26,7 @@ CLIENT_ALLOWED_INCIDENT_PERMS = {
     "incident.view_assigned",
     "incident.attach",
     "incident.confirm",
+    "qr.scan",
 }
 
 
@@ -693,7 +694,7 @@ def create_portal_account(
     perms = rbac.membership_permissions(membership)
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
     if non_client_perms:
         raise ValidationFailed("Portal accounts may only be provisioned for client-only memberships.", code="not_client_only")
@@ -734,7 +735,7 @@ def enable_portal_account(account: PortalAccount, actor=None) -> PortalAccount:
     perms = rbac.membership_permissions(account.membership)
     non_client_perms = [
         p for p in perms
-        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+        if not (p.startswith("portal.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
     ]
     if non_client_perms:
         raise Conflict("Only client-only members can have enabled portal accounts.", code="not_client_only")
@@ -903,16 +904,23 @@ def sync_portal_grants_for_account(account: PortalAccount) -> int:
     if allowed_site_ids is not None:
         assets_qs = assets_qs.filter(site_id__in=allowed_site_ids)
 
-    granted = 0
-    for asset in assets_qs:
-        _, created = PortalAssetGrant.objects.get_or_create(
+    existing_asset_ids = set(
+        PortalAssetGrant.objects.filter(portal_account=account).values_list("asset_id", flat=True)
+    )
+    missing_assets = [a for a in assets_qs if a.id not in existing_asset_ids]
+    if not missing_assets:
+        return 0
+
+    new_grants = [
+        PortalAssetGrant(
             organization=account.organization,
             portal_account=account,
             asset=asset,
         )
-        if created:
-            granted += 1
-    return granted
+        for asset in missing_assets
+    ]
+    PortalAssetGrant.objects.bulk_create(new_grants, ignore_conflicts=True)
+    return len(new_grants)
 
 
 @transaction.atomic

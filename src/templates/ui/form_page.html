@@ -120,7 +120,7 @@
       partNumberEl.addEventListener("change", validatePartNumber);
     }
 
-    // Unit validation: Letters, numbers, and standard separators allowed
+    // Unit validation: Only numeric values allowed
     if (unitEl && partNumberEl) {
       function validateUnit() {
         const val = unitEl.value.trim();
@@ -128,12 +128,12 @@
           setLiveError(unitEl, "");
           return true;
         }
-        if (!/[a-zA-Z0-9]/.test(val)) {
-          setLiveError(unitEl, "Unit must contain letters or numbers.");
+        if (/[a-zA-Z]/.test(val)) {
+          setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
           return false;
         }
-        if (/[^a-zA-Z0-9\-./#_\s]/.test(val)) {
-          setLiveError(unitEl, "Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).");
+        if (!/^\d+$/.test(val)) {
+          setLiveError(unitEl, "Unit must contain only numbers.");
           return false;
         }
         setLiveError(unitEl, "");
@@ -245,15 +245,15 @@
             unitEl.focus();
             return;
           }
-          if (!/[a-zA-Z0-9]/.test(uVal)) {
+          if (/[a-zA-Z]/.test(uVal)) {
             e.preventDefault();
-            setLiveError(unitEl, "Unit must contain letters or numbers.");
+            setLiveError(unitEl, "Unit must contain only numbers and cannot contain letters.");
             unitEl.focus();
             return;
           }
-          if (/[^a-zA-Z0-9\-./#_\s]/.test(uVal)) {
+          if (!/^\d+$/.test(uVal)) {
             e.preventDefault();
-            setLiveError(unitEl, "Unit can contain only letters, numbers, and standard separators (-, ., /, #, _).");
+            setLiveError(unitEl, "Unit must contain only numbers.");
             unitEl.focus();
             return;
           }

@@ -379,4 +379,54 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Modal for MTBF Drilldown (BUG-007) -->
+<div class="modal fade" id="mtbfModal" tabindex="-1" aria-labelledby="mtbfModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6 fw-bold" id="mtbfModalLabel">Mean Time Between Failures (MTBF) Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-baseline gap-2 mb-3">
+          <div class="display-6 fw-bold text-dark">{{ kpis.mtbf|default:"n/a" }}</div>
+          <span class="badge bg-light text-dark border">hours</span>
+        </div>
+        <p class="text-secondary small mb-3">
+          <strong>Metric Formula:</strong> MTBF = (Total Operating Time &minus; Total Downtime) &divide; Breakdown Incident Count.
+        </p>
+        {% if kpis.mtbf == "n/a" or not kpis.mtbf %}
+        <div class="alert alert-info py-2 px-3 small mb-3">
+          <strong>Why does this show n/a?</strong><br>
+          Zero equipment breakdown failures were recorded across assets in this scope during the selected date window ({{ start_date }} to {{ end_date }}). When no failures occur, the denominator is zero, so MTBF is non-applicable.
+        </div>
+        {% else %}
+        <div class="alert alert-success py-2 px-3 small mb-3">
+          Calculated from completed corrective breakdown work orders and recorded downtime in this date window.
+        </div>
+        {% endif %}
+        <div class="text-secondary small mb-1">
+          To inspect equipment history, explore recorded assets and outage records below.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'assets:list' %}" class="btn btn-outline-primary btn-sm">Explore Assets Catalog</a>
+        <a href="{% url 'incidents:list' %}" class="btn btn-primary btn-sm">View Service Incidents</a>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    }
+  });
+</script>
 {% endblock %}

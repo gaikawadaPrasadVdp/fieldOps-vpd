@@ -15,6 +15,20 @@ from . import logging as flogging
 _VALID_ID = re.compile(r"^[A-Za-z0-9\-_.]{8,64}$")
 
 
+class AuthPrefixRewriteMiddleware:
+    """Transparently rewrites /auth/... to /api/v1/auth/... for clients calling without api/v1 prefix."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path_info or request.path or ""
+        if path.startswith("/auth/"):
+            request.path_info = "/api/v1" + path
+            request.path = "/api/v1" + path
+        return self.get_response(request)
+
+
 class RequestIdMiddleware:
     """Assigns/propagates X-Request-ID and emits one structured access-log line per request."""
 
@@ -202,6 +216,10 @@ class SessionIdleTimeoutMiddleware:
         "/api/v1/auth/logout/",
         "/favicon.ico",
     )
+    _PASSIVE_POLL_PREFIXES = (
+        "/app/notifications/bell/",
+        "/api/v1/notifications/unread-count",
+    )
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -215,6 +233,14 @@ class SessionIdleTimeoutMiddleware:
             return True
         return any(path.startswith(prefix) for prefix in self._EXEMPT_PREFIXES)
 
+    def _is_passive_poll(self, request) -> bool:
+        path = request.path_info or request.path or ""
+        if any(path.startswith(prefix) for prefix in self._PASSIVE_POLL_PREFIXES):
+            return True
+        if request.headers.get("X-Nexus-Passive") == "1":
+            return True
+        return False
+
     def _wants_json(self, request) -> bool:
         if request.path.startswith("/api/"):
             return True
@@ -226,7 +252,7 @@ class SessionIdleTimeoutMiddleware:
     def __call__(self, request):
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated and not self._is_exempt(request.path):
-            idle_limit = max(1, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)))
+            idle_limit = max(1, int(getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 300)))
             now_ts = int(time.time())
             last_raw = request.session.get(self.SESSION_ACTIVITY_KEY)
             last_ts = None
@@ -240,6 +266,25 @@ class SessionIdleTimeoutMiddleware:
                     auth_logout(request)
                     from django.middleware.csrf import rotate_token
                     rotate_token(request)
+
+                    current_url = request.headers.get("HX-Current-URL") or request.META.get("HTTP_REFERER")
+                    if current_url:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(current_url)
+                        next_url = quote(parsed.path + (f"?{parsed.query}" if parsed.query else ""), safe="")
+                    elif not self._is_passive_poll(request):
+                        next_url = quote(request.get_full_path(), safe="")
+                    else:
+                        next_url = quote("/app/", safe="")
+
+                    redirect_url = f"/accounts/login/?logged_out=1&timeout=1&next={next_url}"
+
+                    if request.headers.get("HX-Request") == "true":
+                        from django.http import HttpResponse
+                        resp = HttpResponse(status=200)
+                        resp["HX-Redirect"] = redirect_url
+                        return resp
+
                     if self._wants_json(request):
                         return JsonResponse(
                             {
@@ -250,10 +295,11 @@ class SessionIdleTimeoutMiddleware:
                             },
                             status=401,
                         )
-                    next_url = quote(request.get_full_path(), safe="")
-                    return redirect(f"/accounts/login/?logged_out=1&next={next_url}")
+                    return redirect(redirect_url)
 
-            if last_ts is None or (now_ts - last_ts) >= 15:
-                request.session[self.SESSION_ACTIVITY_KEY] = now_ts
+            # Record activity only for active user interactions, ignoring passive background polls
+            if not self._is_passive_poll(request):
+                if last_ts is None or (now_ts - last_ts) >= 15:
+                    request.session[self.SESSION_ACTIVITY_KEY] = now_ts
 
         return self.get_response(request)

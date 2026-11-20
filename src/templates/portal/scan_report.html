@@ -70,11 +70,10 @@
               {% endfor %}
             </div>
 
-            <div class="d-flex align-items-center justify-content-between mt-4 pt-3 border-top">
+            <div class="d-flex align-items-center mt-4 pt-3 border-top">
               <button class="btn btn-primary px-4 fw-semibold d-inline-flex align-items-center gap-2" type="submit">
                 {% icon 'send' 15 %} Submit Service Request
               </button>
-              <a class="btn btn-outline-secondary" href="{% url 'portal:scan_resolve' identifier.token %}">Cancel</a>
             </div>
           </form>
         </div>

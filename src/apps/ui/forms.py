@@ -96,6 +96,8 @@ def validate_title(value: str | None, field_label: str = "Title", min_len: int =
         raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
     if _HTML_TAG_RE.search(val):
         raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
+    if _REPEATED_CHARS_RE.search(val):
+        raise ValidationError(f"{field_label} contains invalid repetitive character patterns.")
     if any(character.isdigit() for character in val) and not any(character.isalpha() for character in val):
         raise ValidationError(f"{field_label} must contain only alphabetical characters and cannot contain numbers.")
     if not any(character.isalpha() for character in val):
@@ -117,6 +119,8 @@ def validate_business_name(value: str | None, field_label: str = "Name", min_len
         raise ValidationError(f"{field_label} cannot exceed {max_len} characters.")
     if _HTML_TAG_RE.search(val):
         raise ValidationError(f"{field_label} cannot contain HTML tags or script injection patterns.")
+    if _REPEATED_CHARS_RE.search(val):
+        raise ValidationError(f"{field_label} contains invalid repetitive character patterns.")
     if not any(c.isalnum() for c in val):
         raise ValidationError(f"{field_label} must contain letters or numbers.")
     if not _BUSINESS_NAME_RE.match(val):

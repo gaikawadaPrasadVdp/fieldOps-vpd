@@ -91,16 +91,23 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
     entries: dict[str, bytes] = {}
     sr = wo.source_request
 
+    site_str = f"{wo.site.code} {wo.site.name}" if wo.site else "No Site"
+    asset_str = f"{wo.asset.asset_tag} {wo.asset.name}" if wo.asset else "No Asset"
+    asset_status = wo.asset.status if wo.asset else None
+    wo_num = wo.number or wo.order_number or str(wo.pk)[:8]
+    assigned_email = (wo.assigned_to.user.email if (wo.assigned_to and getattr(wo.assigned_to, 'user', None)) else None) if wo.assigned_to_id else None
+    closed_email = (wo.closed_by.email if (wo.closed_by and getattr(wo.closed_by, 'email', None)) else None) if wo.closed_by_id else None
+
     entries["summary.json"] = _json_bytes({
         "work_order": {
-            "number": wo.number, "title": wo.title, "description": wo.description, "type": wo.work_type,
-            "priority": wo.priority, "status": wo.status, "site": f"{wo.site.code} {wo.site.name}",
-            "asset": f"{wo.asset.asset_tag} {wo.asset.name}", "asset_status_now": wo.asset.status,
-            "assigned_to": wo.assigned_to.user.email if wo.assigned_to_id else None,
+            "number": wo_num, "title": wo.title, "description": wo.description, "type": wo.work_type,
+            "priority": wo.priority, "status": wo.status, "site": site_str,
+            "asset": asset_str, "asset_status_now": asset_status,
+            "assigned_to": assigned_email,
             "planned_start": _iso(wo.planned_start), "planned_end": _iso(wo.planned_end),
             "dispatched_at": _iso(wo.dispatched_at), "started_at": _iso(wo.started_at),
             "completed_at": _iso(wo.completed_at), "review_started_at": _iso(wo.review_started_at),
-            "closed_at": _iso(wo.closed_at), "closed_by": wo.closed_by.email if wo.closed_by_id else None,
+            "closed_at": _iso(wo.closed_at), "closed_by": closed_email,
             "resolution_notes": wo.resolution_notes, "hold_reason": wo.hold_reason},
         "source_request": ({"number": sr.number, "kind": sr.kind, "title": sr.title, "severity": sr.severity,
                             "status": sr.status, "occurred_at": _iso(sr.occurred_at)} if sr else None),
@@ -152,8 +159,8 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
 
     entries["labor.csv"] = _csv(
         ["Date", "Technician", "Hours", "Notes"],
-        [[row.work_date, row.technician.user.email, row.hours, row.notes] for row in WorkOrderLabor.objects.for_organization(
-            org).filter(work_order=wo).select_related("technician__user").order_by("work_date", "id")])
+        [[row.work_date, row.technician.user.email if (row.technician and getattr(row.technician, 'user', None)) else "", row.hours, row.notes]
+         for row in WorkOrderLabor.objects.for_organization(org).filter(work_order=wo).select_related("technician__user").order_by("work_date", "id")])
     entries["materials.csv"] = _csv(
         ["Description", "Part number", "Quantity", "Unit"],
         [[m.description, m.part_number, m.quantity, m.unit] for m in WorkOrderMaterial.objects.for_organization(
@@ -161,11 +168,11 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
     lines = list(WorkOrderPart.objects.for_organization(org).filter(work_order=wo).select_related("part"))
     entries["parts.csv"] = _csv(
         ["Part", "Status", "Requested", "Issued", "Consumed", "Returned"],
-        [[f"{p.part.part_number} {p.part.name}", p.status, p.quantity_requested, p.quantity_issued,
+        [[f"{p.part.part_number} {p.part.name}" if p.part else "—", p.status, p.quantity_requested, p.quantity_issued,
           p.quantity_consumed, p.quantity_returned] for p in lines])
     entries["stock_movements.csv"] = _csv(
         ["When (UTC)", "Type", "Part", "Warehouse", "Quantity", "On hand after", "Reason"],
-        [[_iso(m.created_at), m.movement_type, m.part.part_number, m.warehouse.code, m.quantity, m.on_hand_after,
+        [[_iso(m.created_at), m.movement_type, m.part.part_number if m.part else "", m.warehouse.code if m.warehouse else "", m.quantity, m.on_hand_after,
           m.reason] for m in StockMovement.objects.for_organization(org).filter(work_order=wo).select_related(
             "part", "warehouse").order_by("created_at", "id")])
     entries["coverage_checks.csv"] = _csv(
@@ -179,7 +186,7 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
     sla_rows = []
     for t in trackings.select_related("profile"):
         sla_rows.append({
-            "profile": t.profile.name, "priority": t.priority, "started_at": _iso(t.started_at),
+            "profile": t.profile.name if t.profile else "Standard", "priority": t.priority, "started_at": _iso(t.started_at),
             "response_due_at": _iso(t.response_due_at), "response_met_at": _iso(t.response_met_at),
             "response_state": t.response_state, "resolution_due_at": _iso(t.resolution_due_at),
             "resolution_met_at": _iso(t.resolution_met_at), "resolution_state": t.resolution_state,
@@ -202,8 +209,9 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
     for att in wo_files + insp_files:
         label = "work_order" if att.content_type_id == ct_wo.pk else "checklist"
         path = f"evidence/{label}/{att.pk}_{_safe_name(att.original_name)}"
+        uploader = att.uploaded_by.email if (att.uploaded_by and getattr(att.uploaded_by, 'email', None)) else "system"
         info = {"path": path, "original_name": att.original_name, "mime_type": att.mime_type, "size": att.size,
-                "sha256": att.sha256, "uploaded_by": att.uploaded_by.email, "uploaded_at": _iso(att.created_at),
+                "sha256": att.sha256, "uploaded_by": uploader, "uploaded_at": _iso(att.created_at),
                 "description": att.description}
         if att.size > MAX_FILE_BYTES or total + att.size > MAX_TOTAL_BYTES:
             skipped.append({**info, "reason": "too large for the package; download it from the record"})
@@ -221,8 +229,34 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
         manifest.append(info)
 
     now = timezone.now()
-    meta = {"package": "work-order evidence", "work_order": wo.number, "organization": org.slug,
-            "generated_at": now.isoformat(), "generated_by": actor.email, "audit_rows": len(rows),
+    readme_text = f"""FieldOps Nexus - Work Order Evidence Package
+==================================================
+Work Order   : {wo_num} ({wo.title})
+Organization : {org.name} ({org.slug})
+Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} UTC by {getattr(actor, 'email', 'system')}
+
+Evidence Package Contents:
+- summary.json         : Complete work order summary, metadata, asset, site, and blockers.
+- timeline.csv         : State transition history, timestamps, actors, and reasons.
+- approvals.csv        : Triage, review, and closure approvals with comments.
+- checklists.json      : Digital inspections, question responses, and findings.
+- labor.csv            : Detailed technician hours logged and work notes.
+- materials.csv        : Materials recorded against the work order.
+- parts.csv            : Warehouse parts requested, issued, consumed, and returned.
+- stock_movements.csv  : Inventory warehouse stock movements and ledger impacts.
+- coverage_checks.csv  : Contract, SLA, and warranty coverage checks.
+- sla.json             : SLA performance tracking and milestone breach events.
+- audit_trail.csv      : Immutable PostgreSQL audit log events for this work order.
+- manifest.json        : SHA-256 cryptographic manifest verifying all package documents.
+- evidence/            : Uploaded photographic and evidentiary attachment files.
+
+Integrity Verification:
+Verify the SHA-256 hash of each document against the checksums listed in manifest.json.
+""".encode("utf-8")
+    entries["README.txt"] = readme_text
+
+    meta = {"package": "work-order evidence", "work_order": wo_num, "organization": org.slug,
+            "generated_at": now.isoformat(), "generated_by": getattr(actor, 'email', 'system'), "audit_rows": len(rows),
             "audit_rows_truncated": truncated, "files": manifest, "files_skipped": skipped,
             "documents": {name: hashlib.sha256(body).hexdigest() for name, body in sorted(entries.items())}}
     out = io.BytesIO()
@@ -233,7 +267,7 @@ def build(membership, org, work_order_pk, *, actor, request=None) -> Package:
             z.writestr(path, data)
         z.writestr("manifest.json", _json_bytes(meta))
     services.record("audit.evidence_exported", actor=actor, organization=org, target=wo, request=request,
-                    metadata={"work_order": wo.number, "files": len(files), "files_skipped": len(skipped),
+                    metadata={"work_order": wo_num, "files": len(files), "files_skipped": len(skipped),
                               "audit_rows": len(rows)})
-    return Package(out.getvalue(), f"evidence-{wo.number}-{now:%Y%m%d-%H%M%S}.zip", len(files), len(skipped),
+    return Package(out.getvalue(), f"evidence-{wo_num}-{now:%Y%m%d-%H%M%S}.zip", len(files), len(skipped),
                    len(rows))

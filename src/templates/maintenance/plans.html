@@ -1,16 +1,16 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Maintenance plans · FieldOps Nexus{% endblock %}
+{% block title %}Maintenance Plans · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header">
   <div>
-    <h1>Maintenance plans</h1>
+    <h1>Maintenance Plans</h1>
     <div class="text-body-secondary">Preventive maintenance per asset. Schedules generate real work orders.</div>
   </div>
   <div class="d-flex gap-2">
     {% if can_create %}
       <a class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm" href="{% url 'maintenance:plan_new' %}">
-        {% icon 'plus' 16 %} New plan
+        {% icon 'plus' 16 %} New Plan
       </a>
     {% endif %}
   </div>
