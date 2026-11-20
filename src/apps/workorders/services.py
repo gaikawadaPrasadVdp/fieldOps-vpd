@@ -1061,6 +1061,13 @@ def submit_for_review(wo, *, membership, actor, expected_version=None, request=N
     if not (can_complete or can_review or getattr(membership, "is_owner", False)):
         raise PermissionDenied("You do not have permission to submit this work order for review.")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
+    # Validate the state transition before caller-identity and completion checks so an invalid
+    # source state surfaces as InvalidTransition (409), not a permission (403) or completion (Conflict) error.
+    if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.COMPLETED):
+        raise InvalidTransition(
+            f"Cannot submit work order for review from {wo.status}; "
+            "only IN_PROGRESS or COMPLETED work orders can be submitted.",
+            code="invalid_work_order_transition")
     can_act = (
         wo.assigned_to_id == membership.pk
         or can_review

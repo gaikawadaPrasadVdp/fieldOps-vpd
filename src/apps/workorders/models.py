@@ -163,6 +163,7 @@ class WorkOrder(TenantOwnedModel):
             models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx"),
             models.Index(fields=["organization", "assigned_to", "status"], name="wo_org_asgn_stat_idx"),
             models.Index(fields=["organization", "site", "status"], name="wo_org_site_stat_idx"),
+            models.Index(fields=["organization", "-created_at"], name="wo_org_created_idx"),
         ]
 
     def clean(self):

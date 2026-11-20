@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.assets.models import Asset
+from apps.files.models import Attachment
 from apps.core.apiutils import paginate
 from apps.core.exceptions import Conflict, DomainError, NotFound, ValidationFailed
 from apps.incidents.models import ServiceRequest
@@ -369,6 +370,9 @@ class PortalServiceRequestSerializer(serializers.ModelSerializer):
         return selectors.get_status_stage(obj.status)
 
     def get_attachments_count(self, obj) -> int:
+        annotated = getattr(obj, "attachments_count", None)
+        if annotated is not None:
+            return annotated
         from apps.incidents.selectors import evidence_for
         return evidence_for(obj.organization, obj).count()
 
@@ -537,6 +541,16 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
         ordering = request.query_params.get("ordering", "-created_at")
         if ordering in ("-created_at", "created_at", "-number", "number", "-updated_at", "updated_at", "status", "-status"):
             qs = qs.order_by(ordering)
+
+        # Annotate attachment counts with one correlated subquery instead of a COUNT per row (perf).
+        from django.contrib.contenttypes.models import ContentType
+        from django.db.models import CharField, Count, IntegerField, OuterRef, Subquery
+        from django.db.models.functions import Cast, Coalesce
+        ct = ContentType.objects.get_for_model(ServiceRequest)
+        att_sq = (Attachment.objects.filter(
+            content_type=ct, object_id=Cast(OuterRef("pk"), output_field=CharField()))
+            .order_by().values("object_id").annotate(c=Count("pk")).values("c"))
+        qs = qs.annotate(attachments_count=Coalesce(Subquery(att_sq, output_field=IntegerField()), 0))
 
         return paginate(request, qs, PortalServiceRequestSerializer)
 

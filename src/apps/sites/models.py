@@ -32,7 +32,8 @@ class Site(TenantOwnedModel):
     class Meta:
         ordering = ["code"]
         constraints = [models.UniqueConstraint(Lower("code"), "organization", name="uniq_site_code_per_org")]
-        indexes = [models.Index(fields=["organization", "status"])]
+        indexes = [models.Index(fields=["organization", "status"]),
+                   models.Index(fields=["organization", "-created_at"], name="site_org_created_idx")]
 
     def __str__(self):
         return f"{self.code} · {self.name}"

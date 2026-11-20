@@ -87,14 +87,34 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     def get_work_orders(self, obj) -> list[dict]:
         if not apps.is_installed("apps.workorders"):
             return []
-        from apps.workorders.models import WorkOrder
+        return self._work_order_map().get(obj.number, [])
 
-        linked = WorkOrder.objects.for_organization(obj.organization).filter(
-            source_reference=obj.number,
-            source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
-        ).order_by("created_at")
-        return [{"id": str(work_order.pk), "number": work_order.order_number,
-                 "status": work_order.status} for work_order in linked]
+    def _work_order_map(self) -> dict:
+        # Build the linked-work-order map once per serialized page in a single query, instead of
+        # one query per service request (perf: /api/v1/service-requests/).
+        holder = self.parent if isinstance(self.parent, serializers.ListSerializer) else self
+        cached = getattr(holder, "_wo_map_cache", None)
+        if cached is not None:
+            return cached
+        from apps.workorders.models import WorkOrder
+        if isinstance(self.parent, serializers.ListSerializer):
+            instances = list(self.parent.instance or [])
+        else:
+            instances = [self.instance] if self.instance is not None else []
+        numbers = [i.number for i in instances if getattr(i, "number", None)]
+        wo_map: dict = {}
+        if numbers:
+            org = instances[0].organization
+            linked = WorkOrder.objects.for_organization(org).filter(
+                source_reference__in=numbers,
+                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            ).order_by("created_at")
+            for work_order in linked:
+                wo_map.setdefault(work_order.source_reference, []).append(
+                    {"id": str(work_order.pk), "number": work_order.order_number,
+                     "status": work_order.status})
+        holder._wo_map_cache = wo_map
+        return wo_map
 
     def get_downtime(self, obj) -> dict | None:
         try:

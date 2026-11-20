@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import uuid
 
-from django.db.models import Count, IntegerField, Q, Value
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 
 from apps.core.exceptions import NotFound, PermissionDenied
 from apps.rbac import services as rbac
@@ -36,11 +37,19 @@ def sites_for(membership, org, code: str = "site.view"):
 
 
 def with_site_counts(qs):
-    qs = qs.annotate(zone_count=Count("zones", distinct=True))
+    # Count zones and assets with independent correlated subqueries. Two JOIN-based Count()
+    # aggregates in one queryset produce a site x zones x assets cartesian product that is
+    # pathologically slow on list endpoints (perf: /api/v1/sites/).
+    zone_sq = (Zone.objects.filter(site=OuterRef("pk")).order_by()
+               .values("site").annotate(c=Count("pk")).values("c"))
+    qs = qs.annotate(zone_count=Coalesce(Subquery(zone_sq, output_field=IntegerField()), 0))
     if assets_installed():
+        from apps.assets.models import Asset
         from apps.assets.workflow import TERMINAL_STATES
 
-        return qs.annotate(asset_count=Count("assets", filter=~Q(assets__status__in=TERMINAL_STATES), distinct=True))
+        asset_sq = (Asset.objects.filter(site=OuterRef("pk")).exclude(status__in=TERMINAL_STATES).order_by()
+                    .values("site").annotate(c=Count("pk")).values("c"))
+        return qs.annotate(asset_count=Coalesce(Subquery(asset_sq, output_field=IntegerField()), 0))
     return qs.annotate(asset_count=Value(0, output_field=IntegerField()))
 
 
