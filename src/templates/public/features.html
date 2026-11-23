@@ -1,7 +1,12 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Features &middot; FieldOps Nexus{% endblock %}
+{% block title %}{% if active_page == 'product' %}Product Architecture &amp; Enterprise Capabilities &middot; FieldOps Nexus{% else %}Platform Features &amp; 8-Stage Connected Service Flow &middot; FieldOps Nexus{% endif %}{% endblock %}
+
+{% block meta_description %}{% if active_page == 'product' %}Explore FieldOps Nexus product architecture: modular enterprise asset management, maintenance scheduling, and real-time field operations.{% else %}Discover how FieldOps Nexus unifies service requests, automated triage, digital work orders, technician mobility, and supervisor approvals.{% endif %}{% endblock %}
+{% block canonical_url %}{% if active_page == 'product' %}{{ request.scheme }}://{{ request.get_host }}/product/{% else %}{{ request.scheme }}://{{ request.get_host }}/features/{% endif %}{% endblock %}
+{% block og_title %}{% if active_page == 'product' %}Product Architecture &amp; Enterprise Capabilities &middot; FieldOps Nexus{% else %}Platform Features &amp; 8-Stage Connected Service Flow &middot; FieldOps Nexus{% endif %}{% endblock %}
+{% block og_description %}{% if active_page == 'product' %}Explore FieldOps Nexus product architecture: modular enterprise asset management, maintenance scheduling, and real-time field operations.{% else %}Discover how FieldOps Nexus unifies service requests, automated triage, digital work orders, technician mobility, and supervisor approvals.{% endif %}{% endblock %}
 
 {% block public_content %}
 <!-- =========================================================================

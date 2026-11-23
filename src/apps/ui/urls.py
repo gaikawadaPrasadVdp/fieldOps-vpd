@@ -5,6 +5,8 @@ from . import views
 
 app_name = "ui"
 urlpatterns = [
+    path("robots.txt", views.public_robots, name="public_robots"),
+    path("sitemap.xml", views.public_sitemap_xml, name="public_sitemap_xml"),
     path("", views.root, name="root"),
     path("product/", views.public_product_overview, name="public_product_overview"),
     path("product/<slug:slug>/", views.public_product, name="public_product"),

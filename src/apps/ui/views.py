@@ -14,7 +14,13 @@ from apps.tenancy.models import Membership
 
 from .forms import ClientOnboardingForm, DashboardFilterForm
 from .pagination import paginate_dashboard_queryset
-from .public_catalog import DETAIL_PAGES, get_catalog_item
+from .public_catalog import (
+    DETAIL_PAGES,
+    MODULE_SLUGS,
+    PRODUCT_SLUGS,
+    SOLUTIONS_SLUGS,
+    get_catalog_item,
+)
 from .utils import is_client_membership
 
 PRD_MODULES = [
@@ -50,6 +56,7 @@ def public_product(request, slug):
     item = get_catalog_item("product", slug_lower)
     if not item:
         raise Http404(f"Product '{slug}' not found.")
+    canonical_url = f"{request.scheme}://{request.get_host()}/product/{slug_lower}/"
     return render(
         request,
         "public/detail.html",
@@ -60,6 +67,7 @@ def public_product(request, slug):
             "section_url": "/product/",
             "item": item,
             "selected_slug": slug_lower,
+            "canonical_url": canonical_url,
         },
     )
 
@@ -78,6 +86,7 @@ def public_solution(request, slug):
     if not item:
         raise Http404(f"Solution '{slug}' not found.")
     canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    canonical_url = f"{request.scheme}://{request.get_host()}/solutions/{canonical_slug}/"
     return render(
         request,
         "public/detail.html",
@@ -88,6 +97,7 @@ def public_solution(request, slug):
             "section_url": "/solutions/",
             "item": item,
             "selected_slug": canonical_slug,
+            "canonical_url": canonical_url,
         },
     )
 
@@ -102,6 +112,7 @@ def public_module(request, module_id):
     if not item:
         raise Http404(f"Module '{module_id}' not found.")
     canonical_slug = next((k for k, v in DETAIL_PAGES.items() if v == item), slug_lower)
+    canonical_url = f"{request.scheme}://{request.get_host()}/platform/{canonical_slug}/"
     return render(
         request,
         "public/detail.html",
@@ -112,6 +123,7 @@ def public_module(request, module_id):
             "section_url": "/platform/",
             "item": item,
             "selected_slug": canonical_slug,
+            "canonical_url": canonical_url,
         },
     )
 
@@ -235,7 +247,78 @@ def public_contact_sales(request):
     return render(request, "public/contact_sales.html", {"active_page": "contact_sales"})
 
 
+def public_robots(request):
+    """Return robots.txt for SEO crawlers."""
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /app/\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        "Disallow: /accounts/\n"
+        f"Sitemap: {request.scheme}://{request.get_host()}/sitemap.xml\n"
+    )
+    return HttpResponse(content, content_type="text/plain")
+
+def public_sitemap_xml(request):
+    """Generate a simple XML sitemap covering static and catalog pages."""
+    base = f"{request.scheme}://{request.get_host()}"
+    urls = [
+        "/",
+        "/features/",
+        "/product/",
+        "/solutions/",
+        "/platform/",
+        "/resources/",
+        "/about/",
+        "/contact-sales/",
+        "/legal/privacy-policy/",
+        "/legal/terms-of-service/",
+        "/legal/disclaimer/",
+        "/legal/cookie-policy/",
+    ]
+    from .public_catalog import PRODUCT_SLUGS, SOLUTIONS_SLUGS, MODULE_SLUGS
+    for slug in PRODUCT_SLUGS:
+        urls.append(f"/product/{slug}/")
+    for slug in SOLUTIONS_SLUGS:
+        urls.append(f"/solutions/{slug}/")
+    for slug in MODULE_SLUGS:
+        urls.append(f"/platform/{slug}/")
+    lines = ["<?xml version='1.0' encoding='UTF-8'?>", "<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>"]
+    for path in urls:
+        lines.append("  <url>")
+        lines.append(f"    <loc>{base}{path}</loc>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        lines.append("    <priority>0.8</priority>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return HttpResponse("\n".join(lines), content_type="application/xml")
+
 def public_sitemap(request):
+    title = "Platform Sitemap & Directory"
+    content = (
+        "<p class='lead text-dark'>Complete architectural and navigational directory of FieldOps Nexus public portals and operational interfaces.</p>"
+        "<div class='row g-4 mt-3'>"
+        "  <div class='col-md-6'>"
+        "    <div class='p-3 border rounded-3 bg-light h-100'>"
+        "      <h5 class='h6 fw-bold text-uppercase text-primary mb-3'>Core Platform &amp; Workflows</h5>"
+        "      <ul class='list-unstyled small mb-0 d-flex flex-column gap-2'>"
+        "        <li><a href='/' class='text-decoration-none fw-semibold'>&rarr; Home &amp; Enterprise Landing</a></li>"
+        "        <li><a href='/features/' class='text-decoration-none fw-semibold'>&rarr; Features &amp; 8-Stage Connected Service Flow</a></li>"
+        "      </ul>"
+        "    </div>"
+        "  </div>"
+        "</div>"
+    )
+    return render(
+        request,
+        "public/sitemap.html",
+        {
+            "active_page": "sitemap",
+            "title": title,
+            "content": content,
+        },
+    )
     title = "Platform Sitemap & Directory"
     content = (
         "<p class='lead text-dark'>Complete architectural and navigational directory of FieldOps Nexus public portals and operational interfaces.</p>"

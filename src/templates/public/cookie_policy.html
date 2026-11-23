@@ -1,7 +1,11 @@
 {% extends "public/legal_base.html" %}
 {% load static ui_tags %}
 
-{% block legal_title %}Cookie &amp; Session Policy{% endblock %}
+{% block legal_title %}Cookie Policy &amp; Tracking Technologies{% endblock %}
+{% block legal_meta_description %}Detailed disclosure of essential session cookies, local storage tokens, and telemetry analytics used on FieldOps Nexus.{% endblock %}
+{% block legal_canonical_url %}{{ request.scheme }}://{{ request.get_host }}/legal/cookie-policy/{% endblock %}
+{% block legal_og_title %}Cookie Policy &amp; Tracking Technologies &middot; FieldOps Nexus{% endblock %}
+{% block legal_og_description %}Detailed disclosure of essential session cookies, local storage tokens, and telemetry analytics used on FieldOps Nexus.{% endblock %}
 {% block breadcrumb_active %}Cookie Policy{% endblock %}
 {% block hero_badge %}Session Security &bull; Browser Storage{% endblock %}
 {% block hero_heading %}Cookie &amp; Session Policy{% endblock %}

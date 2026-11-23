@@ -1,7 +1,12 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}FieldOps Platform &middot; FieldOps Nexus{% endblock %}
+{% block title %}Enterprise Platform Capabilities &amp; Modules &middot; FieldOps Nexus{% endblock %}
+
+{% block meta_description %}Explore 15 enterprise modules for asset lifecycle management, preventive maintenance, inventory controls, field mobility, and compliance.{% endblock %}
+{% block canonical_url %}{{ request.scheme }}://{{ request.get_host }}/platform/{% endblock %}
+{% block og_title %}Enterprise Platform Capabilities &amp; Modules &middot; FieldOps Nexus{% endblock %}
+{% block og_description %}Explore 15 enterprise modules for asset lifecycle management, preventive maintenance, inventory controls, field mobility, and compliance.{% endblock %}
 
 {% block public_content %}
 <!-- Hero Section -->

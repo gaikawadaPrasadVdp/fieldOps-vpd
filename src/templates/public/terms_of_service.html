@@ -2,6 +2,10 @@
 {% load static ui_tags %}
 
 {% block legal_title %}Terms of Service &amp; Agreement{% endblock %}
+{% block legal_meta_description %}Master enterprise subscription agreement, multi-tenant licensing terms, and service governance for FieldOps Nexus.{% endblock %}
+{% block legal_canonical_url %}{{ request.scheme }}://{{ request.get_host }}/legal/terms-of-service/{% endblock %}
+{% block legal_og_title %}Terms of Service &amp; Agreement &middot; FieldOps Nexus{% endblock %}
+{% block legal_og_description %}Master enterprise subscription agreement, multi-tenant licensing terms, and service governance for FieldOps Nexus.{% endblock %}
 {% block breadcrumb_active %}Terms of Service{% endblock %}
 {% block hero_badge %}ENTERPRISE AGREEMENT &bull; PLATFORM LICENSING{% endblock %}
 {% block hero_heading %}Terms of Service &amp; Agreement{% endblock %}
