@@ -108,21 +108,37 @@ def rows_for(qs, org) -> list[list[str]]:
     """Build column values for all given agreements with query optimization."""
     today = datetime.date.today()
     items = list(
-        qs.select_related("provider", "site", "sla_profile", "renewed_from", "renewal", "created_by")
-        .prefetch_related("covered_assets__asset", "exclusions", "checks__work_order", "checks__checked_by")[:2500]
+        qs.select_related("provider", "site", "sla_profile", "renewed_from", "renewal", "created_by")[:2500]
     )
-    # Batch pre-fetch attachments for all items in a single query
+    if not items:
+        return []
+
+    from .models import CoveredAsset, CoverageExclusion, CoverageCheck
+
+    ag_ids = [ag.pk for ag in items]
+
+    ca_map: dict = {}
+    for ca in CoveredAsset.objects.filter(agreement_id__in=ag_ids).select_related("asset"):
+        ca_map.setdefault(ca.agreement_id, []).append(ca)
+
+    ex_map: dict = {}
+    for ex in CoverageExclusion.objects.filter(agreement_id__in=ag_ids):
+        ex_map.setdefault(ex.agreement_id, []).append(ex)
+
+    chk_map: dict = {}
+    for chk in CoverageCheck.objects.filter(agreement_id__in=ag_ids).select_related("work_order"):
+        chk_map.setdefault(chk.agreement_id, []).append(chk)
+
+    ag_id_strs = [str(pk) for pk in ag_ids]
     ct = ContentType.objects.get_for_model(CoverageAgreement)
-    ag_ids = [str(ag.pk) for ag in items]
     att_map: dict[str, list[str]] = {}
-    if ag_ids:
-        for a in Attachment.objects.for_organization(org).filter(content_type=ct, object_id__in=ag_ids):
-            att_map.setdefault(a.object_id, []).append(a.original_name)
+    for a in Attachment.objects.for_organization(org).filter(content_type=ct, object_id__in=ag_id_strs):
+        att_map.setdefault(a.object_id, []).append(a.original_name)
 
     rows = []
     for ag in items:
         # Covered assets
-        covered_links = list(ag.covered_assets.all())
+        covered_links = ca_map.get(ag.pk, [])
         asset_tags = "; ".join(l.asset.asset_tag for l in covered_links if l.asset)
         asset_names = "; ".join(l.asset.name for l in covered_links if l.asset)
         serials = "; ".join(l.asset.serial_number for l in covered_links if l.asset and l.asset.serial_number)
@@ -130,7 +146,7 @@ def rows_for(qs, org) -> list[list[str]]:
         models = "; ".join(sorted({l.asset.model for l in covered_links if l.asset and l.asset.model}))
 
         # Exclusions & Covered types
-        exclusions = list(ag.exclusions.all())
+        exclusions = ex_map.get(ag.pk, [])
         excluded_types = [e.work_type for e in exclusions]
         covered_types = [w for w in services.WORK_TYPES if w not in excluded_types]
 
@@ -141,7 +157,7 @@ def rows_for(qs, org) -> list[list[str]]:
         renewal = getattr(ag, "renewal", None)
 
         # Checks & Claims
-        checks = list(ag.checks.all())
+        checks = chk_map.get(ag.pk, [])
         total_checks = len(checks)
         eligible_checks = sum(1 for c in checks if c.eligible)
         check_details_list = []

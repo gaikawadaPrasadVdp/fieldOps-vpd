@@ -461,6 +461,19 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         fmt = (request.query_params.get("format") or request.query_params.get("export_format") or "csv").lower()
         if fmt not in exports.FORMATS:
             raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
+
+        from django.core.cache import cache
+        q_hash = hash(tuple(sorted(request.query_params.items())))
+        cache_key = f"export:contracts:{request.organization.id}:{fmt}:{q_hash}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            body, ctype, filename = cached
+            resp = HttpResponse(body, content_type=ctype)
+            resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
         params = {k: v for k, v in request.query_params.items() if k not in ("format", "export_format", "page") and v}
@@ -470,6 +483,7 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
         from apps.audit import services as audit
         audit.record("contract.exported", actor=request.user, organization=request.organization, request=request,
                      metadata={"format": fmt, "rows": result.rows, "filters": params})
+        cache.set(cache_key, (result.body, result.content_type, result.filename), timeout=60)
         resp = HttpResponse(result.body, content_type=result.content_type)
         resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
         resp["Cache-Control"] = "private, no-store"

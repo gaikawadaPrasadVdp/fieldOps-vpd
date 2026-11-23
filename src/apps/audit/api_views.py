@@ -126,6 +126,17 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         if fmt not in exports.FORMATS:
             raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
         from django.http import HttpResponse
+        from django.core.cache import cache
+
+        q_hash = hash(tuple(sorted(request.query_params.items())))
+        cache_key = f"export:audit:{request.organization.id}:{fmt}:{q_hash}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            body, ctype, filename = cached
+            resp = HttpResponse(body, content_type=ctype)
+            resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            return resp
 
         qs = selectors.search(export_logs(request.membership, request.organization), request.query_params,
                               org=request.organization)
@@ -135,6 +146,7 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         services.record("audit.exported", actor=request.user, organization=request.organization, request=request,
                         metadata={"format": fmt, "rows": result.rows, "truncated": result.truncated,
                                   "filters": params})
+        cache.set(cache_key, (result.body, result.content_type, result.filename), timeout=60)
         resp = HttpResponse(result.body, content_type=result.content_type)
         resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
         resp["Cache-Control"] = "private, no-store"

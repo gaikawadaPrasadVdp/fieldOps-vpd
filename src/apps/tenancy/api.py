@@ -99,6 +99,7 @@ class HasOrgPermission(permissions.BasePermission):
         if is_client_membership(membership) and not request.path.startswith("/api/v1/portal/"):
             if rbac.has_permission_anywhere(membership, code):
                 return True
+            code_list = list(code) if isinstance(code, (tuple, list, set)) else [code]
             client_incident_paths = (
                 "/api/v1/service-requests",
                 "/service-requests",
@@ -112,10 +113,10 @@ class HasOrgPermission(permissions.BasePermission):
             }
             is_client_incident = (
                 any(request.path.startswith(p) for p in client_incident_paths)
-                and code in client_incident_perms
+                and any(c in client_incident_perms for c in code_list)
             )
             if not is_client_incident:
-                if not code.startswith("portal.request."):
+                if not any(isinstance(c, str) and c.startswith("portal.request.") for c in code_list):
                     return False
         if code == MEMBER_ONLY:
             return membership.is_active  # self-scoped resources (own notifications)
