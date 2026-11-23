@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
 
 from apps.assets.models import Asset
@@ -850,18 +850,16 @@ def get_service_dashboard(organization: Organization, sites: list[Site], start_d
 def get_inventory_dashboard(organization: Organization, sites: list[Site], start_dt: datetime.datetime, end_dt: datetime.datetime) -> dict[str, Any]:
     """Consolidates Inventory Section metrics (Parts consumption, low stock count, pending requests)."""
     site_ids = [s.pk for s in sites]
-    balances = StockBalance.objects.filter(
+    balances_qs = StockBalance.objects.filter(
         organization=organization,
         warehouse__site_id__in=site_ids,
-    ).select_related("part", "warehouse")
-    total_lines = balances.count()
-    low_stock_count = 0
-    for b in balances:
-        try:
-            if b.is_low:
-                low_stock_count += 1
-        except Exception:
-            continue
+    )
+    total_lines = balances_qs.count()
+    low_stock_count = balances_qs.filter(
+        Q(min_level__isnull=False, on_hand__lte=F("min_level") + F("reserved"))
+        | Q(min_level__isnull=True, part__min_stock__isnull=False,
+            on_hand__lte=F("part__min_stock") + F("reserved"))
+    ).count()
 
     pending_requests_count = WorkOrderPart.objects.filter(
         organization=organization,

@@ -21,7 +21,7 @@ def _uuid_or_none(value):
 
 def agreements_for(membership, org):
     scope = rbac.site_scope(membership, "contract.view")
-    qs = CoverageAgreement.objects.for_organization(org).select_related("provider", "site")
+    qs = CoverageAgreement.objects.for_organization(org).select_related("provider", "site", "renewed_from")
     return scope.filter(qs, "site_id")
 
 

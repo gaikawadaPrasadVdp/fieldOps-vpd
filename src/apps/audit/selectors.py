@@ -263,21 +263,13 @@ def get_audit_dashboard_metrics(membership, org):
     from django.utils import timezone
 
     base_qs = visible_logs(membership, org)
-    total_events = base_qs.count()
 
     now = timezone.now()
     today_start = datetime.datetime.combine(now.date(), datetime.time.min, tzinfo=datetime.UTC)
-    today_events = base_qs.filter(occurred_at__gte=today_start).count()
 
     security_q = CATEGORIES["security"][2]
-    security_events = base_qs.filter(security_q).count()
-
     workflow_q = CATEGORIES["state"][2]
-    workflow_events = base_qs.filter(workflow_q).count()
-
     record_mods_q = Q(action__endswith=".updated") | Q(action__endswith=".created") | Q(action__endswith=".modified")
-    record_modification_events = base_qs.filter(record_mods_q).count()
-
     failed_denied_q = (
         Q(action__icontains="denied")
         | Q(action__icontains="failed")
@@ -287,15 +279,11 @@ def get_audit_dashboard_metrics(membership, org):
         | Q(metadata__success=False)
         | Q(action="auth.failed")
     )
-    failed_denied_events = base_qs.filter(failed_denied_q).count()
-
     evidence_q = (
         Q(action__in=("audit.exported", "audit.evidence_exported", "file.uploaded"))
         | Q(action__endswith=".evidence_added")
     )
-    evidence_events = base_qs.filter(evidence_q).count()
 
-    # Module distribution breakdown
     module_definitions = [
         ("Work Orders", Q(action__startswith="work_order.")),
         ("Assets", Q(action__startswith="asset.")),
@@ -311,9 +299,39 @@ def get_audit_dashboard_metrics(membership, org):
         ("Audit & Exports", Q(action__startswith="audit.") | Q(action__startswith="file.")),
     ]
 
+    aggs = {
+        "total_events": Count("id"),
+        "today_events": Count("id", filter=Q(occurred_at__gte=today_start)),
+        "security_events": Count("id", filter=security_q),
+        "workflow_events": Count("id", filter=workflow_q),
+        "record_modification_events": Count("id", filter=record_mods_q),
+        "failed_denied_events": Count("id", filter=failed_denied_q),
+        "evidence_events": Count("id", filter=evidence_q),
+    }
+    for idx, (_, mod_q) in enumerate(module_definitions):
+        aggs[f"mod_{idx}"] = Count("id", filter=mod_q)
+
+    day_ranges = []
+    for i in range(6, -1, -1):
+        day_date = (now - datetime.timedelta(days=i)).date()
+        d_start = datetime.datetime.combine(day_date, datetime.time.min, tzinfo=datetime.UTC)
+        d_end = datetime.datetime.combine(day_date + datetime.timedelta(days=1), datetime.time.min, tzinfo=datetime.UTC)
+        day_ranges.append((i, day_date))
+        aggs[f"day_{i}"] = Count("id", filter=Q(occurred_at__gte=d_start, occurred_at__lt=d_end))
+
+    # Single aggregated query across all metrics
+    agg_res = base_qs.aggregate(**aggs)
+    total_events = agg_res["total_events"]
+    today_events = agg_res["today_events"]
+    security_events = agg_res["security_events"]
+    workflow_events = agg_res["workflow_events"]
+    record_modification_events = agg_res["record_modification_events"]
+    failed_denied_events = agg_res["failed_denied_events"]
+    evidence_events = agg_res["evidence_events"]
+
     module_dist = []
-    for mod_label, mod_q in module_definitions:
-        cnt = base_qs.filter(mod_q).count()
+    for idx, (mod_label, _) in enumerate(module_definitions):
+        cnt = agg_res.get(f"mod_{idx}", 0)
         if cnt > 0 or total_events == 0:
             pct = round((cnt / total_events * 100), 1) if total_events > 0 else 0.0
             module_dist.append({"label": mod_label, "count": cnt, "pct": pct})
@@ -328,15 +346,12 @@ def get_audit_dashboard_metrics(membership, org):
 
     # 7-day activity trend
     daily_trend = []
-    for i in range(6, -1, -1):
-        day_date = (now - datetime.timedelta(days=i)).date()
-        day_start = datetime.datetime.combine(day_date, datetime.time.min, tzinfo=datetime.UTC)
-        day_end = datetime.datetime.combine(day_date + datetime.timedelta(days=1), datetime.time.min, tzinfo=datetime.UTC)
-        day_count = base_qs.filter(occurred_at__gte=day_start, occurred_at__lt=day_end).count()
+    for i, day_date in day_ranges:
+        cnt = agg_res.get(f"day_{i}", 0)
         daily_trend.append({
             "day": day_date.strftime("%b %d"),
             "date": day_date.isoformat(),
-            "count": day_count,
+            "count": cnt,
         })
     max_day = max([d["count"] for d in daily_trend] + [1])
     for d in daily_trend:

@@ -88,7 +88,7 @@ def create_checklist_reference(work_order):
     return get_checklist_status(work_order)
 
 
-def get_checklist_status(work_order):
+def get_checklist_status(work_order, *, for_read=False):
     if not work_order.checklist_required:
         return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
     # 1. Direct provider result (for external providers and boundary mock tests)
@@ -101,15 +101,20 @@ def get_checklist_status(work_order):
         from apps.checklists.models import ChecklistTemplate, Inspection
         from apps.checklists.services import checklist_blockers as m08_checklist_blockers
 
-        has_m08 = (
-            Inspection.objects.for_organization(work_order.organization).filter(work_order=work_order).exists()
-            or ChecklistTemplate.objects.for_organization(work_order.organization).exists()
-        )
-        if has_m08:
+        prefetched = getattr(work_order, "_prefetched_objects_cache", {}).get("inspections")
+        if prefetched is not None:
+            insp = prefetched[0] if prefetched else None
+            has_m08 = bool(insp)
+        else:
+            has_m08 = (
+                Inspection.objects.for_organization(work_order.organization).filter(work_order=work_order).exists()
+                or ChecklistTemplate.objects.for_organization(work_order.organization).exists()
+            )
             insp = Inspection.objects.for_organization(work_order.organization).filter(
                 work_order=work_order
-            ).select_related("template").order_by("-started_at").first()
+            ).select_related("template").order_by("-started_at").first() if has_m08 else None
 
+        if has_m08:
             if insp:
                 if not work_order.checklist_instance_ref:
                     work_order.checklist_instance_ref = str(insp.pk)
@@ -121,16 +126,18 @@ def get_checklist_status(work_order):
                             work_order.checklist_validation_state = "VALID"
                             work_order.checklist_completed_at = insp.completed_at
                             work_order.checklist_validated_at = timezone.now()
-                            work_order.save(update_fields=["checklist_instance_ref", "checklist_status",
-                                                           "checklist_validation_state", "checklist_completed_at",
-                                                           "checklist_validated_at", "updated_at"])
+                            if not for_read:
+                                work_order.save(update_fields=["checklist_instance_ref", "checklist_status",
+                                                               "checklist_validation_state", "checklist_completed_at",
+                                                               "checklist_validated_at", "updated_at"])
                         return ChecklistResult(True, COMPLETED, True, message="Checklist validated.")
                     else:
                         return ChecklistResult(True, FAILED, False, message="Checklist has unresolved issues: " + "; ".join(blockers))
                 elif insp.status == IN_PROGRESS:
                     if work_order.checklist_status != IN_PROGRESS:
                         work_order.checklist_status = IN_PROGRESS
-                        work_order.save(update_fields=["checklist_instance_ref", "checklist_status", "updated_at"])
+                        if not for_read:
+                            work_order.save(update_fields=["checklist_instance_ref", "checklist_status", "updated_at"])
                     return ChecklistResult(True, IN_PROGRESS, False, message="Checklist completion is required before completing this work order.")
             else:
                 blockers = m08_checklist_blockers(work_order)
@@ -159,8 +166,8 @@ def validate_for_closure(work_order):
     return validate_for_completion(work_order)
 
 
-def get_checklist_summary(work_order):
-    result = get_checklist_status(work_order)
+def get_checklist_summary(work_order, *, for_read=False):
+    result = get_checklist_status(work_order, for_read=for_read)
     return result.as_dict() | {
         "template_ref": work_order.checklist_template_ref,
         "instance_ref": work_order.checklist_instance_ref,

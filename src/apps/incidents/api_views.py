@@ -75,14 +75,21 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                   "created_at", "updated_at"]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        self._work_order_map()
+        return super().to_representation(instance)
+
     def get_available_actions(self, obj) -> list[str]:
         return [t.action for t in REQUEST_STATUS.available(obj.status) if t.action not in SYSTEM_ACTIONS]
 
     def get_linked_work_order(self, obj) -> dict | None:
+        wo = getattr(obj, "_linked_work_order", None)
+        if wo is not None:
+            return {"id": str(wo.pk), "number": getattr(wo, "order_number", getattr(wo, "number", "")), "status": wo.status} if wo else None
         wo = obj.linked_work_order
         if not wo:
             return None
-        return {"id": str(wo.pk), "number": wo.order_number, "status": wo.status}
+        return {"id": str(wo.pk), "number": getattr(wo, "order_number", getattr(wo, "number", "")), "status": wo.status}
 
     def get_work_orders(self, obj) -> list[dict]:
         if not apps.is_installed("apps.workorders"):
@@ -105,14 +112,24 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         wo_map: dict = {}
         if numbers:
             org = instances[0].organization
-            linked = WorkOrder.objects.for_organization(org).filter(
+            linked = list(WorkOrder.objects.for_organization(org).filter(
                 source_reference__in=numbers,
                 source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
-            ).order_by("created_at")
+            ).select_related("assigned_to__user").order_by("created_at"))
             for work_order in linked:
                 wo_map.setdefault(work_order.source_reference, []).append(
                     {"id": str(work_order.pk), "number": work_order.order_number,
                      "status": work_order.status})
+            inst_by_num = {i.number: i for i in instances if getattr(i, "number", None)}
+            for work_order in linked:
+                inst = inst_by_num.get(work_order.source_reference)
+                if inst and not hasattr(inst, "_linked_work_order"):
+                    if work_order.status not in (WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED):
+                        inst._linked_work_order = work_order
+            for inst in instances:
+                if not hasattr(inst, "_linked_work_order"):
+                    num_orders = [w for w in linked if w.source_reference == getattr(inst, "number", None)]
+                    inst._linked_work_order = num_orders[-1] if num_orders else None
         holder._wo_map_cache = wo_map
         return wo_map
 

@@ -45,8 +45,48 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         return obj.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED)
 
     def get_checklist(self, obj) -> dict:
+        if not obj.checklist_required:
+            return {
+                "required": False,
+                "status": "NOT_REQUIRED",
+                "is_valid": True,
+                "missing_items": [],
+                "unresolved_exceptions": [],
+                "message": "No checklist is required.",
+                "template_ref": obj.checklist_template_ref,
+                "instance_ref": obj.checklist_instance_ref,
+                "validation_state": obj.checklist_validation_state,
+                "integration_status": "Checklist Engine integrated.",
+                "provisional_only": bool(obj.provisional_checklist),
+                "provisional_message": (
+                    "Provisional checklist only — not valid as completion evidence."
+                    if obj.provisional_checklist else ""
+                ),
+            }
+        if (
+            obj.checklist_status == "COMPLETED"
+            and obj.checklist_instance_ref
+            and obj.checklist_validation_state == "VALID"
+        ):
+            return {
+                "required": True,
+                "status": "COMPLETED",
+                "is_valid": True,
+                "missing_items": [],
+                "unresolved_exceptions": [],
+                "message": "Checklist validated.",
+                "template_ref": obj.checklist_template_ref,
+                "instance_ref": obj.checklist_instance_ref,
+                "validation_state": obj.checklist_validation_state,
+                "integration_status": "Checklist Engine integrated.",
+                "provisional_only": bool(obj.provisional_checklist),
+                "provisional_message": (
+                    "Provisional checklist only — not valid as completion evidence."
+                    if obj.provisional_checklist else ""
+                ),
+            }
         from .checklist_adapter import get_checklist_summary
-        return get_checklist_summary(obj)
+        return get_checklist_summary(obj, for_read=True)
 
     class Meta:
         model = WorkOrder
