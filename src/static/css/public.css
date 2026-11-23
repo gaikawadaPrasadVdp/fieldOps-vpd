@@ -1121,12 +1121,12 @@
   color: #f5c451;
 }
 .fx-co-heading {
-  font-size: clamp(2rem, 4.5vw, 3.8rem);
+  font-size: clamp(1.6rem, 2.3vw, 2.45rem);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: -0.02em;
   color: #ffffff;
-  max-width: 780px;
+  max-width: 1280px;
   margin: 0 0 1.25rem 0;
 }
 .fx-co-heading span.gold {
@@ -4608,17 +4608,17 @@ a.fx-footer-location-link:focus-visible {
 }
 
 .fx-co-heading {
-  font-size: clamp(2rem, 4.5vw, 3.8rem);
+  font-size: clamp(1.6rem, 2.3vw, 2.45rem);
 
   font-weight: 800;
 
-  line-height: 1.1;
+  line-height: 1.2;
 
   letter-spacing: -0.02em;
 
   color: #ffffff;
 
-  max-width: 780px;
+  max-width: 1280px;
 
   margin: 0 0 1.25rem 0;
 }
@@ -13940,7 +13940,7 @@ a.fx-footer-location-link:focus-visible {
     padding-bottom: 2rem !important;
   }
   .fx-co-heading {
-    font-size: clamp(2rem, 3.8vw, 2.75rem) !important;
+    font-size: clamp(1.5rem, 2.3vw, 2.2rem) !important;
   }
   .fx-co-desc {
     font-size: 1rem !important;
