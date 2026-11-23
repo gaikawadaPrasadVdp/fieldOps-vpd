@@ -130,7 +130,7 @@ DETAIL_PAGES = {
         "title": "Asset Management",
         "subtitle": "ENTERPRISE ASSET TRACKING & HIERARCHY",
         "tagline": "Be able to know the current state, history, and whereabouts of all vital assets.",
-        "description": "Track physical assets on complex enterprise sites, maintain detailed parent-child hierarchies and monitor live operational telemetry with no blindspots whatsoever.",
+        "description": "Track physical assets across complex enterprise sites, maintain detailed parent-child hierarchies, and gain real-time visibility into asset performance and operational conditions.",
         "image_path": "images/module-assets.webp",
         "overlay_label": "Live Telemetry & Vibration Analysis Active",
         "metrics": [

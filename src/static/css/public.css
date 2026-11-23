@@ -1128,6 +1128,7 @@
   color: #ffffff;
   max-width: 1280px;
   margin: 0 0 1.25rem 0;
+  text-wrap: balance;
 }
 .fx-co-heading span.gold {
   color: #f5c451;
@@ -4621,6 +4622,8 @@ a.fx-footer-location-link:focus-visible {
   max-width: 1280px;
 
   margin: 0 0 1.25rem 0;
+
+  text-wrap: balance;
 }
 
 .fx-co-heading span.gold {
