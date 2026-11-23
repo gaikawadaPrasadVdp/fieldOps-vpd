@@ -281,7 +281,7 @@ class TrackingSerializer(serializers.ModelSerializer):
     @extend_schema_field(SLAPauseEventSerializer(many=True))
     def get_pause_history(self, obj):
         return SLAPauseEventSerializer(
-            obj.pause_events.select_related("paused_by", "approved_by").all(), many=True
+            obj.pause_events.all(), many=True
         ).data
 
 

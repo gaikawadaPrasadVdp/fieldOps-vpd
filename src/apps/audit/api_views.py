@@ -99,10 +99,13 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"])
     def reports(self, request):
         """Compliance report categories and count summary."""
+        from django.db.models import Count
         base_qs = selectors.visible_logs(request.membership, request.organization)
+        aggs = {key: Count("id", filter=q_expr) for key, (_, _, q_expr) in selectors.CATEGORIES.items()}
+        counts = base_qs.aggregate(**aggs)
         reports_list = []
-        for key, (label, desc, q_expr) in selectors.CATEGORIES.items():
-            cnt = base_qs.filter(q_expr).count()
+        for key, (label, desc, _) in selectors.CATEGORIES.items():
+            cnt = counts.get(key, 0)
             reports_list.append({
                 "category": key,
                 "label": label,

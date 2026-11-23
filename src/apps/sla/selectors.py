@@ -45,7 +45,7 @@ def get_profile(org, pk) -> SLAProfile:
 
 def trackings_for(membership, org):
     scope = rbac.site_scope(membership, "sla.view")
-    qs = SLATracking.objects.for_organization(org).select_related("profile", "request", "work_order", "site").prefetch_related(
+    qs = SLATracking.objects.for_organization(org).select_related("profile", "request", "work_order", "site", "calendar").prefetch_related(
         "pause_events__paused_by", "pause_events__approved_by")
     return scope.filter(qs, "site_id")
 

@@ -435,8 +435,12 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
             days = max(1, min(int(request.query_params.get("days", 60)), 365))
         except ValueError as exc:
             raise ValidationFailed("days must be a whole number.", code="invalid_number") from exc
-        return paginate(request, selectors.expiring(request.membership, request.organization, days),
-                        AgreementSerializer)
+        qs = selectors.expiring(request.membership, request.organization, days).prefetch_related(
+            "exclusions",
+            Prefetch("covered_assets",
+                     queryset=CoveredAsset.objects.select_related("asset__site").order_by("asset__asset_tag")),
+        )
+        return paginate(request, qs, AgreementSerializer)
 
     @extend_schema(parameters=[
         query_param("format", "csv | xlsx | pdf (default csv)"),

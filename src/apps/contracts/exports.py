@@ -108,9 +108,17 @@ def rows_for(qs, org) -> list[list[str]]:
     """Build column values for all given agreements with query optimization."""
     today = datetime.date.today()
     items = list(
-        qs.select_related("provider", "site", "sla_profile", "renewed_from", "created_by")
-        .prefetch_related("covered_assets__asset", "exclusions", "checks__work_order", "checks__checked_by")
+        qs.select_related("provider", "site", "sla_profile", "renewed_from", "renewal", "created_by")
+        .prefetch_related("covered_assets__asset", "exclusions", "checks__work_order", "checks__checked_by")[:2500]
     )
+    # Batch pre-fetch attachments for all items in a single query
+    ct = ContentType.objects.get_for_model(CoverageAgreement)
+    ag_ids = [str(ag.pk) for ag in items]
+    att_map: dict[str, list[str]] = {}
+    if ag_ids:
+        for a in Attachment.objects.for_organization(org).filter(content_type=ct, object_id__in=ag_ids):
+            att_map.setdefault(a.object_id, []).append(a.original_name)
+
     rows = []
     for ag in items:
         # Covered assets
@@ -130,11 +138,7 @@ def rows_for(qs, org) -> list[list[str]]:
         duration_days = (ag.end_date - ag.start_date).days if (ag.end_date and ag.start_date) else 0
 
         # Successor renewal
-        renewal = None
-        try:
-            renewal = ag.renewal
-        except Exception:
-            renewal = None
+        renewal = getattr(ag, "renewal", None)
 
         # Checks & Claims
         checks = list(ag.checks.all())
@@ -150,7 +154,7 @@ def rows_for(qs, org) -> list[list[str]]:
                 defect_reasons.append(f"WO #{wo_ref}: {c.reason}")
 
         # Attachments
-        att_names = _get_attachments_for(ag)
+        att_names = att_map.get(str(ag.pk), [])
 
         row = [
             ag.reference,
