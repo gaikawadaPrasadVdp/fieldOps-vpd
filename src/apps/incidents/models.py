@@ -63,6 +63,7 @@ class ServiceRequest(TenantOwnedModel):
             models.Index(fields=["organization", "asset"]),
             models.Index(fields=["organization", "severity"]),
             models.Index(fields=["organization", "asset", "status"], name="incidents_org_asset_status_idx"),
+            models.Index(fields=["organization", "-created_at"], name="incidents_org_created_idx"),
         ]
 
     def __str__(self):

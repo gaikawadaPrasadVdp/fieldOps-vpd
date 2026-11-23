@@ -95,11 +95,9 @@ def verify_portal_access(membership: Membership | None) -> PortalAccount:
             raise PermissionDenied("No portal account registered for this membership.")
 
     if not account.is_enabled:
-        if "client" in (getattr(membership.user, "email", "") or "").lower():
-            account.is_enabled = True
-            account.save(update_fields=["is_enabled", "updated_at"])
-        else:
-            raise PermissionDenied("Portal account has been disabled by an administrator.")
+        # A PortalAccount disabled by an administrator must stay disabled. (Previously any account
+        # whose user email contained "client" was silently re-enabled here, bypassing the disable.)
+        raise PermissionDenied("Portal account has been disabled by an administrator.")
 
     if account.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization portal access blocked.")

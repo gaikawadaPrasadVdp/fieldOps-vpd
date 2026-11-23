@@ -385,7 +385,10 @@ def test_ui_templates_render_download_actions(client, org_a, owner_a, agreements
     html_list = r_list.content.decode("utf-8")
     assert "warrantyExportDropdown" in html_list
     assert "Download / Export" in html_list
-    assert "handleWarrantyExport(event, 'csv')" in html_list
+    # CSP-safe export control: the inline onclick was replaced by a data-format link handled by a
+    # delegated listener in app.js. Assert the current markup instead of the old inline handler.
+    assert "warranty-export-link" in html_list
+    assert 'data-format="csv"' in html_list
     assert f"/app/contracts/agreements/{ag1.pk}/download/" in html_list
 
     # Details page

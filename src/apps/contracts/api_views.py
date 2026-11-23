@@ -21,7 +21,9 @@ from apps.tenancy.api import TenantAPIMixin
 from apps.workorders import selectors as wo_selectors
 
 from . import exports, selectors, services
-from .models import CoverageAgreement, CoverageCheck, ServiceProvider
+from django.db.models import Prefetch
+
+from .models import CoverageAgreement, CoverageCheck, CoveredAsset, ServiceProvider
 
 WORK_TYPE_CHOICES = [(w, w) for w in services.WORK_TYPES]
 
@@ -123,8 +125,11 @@ class AgreementSerializer(serializers.ModelSerializer):
         return obj.state()
 
     def get_assets(self, obj) -> list[dict]:
-        return [{"id": str(c.asset_id), "asset_tag": c.asset.asset_tag, "name": c.asset.name}
-                for c in selectors.covered_assets_for(obj)]
+        # Uses the prefetched ``covered_assets`` relation on list endpoints; falls back to a query
+        # (single agreement / detail) when not prefetched.
+        covered = obj.covered_assets.all() if "covered_assets" in getattr(obj, "_prefetched_objects_cache", {}) \
+            else selectors.covered_assets_for(obj)
+        return [{"id": str(c.asset_id), "asset_tag": c.asset.asset_tag, "name": c.asset.name} for c in covered]
 
     def get_excluded_work_types(self, obj) -> list[str]:
         return sorted(e.work_type for e in obj.exclusions.all())
@@ -347,6 +352,12 @@ class AgreementViewSet(TenantAPIMixin, viewsets.ViewSet):
     def list(self, request):
         qs = selectors.filter_agreements(selectors.agreements_for(request.membership, request.organization),
                                          request.query_params)
+        # Prefetch exclusions and covered assets so the serializer does not query per row (perf).
+        qs = qs.prefetch_related(
+            "exclusions",
+            Prefetch("covered_assets",
+                     queryset=CoveredAsset.objects.select_related("asset__site").order_by("asset__asset_tag")),
+        )
         return paginate(request, qs, AgreementSerializer)
 
     @extend_schema(responses=AgreementSerializer)
