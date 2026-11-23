@@ -3,6 +3,11 @@
 
 {% block title %}{% block legal_title %}{{ page_title|default:"Legal Documentation" }}{% endblock %} &middot; FieldOps Nexus{% endblock %}
 
+{% block meta_description %}{% block legal_meta_description %}{{ page_meta_description|default:"Enterprise governance documentation, service agreements, and compliance standards for FieldOps Nexus." }}{% endblock %}{% endblock %}
+{% block canonical_url %}{% block legal_canonical_url %}{{ page_canonical_url|default:request.build_absolute_uri }}{% endblock %}{% endblock %}
+{% block og_title %}{% block legal_og_title %}{{ page_title|default:"Legal Documentation" }} &middot; FieldOps Nexus{% endblock %}{% endblock %}
+{% block og_description %}{% block legal_og_description %}{{ page_meta_description|default:"Enterprise governance documentation, service agreements, and compliance standards for FieldOps Nexus." }}{% endblock %}{% endblock %}
+
 {% block public_content %}
 <!-- Hero Section -->
 <section class="position-relative overflow-hidden py-5 text-white" style="background-color: #0B1F3B; border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 2.25rem !important; padding-bottom: 4rem !important;">

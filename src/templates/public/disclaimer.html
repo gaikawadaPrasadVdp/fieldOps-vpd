@@ -1,7 +1,11 @@
 {% extends "public/legal_base.html" %}
 {% load static ui_tags %}
 
-{% block legal_title %}Enterprise System Disclaimer{% endblock %}
+{% block legal_title %}Platform Disclaimer &amp; Operational Notices{% endblock %}
+{% block legal_meta_description %}Platform warranties, technical disclaimers, telemetry uptime guidance, and operational limitations for FieldOps Nexus.{% endblock %}
+{% block legal_canonical_url %}{{ request.scheme }}://{{ request.get_host }}/legal/disclaimer/{% endblock %}
+{% block legal_og_title %}Platform Disclaimer &amp; Operational Notices &middot; FieldOps Nexus{% endblock %}
+{% block legal_og_description %}Platform warranties, technical disclaimers, telemetry uptime guidance, and operational limitations for FieldOps Nexus.{% endblock %}
 {% block breadcrumb_active %}Disclaimer{% endblock %}
 {% block hero_badge %}Operational Notice &bull; System Boundaries{% endblock %}
 {% block hero_heading %}Enterprise System Disclaimer{% endblock %}

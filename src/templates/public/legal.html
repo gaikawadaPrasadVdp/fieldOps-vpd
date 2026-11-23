@@ -3,6 +3,11 @@
 
 {% block title %}{{ title }} &middot; FieldOps Nexus{% endblock %}
 
+{% block meta_description %}{{ page_meta_description|default:description|default:"Complete architectural and navigational directory of FieldOps Nexus public portals and operational interfaces." }}{% endblock %}
+{% block canonical_url %}{{ canonical_url|default:request.build_absolute_uri }}{% endblock %}
+{% block og_title %}{{ title }} &middot; FieldOps Nexus{% endblock %}
+{% block og_description %}{{ page_meta_description|default:description|default:"Complete architectural and navigational directory of FieldOps Nexus public portals and operational interfaces." }}{% endblock %}
+
 {% block public_content %}
 <!-- Hero Section -->
 <section class="position-relative overflow-hidden py-5 text-white" style="background-color: #0B1F3B; border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 2.25rem !important; padding-bottom: 4rem !important;">

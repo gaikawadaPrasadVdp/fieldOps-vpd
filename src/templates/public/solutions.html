@@ -1,7 +1,12 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Solutions &middot; FieldOps Nexus{% endblock %}
+{% block title %}Enterprise Industry Solutions &middot; FieldOps Nexus{% endblock %}
+
+{% block meta_description %}Industry-tailored field service and asset reliability solutions for manufacturing, facilities, utilities, infrastructure, and multi-site enterprises.{% endblock %}
+{% block canonical_url %}{{ request.scheme }}://{{ request.get_host }}/solutions/{% endblock %}
+{% block og_title %}Enterprise Industry Solutions &middot; FieldOps Nexus{% endblock %}
+{% block og_description %}Industry-tailored field service and asset reliability solutions for manufacturing, facilities, utilities, infrastructure, and multi-site enterprises.{% endblock %}
 
 {% block public_content %}
 <!-- Hero Section -->

@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% load static ui_tags %}
 
+{% block seo %}
+  <meta name="description" content="{% block meta_description %}{{ page_meta_description|default:'FieldOps Nexus enterprise authentication and client onboarding portal.' }}{% endblock %}" />
+  <meta name="robots" content="{% block meta_robots %}{{ page_meta_robots|default:'noindex, follow' }}{% endblock %}" />
+  <link rel="canonical" href="{% block canonical_url %}{{ page_canonical_url|default:request.build_absolute_uri }}{% endblock %}" />
+{% endblock %}
+
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/public.css' %}?v=10.6">
 {% endblock %}

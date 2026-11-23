@@ -1,7 +1,12 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Contact Sales &middot; FieldOps Nexus{% endblock %}
+{% block title %}Contact Sales &amp; Request Platform Demo &middot; FieldOps Nexus{% endblock %}
+
+{% block meta_description %}Connect with our enterprise operations team for customized platform demonstrations, proof-of-concept deployments, and pricing consultations.{% endblock %}
+{% block canonical_url %}{{ request.scheme }}://{{ request.get_host }}/contact-sales/{% endblock %}
+{% block og_title %}Contact Sales &amp; Request Platform Demo &middot; FieldOps Nexus{% endblock %}
+{% block og_description %}Connect with our enterprise operations team for customized platform demonstrations, proof-of-concept deployments, and pricing consultations.{% endblock %}
 
 {% block extra_css %}
 {{ block.super }}

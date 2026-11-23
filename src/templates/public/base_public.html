@@ -4,6 +4,26 @@
 
 
 
+{% block seo %}
+<meta name="description" content="{% block meta_description %}{{ page_meta_description|default:'FieldOps Nexus is an enterprise platform connecting asset tracking, preventive maintenance, field work orders, inventory, and operations dispatch.' }}{% endblock %}" />
+<meta name="robots" content="{% block meta_robots %}{{ page_meta_robots|default:'index, follow' }}{% endblock %}" />
+<link rel="canonical" href="{% block canonical_url %}{{ page_canonical_url|default:request.build_absolute_uri }}{% endblock %}" />
+
+<!-- Open Graph / Social Sharing -->
+<meta property="og:site_name" content="FieldOps Nexus" />
+<meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+<meta property="og:title" content="{% block og_title %}{{ page_og_title|default:'FieldOps Nexus · Enterprise Asset Management & Field Service ERP' }}{% endblock %}" />
+<meta property="og:description" content="{% block og_description %}{{ page_meta_description|default:'FieldOps Nexus is an enterprise platform connecting asset tracking, preventive maintenance, field work orders, inventory, and operations dispatch.' }}{% endblock %}" />
+<meta property="og:url" content="{% block og_url %}{{ page_canonical_url|default:request.build_absolute_uri }}{% endblock %}" />
+<meta property="og:image" content="{% block og_image %}{% if page_og_image %}{{ page_og_image }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/fieldops-nexus-horizontal.webp' %}{% endif %}{% endblock %}" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{% block twitter_title %}{{ page_og_title|default:'FieldOps Nexus · Enterprise Asset Management & Field Service ERP' }}{% endblock %}" />
+<meta name="twitter:description" content="{% block twitter_description %}{{ page_meta_description|default:'FieldOps Nexus is an enterprise platform connecting asset tracking, preventive maintenance, field work orders, inventory, and operations dispatch.' }}{% endblock %}" />
+<meta name="twitter:image" content="{% block twitter_image %}{% if page_og_image %}{{ page_og_image }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/fieldops-nexus-horizontal.webp' %}{% endif %}{% endblock %}" />
+{% endblock %}
+
 {% block extra_css %}
 
 <link rel="stylesheet" href="{% static 'css/public.css' %}?v=10.7">
