@@ -352,8 +352,12 @@ def checklist_blockers(wo) -> list[str]:
     """Reasons the work order's required checklists are not satisfied. Empty = nothing blocks."""
     if not getattr(wo, "checklist_required", False):
         return []
-    orgq = Inspection.objects.for_organization(wo.organization).filter(work_order=wo).select_related("template")
-    inspections = list(orgq)
+    prefetched = getattr(wo, "_prefetched_objects_cache", {}).get("inspections")
+    if prefetched is not None:
+        inspections = list(prefetched)
+    else:
+        orgq = Inspection.objects.for_organization(wo.organization).filter(work_order=wo).select_related("template")
+        inspections = list(orgq)
     blockers = []
     for t in required_templates(wo):
         done = [i for i in inspections if i.template.key == t.key and i.status == COMPLETED]

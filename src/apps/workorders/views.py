@@ -196,7 +196,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
                             "planned_start", "-planned_start", "order_number", "-order_number"}
         if ordering in allowed_ordering:
             qs = qs.order_by(ordering)
-        page = self.paginate_queryset(qs.distinct())
+        page = self.paginate_queryset(qs)
         return self.get_paginated_response(WorkOrderSerializer(page, many=True).data)
 
     @extend_schema(request=UpdateWorkOrderSerializer, responses={200: WorkOrderSerializer})
