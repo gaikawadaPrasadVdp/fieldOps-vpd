@@ -542,17 +542,25 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
         if ordering in ("-created_at", "created_at", "-number", "number", "-updated_at", "updated_at", "status", "-status"):
             qs = qs.order_by(ordering)
 
-        # Annotate attachment counts with one correlated subquery instead of a COUNT per row (perf).
-        from django.contrib.contenttypes.models import ContentType
-        from django.db.models import CharField, Count, IntegerField, OuterRef, Subquery
-        from django.db.models.functions import Cast, Coalesce
-        ct = ContentType.objects.get_for_model(ServiceRequest)
-        att_sq = (Attachment.objects.filter(
-            content_type=ct, object_id=Cast(OuterRef("pk"), output_field=CharField()))
-            .order_by().values("object_id").annotate(c=Count("pk")).values("c"))
-        qs = qs.annotate(attachments_count=Coalesce(Subquery(att_sq, output_field=IntegerField()), 0))
-
-        return paginate(request, qs, PortalServiceRequestSerializer)
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(qs, request)
+        if page:
+            from django.contrib.contenttypes.models import ContentType
+            from django.db.models import Count
+            ct = ContentType.objects.get_for_model(ServiceRequest)
+            sr_ids = [str(x.pk) for x in page]
+            counts = dict(
+                Attachment.objects.filter(
+                    organization=request.membership.organization,
+                    content_type=ct,
+                    object_id__in=sr_ids,
+                )
+                .values_list("object_id")
+                .annotate(c=Count("id"))
+            )
+            for sr in page:
+                sr.attachments_count = counts.get(str(sr.pk), 0)
+        return paginator.get_paginated_response(PortalServiceRequestSerializer(page, many=True).data)
 
     @extend_schema(
         request=PortalServiceRequestCreateSerializer,
