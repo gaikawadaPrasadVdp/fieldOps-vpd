@@ -76,6 +76,16 @@ class ServiceRequest(TenantOwnedModel):
         from django.apps import apps
         if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
+            # Check prefetched work_orders first if available
+            prefetched = getattr(self, "_prefetched_objects_cache", {}).get("work_orders")
+            if prefetched is not None:
+                live = next((w for w in prefetched if w.status not in (WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)), None)
+                if live is not None:
+                    self._linked_work_order = live
+                    return live
+                res = prefetched[0] if prefetched else None
+                self._linked_work_order = res
+                return res
             live = WorkOrder.objects.filter(
                 models.Q(source_request=self) |
                 models.Q(source_id=self.pk) |
@@ -83,13 +93,17 @@ class ServiceRequest(TenantOwnedModel):
                          source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
             ).exclude(status__in=(WorkOrder.Status.CANCELLED, WorkOrder.Status.CLOSED)).first()
             if live is not None:
+                self._linked_work_order = live
                 return live
-            return WorkOrder.objects.filter(
+            res = WorkOrder.objects.filter(
                 models.Q(source_request=self) |
                 models.Q(source_id=self.pk) |
                 models.Q(organization=self.organization, source_reference=self.number,
                          source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
             ).order_by("-created_at").first()
+            self._linked_work_order = res
+            return res
+        self._linked_work_order = None
         return None
 
     @property

@@ -1,13 +1,14 @@
 from decimal import Decimal
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.checklists.models import Inspection
 from apps.core.api import StandardPagination
 from apps.core.apiutils import ID_PARAM, paginate, query_param
 from apps.core.exceptions import Conflict, ValidationFailed
@@ -18,7 +19,7 @@ from apps.tenancy.api import TenantAPIMixin
 from apps.tenancy.models import Membership
 
 from . import services
-from .models import TechnicianProfile, WorkOrder
+from .models import ClosureApproval, TechnicianProfile, WorkOrder
 from .serializers import (
     AssignSerializer,
     ChecklistReferenceSerializer,
@@ -92,7 +93,10 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             return WorkOrder.objects.none()
         qs = WorkOrder.objects.for_organization(m.organization).select_related(
             "site", "assigned_to__user", "created_by", "asset", "component"
-        ).prefetch_related("closure_approvals")
+        ).prefetch_related(
+            Prefetch("closure_approvals", queryset=ClosureApproval.objects.select_related("approver")),
+            Prefetch("inspections", queryset=Inspection.objects.for_organization(m.organization).select_related("template").order_by("-started_at")),
+        )
         if not rbac.has_permission_anywhere(m, "work_order.view"):
             qs = qs.filter(assigned_to=m)
         scope = rbac.site_scope(m, "work_order.view")

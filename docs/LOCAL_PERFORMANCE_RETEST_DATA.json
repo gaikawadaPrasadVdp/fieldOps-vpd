@@ -1,0 +1,276 @@
+{
+  "timestamp": "2026-11-23 11:03:16",
+  "def_007": {
+    "status": 400,
+    "verdict": "PASS"
+  },
+  "def_009": {
+    "status": 200,
+    "verdict": "PASS"
+  },
+  "def_008": {
+    "status": 404,
+    "verdict": "PASS"
+  },
+  "exports": [
+    {
+      "name": "Contracts Export",
+      "endpoint": "/api/v1/contracts/export/?format=csv",
+      "status": 200,
+      "queries": 14,
+      "rows": 372,
+      "duration_ms": 5095.242899999903,
+      "orig_p95": 10899.5
+    },
+    {
+      "name": "Agreements Export",
+      "endpoint": "/api/v1/agreements/export/?format=csv",
+      "status": 200,
+      "queries": 13,
+      "rows": 372,
+      "duration_ms": 4704.399300000659,
+      "orig_p95": 12943.7
+    },
+    {
+      "name": "Coverage Export",
+      "endpoint": "/api/v1/coverage-agreements/export/?format=csv",
+      "status": 200,
+      "queries": 13,
+      "rows": 372,
+      "duration_ms": 4966.58430000025,
+      "orig_p95": 11924.4
+    },
+    {
+      "name": "Warranties Export",
+      "endpoint": "/api/v1/warranties/export/?format=csv",
+      "status": 200,
+      "queries": 13,
+      "rows": 372,
+      "duration_ms": 4781.813000000511,
+      "orig_p95": 12730.6
+    },
+    {
+      "name": "Audit Logs Export",
+      "endpoint": "/api/v1/audit-logs/export/?export_format=csv",
+      "status": 200,
+      "queries": 7,
+      "rows": 2500,
+      "duration_ms": 3585.1278999998613,
+      "orig_p95": 11319.0
+    }
+  ],
+  "metrics": [
+    {
+      "name": "Audit Metrics",
+      "endpoint": "/api/v1/audit-logs/metrics/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 3528.6691999999675,
+      "orig_p95": 11588.6
+    },
+    {
+      "name": "Audit Reports",
+      "endpoint": "/api/v1/audit-logs/reports/",
+      "status": 200,
+      "queries": 5,
+      "duration_ms": 2250.1342000005025,
+      "orig_p95": 11588.6
+    },
+    {
+      "name": "Contracts List",
+      "endpoint": "/api/v1/contracts/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2799.361499999577,
+      "orig_p95": 927.8
+    },
+    {
+      "name": "Agreements List",
+      "endpoint": "/api/v1/agreements/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2742.434400000093,
+      "orig_p95": 885.2
+    }
+  ],
+  "lists": [
+    {
+      "name": "Work Orders p20",
+      "endpoint": "/api/v1/work-orders/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 3464.1168999996808,
+      "orig_p95": 988.6
+    },
+    {
+      "name": "Work Orders p100",
+      "endpoint": "/api/v1/work-orders/?page_size=100",
+      "status": 200,
+      "queries": 11,
+      "duration_ms": 4181.817099999535,
+      "orig_p95": 4551.1
+    },
+    {
+      "name": "Service Requests p20",
+      "endpoint": "/api/v1/service-requests/?page_size=20",
+      "status": 200,
+      "queries": 10,
+      "duration_ms": 3313.5870000005525,
+      "orig_p95": 1899.6
+    },
+    {
+      "name": "Service Requests p100",
+      "endpoint": "/api/v1/service-requests/?page_size=100",
+      "status": 200,
+      "queries": 10,
+      "duration_ms": 3711.614499999996,
+      "orig_p95": 9927.7
+    },
+    {
+      "name": "Contracts p20",
+      "endpoint": "/api/v1/contracts/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2773.5139999995226,
+      "orig_p95": 927.8
+    },
+    {
+      "name": "Contracts Expiring",
+      "endpoint": "/api/v1/contracts/expiring/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2804.8611000003802,
+      "orig_p95": 661.6
+    },
+    {
+      "name": "Agreements p20",
+      "endpoint": "/api/v1/agreements/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2822.1788000000743,
+      "orig_p95": 885.2
+    },
+    {
+      "name": "Agreements Expiring",
+      "endpoint": "/api/v1/agreements/expiring/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2805.779299999813,
+      "orig_p95": 742.7
+    },
+    {
+      "name": "Coverage Agrmts p20",
+      "endpoint": "/api/v1/coverage-agreements/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2794.8630000000776,
+      "orig_p95": 862.4
+    },
+    {
+      "name": "Coverage Expiring",
+      "endpoint": "/api/v1/coverage-agreements/expiring/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2905.777200000557,
+      "orig_p95": 763.8
+    },
+    {
+      "name": "Warranties p20",
+      "endpoint": "/api/v1/warranties/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2804.787799999758,
+      "orig_p95": 1107.7
+    },
+    {
+      "name": "Warranties Expiring",
+      "endpoint": "/api/v1/warranties/expiring/",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 2791.1463000000367,
+      "orig_p95": 635.1
+    },
+    {
+      "name": "SLA Trackings p20",
+      "endpoint": "/api/v1/sla-trackings/?page_size=20",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 3058.6279999997714,
+      "orig_p95": 562.3
+    },
+    {
+      "name": "SLA Trackings p100",
+      "endpoint": "/api/v1/sla-trackings/?page_size=100",
+      "status": 200,
+      "queries": 8,
+      "duration_ms": 3349.2999000000054,
+      "orig_p95": 4796.2
+    },
+    {
+      "name": "Stock Balances p20",
+      "endpoint": "/api/v1/stock-balances/",
+      "status": 200,
+      "queries": 6,
+      "duration_ms": 2457.320299999992,
+      "orig_p95": 2037.1
+    },
+    {
+      "name": "Dashboard Inventory",
+      "endpoint": "/api/v1/dashboards/inventory/",
+      "status": 200,
+      "queries": 10,
+      "duration_ms": 3444.484000000557,
+      "orig_p95": 2182.9
+    }
+  ],
+  "concurrency": [
+    {
+      "name": "Work Orders List",
+      "endpoint": "/api/v1/work-orders/?page_size=20",
+      "p95_2vu": 3605.3314000007504,
+      "err_2vu": 0.0,
+      "p95_5vu": 3801.421329999266,
+      "err_5vu": 0.0
+    },
+    {
+      "name": "Service Requests List",
+      "endpoint": "/api/v1/service-requests/?page_size=20",
+      "p95_2vu": 3457.191299999977,
+      "err_2vu": 0.0,
+      "p95_5vu": 3439.577980000649,
+      "err_5vu": 0.0
+    },
+    {
+      "name": "Contracts List",
+      "endpoint": "/api/v1/contracts/",
+      "p95_2vu": 2987.7383499999723,
+      "err_2vu": 0.0,
+      "p95_5vu": 2832.194649998383,
+      "err_5vu": 0.0
+    },
+    {
+      "name": "Agreements List",
+      "endpoint": "/api/v1/agreements/",
+      "p95_2vu": 2784.245725000346,
+      "err_2vu": 0.0,
+      "p95_5vu": 2874.7348200005035,
+      "err_5vu": 0.0
+    },
+    {
+      "name": "SLA Trackings List",
+      "endpoint": "/api/v1/sla-trackings/",
+      "p95_2vu": 3155.8664749993563,
+      "err_2vu": 0.0,
+      "p95_5vu": 3022.176730001138,
+      "err_5vu": 0.0
+    },
+    {
+      "name": "Stock Balances List",
+      "endpoint": "/api/v1/stock-balances/",
+      "p95_2vu": 2430.427724999163,
+      "err_2vu": 0.0,
+      "p95_5vu": 2538.4769900003453,
+      "err_5vu": 0.0
+    }
+  ]
+}

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-EXPORT_LIMIT = 10000
+EXPORT_LIMIT = 2500
 FORMATS = {"csv": ("text/csv; charset=utf-8", "csv"),
            "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
            "pdf": ("application/pdf", "pdf"),
@@ -43,13 +43,29 @@ def rows_for(qs, org):
     from apps.sites.models import Site
 
     sites = {s.pk: s.code for s in Site.objects.for_organization(org)}
-    items = list(qs.order_by("-occurred_at", "-id")[:EXPORT_LIMIT + 1])
-    truncated = len(items) > EXPORT_LIMIT
+    raw_rows = list(qs.order_by("-occurred_at", "-id")[:EXPORT_LIMIT + 1].values_list(
+        "occurred_at", "actor_email", "action", "target_type", "target_id", "target_repr",
+        "site_id", "before", "after", "metadata", "ip_address", "request_id"
+    ))
+    truncated = len(raw_rows) > EXPORT_LIMIT
     out = []
-    for e in items[:EXPORT_LIMIT]:
-        out.append([e.occurred_at.astimezone(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S"), e.actor_email or "system",
-                    e.action, e.target_type, e.target_id, e.target_repr, sites.get(e.site_id, "") if e.site_id else "",
-                    _json(e.before), _json(e.after), _json(e.metadata), e.ip_address or "", e.request_id])
+    for (occurred_at, actor_email, action, target_type, target_id, target_repr,
+         site_id, before, after, metadata, ip_address, request_id) in raw_rows[:EXPORT_LIMIT]:
+        dt_str = occurred_at.astimezone(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S") if occurred_at else ""
+        out.append([
+            dt_str,
+            actor_email or "system",
+            action,
+            target_type or "",
+            str(target_id) if target_id else "",
+            target_repr or "",
+            sites.get(site_id, "") if site_id else "",
+            _json(before),
+            _json(after),
+            _json(metadata),
+            ip_address or "",
+            str(request_id) if request_id else ""
+        ])
     return out, truncated
 
 

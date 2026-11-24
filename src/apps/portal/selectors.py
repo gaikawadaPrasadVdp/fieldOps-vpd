@@ -100,6 +100,7 @@ def client_requests_for(membership: Membership | None) -> QuerySet[ServiceReques
         ServiceRequest.objects.for_organization(membership.organization)
         .filter(reported_by=membership)
         .select_related("asset", "site", "reported_by__user")
+        .prefetch_related("sla_trackings")
         .order_by("-created_at")
     )
 
@@ -154,14 +155,16 @@ def granted_assets_for(membership: Membership | None):
         from apps.assets.models import Asset
         return Asset.objects.none()
     if account.auto_grant_assets:
-        from .services import sync_portal_grants_for_account
-        sync_portal_grants_for_account(account)
+        from .models import PortalAssetGrant
+        if not PortalAssetGrant.objects.filter(portal_account=account).exists():
+            from .services import sync_portal_grants_for_account
+            sync_portal_grants_for_account(account)
     from apps.assets.models import Asset
     return (
         Asset.objects.for_organization(membership.organization)
         .filter(portal_grants__portal_account=account)
         .exclude(status__in=["RETIRED", "DISPOSED"])
-        .select_related("site")
+        .select_related("site", "category")
         .order_by("asset_tag")
     )
 
@@ -274,8 +277,12 @@ def get_client_sla_indicator(service_request) -> dict | None:
         return None
 
     tracking_obj = getattr(service_request, "sla_trackings", None)
-    if tracking_obj is not None and hasattr(tracking_obj, "first"):
-        tracking_obj = tracking_obj.first()
+    if tracking_obj is not None:
+        if hasattr(tracking_obj, "all"):
+            trackings = list(tracking_obj.all())
+            tracking_obj = trackings[0] if trackings else None
+        elif hasattr(tracking_obj, "first"):
+            tracking_obj = tracking_obj.first()
     else:
         from apps.sla.models import SLATracking
         tracking_obj = SLATracking.objects.filter(request=service_request).first()

@@ -129,7 +129,7 @@ DETAIL_PAGES = {
     "asset-management": {
         "title": "Asset Management",
         "subtitle": "ENTERPRISE ASSET TRACKING & HIERARCHY",
-        "tagline": "Be able to know the current state, history, and whereabouts of all vital assets.",
+        "tagline": "Be able to know the current state, history, and where  abouts of all vital assets.",
         "description": "Track physical assets across complex enterprise sites, maintain detailed parent-child hierarchies, and gain real-time visibility into asset performance and operational conditions.",
         "image_path": "images/module-assets.webp",
         "overlay_label": "Live Telemetry & Vibration Analysis Active",
@@ -312,8 +312,8 @@ DETAIL_PAGES = {
         ],
         "deep_dive": {
             "title": "Empowering the People Behind the Operations",
-            "p1": "Behind every functioning plant, building, and utility system is a team of dedicated technicians and engineers. FieldOps Nexus is designed from the field upward, removing bureaucratic friction, paper forms, and double-entry so specialists can focus on craftsmanship.",
-            "p2": "Automated skill validation prevents assigning tasks to unqualified personnel, protecting worker safety and maintaining insurance compliance across hazardous environments.",
+            "p1": "Every plant, facility, and utility depends on skilled people working in coordination. FieldOps Nexus helps teams manage workforce operations with clear task assignments, reliable access to information, and less administrative overhead—so technicians and engineers can focus on safe, efficient work.",
+            "p2": "Validate skills and qualifications before assigning work, improve workforce readiness, and maintain consistent compliance across demanding operational environments.",
         }
     },
 
@@ -491,15 +491,15 @@ DETAIL_PAGES = {
         ],
         "deep_dive": {
             "title": "An End to Operational Data Fragmentation",
-            "p1": "Traditionally configured maintenance systems create siloed information within various systems: work orders are one application, sensor data another, parts inventory ERP system, customer communication email thread, and so forth. FieldOps Nexus consolidates all those in a single interconnected operational graph.",
-            "p2": "As soon as a technician opens up an asset record, he sees everything that ever happened to it: breakdowns, replacements, calibration, telemetry trends, and other useful information allowing for quick root-cause diagnosis.",
+            "p1": "FieldOps Nexus brings maintenance records, work orders, sensor data, inventory, and customer communications together in one platform. This gives teams a unified view of operations and reduces the need to switch between separate systems.",
+            "p2": "Technicians can view an asset's service history, repairs, calibration records, and live telemetry from one place. This helps teams identify issues quickly, make informed decisions, and resolve problems efficiently.",
         }
     },
 
     "sla-management": {
         "title": "SLA Management",
         "subtitle": "SERVICE-LEVEL OBLIGATIONS & COMPLIANCE",
-        "tagline": "Ensure your promises, remove response bottlenecks, and keep audit ready visibility.",
+        "tagline": "Meet service commitments with faster response times and clear operational accountability.",
         "description": "Monitor your service-level commitments, measure response and resolution times and keep visibility into your operational service level obligations.",
         "image_path": "images/workflow-approval.webp",
         "overlay_label": "Active SLA Countdown Timers Monitored",
@@ -520,8 +520,8 @@ DETAIL_PAGES = {
         ],
         "deep_dive": {
             "title": "Guaranteed SLA Compliance Control",
-            "p1": "Failure to comply with contractual service agreements can have severe financial and reputation impacts very quickly. FieldOps Nexus integrates SLA countdown clocks directly into all views of dispatch boards, technician screens and management dashboards.",
-            "p2": "Automated pause controls ensure accurate timestamps and reason codes are recorded when work has been stopped by client delays or supply chain lead times.",
+            "p1": "FieldOps Nexus helps organizations maintain service-level commitments through automated SLA tracking, real-time response and resolution monitoring, and clear operational visibility. Integrated countdown timers provide timely alerts, helping teams prioritize requests and respond within agreed service targets.",
+            "p2": "Configurable pause controls ensure accurate SLA calculations when work is delayed by client dependencies or supply-chain constraints. Detailed audit records capture timestamps, pause reasons, and status changes, strengthening accountability and supporting compliance across teams.",
         },
         "runtime_configs": [
             {
@@ -593,8 +593,8 @@ DETAIL_PAGES = {
         ],
         "deep_dive": {
             "title": "An End to Operational Data Fragmentation",
-            "p1": "Traditionally configured maintenance systems create siloed information within various systems: work orders are one application, sensor data another, parts inventory ERP system, customer communication email thread, and so forth. FieldOps Nexus consolidates all those in a single interconnected operational graph.",
-            "p2": "As soon as a technician opens up an asset record, he sees everything that ever happened to it: breakdowns, replacements, calibration, telemetry trends, and other useful information allowing for quick root-cause diagnosis.",
+            "p1": "FieldOps Nexus brings maintenance records, work orders, sensor data, inventory, and customer communications together in one platform. This gives teams a unified view of operations and reduces the need to switch between separate systems.",
+            "p2": "Technicians can view an asset's service history, repairs, calibration records, and live telemetry from one place. This helps teams identify issues quickly, make informed decisions, and resolve problems efficiently.",
         }
     },
 

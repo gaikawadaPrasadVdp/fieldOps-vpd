@@ -19,6 +19,27 @@ class StandardPagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 200
 
+    def get_page_size(self, request):
+        params = getattr(request, "query_params", getattr(request, "GET", {}))
+        if self.page_size_query_param and self.page_size_query_param in params:
+            raw_val = params[self.page_size_query_param]
+            try:
+                val = int(raw_val)
+                if val <= 0:
+                    from apps.core.exceptions import ValidationFailed
+                    raise ValidationFailed("page_size must be a positive integer.", code="invalid_page_size")
+                if self.max_page_size and val > self.max_page_size:
+                    from apps.core.exceptions import ValidationFailed
+                    raise ValidationFailed(
+                        f"page_size cannot exceed maximum allowed limit of {self.max_page_size}.",
+                        code="invalid_page_size",
+                    )
+                return val
+            except (TypeError, ValueError):
+                from apps.core.exceptions import ValidationFailed
+                raise ValidationFailed("page_size must be a valid integer.", code="invalid_page_size")
+        return self.page_size
+
 
 def _envelope(code, message, details=None):
     return {

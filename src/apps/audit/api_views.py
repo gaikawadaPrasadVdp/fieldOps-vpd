@@ -99,10 +99,13 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"])
     def reports(self, request):
         """Compliance report categories and count summary."""
+        from django.db.models import Count
         base_qs = selectors.visible_logs(request.membership, request.organization)
+        aggs = {key: Count("id", filter=q_expr) for key, (_, _, q_expr) in selectors.CATEGORIES.items()}
+        counts = base_qs.aggregate(**aggs)
         reports_list = []
-        for key, (label, desc, q_expr) in selectors.CATEGORIES.items():
-            cnt = base_qs.filter(q_expr).count()
+        for key, (label, desc, _) in selectors.CATEGORIES.items():
+            cnt = counts.get(key, 0)
             reports_list.append({
                 "category": key,
                 "label": label,
@@ -123,6 +126,17 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         if fmt not in exports.FORMATS:
             raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
         from django.http import HttpResponse
+        from django.core.cache import cache
+
+        q_hash = hash(tuple(sorted(request.query_params.items())))
+        cache_key = f"export:audit:{request.organization.id}:{fmt}:{q_hash}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            body, ctype, filename = cached
+            resp = HttpResponse(body, content_type=ctype)
+            resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+            resp["Cache-Control"] = "private, no-store"
+            return resp
 
         qs = selectors.search(export_logs(request.membership, request.organization), request.query_params,
                               org=request.organization)
@@ -132,6 +146,7 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         services.record("audit.exported", actor=request.user, organization=request.organization, request=request,
                         metadata={"format": fmt, "rows": result.rows, "truncated": result.truncated,
                                   "filters": params})
+        cache.set(cache_key, (result.body, result.content_type, result.filename), timeout=60)
         resp = HttpResponse(result.body, content_type=result.content_type)
         resp["Content-Disposition"] = f'attachment; filename="{result.filename}"'
         resp["Cache-Control"] = "private, no-store"
